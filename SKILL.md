@@ -1,6 +1,6 @@
 ---
 name: KernelWiki
-description: Use when the user asks about optimizing NVIDIA Blackwell (SM100, B200) or Hopper (SM90, H100) GPU kernels — tcgen05/TMEM/CLC/NVFP4/2-SM cooperative, warp specialization, FlashAttention-4, DeepGEMM, FlashMLA, MoE, grouped GEMM, CuTe-DSL/PTX/Triton on Blackwell, or wants concrete PR references from CUTLASS/SGLang/vLLM/FlashInfer/PyTorch. Do NOT use for generic CUDA Q&A that is not Blackwell/Hopper-specific, host-side framework integration, or distributed systems (DeepEP/EPLB/DualPipe).
+description: Use when the user asks about optimizing NVIDIA Blackwell (SM100, B200), Hopper (SM90, H100), or Ampere (SM80/SM86, A100, RTX 3090) GPU kernels — tcgen05/TMEM/CLC/NVFP4/2-SM cooperative, warp specialization, FlashAttention-4, DeepGEMM, FlashMLA, MoE, grouped GEMM, CuTe-DSL/PTX/Triton on Blackwell, cp.async/mma.sync/ldmatrix on Ampere, backporting Hopper/Blackwell kernel designs to sm_86 rigs, or wants concrete PR references from CUTLASS/SGLang/vLLM/FlashInfer/PyTorch. Do NOT use for generic CUDA Q&A that is not architecture-specific, host-side framework integration, or distributed systems (DeepEP/EPLB/DualPipe).
 argument-hint: "[natural-language-question] | [--tag foo --type kernel] | [page-id]"
 allowed-tools: "Bash Read Grep Glob"
 ---
@@ -18,6 +18,7 @@ Trigger this skill when the user asks about:
 - **Performance patterns** — low SM utilization, memory-bound, register pressure, compute-bound, tail effects, pipeline stalls
 - **DSLs for Blackwell** — CuTe DSL, CUDA C++ with PTX inline, Triton on Blackwell
 - **Hopper → Blackwell migration** — wgmma → tcgen05, register → TMEM accumulators
+- **Ampere (SM80/SM86) kernel programming and backports** — cp.async pipelines, mma.sync/ldmatrix, GA10x quirks (99 KB SMEM, FP32-accumulate half-rate), porting Hopper/Blackwell designs to A100/RTX 3090 rigs — start at `migration-hopper-to-ampere`
 - **PR references** — "how did vLLM/SGLang/FlashInfer/CUTLASS/PyTorch implement X for SM100?"
 - **Competition solutions** — GPU Mode NVFP4 hackathon, FlashInfer MLSys 2026 submissions
 

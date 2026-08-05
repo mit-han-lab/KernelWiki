@@ -8,6 +8,9 @@ architectures:
   - sm90
   - sm90a
   - sm120
+  # Ampere extension (backport target: A100 / GA10x consumer cards)
+  - sm80
+  - sm86
 
 hardware_features:
   - tcgen05
@@ -27,6 +30,10 @@ hardware_features:
   - mbarrier
   - ldmatrix
   - stmatrix
+  # Ampere extension
+  - cp-async
+  - mma-sync
+  - l2-persistence
 
 techniques:
   - warp-specialization

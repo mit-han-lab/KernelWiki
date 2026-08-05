@@ -101,6 +101,23 @@ All page IDs below resolve via `get_page.py <id>`. All paths are relative to the
 
 ---
 
+## Ampere Extension (SM80 / SM86 backport target)
+
+Added for running this wiki's knowledge on Ampere hardware (A100, RTX 3090-class rigs). Start at `migration-hopper-to-ampere` when the question is "how do I do X from this wiki on a 3090/A100".
+
+| Topic | Page ID | Path | Notes |
+|---|---|---|---|
+| Hopper/Blackwell → Ampere backport map | `migration-hopper-to-ampere` | `wiki/migration/hopper-to-ampere-backport.md` | Instruction replacement table, capacity re-planning, scheduling paradigm shift, ncu checklist. THE entry point. |
+| cp.async (async global→shared) | `hw-cp-async` | `wiki/hardware/cp-async.md` | What TMA becomes on sm_8x: per-thread 16 B copies, commit-groups, zfill OOB, multistage pipeline snippet. |
+| mma.sync + ldmatrix | `hw-mma-sync-ampere` | `wiki/hardware/mma-sync-ampere.md` | Warp-scope synchronous tensor core; register economics; GA10x FP32-accumulate half-rate quirk; no stmatrix. |
+| Ampere memory model | `hw-ampere-memory-model` | `wiki/hardware/ampere-memory-model.md` | sm_80 vs sm_86 capacity card (99 KB SMEM/block, 1536 thr/SM, 6 MB L2 on 3090), L2 persistence window, roofline position. |
+
+Ampere source docs: `doc-ampere-tuning-guide`, `doc-ga102-whitepaper`, `doc-ptx-isa-ampere`, `doc-cutlass-ampere`.
+
+Techniques that transfer to Ampere as-is: swizzling, double-buffering, pipeline-stages (cp.async flavor), persistent-kernel (atomic queue instead of CLC), tile-scheduling (more important — small L2), vectorized-loads, cache-policy, register-budgeting, kernel-fusion. Techniques that do NOT transfer: anything tagged tcgen05/tmem/clc/2sm-cooperative/tma-multicast — consult the migration table for each.
+
+---
+
 ## Source Repositories (PR coverage)
 
 | Repo | PR pages | Ledger |
@@ -150,6 +167,11 @@ When the user types one of these, match to the canonical term shown:
 | MLA, multi-head latent attention | `mla` |
 | GDN, GatedDeltaNet, gated delta rule | `gated-delta-net` |
 | NSA, native sparse attention | `sparse-attention` |
+| Ampere, A100, A800, GA100, SM80 | `sm80` |
+| GA102, RTX 3090, RTX 3090 Ti, RTX 3080, RTX A6000, A40, A10, SM86 | `sm86` |
+| cp.async, LDGSTS, async copy, cuda::memcpy_async | `cp-async` |
+| mma.sync, HMMA, m16n8k16, warp MMA | `mma-sync` |
+| L2 persistence, cudaAccessPolicyWindow, L2 set-aside | `l2-persistence` |
 
 The `query.py` tool applies these automatically when scoring and when using `--tag`.
 
