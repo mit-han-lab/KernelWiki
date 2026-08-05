@@ -119,10 +119,13 @@ def score_keyword_match(fm, body, keywords):
     """
     score = 0
     title_text = str(fm.get("title", "")).lower()
+    def _as_list(v):
+        return v if isinstance(v, list) else ([v] if v else [])
     tag_text = " ".join(
         str(v) for k in ("tags", "techniques", "hardware_features", "kernel_types",
-                          "languages", "aliases", "symptoms")
-        for v in (fm.get(k) or [])
+                          "languages", "aliases", "symptoms", "architectures",
+                          "from_arch", "to_arch")
+        for v in _as_list(fm.get(k))
     ).lower()
     body_lower = body.lower()
     for kw in keywords:

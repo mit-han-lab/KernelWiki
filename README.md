@@ -9,6 +9,8 @@
 
 > **Last repository update: 2026-06-09.** Information after this date is not included in KernelWiki yet.
 
+> **Downstream branch note:** this clone carries an additive **Ampere (sm_80/sm_86) extension** — see [AMPERE-EXTENSION.md](AMPERE-EXTENSION.md). Entry point: `migration-hopper-to-ampere`.
+
 A structured knowledge base of NVIDIA Blackwell (SM100, B200) and Hopper (SM90, H100) GPU kernel optimization, packaged as a Claude Code skill. The repository root **is** the skill directory — clone it directly into `~/.claude/skills/` and it works out of the box.
 
 ## Install as a Claude Code Skill

@@ -52,6 +52,30 @@ wgmma:
   - "wgmma.mma_async"
   - WGMMA
 
+cp-async:
+  - "cp.async"
+  - LDGSTS
+  - "async copy"
+  - "cp.async.ca"
+  - "cp.async.cg"
+  - "cuda::memcpy_async"
+  - memcpy_async
+
+mma-sync:
+  - "mma.sync"
+  - HMMA
+  - m16n8k16
+  - m16n8k8
+  - "mma.sync.aligned"
+  - "warp MMA"
+
+l2-persistence:
+  - "L2 persistence"
+  - cudaAccessPolicyWindow
+  - "persisting L2 cache"
+  - "L2 set-aside"
+  - "L2 residency control"
+
 block-scale:
   - "block scaling"
   - "block-scaled"
@@ -76,6 +100,25 @@ sm90:
   - H200
   - H800
   - "SM90"
+
+sm80:
+  - Ampere
+  - ampere
+  - A100
+  - A800
+  - GA100
+  - "SM80"
+
+sm86:
+  - GA102
+  - "RTX 3090"
+  - "RTX 3090 Ti"
+  - "3090"
+  - "RTX 3080"
+  - "RTX A6000"
+  - A40
+  - A10
+  - "SM86"
 
 # Kernel types
 moe:
