@@ -8,8 +8,8 @@ sources:
 - cute-dsl-tutorial
 - triton-in-policy
 - allowlist
-total_captured: 252
-checksum_sha256: 2f30f03bf66bf9f4550949e26e5d805420dca14c74a368a153f0ca145b978465
+total_captured: 246
+checksum_sha256: 6809c0043b75aaf43dbecf1df96509b0605f2759505074bf080b60d5269f64c5
 prs:
 - id: pr-TensorRT-LLM-11697
   source_of_inclusion: cute-dsl-tutorial
@@ -50,9 +50,9 @@ prs:
 - id: pr-cutlass-2378
   source_of_inclusion: cute-dsl-tutorial
 - id: pr-cutlass-2466
-  source_of_inclusion: cute-dsl-tutorial
+  source_of_inclusion: wiki-graph-closure
 - id: pr-cutlass-2472
-  source_of_inclusion: cute-dsl-tutorial
+  source_of_inclusion: wiki-graph-closure
 - id: pr-cutlass-2492
   source_of_inclusion: cute-dsl-tutorial
 - id: pr-cutlass-2599
@@ -74,8 +74,6 @@ prs:
 - id: pr-cutlass-3130
   source_of_inclusion: cute-dsl-tutorial
 - id: pr-deepgemm-304
-  source_of_inclusion: wiki-graph-closure
-- id: pr-flash-attention-1236
   source_of_inclusion: wiki-graph-closure
 - id: pr-flash-attention-1934
   source_of_inclusion: cute-dsl-tutorial
@@ -146,8 +144,6 @@ prs:
 - id: pr-flashinfer-1025
   source_of_inclusion: triton-in-policy
 - id: pr-flashinfer-1039
-  source_of_inclusion: triton-in-policy
-- id: pr-flashinfer-1117
   source_of_inclusion: wiki-graph-closure
 - id: pr-flashinfer-1331
   source_of_inclusion: cute-dsl-tutorial
@@ -171,8 +167,6 @@ prs:
   source_of_inclusion: cute-dsl-tutorial
 - id: pr-flashinfer-1812
   source_of_inclusion: cute-dsl-tutorial
-- id: pr-flashinfer-1850
-  source_of_inclusion: wiki-graph-closure
 - id: pr-flashinfer-2149
   source_of_inclusion: cute-dsl-tutorial
 - id: pr-flashinfer-2171
@@ -253,8 +247,6 @@ prs:
   source_of_inclusion: triton-in-policy
 - id: pr-pytorch-171129
   source_of_inclusion: triton-in-policy
-- id: pr-pytorch-175826
-  source_of_inclusion: wiki-graph-closure
 - id: pr-pytorch-176495
   source_of_inclusion: triton-in-policy
 - id: pr-sglang-10403
@@ -429,8 +421,6 @@ prs:
   source_of_inclusion: triton-in-policy
 - id: pr-vllm-23666
   source_of_inclusion: triton-in-policy
-- id: pr-vllm-23696
-  source_of_inclusion: wiki-graph-closure
 - id: pr-vllm-25990
   source_of_inclusion: cute-dsl-tutorial
 - id: pr-vllm-26322
@@ -495,8 +485,6 @@ prs:
   source_of_inclusion: triton-in-policy
 - id: pr-vllm-39007
   source_of_inclusion: triton-in-policy
-- id: pr-vllm-39752
-  source_of_inclusion: wiki-graph-closure
 - id: pr-vllm-40941
   source_of_inclusion: triton-in-policy
 - id: pr-vllm-41428

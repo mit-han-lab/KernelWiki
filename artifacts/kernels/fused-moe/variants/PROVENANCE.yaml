@@ -1,17 +1,18 @@
-origin_url: derived
+origin_url: https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048
 upstream_repo: derived
 license: MIT-style-inherited-from-kernelwiki-tooling
-retrieved_at: '2026-04-17'
+retrieved_at: '2026-08-08'
 asset_mode: derived
 derived_from:
-- pr-sglang-21339
-- pr-vllm-23696
-- blog-deepgemm
-- kernel-fused-moe
+- contest-flashinfer-track-a
 size_cap_truncated: false
-generated_by: Phase 3 Round 3 task12 (fused-moe variants)
+generated_by: KernelWiki factual remediation
+notes: >-
+  Parameterized standard-library reference for the definition's grouped
+  DeepSeek routing and local W13/SwiGLU/W2 accumulation. It neither dequantizes
+  FP8 tensors nor models GPU launches, layouts, or performance.
 files:
 - local_path: 01-routing-plus-fusion-skeleton.py
   role: derived-source
   mode: derived
-  sha256: 2cc640b1baa1a6cd42718616ffe2cf78a9b6d4eb3317464f059c6fd442439342
+  sha256: 6e4e5889347d9783585d5bef8764e55cdc07c4840cbb56ed337db37911586aa1

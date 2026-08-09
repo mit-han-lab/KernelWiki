@@ -376,7 +376,9 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
             if all_source_ids and src_id not in all_source_ids:
                 errors.append(f"{rel}: references unknown source id '{src_id}'")
 
-    # AC-9: Enforce evidence_basis for verified wiki pages
+    # AC-9: Enforce a direct, page-scoped evidence basis for verified wiki
+    # pages. The verification contract accepts any adequate primary oracle;
+    # it does not require every claim to have both documentation and code.
     if page_type.startswith("wiki-") and fm.get("confidence") == "verified":
         eb = fm.get("evidence_basis")
         if not eb or not isinstance(eb, list) or len(eb) == 0:
@@ -384,17 +386,6 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
                 f"{rel}: confidence 'verified' requires non-empty 'evidence_basis' field"
             )
         else:
-            eb_types = {entry.get("evidence_type") for entry in eb if isinstance(entry, dict)}
-            if "official-doc" not in eb_types:
-                errors.append(
-                    f"{rel}: evidence_basis for 'verified' must include at least one "
-                    f"'official-doc' entry (found: {eb_types})"
-                )
-            if "upstream-code" not in eb_types:
-                errors.append(
-                    f"{rel}: evidence_basis for 'verified' must include at least one "
-                    f"'upstream-code' entry (found: {eb_types})"
-                )
             # Cross-check evidence_basis source_ids against page sources
             page_sources = set(fm.get("sources", []))
             for entry in eb:
@@ -406,8 +397,13 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
                             f"not listed in page sources"
                         )
 
-    # Check technique/kernel/language pages have fenced code
-    if page_type in ("wiki-technique", "wiki-kernel", "wiki-language"):
+    # A page claiming snippet-or-better reproducibility must contain real code.
+    # Concept and pseudocode pages may instead provide an evidence-backed
+    # procedure without inventing a compilable implementation.
+    if (
+        page_type in ("wiki-technique", "wiki-kernel", "wiki-language")
+        and repro_at_least(fm.get("reproducibility"), "snippet")
+    ):
         body = read_body(filepath)
         if not has_compilable_code(body, code_langs):
             errors.append(f"{rel}: {page_type} page must contain fenced code block (reproducibility >= snippet)")

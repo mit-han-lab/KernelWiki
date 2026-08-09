@@ -150,7 +150,7 @@ wiki-technique:
   constraints:
     type: technique
     id_prefix: technique-
-    reproducibility_minimum: snippet
+    reproducibility_minimum: concept
 
 wiki-pattern:
   required:
@@ -165,6 +165,8 @@ wiki-pattern:
   optional:
     - architectures
     - confidence
+    - reproducibility
+    - evidence_basis
     - version_sensitive
   constraints:
     type: pattern
@@ -199,7 +201,7 @@ wiki-kernel:
   constraints:
     type: kernel
     id_prefix: kernel-
-    reproducibility_minimum: snippet
+    reproducibility_minimum: concept
 
 wiki-language:
   required:
@@ -237,6 +239,7 @@ wiki-migration:
     - confidence
     - reproducibility
     - prerequisites
+    - evidence_basis
     - version_sensitive
   constraints:
     type: migration

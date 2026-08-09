@@ -20,95 +20,38 @@ retrieved_at: 2026-04-16
 artifact_dir: artifacts/blogs/tcgen05-tutorial/code
 ---
 
-## Summary
+# tcgen05 for dummies
 
-Step-by-step tutorial building a Blackwell GEMM kernel from scratch in plain CUDA C++ with PTX, achieving 98% of cuBLAS performance.
+## Scope and provenance
 
-## Performance Progression
-- Basic kernel: 255 TFLOPS (17%)
-- 128B swizzling: 695 TFLOPS (46%)
-- Pipelining: 940 TFLOPS (62%)
-- Warp specialization: ~1200 TFLOPS (80%)
-- Persistent kernel: 1476 TFLOPS (98%) vs 1507 cuBLAS
+Gau Nernst's tutorial develops a plain CUDA C++/PTX GEMM on a Modal B200. The article is dated 2025-12-21, and the relevant code is in `02e_matmul_sm100` at repository commit `3b90ac9b3f624bdf1f6f78d02dcd533675d36573`. The disclosed benchmark uses M=N=K=4096 and compares against PyTorch 2.9.1 with CUDA 13 cuBLAS.
 
-## Key Findings
-- tcgen05.mma operates directly on shared memory — no ldmatrix needed
-- TMEM: 128×512 capacity, 32-bit elements, must alloc/dealloc
-- mbarrier synchronization with phases and parity bits
-- "Tensor Core programming on Blackwell is easier than previous generations"
-- 128B swizzling alone gives 2.7× speedup
+Use the linked pinned source for complete assembly operands and synchronization. Earlier local excerpts omitted required tcgen05 operands and were not valid standalone code.
 
-## Key Code
+## Source-reported progression
 
-### Basic tcgen05.mma kernel (17% of peak)
+| Version | Author's description | TFLOP/s |
+|---|---|---:|
+| cuBLAS | PyTorch 2.9.1 + CUDA 13 | 1506.74 |
+| v1a | basic tcgen05 + 2D 16B TMA | 254.62 |
+| v1b | 3D 16B TMA | 252.81 |
+| v2a | 2D 128B TMA | 681.20 |
+| v2b | 3D 128B TMA | 695.43 |
+| v3 | pipelining | 939.61 |
+| v4 | warp specialization | 1208.83 |
+| v5 | 2-SM MMA | 1302.29 |
+| v6 | persistent with static scheduling | 1475.93 |
 
-```cuda
-// The naive building block: one-thread-launched tcgen05.mma into TMEM.
-// ~255 TFLOPS on B200 (17% of peak).
-__shared__ uint32_t tmem;
-if (threadIdx.x == 0) {
-    asm volatile("tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], 256;\n"
-                 :: "r"(&tmem));
-}
-__syncthreads();
+These values are reports for the author's exact environment; they are not portable performance guarantees. The final v6 kernel uses static scheduling. The article explicitly says threadblock swizzling and Cluster Launch Control were not added.
 
-for (int k = 0; k < K; k += K_TILE) {
-    cp_async(smem_a, A + k);
-    cp_async(smem_b, B + k);
-    cp_async_commit();
-    cp_async_wait<0>();
-    __syncthreads();
-    if (threadIdx.x == 0) {
-        asm volatile("tcgen05.mma.cta_group::1.kind::f16 [%0], %1, %2, %3, 1;\n"
-                     :: "r"(tmem), "l"(desc_a), "l"(desc_b), "r"(0));
-    }
-}
-```
+## Supported takeaways
 
-### 128B swizzling (46% of peak)
+- The tutorial demonstrates TMEM allocation/lifecycle, tcgen05 MMA, TMA transfers, mbarrier-driven pipelines, 128-byte swizzling as a performance optimization, warp specialization, 2-SM MMA, and persistence.
+- Its 128-byte swizzle stage substantially improves this benchmark, but PTX also defines other valid shared-memory descriptor modes.
+- The article's completion and pipeline code should be read in full; short fragments can omit the mbarrier, fence, descriptor, and operand-lifetime context required for correctness.
 
-```cuda
-// XOR-swizzled SMEM layout eliminates bank conflicts on MMA load;
-// 128-byte granularity gives 2.7x speedup on its own.
-template <int N_K>
-__device__ void swizzle_128b_store(half* smem, const half* gmem, int k_tile) {
-    int tid = threadIdx.x;
-    int col = (tid * 8) % N_K;
-    int row = (tid * 8) / N_K;
-    int swizzled = col ^ ((row & 0x7) << 4);      // 8-lane XOR swizzle
-    *reinterpret_cast<uint4*>(&smem[row * N_K + swizzled]) =
-        *reinterpret_cast<const uint4*>(&gmem[k_tile + row * N_K + col]);
-}
-```
+## References
 
-### Pipelining + mbarrier phases (62% of peak)
-
-```cuda
-// Multi-stage TMA load pipeline. mbarrier phase bits toggle every STAGES
-// arrivals so try_wait.parity can distinguish consecutive rounds without a
-// counter rollover.
-constexpr int STAGES = 4;
-__shared__ uint64_t mbar_full[STAGES];
-__shared__ uint64_t mbar_empty[STAGES];
-
-if (threadIdx.x == 0) {
-    for (int i = 0; i < STAGES; i++) {
-        asm volatile("mbarrier.init.shared::cta.b64 [%0], 1;\n" :: "r"(&mbar_full[i]));
-        asm volatile("mbarrier.init.shared::cta.b64 [%0], 1;\n" :: "r"(&mbar_empty[i]));
-    }
-}
-__syncthreads();
-
-int phase = 0;
-for (int k = 0; k < K_TILES; k++) {
-    int stage = k % STAGES;
-    if (k >= STAGES) {
-        asm volatile("mbarrier.try_wait.parity.shared::cta.b64 _, [%0], %1;\n"
-                     :: "r"(&mbar_empty[stage]), "r"(phase));
-    }
-    tma_load(smem_a[stage], gmem_a, k);
-    asm volatile("mbarrier.arrive.shared::cta.b64 _, [%0];\n"
-                 :: "r"(&mbar_full[stage]));
-    if ((k + 1) % STAGES == 0) phase ^= 1;
-}
-```
+- [Article](https://gau-nernst.github.io/tcgen05/)
+- [Pinned source tree](https://github.com/gau-nernst/learn-cuda/tree/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100)
+- [PTX ISA 9.0 tcgen05 reference](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)

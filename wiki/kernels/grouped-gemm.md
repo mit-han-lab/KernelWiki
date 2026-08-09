@@ -1,208 +1,145 @@
 ---
 id: kernel-grouped-gemm
-title: "Grouped GEMM for MoE"
+title: Grouped GEMM Contracts for MoE and NVFP4
 type: kernel
-architectures: [sm100, sm100a, sm90]
-tags: [grouped-gemm, moe, gemm, fp8, nvfp4, tcgen05, persistent-kernel, tile-scheduling]
+architectures:
+- sm100
+- sm100a
+- sm90
+tags:
+- grouped-gemm
+- moe
+- gemm
+- fp8
+- nvfp4
+- tile-scheduling
 confidence: source-reported
 reproducibility: snippet
-kernel_types: [grouped-gemm, gemm, moe]
-languages: [cuda-cpp, cute-dsl]
-related: [kernel-fused-moe, kernel-deepgemm, hw-tcgen05-mma, hw-clc, technique-persistent-kernels, technique-tile-scheduling]
-sources: [contest-gpumode-p4, blog-deepgemm, doc-cutlass-blackwell]
-performance_claims:
-  - gpu: B200
-    dtype: nvfp4
-    shape: "variable M, shared N=K, 15 groups"
-    metric: latency_us
-    value: 11.2
-    utilization: "compute-bound"
-    source_id: contest-gpumode-p4
-blackwell_relevance: "SM100 CLC enables dynamic tile scheduling critical for variable-M grouped GEMM in MoE workloads."
+kernel_types:
+- grouped-gemm
+- gemm
+- moe
+languages:
+- python
+related:
+- kernel-fused-moe
+- kernel-deepgemm
+- technique-tile-scheduling
+- hw-clc
+sources:
+- contest-gpumode-p4
+- blog-deepgemm
+- blog-gpu-mode-reward-hack
+performance_claims: []
+blackwell_relevance: The official challenge targets B200 with independent
+  per-group NVFP4 shapes; no particular CUTLASS, CLC, TMA, or launch topology
+  is required by the observable contract.
 ---
 
-# Grouped GEMM for MoE
+# Grouped GEMM Contracts for MoE and NVFP4
 
-## Overview
+## Verified scope
 
-Grouped GEMM computes multiple matrix multiplications with variable M dimensions but shared N and K, directly targeting MoE (Mixture of Experts) inference where each expert processes a different number of tokens. This is the most practically important kernel pattern for MoE serving: during inference, the router sends different token counts to each expert, and grouped GEMM batches all expert computations into a single kernel launch.
+The official NVIDIA rules identify NVFP4 Grouped GEMM as Kernel Challenge 4 of the Blackwell NVFP4 Hackathon, open from January 17 through February 13, 2026. It carries 40% of the four-problem grand-prize score. The corrected public task at commit `ae67948` targets NVIDIA B200.
 
-Grouped GEMM was Problem 4 (heaviest weight: 40%) of the GPU Mode NVFP4 Hackathon, and is also the core of DeepGEMM's MoE support.
+“Grouped GEMM” does not imply one universal shape contract. Two relevant interfaces differ materially:
 
-## Problem Structure
+- The GPU Mode challenge accepts a list of independent problems; `M_i`, `N_i`, and `K_i` can all differ by group.
+- DeepGEMM's M-grouped MoE APIs vary M while holding N and K fixed. It separately provides a K-grouped interface for MoE weight backward.
 
-```
-Standard GEMM:  C = A @ B          (single problem)
-Grouped GEMM:   C_i = A_i @ B_i    for i in [0, num_groups)
+Neither interface definition proves that a conforming implementation uses exactly one GPU launch.
 
-MoE specialization:
-  - N and K are FIXED (same expert architecture)
-  - Only M varies (different token counts per expert)
-  - B_i may be different weight matrices (per-expert weights)
+## GPU Mode Problem 4 contract
 
-Example (DeepSeek-V3, 256 experts, top-8 routing):
-  Group 0: M=47 tokens -> Expert 0 weights [N, K]
-  Group 1: M=23 tokens -> Expert 1 weights [N, K]
-  ...
-  Group 255: M=31 tokens -> Expert 255 weights [N, K]
-```
+For each group `i`, the correctness reference computes `C_i = A_i @ B_i.T` with block scales and FP16 output.
 
-## DeepGEMM Grouped Layouts
+| Per-group value | Published dtype | Logical shape |
+| --- | --- | --- |
+| `a_i` | packed NVFP4 E2M1, two values per byte | `[M_i,K_i/2,L_i]` |
+| `b_i` | packed NVFP4 E2M1, two values per byte | `[N_i,K_i/2,L_i]` |
+| `c_i` | FP16 | `[M_i,N_i,L_i]` |
+| `sfa_i` | FP8 E4M3FNUZ in task/template | `[M_i,K_i/16,L_i]` |
+| `sfb_i` | FP8 E4M3FNUZ in task/template | `[N_i,K_i/16,L_i]` |
+| problem size | integers | `(M_i,N_i,K_i,L_i)` |
 
-DeepGEMM provides three layouts optimized for different MoE phases:
+The submission object actually contains four lists: logical A/B/C tensors, logical scales, reordered scale copies, and problem sizes. The `task.yml` prose lists only three tuple members, but `task.py`, `template.py`, and `reference.py` expose the reordered scales as the fourth. Each published case has `L=1`; `K_i` is divisible by 256, and `M_i`/`N_i` must satisfy the selected MMA tile divisibility.
 
-```cpp
-// Layout 1: Contiguous (prefill)
-// All expert inputs packed sequentially with cumulative offset array
-// Memory: [Expert0 (M0 rows)] [Expert1 (M1 rows)] [Expert2 (M2 rows)]...
-// Index:  offsets[0]=0         offsets[1]=M0         offsets[2]=M0+M1
-struct ContiguousLayout {
-    const fp8_t* A;         // Packed input [sum(M_i), K]
-    const fp8_t* B;         // Expert weights [num_experts, N, K]
-    float* C;               // Packed output [sum(M_i), N]
-    const int* offsets;     // Cumulative M offsets [num_experts + 1]
-};
+The pinned upstream files also disagree on the scale dtype suffix: task/template text says E4M3FNUZ, while `reference.py` constructs `torch.float8_e4m3fn`. A submission must follow the actual tensors it receives rather than silently treating those names as interchangeable. The correctness checker uses `rtol=1e-3` and `atol=1e-3`.
 
-// Layout 2: Masked (decode with CUDA graphs)
-// Fixed allocation per expert, binary mask for valid tokens
-// Compatible with CUDA graph capture (static shapes)
-struct MaskedLayout {
-    const fp8_t* A;         // [num_experts, M_max, K]
-    const fp8_t* B;         // [num_experts, N, K]
-    float* C;               // [num_experts, M_max, N]
-    const bool* mask;       // [num_experts, M_max] validity flags
-};
+For small non-empty ordinary-number matrices, this CPU-only reference isolates the group semantics. Each `b` is stored as `[N,K]`, so its rows are the columns of the mathematical right operand:
 
-// Layout 3: K-grouped (weight gradients in training backward)
-// Groups along K-axis instead of M-axis
-struct KGroupedLayout {
-    const fp8_t* A;         // [M, sum(K_i)]
-    const fp8_t* B;         // Per-group B matrices with different K
-    float* C;               // [M, N]
-    const int* k_offsets;   // Cumulative K offsets
-};
+```python
+def grouped_reference(groups):
+    outputs = []
+    for a, b in groups:
+        k = len(a[0])
+        if any(len(row) != k for row in a) or any(len(row) != k for row in b):
+            raise ValueError("ragged or incompatible K")
+        outputs.append([
+            [sum(x * y for x, y in zip(a_row, b_row)) for b_row in b]
+            for a_row in a
+        ])
+    return outputs
 ```
 
-## CUTLASS Grouped GEMM on SM100
+It models neither NVFP4 packing nor block scales; those remain part of the challenge ABI above.
 
-```cpp
-// CUTLASS schedule for grouped GEMM on Blackwell
-using Schedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized1SmNvf4Sm100;
+## DeepGEMM's different grouped layouts
 
-// PtrArray mode: array of pointers to per-group A, B, C matrices
-// TMA handles variable-offset loads via per-group descriptors
-// CLC distributes tiles across groups dynamically
+The following shapes describe the pinned FP8/FP4 grouped APIs; scale tensors and layout conversions are additional required inputs.
 
-using GemmKernel = cutlass::gemm::kernel::GemmGrouped<
-    cutlass::gemm::GemmShape<128, 256, 128>,  // Tile shape
-    cutlass::arch::Sm100,
-    cutlass::float_e2m1_t,    // NVFP4 operand type
-    cutlass::float_e2m1_t,
-    float,
-    cutlass::layout::RowMajor,
-    cutlass::layout::ColumnMajor
->;
+| Mode | Main tensors | Group descriptor | Documented role |
+| --- | --- | --- | --- |
+| M-grouped contiguous | A `[M,K]`, B `[G,N,K]`, D `[M,N]` | `grouped_layout` is either one expert ID per packed row (with `-1` padding) or one prefix-sum end per group | Training forward or inference prefill; N/K fixed and expert segments M-block aligned |
+| M-grouped masked | A `[G,Mmax,K]`, B `[G,N,K]`, D `[G,Mmax,N]` | `masked_m` is one int32 valid-row count per group | CUDA-graph decode; fixed allocation while computing valid portions |
+| K-grouped contiguous | packed A `[sum(K_i),M]`, B `[sum(K_i),N]`, D `[G,M,N]` | host and device K-size lists; optional C has `[G,M,N]` | MoE weight backward; M/N fixed |
 
-// Launch: single kernel handles all groups
-GemmKernel::Arguments args{
-    num_groups,
-    problem_sizes,   // [num_groups] array of {M_i, N, K}
-    ptr_A, ptr_B, ptr_C,
-    scale_factors_A, scale_factors_B
-};
-GemmKernel kernel;
-kernel.run(args, stream);
+These are concrete library contracts, not generic C++ structs. Compatibility also depends on the documented architecture, dtype/scale format, operand-major mode, alignment, output dtype, and recipe constraints.
+
+## Published workloads and theoretical bounds
+
+| Groups | M values | N | K | L | Task speed-of-light time (µs) |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 8 | 80, 176, 128, 72, 64, 248, 96, 160 | 4096 | 7168 | 1 | 18.833 |
+| 8 | 40, 76, 168, 72, 164, 148, 196, 160 | 7168 | 2048 | 1 | 10.667 |
+| 2 | 192, 320 | 3072 | 4096 | 1 | 2.406 |
+| 2 | 128, 384 | 4096 | 1536 | 1 | 1.525 |
+
+Ranking uses the geometric mean. The task labels these microsecond values a speed-of-light analysis derived from the maximum of B200 FP4 Tensor Core math time and DRAM-memory time at a 1.5 GHz clock. They are theoretical comparison values, not measured contestant results.
+
+## The scrubbed reward hack
+
+GPU Mode's official postmortem records a submission that temporarily reached the number-one leaderboard position with a reported `11.191 µs`, roughly `2 µs` ahead of the next entry, and was scrubbed minutes after the competition.
+
+During correctness, it ran a real padded 8-group kernel on each of 15 cloned data objects. During timing, the first call launched one merged 120-group kernel covering all 15 objects; calls 2 through 15 returned cached output pointers. The harness then divided the combined timing by 15. The reported number is evidence about the exploit, not a valid per-call performance record.
+
+The official post points to `gpu-mode/reference-kernels` PR #104 as the harness response. It does not attribute a FlashInfer-Bench or MLSys 2026 methodology change to this incident.
+
+## Implementation and performance boundary
+
+The public challenge constrains outputs, tolerances, workloads, and scoring. It does not require CUTLASS, CLC, TMA, TMEM, a persistent kernel, a static schedule, or one launch. The former CUTLASS and CUDA sketches were removed because they were not executable instances of the named APIs.
+
+CUTLASS documents that small M or N can leave threads outside the useful problem bounds, and that a small M/N grid with large K can launch too few threadblocks to use every multiprocessor. This is a possible shape effect, not proof that every grouped workload has the same bottleneck. GPU Mode's postmortem, for example, measured substantial fixed setup cost in its studied implementation.
+
+CLC itself uses an asynchronous cancellation request, shared response, mbarrier completion, and response decoding after a worker's initial block. That is different from a global `atomicAdd` tile queue. Whether CLC improves end-to-end time relative to a static or software-persistent scheduler requires a workload- and implementation-specific measurement.
+
+TMA does not have one universal 128-byte alignment rule from which minimum tile sizes follow. CUDA 13.2.1's tiled tensor-map API generally documents 16-byte global-address and stride alignment, a 64-byte descriptor, and feature-specific 32-byte constraints. An implementation must check the exact descriptor mode and version it uses.
+
+## Primary sources
+
+- [Official challenge rules](https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf)
+- [Pinned public task](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm/task.yml)
+- [Pinned starter template](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm/template.py)
+- [Pinned correctness reference](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm/reference.py)
+- [Pinned DeepGEMM grouped overview](https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md#grouped-gemms-contiguous-layout)
+- [Pinned DeepGEMM grouped APIs](https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/csrc/apis/gemm.hpp)
+- [Official reward-hack postmortem](https://www.gpumode.com/news/reward-hacking-nvfp4)
+- [CUDA 13.2.1 tensor-map constraints](https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html)
+- [CUDA 13.2 CLC programming guide](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html)
+- [Pinned CUTLASS efficient-GEMM guide](https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/media/docs/cpp/efficient_gemm.md)
+
+Query via:
+
+```bash
+conda run -n base python scripts/get_page.py kernel-grouped-gemm
 ```
-
-## Tile Scheduling for Variable M
-
-### Static Scheduling (Precomputed)
-
-```cpp
-// Precompute tile-to-expert mapping on host before launch
-struct TileInfo {
-    int expert_id;
-    int tile_m_start;  // Local M offset within this expert
-    int tile_n_start;
-};
-
-std::vector<TileInfo> build_tile_schedule(
-    const int* M_per_expert, int num_experts, int N
-) {
-    std::vector<TileInfo> schedule;
-    for (int e = 0; e < num_experts; e++) {
-        for (int m = 0; m < M_per_expert[e]; m += BLOCK_M)
-            for (int n = 0; n < N; n += BLOCK_N)
-                schedule.push_back({e, m, n});
-    }
-    return schedule;  // Copy to device; blockIdx.x indexes into this
-}
-```
-
-### Dynamic Scheduling (CLC / Persistent Kernel)
-
-```cpp
-// Persistent kernel with atomic tile counter
-// Each thread block loops, grabbing tiles until all are processed
-__device__ int g_tile_counter = 0;
-
-__global__ void grouped_gemm_persistent(
-    const fp8_t** A_ptrs, const fp8_t** B_ptrs, float** C_ptrs,
-    const int* M_per_expert, int N, int K,
-    const TileInfo* tile_map, int total_tiles
-) {
-    while (true) {
-        int tile_id = atomicAdd(&g_tile_counter, 1);
-        if (tile_id >= total_tiles) return;
-
-        TileInfo info = tile_map[tile_id];
-        int M_e = M_per_expert[info.expert_id];
-
-        // Effective BLOCK_M may be smaller for the last tile of an expert
-        int eff_m = min(BLOCK_M, M_e - info.tile_m_start);
-
-        // TMA load + tcgen05.mma for this tile
-        tma_load(A_ptrs[info.expert_id] + info.tile_m_start * K, ...);
-        tma_load(B_ptrs[info.expert_id] + info.tile_n_start, ...);
-        tcgen05_mma(...);
-
-        // Store result
-        store_tile(C_ptrs[info.expert_id] + info.tile_m_start * N
-                   + info.tile_n_start, eff_m, BLOCK_N);
-    }
-}
-```
-
-## The Reward Hack
-
-The 1st-place submission to Problem 4 exploited the evaluation harness:
-
-```
-Correctness phase: harness clones data -> real kernel runs correctly
-Timing phase: harness reuses same objects ->
-    Call 1: fires 120-group super-batch (all 15 benchmark problems fused)
-    Calls 2-15: detect pre-computed results, skip computation
-```
-
-This reported 11.191us (~2us ahead of second place). It led to improvements in the FlashInfer-Bench evaluation methodology for the MLSys 2026 contest.
-
-## When to Use
-
-- MoE inference: dispatch tokens to experts, compute per-expert projections
-- Any workload with multiple GEMMs sharing N and K but varying M
-- Prefill (contiguous layout) and decode (masked layout for CUDA graph compatibility)
-
-## Caveats
-
-- Expert load imbalance is the primary practical bottleneck (see [tail-effect](../patterns/tail-effect.md))
-- Small M per expert causes thin-GEMM inefficiency on tensor cores
-- Masked layout wastes compute on padding when M distribution is skewed
-- CLC dynamic scheduling adds hardware overhead vs static precomputed schedules
-- TMA alignment (128 bytes) constrains minimum tile dimensions
-
-## Sources
-
-- [GPU Mode NVFP4 Hackathon](https://github.com/gpu-mode/reference-kernels)
-- [DeepGEMM Grouped GEMM](https://github.com/deepseek-ai/DeepGEMM)
-- [Reward Hack Writeup](https://www.gpumode.com/news/reward-hacking-nvfp4)
-- [CUTLASS SM100 documentation](https://docs.nvidia.com/cutlass/latest/CHANGELOG.html)

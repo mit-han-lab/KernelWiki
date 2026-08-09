@@ -4,211 +4,71 @@ title: "Software-Emulated Exponential"
 type: technique
 architectures: [sm100]
 tags: [software-exp, attention]
-confidence: source-reported
-reproducibility: snippet
+confidence: verified
+evidence_basis:
+  - source_id: doc-flash-attention-4
+    evidence_type: official-doc
+reproducibility: concept
 prerequisites: []
 related: [kernel-flash-attention-4, technique-warp-specialization]
 sources: [blog-flash-attention-4, doc-flash-attention-4, doc-ptx-isa-sm100]
+blackwell_relevance: "FlashAttention-4 uses a configuration-dependent hybrid of hardware MUFU.EX2 and a degree-3 FMA polynomial for selected forward-softmax entries on SM100; it does not replace every exponential."
 ---
 
-## Overview
+# Software-emulated exponential
 
-FlashAttention-4 replaces the hardware Special Function Unit (SFU) exponential (`ex2.approx`) with a software-emulated 2^x function that distributes computation across the SM's FMA (fused multiply-add) units. On Blackwell, tensor core throughput doubled compared to Hopper while SFU count remained the same, making the SFU the throughput bottleneck for attention's softmax operation. The software exponential uses Cody-Waite range reduction followed by a Horner-form polynomial evaluation, achieving sufficient accuracy for attention while bypassing the SFU entirely.
+## What FlashAttention-4 implements
 
-## Why SFU Is a Bottleneck on Blackwell
+FlashAttention-4 (FA4) combines two paths for base-2 exponential in its Blackwell forward softmax. Most selected configurations retain hardware `exp2` for some entries and evaluate a tunable fraction with a software polynomial on general-purpose FMA pipelines. The paper describes roughly 10–25% software evaluation, while the exact fraction is a configuration choice rather than an architecture constant.
 
-The softmax in attention requires computing `exp(x - max)` for every element of the score matrix. On previous generations, the SFU's `ex2.approx` instruction was fast enough relative to the MMA throughput. On Blackwell:
+This hybrid is part of a larger schedule: two 128-thread softmax warpgroups alternate 128-row query tiles, synchronize to limit simultaneous exponential contention, stage probabilities through TMEM, and hand conditional rescaling to a correction warpgroup. A standalone polynomial is not equivalent to that pipeline.
 
-| Resource | Hopper (SM90) | Blackwell (SM100) | Ratio |
-|----------|--------------|-------------------|-------|
-| Tensor core TFLOPS (BF16) | ~990 | ~2250 | 2.27x |
-| SFU units per SM | 16 | 16 | 1.0x |
-| SFU throughput (exp per cycle) | 16 | 16 | 1.0x |
-| FMA units per SM | 128 | 128 | 1.0x |
+## Scoped bottleneck model
 
-The tensor cores produce 2x more score elements per cycle, but the SFU can only process exp() at the same rate as before. This makes the SFU the bottleneck for any kernel that needs exp() proportional to the number of MMA outputs.
+For the authors' `M=N=D=128` B200 feeds-and-speeds model, one SM supplies 8192 BF16 tensor-core operations per cycle, 16 exponential operations per cycle, and 128 shared-memory bytes per cycle. Their forward-tile accounting assigns 1024 cycles to two MMAs, 1024 cycles to 128×128 exponentials, and 768 cycles to shared-memory traffic.
 
-FlashAttention-4's approach: distribute the exp() workload across FMA units (128 per SM) instead of SFU units (16 per SM), achieving 8x the throughput for the exponential computation.
+Those are analytical inputs for that tile and schedule. They do not imply that every kernel with one exponential per MMA output is exponential-bound, nor do functional-unit counts give the throughput or latency of a software approximation. Range reduction, polynomial dependencies, reconstruction, instruction issue, and overlap all remain part of the measured implementation.
 
-## Cody-Waite Range Reduction
+## Pinned software path
 
-Range reduction transforms the input `x` into a small residual that a polynomial can accurately approximate. The Cody-Waite method splits the input into an integer part (for exact power-of-two scaling) and a fractional part (for polynomial approximation):
+At Dao-AILab/flash-attention revision `a369df707e1980fb328abcc1733e3457ec10155f`, [`flash_attn/cute/utils.py`](https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/utils.py) defines the default software path and [`flash_attn/cute/softmax.py`](https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/softmax.py) performs fragment-level hardware/software selection.
 
-```cuda
-// Cody-Waite range reduction for 2^x
-// Goal: decompose x = n + r where n is integer, r in [-0.5, 0.5]
-// Then 2^x = 2^n * 2^r, and 2^r is approximated by polynomial
-//
-// The Cody-Waite trick: subtract n using two constants (C1 + C2)
-// to maintain precision when x is large.
-//
-// C1 is the nearest representable float to log2(e) with low-order bits zeroed
-// C2 is the correction: log2(e) - C1
-// This avoids catastrophic cancellation in x - n
+For each software-selected pair, the pinned implementation:
 
-__device__ float software_exp2(float x) {
-    // Step 1: Range reduction (Cody-Waite)
-    // Round x to nearest integer
-    float n = rintf(x);
-    // High-precision subtraction using two constants
-    // C1 and C2 together represent 1.0 in extended precision
-    const float C1 = 1.0f;    // Exact in float
-    const float C2 = 0.0f;    // Correction term (zero for 2^x, non-zero for e^x)
-    // For 2^x, range reduction is simpler: r = x - n
-    float r = x - n;          // r in [-0.5, 0.5]
+1. Assumes each input is no greater than 127 and clamps values below `-127`.
+2. Uses a rounding-down addition with the float32 constant `2^23 + 2^22` to recover the integer floor and a fractional value in `[0,1)`.
+3. Evaluates a degree-3 polynomial in Horner form with packed float32 FMA operations.
+4. Combines the integer contribution with the polynomial's float32 representation by exponent-field integer operations; the software branch does not call `ex2.approx` for reconstruction.
 
-    // Step 2: Polynomial approximation of 2^r via Horner's method
-    // Minimax polynomial coefficients for 2^r on [-0.5, 0.5]
-    // Degree-4 polynomial: sufficient for ~22 bits of accuracy
-    const float c0 = 1.0f;
-    const float c1 = 0.6931471805599453f;   // ln(2)
-    const float c2 = 0.2402265069591007f;   // ln(2)^2 / 2
-    const float c3 = 0.05550410866482158f;  // ln(2)^3 / 6
-    const float c4 = 0.009618129107628477f; // ln(2)^4 / 24
+The degree-3 float32 coefficients in that revision are:
 
-    // Horner evaluation: c0 + r*(c1 + r*(c2 + r*(c3 + r*c4)))
-    // Each step is one FMA instruction
-    float poly = c4;
-    poly = fmaf(poly, r, c3);   // FMA 1
-    poly = fmaf(poly, r, c2);   // FMA 2
-    poly = fmaf(poly, r, c1);   // FMA 3
-    poly = fmaf(poly, r, c0);   // FMA 4
+| Term | Coefficient |
+|---:|---:|
+| `p0` | `1.0` |
+| `p1` | `0.695146143436431884765625` |
+| `p2` | `0.227564394474029541015625` |
+| `p3` | `0.077119089663028717041015625` |
 
-    // Step 3: Reconstruct 2^x = 2^n * poly
-    // Use integer addition to the float exponent field
-    int n_int = (int)n;
-    // ldexpf multiplies by 2^n by adjusting the exponent bits
-    float result = ldexpf(poly, n_int);
+The authors state that Sollya selected these coefficients to minimize relative error for `2^f` over `f in [0,1)`. For a natural exponential, the caller uses the identity `e^z = 2^(z * log2(e))`.
 
-    return result;
-}
-```
+## Numerical contract
 
-## Distributing Across FMA Units
+The polynomial is approximate. On a deterministic host grid of 1,000,002 evenly spaced points over `[0,1]`, evaluating the rounded degree-3 coefficients against `2^x` produced a maximum sampled relative error of approximately `8.763e-5`. This is a regression observation, not a proof of the continuous maximum and not an end-to-end attention tolerance.
 
-The key insight is that Horner polynomial evaluation is a chain of FMA operations. With the softmax warp executing on CUDA cores while the MMA warp uses tensor cores, the FMA throughput is fully available:
+BF16 conversion does not by itself prove that approximation errors are harmless. Per-entry error changes both the softmax numerator and row sum, and masking, all-`-inf` rows, conditional rescaling, underflow clamping, and output accumulation introduce separate boundary cases. Validate the scalar approximation and the complete attention output for the exact dtype and features.
 
-```cuda
-// FlashAttention-4 softmax with software exp2
-// Executed by dedicated softmax warpgroups (part of warp specialization)
-//
-// For each row of the score matrix S[i,:]:
-//   1. Find row max: m_new = max(S[i,:])
-//   2. Compute exp2((S[i,j] - m_new) * log2(e)) for each j
-//   3. Sum for normalization denominator
-//   4. Conditionally rescale previous output if max changed
+## Reproduction and decision procedure
 
-__device__ void softmax_with_software_exp(
-    float* scores,       // Input: S[i, 0..N-1] (one row)
-    float* output,       // Output: softmax(S[i,:])
-    int N,
-    float* row_max,      // Running max (for online softmax)
-    float* row_sum)      // Running sum
-{
-    int lane = threadIdx.x % 32;
+Use the pinned implementation as the starting point; do not reconstruct it from rounded blog coefficients. For each target configuration:
 
-    // Step 1: Find max across the row (warp reduction)
-    float local_max = -INFINITY;
-    for (int j = lane; j < N; j += 32) {
-        local_max = fmaxf(local_max, scores[j]);
-    }
-    // Warp-level max reduction
-    for (int offset = 16; offset > 0; offset >>= 1) {
-        local_max = fmaxf(local_max, __shfl_xor_sync(0xFFFFFFFF, local_max, offset));
-    }
-    float m_new = local_max;
+1. Build an all-hardware control and one or more hybrid selections from the same source revision, compiler, target, and launch configuration.
+2. Inspect generated PTX/SASS to confirm which entries use hardware `MUFU.EX2`, which use the expected FMA/range-reduction sequence, and whether register use or spills changed.
+3. Test ordinary, masked, all-masked, causal, variable-length, large-gap, and underflow-heavy rows against a declared higher-precision reference. Record maximum absolute/relative output error and row-sum behavior, not only BF16 agreement on random inputs.
+4. Profile exponential-pipeline pressure, FMA/ALU issue, tensor-core overlap, registers, and spills. A high hardware-exp metric is a lead, not proof that moving more entries to FMA improves the schedule.
+5. Benchmark identical shapes, inputs, warmup, synchronization, clock policy, and repeated-trial statistics. Sweep the software fraction because both zero emulation and mixed settings appear in the pinned target/configuration table.
 
-    // Step 2: Compute software exp2 and sum
-    float local_sum = 0.0f;
-    const float LOG2E = 1.4426950408889634f;
+Keep the hybrid only where both the numerical contract and declared end-to-end metric pass. Do not transfer the choice to another architecture or transcendental function without repeating the reduction, approximation, special-value, generated-code, and performance checks.
 
-    for (int j = lane; j < N; j += 32) {
-        float x = (scores[j] - m_new) * LOG2E;
-        float exp_val = software_exp2(x);  // 4 FMAs instead of 1 SFU op
-        output[j] = exp_val;
-        local_sum += exp_val;
-    }
+## Performance provenance
 
-    // Warp-level sum reduction
-    for (int offset = 16; offset > 0; offset >>= 1) {
-        local_sum += __shfl_xor_sync(0xFFFFFFFF, local_sum, offset);
-    }
-
-    // Step 3: Conditional rescaling (FlashAttention online softmax)
-    float m_old = *row_max;
-    if (m_new > m_old) {
-        // Rescale previous accumulated output
-        float scale = software_exp2((m_old - m_new) * LOG2E);
-        *row_sum = (*row_sum) * scale + local_sum;
-        *row_max = m_new;
-        // The output accumulator must also be rescaled by `scale`
-    } else {
-        float scale = software_exp2((m_new - m_old) * LOG2E);
-        *row_sum += local_sum * scale;
-        // Rescale current exp values, not the accumulator
-    }
-}
-```
-
-## PTX-Level FMA Chain
-
-At the PTX level, the Horner polynomial compiles to a tight chain of `fma.rn.f32` instructions:
-
-```ptx
-// Software exp2 via Horner polynomial in PTX
-// Input: %x (float, range-reduced to [-0.5, 0.5])
-// Output: %result (float, approximation of 2^x)
-
-.reg .f32 %x, %r, %n, %poly, %result;
-.reg .f32 %c0, %c1, %c2, %c3, %c4;
-
-// Load polynomial coefficients
-mov.f32 %c0, 0f3F800000;    // 1.0
-mov.f32 %c1, 0f3F317218;    // 0.6931471805599453  (ln2)
-mov.f32 %c2, 0f3E75FDF0;    // 0.2402265069591007
-mov.f32 %c3, 0f3D635847;    // 0.05550410866482158
-mov.f32 %c4, 0f3C1D9539;    // 0.009618129107628477
-
-// Range reduction: n = rintf(x), r = x - n
-cvt.rni.f32.f32 %n, %x;     // Round to nearest int
-sub.f32         %r, %x, %n; // Fractional part
-
-// Horner evaluation: 4 dependent FMAs
-//   poly = c4
-//   poly = poly * r + c3
-//   poly = poly * r + c2
-//   poly = poly * r + c1
-//   poly = poly * r + c0
-mov.f32         %poly, %c4;
-fma.rn.f32      %poly, %poly, %r, %c3;  // FMA 1
-fma.rn.f32      %poly, %poly, %r, %c2;  // FMA 2
-fma.rn.f32      %poly, %poly, %r, %c1;  // FMA 3
-fma.rn.f32      %poly, %poly, %r, %c0;  // FMA 4
-
-// Reconstruct: result = poly * 2^n
-// Convert n to int and use ex2 scaling via bit manipulation
-cvt.rzi.s32.f32 %ni, %n;
-ex2.approx.f32  %scale, %n;    // Or use integer exponent manipulation
-mul.f32         %result, %poly, %scale;
-```
-
-## Accuracy Considerations
-
-The degree-4 polynomial provides approximately 22 bits of mantissa accuracy, which is more than sufficient for attention softmax where:
-- The input `x = (S[i,j] - max) * log2(e)` is always non-positive
-- The softmax output is normalized, so small absolute errors cancel out
-- BF16 output has only 7 mantissa bits anyway
-
-For applications requiring higher accuracy, a degree-6 polynomial (6 FMAs) achieves near-ULP accuracy across the full float range.
-
-## When to Use
-
-- **Attention kernels on Blackwell**: Whenever the SFU is the bottleneck for softmax computation. FlashAttention-4 measured 1.1-1.3x speedup over cuDNN from this technique alone on B200.
-- **Any kernel limited by transcendental function throughput**: If profiling shows SFU utilization near 100% while FMA utilization is low, software emulation can rebalance the workload.
-- **Not recommended on Hopper**: The SFU-to-MMA throughput ratio is better balanced on SM90. The overhead of 4 FMAs vs 1 SFU instruction is not justified unless the SFU is proven to be the bottleneck.
-
-## Caveats
-
-- The 4-FMA chain has a latency of ~16 cycles (4 dependent FMAs at ~4 cycles each), vs ~20 cycles for SFU `ex2.approx`. Latency is comparable; the win comes from throughput (128 FMA units vs 16 SFU units).
-- Polynomial coefficients are for 2^x on [-0.5, 0.5]. For e^x, multiply the input by log2(e) first.
-- The `ldexpf` or exponent bit-manipulation step for 2^n must handle overflow/underflow (very large/small x). In attention, `x <= 0` always holds, so only underflow toward zero is possible.
+The FA4 blog reports complete forward-pass speedups of 1.1–1.3× over cuDNN 9.13 on its evaluated B200 BF16 configurations. That comparison includes the full FA4 co-design—pipelining, hybrid exponentials, conditional rescaling, TMEM staging, scheduling, and other choices. It is not a software-exponential-only ablation and must not be used as the isolated speedup of this technique.

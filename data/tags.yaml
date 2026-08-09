@@ -57,6 +57,12 @@ techniques:
   - top-k-selection
   - parallel-scan
   - stream-k
+  - k-dimension-parallelism
+  - reduction
+  - occupancy
+  - launch-bounds
+  - maxrregcount
+  - spills
 
 kernel_types:
   - gemm
@@ -89,6 +95,7 @@ languages:
   - ptx
   - python
   - jax-pallas
+  - mojo
 
 confidence:
   - verified

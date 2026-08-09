@@ -3,7 +3,7 @@
 
 Modes:
   default — regenerate in memory and diff against committed bytes
-  --strict — additionally resolve each captured PR's merge_sha via `gh api`
+  --strict — additionally resolve each captured PR's merge_sha from GitHub
              and flag reverted / unresolvable / prefix-mismatched entries
 
 Exit codes:
@@ -22,6 +22,7 @@ bytes in memory rather than shelling out + writing to a temp directory.
 """
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import subprocess
@@ -38,7 +39,11 @@ CORE_PATH = REPO_ROOT / "data" / "core-prs.yaml"
 # which gh failures are environmental (exit 2) versus content-level (exit 1).
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 import compute_core_prs  # noqa: E402
-from verify_verbatim import EnvError, _looks_like_env_error  # noqa: E402
+from verify_verbatim import (  # noqa: E402
+    EnvError,
+    _looks_like_env_error,
+    fetch_pull_metadata,
+)
 
 
 def run_gh(args):
@@ -169,7 +174,7 @@ def main():
               f"total_captured are consistent (checksum {fresh.get('checksum_sha256','')[:12]}..., "
               f"{fresh.get('total_captured',0)} PRs)")
 
-    # --strict: resolve merge_sha via gh api
+    # --strict: resolve merge_sha from GitHub's first-party PR record.
     if args.strict:
         issues = 0          # content-level findings (exit 1)
         env_failures = 0    # environment / connectivity (exit 2)
@@ -192,58 +197,54 @@ def main():
             if fm.get("id"):
                 sources_prs[fm["id"]] = fm
 
-        print(f"Resolving merge_sha for {len(pr_entries)} PRs via gh api...")
-        for e in pr_entries:
+        def resolve_entry(e):
             pid = e.get("id")
             fm = sources_prs.get(pid)
             if not fm:
-                print(f"  WARN: {pid}: page not found in sources/prs/")
-                issues += 1
-                continue
+                return "issue", f"  WARN: {pid}: page not found in sources/prs/"
             sha = fm.get("merge_sha")
             repo = fm.get("repo")
             pr_num = fm.get("pr")
             if not (sha and repo and pr_num):
-                print(f"  WARN: {pid}: missing merge_sha / repo / pr number")
-                issues += 1
-                continue
+                return "issue", f"  WARN: {pid}: missing merge_sha / repo / pr number"
             try:
-                out = run_gh(["api", f"/repos/{repo}/pulls/{pr_num}"])
-                data = json.loads(out)
+                data = fetch_pull_metadata(repo, str(pr_num))
                 if not data.get("merged"):
-                    print(f"  FAIL: {pid}: upstream state is not merged (state={data.get('state')})")
-                    issues += 1
-                else:
-                    # sources/prs/**/*.md stores abbreviated 8-char
-                    # merge_sha values; gh returns the full 40-char
-                    # merge_commit_sha. R30: match ONLY against
-                    # merge_commit_sha (the actual merged revision).
-                    # Previously this check also accepted a prefix
-                    # match against head.sha, which let stale merge_sha
-                    # values pass strict verification whenever the PR
-                    # branch was kept alive after merge or a squash/
-                    # rebase merge moved the merge commit away from
-                    # head — the recorded `merge_sha` no longer named
-                    # the commit the bundle was fetched from.
-                    upstream_merge = str(data.get("merge_commit_sha") or "")
-                    if not (upstream_merge and upstream_merge.startswith(sha)):
-                        upstream_head = str((data.get("head") or {}).get("sha") or "")
-                        print(
-                            f"  FAIL: {pid}: recorded merge_sha={sha[:12]}... does not prefix-match "
-                            f"upstream merge_commit_sha={upstream_merge[:12]}... "
-                            f"(head.sha={upstream_head[:12]}... shown for reference; not accepted)"
-                        )
-                        issues += 1
+                    return "issue", f"  FAIL: {pid}: upstream state is not merged (state={data.get('state')})"
+
+                # sources/prs/**/*.md stores abbreviated 8-char merge_sha
+                # values; GitHub returns the full 40-char merge_commit_sha.
+                # Match ONLY against merge_commit_sha (the actual merged
+                # revision), never against head.sha.
+                upstream_merge = str(data.get("merge_commit_sha") or "")
+                if not (upstream_merge and upstream_merge.startswith(sha)):
+                    upstream_head = str((data.get("head") or {}).get("sha") or "")
+                    return "issue", (
+                        f"  FAIL: {pid}: recorded merge_sha={sha[:12]}... does not prefix-match "
+                        f"upstream merge_commit_sha={upstream_merge[:12]}... "
+                        f"(head.sha={upstream_head[:12]}... shown for reference; not accepted)"
+                    )
+                return "ok", ""
             except EnvError as ex:
                 # Offline / unauthenticated / rate-limited / DNS unreachable.
                 # These are environment failures, not content drift, so they
                 # must surface via the exit-2 contract instead of being
                 # conflated with real merge-SHA mismatches (exit 1).
-                print(f"  ENV:  {pid}: gh unreachable: {ex}", file=sys.stderr)
-                env_failures += 1
+                return "env", f"  ENV:  {pid}: GitHub unreachable: {ex}"
             except RuntimeError as ex:
-                print(f"  WARN: {pid}: gh fetch failed: {ex}")
+                return "issue", f"  WARN: {pid}: GitHub fetch failed: {ex}"
+
+        print(f"Resolving merge_sha for {len(pr_entries)} PRs from GitHub...")
+        workers = min(8, max(1, len(pr_entries)))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            results = list(executor.map(resolve_entry, pr_entries))
+        for kind, message in results:
+            if kind == "issue":
+                print(message)
                 issues += 1
+            elif kind == "env":
+                print(message, file=sys.stderr)
+                env_failures += 1
 
         # Environment failures take precedence over content issues: if we
         # could not reach GitHub at all, the content check is inconclusive,
@@ -253,8 +254,8 @@ def main():
         if env_failures:
             print(
                 f"\nSTRICT inconclusive: {env_failures} environment/connectivity "
-                f"failure(s) while resolving merge_sha via gh api. "
-                f"Re-run with network + authenticated gh to complete verification.",
+                f"failure(s) while resolving merge_sha from GitHub. "
+                f"Re-run with network access to complete verification.",
                 file=sys.stderr,
             )
             sys.exit(2)

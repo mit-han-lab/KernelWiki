@@ -6,319 +6,121 @@ architectures: [sm100, sm100a]
 tags: [tmem, tcgen05]
 confidence: verified
 evidence_basis:
-  - source_id: doc-nvidia-tuning-guide
+  - source_id: doc-ptx-isa-sm100
     evidence_type: official-doc
   - source_id: pr-cutlass-2139
     evidence_type: upstream-code
-related: [hw-tcgen05-mma, technique-double-buffering, pattern-register-pressure]
-sources: [pr-cutlass-2139, doc-nvidia-tuning-guide, blog-tcgen05-tutorial, blog-colfax-cutlass]
+related: [hw-tcgen05-mma, hw-2sm-cooperative, technique-double-buffering, pattern-register-pressure]
+sources: [doc-ptx-isa-sm100, pr-cutlass-2139]
 aliases: [TMEM, "tensor memory", "Tensor Memory"]
 ---
 
 # Tensor Memory (TMEM)
 
-## Overview
+## What TMEM is
 
-Tensor Memory (TMEM) is a new addressable memory space introduced in the Blackwell architecture (SM100). Each SM contains **256KB of dedicated TMEM**, used primarily as the accumulator storage for `tcgen05.mma` operations. TMEM eliminates the register pressure that plagued Hopper's wgmma, where accumulators consumed 128+ registers per warpgroup.
+Tensor Memory is an addressable, on-chip memory introduced for fifth-generation Tensor Core operations on Blackwell. Each SM has 256 KiB, organized as 128 lanes by 512 columns of 32-bit cells. `tcgen05.mma` writes its D accumulator to TMEM; depending on the instruction form, A can also reside there.
 
-## Architecture Layout
+Moving D out of general-purpose registers changes the resource balance relative to Hopper WGMMA. For example, CUTLASS 4.5.0's SM90 m64n256 FP32 WGMMA wrapper exposes 128 accumulator registers **per participating thread**. TMEM avoids that particular register-resident D fragment, but it does not remove registers needed by operands, control flow, or the epilogue.
 
-TMEM is organized as a 2D matrix:
+## Addressing and warp access
 
-| Dimension | Size | Description |
-|---|---|---|
-| Rows | 128 | Mapped to warp lanes (4 warps x 32 lanes) |
-| Columns | 512 | 32-bit (4-byte) elements per row |
-| Total | 128 x 512 x 4 bytes = 256 KB | Per-SM capacity |
+A TMEM address (`taddr`) is a 32-bit value:
 
-### Row-to-Lane Mapping
+| Bits | Meaning |
+|---|---|
+| 31:16 | TMEM lane |
+| 15:0 | TMEM column |
 
-TMEM rows are mapped to warp lanes within a CTA:
+The lane is a TMEM data-path lane, not storage independently owned by a CUDA thread. `tcgen05.ld` and `tcgen05.st` are warp-collective. Under their four-warp access model, the warps cover these lane chunks:
 
-```
-Row 0-31:   Warp 0, lanes 0-31
-Row 32-63:  Warp 1, lanes 0-31
-Row 64-95:  Warp 2, lanes 0-31
-Row 96-127: Warp 3, lanes 0-31
-```
+| Participating warp | TMEM lanes |
+|---|---|
+| 0 | 0-31 |
+| 1 | 32-63 |
+| 2 | 64-95 |
+| 3 | 96-127 |
 
-Each thread "owns" the TMEM row corresponding to its warp and lane. When reading from TMEM, thread `T` in warp `W` accesses row `W*32 + T%32`.
+The chosen load/store shape determines how values from that lane-column region map to each thread's register vector. Use the PTX shape-specific layout tables rather than treating a logical MxN accumulator as a universal row-major array owned one row per thread.
 
-### Column Addressing
+## Allocation lifecycle
 
-Columns are addressed via a column offset in the TMEM descriptor. A 128x256 MMA accumulator tile occupies:
+TMEM has an explicit software-managed lifetime:
 
-- 128 rows (all lanes across 4 warps)
-- 256 columns of FP32 values = 1024 bytes per row
+1. Reserve shared memory for the 32-bit allocation result.
+2. Execute `tcgen05.alloc` collectively from one warp for `cta_group::1`, or from two warps—one per paired CTA—for `cta_group::2`.
+3. Synchronize consumers as required, then read the returned base `taddr` from shared memory.
+4. Use the allocation for MMA, copy, load, or store operations with the same CTA-group mode.
+5. Execute `tcgen05.dealloc` with the corresponding collective issue pattern.
+6. Deallocate every TMEM allocation before kernel exit.
 
-```
-TMEM Layout for 128x256 FP32 accumulator:
-  col 0        col 255     col 511
-  |------------|-----------|-----------|
-  |  Acc Tile  |  (free)   |  (free)   |  row 0   (warp0, lane0)
-  |  128x256   |           |           |  row 1   (warp0, lane1)
-  |  FP32      |           |           |  ...
-  |            |           |           |  row 127  (warp3, lane31)
-  |------------|-----------|-----------|
-```
+The allocation operand counts columns. Legal allocation sizes are powers of two from 32 through 512 columns. Allocation can block until the requested TMEM is available; the ISA does not define folklore outcomes such as silent corruption for an invalid size.
 
-## Allocation and Deallocation Lifecycle
+### Column budgeting
 
-TMEM is **explicitly managed** by the programmer. There is no automatic allocation or garbage collection.
+All allocations share the SM's 512-column capacity. Some useful whole-allocation budgets are:
 
-### Allocation
+| Allocation per stage | Maximum stages if TMEM has no other use | Columns left |
+|---|---:|---:|
+| 128 columns | 4 | 0 |
+| 256 columns | 2 | 0 |
+| 512 columns | 1 | 0 |
 
-```cuda
-// Shared storage for CTA-wide broadcast of TMEM address
-__shared__ uint32_t s_tmem_addr;
+A logical need of 192 columns cannot be requested directly: reserve 256 columns, or suballocate that logical region within another legal power-of-two reservation. Two 256-column accumulator stages consume the entire capacity, so scale-factor tensors or other scratch state must fit inside those reservations or the pipeline must use fewer columns.
 
-__device__ uint32_t tmem_alloc_cta(uint32_t num_cols) {
-    // Only thread 0 allocates; result must reach ALL warps in the CTA.
-    // __shfl_sync is warp-local — it cannot broadcast across warps.
-    if (threadIdx.x == 0) {
-        uint32_t smem_addr =
-            static_cast<uint32_t>(__cvta_generic_to_shared(&s_tmem_addr));
-        asm volatile(
-            "tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], %1;"
-            :
-            : "r"(smem_addr), "r"(num_cols)
-        );
-    }
-    __syncthreads();  // All warps now see s_tmem_addr
-    return s_tmem_addr;
-}
-```
+## Completion and ordering
 
-Key points:
-- `num_cols` specifies the number of 32-bit columns to allocate.
-- A 128x256 FP32 accumulator needs 256 columns.
-- Allocation is **CTA-scoped** -- all threads in the CTA share the same TMEM region.
-- Only one thread (typically thread 0) issues the allocation.
-- The returned `tmem_addr` is the base column index.
+The relevant mechanisms are distinct:
 
-### Deallocation
+- `tcgen05.commit` attaches completion of prior asynchronous MMA operations to an mbarrier. Wait on that barrier before consuming their results.
+- `tcgen05.wait::ld` and `tcgen05.wait::st` are the completion mechanisms for the corresponding asynchronous TMEM load/store operations.
+- `tcgen05.fence::before_thread_sync` and `tcgen05.fence::after_thread_sync` order tcgen05 operations around a documented execution-ordering handoff. A fence is not an MMA completion wait.
+- Producer buffers must remain live until the asynchronous operation that reads them has completed according to its instruction contract.
 
-```cuda
-__device__ void tmem_dealloc(uint32_t tmem_addr, uint32_t num_cols) {
-    if (threadIdx.x == 0) {
-        asm volatile(
-            "tcgen05.dealloc.cta_group::1.sync.aligned.b32 %0, %1;"
-            :
-            : "r"(tmem_addr), "r"(num_cols)
-        );
-    }
-    __syncthreads();
-}
-```
+CTA synchronization alone does not replace these completion operations.
 
-**Warning**: Failure to deallocate TMEM before CTA exit will leak memory and prevent subsequent CTAs from allocating, leading to hangs in persistent kernels.
+## Data movement
 
-### Lifecycle in a Persistent GEMM Kernel
+`tcgen05.ld` transfers TMEM into registers, and `tcgen05.st` transfers registers into TMEM. Their documented shapes include `.16x64b`, `.16x128b`, `.16x256b`, `.32x32b`, and `.16x32bx2`, with supported repetition qualifiers. There is no scalar `.32x1b` form.
 
-```cuda
-__global__ void persistent_gemm_kernel(/* ... */) {
-    // 1. Allocate TMEM for accumulators
-    uint32_t tmem_acc = tmem_alloc(256);  // 256 cols for M=128, N=256
-
-    while (has_more_tiles()) {
-        // 2. Zero-initialize TMEM accumulator
-        tmem_zero(tmem_acc, 256);
-
-        // 3. Mainloop: accumulate K tiles
-        for (int k = 0; k < K_tiles; ++k) {
-            issue_tcgen05_mma(tmem_acc, smem_a[k], smem_b[k]);
-        }
-
-        // 4. Fence and read results
-        asm volatile("tcgen05.fence::before_thread_sync;");
-        __syncthreads();
-
-        // 5. Epilogue: read from TMEM, apply bias/activation, write to GMEM
-        epilogue_from_tmem(tmem_acc, output);
-
-        // 6. TMEM persists across tiles -- no need to reallocate
-    }
-
-    // 7. Deallocate before exit
-    tmem_dealloc(tmem_acc, 256);
-}
-```
-
-## Data Movement Operations
-
-### TMEM Store (Register to TMEM)
-
-```cuda
-// Store a register value to TMEM
-// Each thread writes to its own TMEM row at the specified column
-__device__ void tmem_store_f32(uint32_t tmem_col, float value) {
-    asm volatile(
-        "tcgen05.st.sync.aligned.32x1b.x1.b32 [%0], {%1};"
-        :
-        : "r"(tmem_col), "f"(value)
-    );
-}
-
-// Vectorized store: 4 consecutive FP32 values
-__device__ void tmem_store_f32x4(uint32_t tmem_col, float4 values) {
-    asm volatile(
-        "tcgen05.st.sync.aligned.32x1b.x4.b32 [%0], {%1, %2, %3, %4};"
-        :
-        : "r"(tmem_col),
-          "f"(values.x), "f"(values.y),
-          "f"(values.z), "f"(values.w)
-    );
-}
-```
-
-### TMEM Load (TMEM to Register)
-
-```cuda
-// Load a single FP32 from TMEM
-__device__ float tmem_load_f32(uint32_t tmem_col) {
-    float result;
-    asm volatile(
-        "tcgen05.ld.sync.aligned.32x1b.x1.b32 {%0}, [%1];"
-        : "=f"(result)
-        : "r"(tmem_col)
-    );
-    return result;
-}
-
-// Vectorized load: 4 consecutive FP32 values
-__device__ float4 tmem_load_f32x4(uint32_t tmem_col) {
-    float4 result;
-    asm volatile(
-        "tcgen05.ld.sync.aligned.32x1b.x4.b32 {%0, %1, %2, %3}, [%4];"
-        : "=f"(result.x), "=f"(result.y),
-          "=f"(result.z), "=f"(result.w)
-        : "r"(tmem_col)
-    );
-    return result;
-}
-```
-
-### TMEM Zero-Fill
-
-```cuda
-// Zero-fill a range of TMEM columns
-__device__ void tmem_zero(uint32_t tmem_base_col, uint32_t num_cols) {
-    // Each thread zeros its own row
-    for (uint32_t c = 0; c < num_cols; c += 4) {
-        float4 zero = make_float4(0.f, 0.f, 0.f, 0.f);
-        tmem_store_f32x4(tmem_base_col + c, zero);
-    }
-}
-```
-
-### Bulk SMEM -> TMEM Copy via tcgen05.cp
-
-The `tcgen05.cp` instruction copies a shaped matrix from shared memory into
-TMEM. The source operand is a shared-memory matrix descriptor, not a TMEM
-address.
+`tcgen05.cp` performs shaped shared-memory-to-TMEM copies. For example, PTX ISA 9.0 defines this exact form:
 
 ```ptx
-// Copy a 128x256b shared-memory tile into TMEM.
 tcgen05.cp.cta_group::1.128x256b [taddr], sdesc;
 ```
 
-The 64-bit register operand `sdesc` is the matrix descriptor representing the
-source matrix in shared memory. The matrix descriptor format is described in
-[Matrix Descriptors](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#tcgen05-matrix-descriptors).
+Here `taddr` is the TMEM destination and `sdesc` is the 64-bit shared-memory matrix descriptor. Follow the instruction's asynchronous ordering and completion rules before reusing the source or consuming the destination.
 
-## Double-Buffering with TMEM
+## Staging accumulators
 
-Double-buffering TMEM accumulators enables overlapping the epilogue of the current tile with the MMA accumulation of the next tile:
+Multiple accumulator stages can overlap MMA production with draining a different, completed TMEM stage. The design is valid only when:
 
-```cuda
-__global__ void double_buffered_gemm(/* ... */) {
-    // Allocate two accumulator buffers
-    uint32_t tmem_acc[2];
-    tmem_acc[0] = tmem_alloc(256);
-    tmem_acc[1] = tmem_alloc(256);
+- the combined allocations and suballocations fit the 512-column budget;
+- producer and consumer roles use explicit pipeline barriers;
+- MMA completion is observed before a consumer drains a stage;
+- TMEM load completion is observed before register results are used; and
+- no stage is recycled while an asynchronous operation can still access it.
 
-    int buf = 0;
+This is a pipeline design, not an automatic consequence of alternating two addresses. CUTLASS's version-pinned SM100 tutorials show complete producer/consumer implementations.
 
-    for (int tile = 0; tile < num_tiles; ++tile) {
-        // Zero the current buffer
-        tmem_zero(tmem_acc[buf], 256);
+## CUTLASS 4.5.0 Python DSL
 
-        // Mainloop: accumulate into current buffer
-        for (int k = 0; k < K_tiles; ++k) {
-            issue_tcgen05_mma(tmem_acc[buf], smem_a[k], smem_b[k]);
-        }
-        asm volatile("tcgen05.fence::before_thread_sync;");
-        __syncthreads();
+CUTLASS 4.5.0 exposes TMEM through `cutlass.utils.TmemAllocator` and layout-aware CuTe tensors. The official tutorial sequence is:
 
-        // If not the first tile, the *other* buffer's epilogue
-        // was overlapped with this tile's MMA in the pipeline.
+1. create a `TmemAllocator` over shared storage for the allocation result;
+2. call `allocate(num_columns)` from the configured allocator warp;
+3. use `wait_for_alloc()` before other warps retrieve the address;
+4. obtain a typed pointer with `retrieve_ptr(dtype)`;
+5. bind that pointer to the MMA accumulator layout with `cute.make_tensor`;
+6. drain it with `tcgen05` copy atoms and the pipeline's completion protocol; and
+7. call `free(tmem_ptr)` before exit.
 
-        // Start epilogue for current buffer
-        // (can overlap with next tile's MMA on the other buffer)
-        epilogue_from_tmem(tmem_acc[buf], output_tile[tile]);
+See the pinned [CUTLASS 4.5.0 FP16 GEMM tutorial](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py) and [TMEM allocator implementation](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/python/CuTeDSL/cutlass/utils/tmem_allocator.py). APIs such as `Layout(memory_space=MemorySpace.TMEM)` and standalone `tcgen05_mma()` are not CUTLASS 4.5.0 interfaces.
 
-        buf ^= 1;  // Swap buffers
-    }
+## Primary references
 
-    // Cleanup
-    tmem_dealloc(tmem_acc[0], 256);
-    tmem_dealloc(tmem_acc[1], 256);
-}
-```
-
-### TMEM Budget Considerations
-
-With 512 total columns per SM:
-
-| Accumulator Size | Columns | Max Buffers | Remaining for Scratch |
-|---|---|---|---|
-| 128x128 FP32 | 128 cols | 4 | 0 |
-| 128x192 FP32 | 192 cols | 2 | 128 |
-| 128x256 FP32 | 256 cols | 2 | 0 |
-| 128x256 FP32 (2x) | 512 cols | 2 (double-buf) | 0 |
-
-For double-buffered 128x256 tiles, the full 512 columns are consumed. If additional scratch TMEM is needed (e.g., for softmax in attention kernels), reduce the tile size or use a single accumulator buffer.
-
-## Microbenchmark Data
-
-From published Blackwell microbenchmarks:
-
-| Metric | TMEM | SMEM | Registers |
-|---|---|---|---|
-| End-to-end latency (cache miss) | ~420 cycles | ~30 cycles | ~4 cycles |
-| Bandwidth for large working sets | High (dedicated bus) | Medium | N/A (limited count) |
-| Best for | Multi-stage tensor pipelines | Single-shot small matrix | Scalar/vector ALU |
-
-TMEM is **not** a replacement for shared memory. Its strength is in serving as a dedicated accumulator buffer that eliminates register pressure for large MMA tiles. SMEM remains faster for small, frequently accessed data.
-
-## TMEM in the CUTLASS Abstraction
-
-In CUTLASS 4.5.0 for SM100, TMEM is managed through CuTe layouts:
-
-```python
-# CuTe-DSL example: TMEM accumulator layout
-# 128 rows x 256 columns, FP32
-tmem_layout = Layout(
-    shape=(128, 256),
-    stride=(256, 1),
-    memory_space=MemorySpace.TMEM
-)
-
-# Allocate TMEM accumulator
-acc = tmem_alloc(tmem_layout)
-
-# Issue MMA -- accumulator lives in TMEM
-tcgen05_mma(acc, smem_a, smem_b)
-
-# Fence and read
-tcgen05_fence()
-result = tmem_load(acc)
-```
-
-## Common Pitfalls
-
-1. **Forgetting to fence**: Reading TMEM without `tcgen05.fence::before_thread_sync` produces undefined (stale) values.
-2. **Forgetting to deallocate**: In persistent kernels, TMEM must be freed before re-acquiring tiles. Otherwise, the next allocation will fail or hang.
-3. **Exceeding 512 columns**: Attempting to allocate more than the SM's total column budget silently corrupts data or causes a hang.
-4. **Cross-warp reads**: A thread can only directly read/write TMEM rows mapped to its own lane. Accessing another warp's rows requires explicit shuffle or SMEM staging.
-5. **Assuming SMEM-like latency**: TMEM has ~420-cycle latency on cache miss vs ~30 cycles for SMEM. Do not use TMEM for low-latency random access patterns.
+- [PTX ISA 9.0: Tensor Memory](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory)
+- [PTX ISA 9.0: `tcgen05.alloc`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc)
+- [PTX ISA 9.0: `tcgen05.ld`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld)
+- [PTX ISA 9.0: `tcgen05.commit`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit)
+- [CUTLASS 4.5.0 SM100 Python tutorial](https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm)

@@ -6,6 +6,10 @@ retrieved_at: '2026-04-17'
 asset_mode: verbatim
 size_cap_truncated: false
 generated_by: Phase 3 Round 2 task11 anchor bundle
+description: >-
+  Adjacent NVIDIA CUTLASS SM100 FMHA backward MLA reference. This bundle is
+  not the Dao-AILab FlashAttention-4 implementation; it is retained only as a
+  separately pinned comparison implementation.
 source_pr_id: pr-cutlass-2466
 files:
   - local_path: sm100_fmha_bwd_mla_kernel_tma_warpspecialized.hpp

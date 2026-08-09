@@ -1,62 +1,52 @@
 ---
 id: technique-chunk-parallelism
-title: "Chunk-Based Parallelism for Linear Attention"
+title: "Chunkwise Parallelism for Linear Recurrences"
 type: technique
 architectures: [sm100, sm90]
 tags: [chunk-parallelism, linear-attention, gated-delta-net, pipeline-stages]
-confidence: source-reported
-reproducibility: snippet
+confidence: verified
+evidence_basis:
+  - source_id: doc-tfla
+    evidence_type: paper
+reproducibility: concept
 prerequisites: []
 related: [kernel-gated-delta-net, kernel-nsa]
-sources: [blog-gated-delta-net, blog-nsa, doc-tfla]
-blackwell_relevance: "Chunk size scales with TMEM capacity on Blackwell; larger chunks = better tensor core utilization."
+sources: [blog-gated-delta-net, doc-tfla, blog-qwen3-next-architecture]
+blackwell_relevance: "Blackwell can accelerate concrete chunkwise kernels, but neither TMEM capacity nor the architecture alone determines a correct or optimal chunk size."
 ---
 
-# Chunk-Based Parallelism
+# Chunkwise Parallelism for Linear Recurrences
 
-## Overview
+## Mechanism
 
-Linear attention variants (GatedDeltaNet, RetNet, Mamba) have O(n) complexity but naive implementations are sequential. Chunk-based parallelism divides the sequence into chunks of size C, computes within each chunk in parallel (matmul-friendly), and propagates state between chunks sequentially.
+Some linear recurrent models admit an algebraically equivalent chunkwise formulation. Work local to a chunk can then be expressed with parallel matrix operations, while the state passed across chunk boundaries preserves the recurrence's sequence order. The exact transform is model-specific: it must be derived from the recurrence, not replaced by a generic attention matrix and additive state update.
 
-## Pattern
+A correct implementation separates at least these obligations:
 
-```python
-@triton.jit
-def chunk_parallel_linear_attn(Q, K, V, State, Output,
-                                chunk_size: tl.constexpr,
-                                d: tl.constexpr):
-    # Grid: (num_chunks, num_heads, batch)
-    chunk_id = tl.program_id(0)
+1. Compute the chunk-local quantities required by the model's exact recurrence.
+2. Resolve boundary states in sequence order, either with an associative scan supported by the formulation or with explicitly ordered stages or launches.
+3. Combine each chunk's local result with its incoming boundary state and emit outputs in the original token order.
+4. Validate outputs and final states against a token-by-token reference across variable sequence lengths, chunk tails, batches, heads, dtypes, and gate extremes.
 
-    # Load chunk of Q, K, V
-    q = tl.load(Q + chunk_id * chunk_size * d + offsets)  # [C, d]
-    k = tl.load(K + chunk_id * chunk_size * d + offsets)
-    v = tl.load(V + chunk_id * chunk_size * d + offsets)
+An ordinary GPU grid does not imply increasing program-ID execution order or grid-wide synchronization. Programs for every chunk therefore cannot safely read and overwrite one shared state pointer in a single unordered launch. A staged algorithm must make the boundary-state dependency explicit.
 
-    # Intra-chunk: parallel O(C^2) attention-like compute
-    scores = tl.dot(q, tl.trans(k))
-    o_intra = tl.dot(scores, v)
+## Verified implementations and scope
 
-    # Inter-chunk: sequential state propagation
-    state = tl.load(State)  # From previous chunk
-    o_inter = tl.dot(q, state)
+The pinned NVlabs GatedDeltaNet repository uses chunkwise Triton kernels for training and a WY representation of the gated delta rule. That implementation is direct evidence for GatedDeltaNet chunking, but it is not equivalent to a generic `scores = Q @ K.T; output = scores @ V` snippet and does not supply a universal chunk-size rule.
 
-    # Combine and update state
-    output = o_intra + o_inter
-    state = update_state(state, k, v)
+Tiled Flash Linear Attention (TFLA) starts from the chunkwise formulation of linear RNNs and adds another level of sequence parallelization within a chunk. The authors state that this permits arbitrarily large chunks, raises arithmetic intensity, and reduces intermediate-state materialization. The paper and pinned official code apply the method to mLSTM and report H100 results; they do not establish a GatedDeltaNet implementation, a Blackwell/TMEM implementation, or a recursive-tiling API.
 
-    tl.store(Output + offsets, output)
-    tl.store(State, state)
-```
+Qwen3-Next is a hybrid-model example, not evidence that one kernel handles every layer. Its immutable 48-layer configuration repeats three Gated DeltaNet linear-attention layers and one full-attention layer twelve times: 36 GDN and 12 full-attention layers. A chunkwise GDN backend applies only to the GDN recurrence; the full-attention layers retain their distinct attention implementation and context-dependent cache.
 
-## Size Tradeoff
+## Choosing a chunk configuration
 
-- **Small chunks (C=32)**: low latency decode, fewer intermediate materializations
-- **Large chunks (C=256-512)**: better tensor core utilization, higher throughput for prefill
-- **TFLA (Tiled FLA)**: two-level tiling allows arbitrary chunk sizes via recursive tiling
+There is no source-backed universal rule that `C=32` is a decode choice or that `C=256-512` is the prefill optimum. Choose only among chunk sizes supported by the exact algorithm and backend, then measure the tradeoff:
 
-## When To Use
+- arithmetic intensity and matrix-instruction utilization;
+- intermediate-state and workspace traffic;
+- registers, shared memory, and occupancy;
+- tail handling and variable-length metadata;
+- launch count and boundary-scan cost;
+- latency and throughput for the intended batch and sequence distribution.
 
-- Linear attention (O(n) complexity)
-- Recurrent state models (Mamba, GatedDeltaNet, Delta Rule)
-- Hybrid architectures mixing linear + full attention (Qwen3-Next uses 3:1 ratio)
+Compare candidates with identical compiler/software revisions, launch inputs, correctness oracles, warmups, synchronization, and repeated-trial statistics. Treat a selected size as scoped to the model dimensions, dtype, GPU, backend, and workload. TMEM availability on SM100 may change an implementation's resource design, but it does not by itself prove that a larger chunk is legal or faster.

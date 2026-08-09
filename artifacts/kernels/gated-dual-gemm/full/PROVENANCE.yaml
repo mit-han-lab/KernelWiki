@@ -1,22 +1,15 @@
-origin_url: https://github.com/vllm-project/vllm/pull/23696
-upstream_repo: vllm-project/vllm
-upstream_sha: 074854b2
-license: inherits-from-upstream
-retrieved_at: '2026-04-17'
-asset_mode: extracted
+origin_url: https://github.com/gpu-mode/reference-kernels/tree/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm
+upstream_repo: gpu-mode/reference-kernels
+upstream_sha: c5b2f7c062d5015f29c3a1043cfd04954397944c
+license: MIT
+retrieved_at: '2026-08-08'
+asset_mode: verbatim
 size_cap_truncated: false
-generated_by: Phase 3 Round 3 task12 (gated-dual-gemm anchor)
-source_pr_id: pr-vllm-23696
+generated_by: KernelWiki verifier remediation
+source_id: contest-gpumode-p3
 files:
-- local_path: vllm-PR-23696-gated-dual-gemm.patch
-  sha256: 033d30b15af4f2050189c2e76ba61959e1e5d4bd049dc901fd56f68890b891a0
-  role: pr-diff
-  mode: upstream-patch
-- local_path: blackwell-cutlass-schedules-and-tma.cu
-  sha256: e720037bbdb5ee5054259a331cdaf489e7135a44038d66d1fd9d9e5998b75255
-  role: extracted-block
-  mode: extracted
-  upstream_path: sources/blogs/tflops-gap-fp4-moe.md
-  heading_path: '# TFLOPS Gap: Why FP4 MoE Kernel Engineering Matters on Blackwell
-    > ## Three Key Optimization Techniques > ### 2. Blackwell-Specific CUTLASS Schedules
-    and TMA'
+- local_path: task.yml
+  sha256: 2bf4e5c04cc8a9c283e519437c8324ca9265d9c12d0dfe2b76dc9f0542ada051
+  role: upstream-file
+  mode: verbatim
+  upstream_path: problems/nvidia/nvfp4_dual_gemm/task.yml

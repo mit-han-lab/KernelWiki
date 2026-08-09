@@ -7,232 +7,125 @@ tags: [fine-grained-quantization, fp8, fp4, nvfp4, block-scale]
 confidence: source-reported
 reproducibility: snippet
 prerequisites: [hw-nvfp4]
-related: [hw-nvfp4, kernel-deepgemm, technique-fine-grained-quantization]
-sources: [blog-deepgemm, doc-nvidia-tuning-guide, pr-vllm-23696]
-blackwell_relevance: "Blackwell tcgen05 has native UE8M0 block scaling; Hopper requires external CUDA core promotion (Nc=128)."
+related: [hw-nvfp4, kernel-deepgemm]
+sources: [blog-deepgemm, doc-ptx-isa-sm100, doc-transformer-engine-2.13-nvfp4]
+blackwell_relevance: "Blackwell tcgen05 has native block-scaled MMA combinations using UE8M0 or UE4M3; the legal scale type and vector size depend on the selected MMA kind."
 ---
 
 ## Overview
 
-Fine-grained quantization applies per-block (rather than per-tensor) scaling factors to low-precision data, preventing outlier values from destroying the quantization precision of an entire tensor. DeepSeek pioneered the tile-wise 1x128 scaling for activations and block-wise 128x128 scaling for weights in their FP8 training framework. On Blackwell (SM100), native block scaling support in tcgen05.mma enables hardware-accelerated fine-grained quantization using the UE8M0 scale format, while Hopper requires software-managed CUDA core promotion.
+Fine-grained quantization associates low-precision payloads with scales for
+subsets of a tensor. Smaller groups let scale selection respond more locally,
+but they do not guarantee a particular error or speed result. Keep four choices
+separate when transferring a kernel: payload type, scale type, scale geometry,
+and physical scale layout.
 
-## Scaling Granularities
+Three verified recipes in this wiki illustrate why the full contract matters:
 
-```
-Per-tensor scaling (coarsest):
-  Entire tensor shares one FP32 scale factor.
-  Problem: a single outlier ruins precision for all elements.
-  
-  [=== entire MxK matrix === ] -> 1 scale
+- **DeepSeek FP8 training geometry:** one scale for each token row and 128
+  activation channels (`1 x 128`), and one scale for each 128-input-channel by
+  128-output-channel weight block (`128 x 128`).
+- **NVFP4 1D recipe:** E2M1 payloads, one E4M3 local scale per 16 consecutive
+  values, and one FP32 global scale per tensor. Transformer Engine 2.13 also
+  defines a weight-oriented 2D mode with one local scale per `16 x 16` block.
+- **MXFP4:** E2M1 payloads with one UE8M0 power-of-two scale per 32 values; the
+  NVFP4 per-tensor global scale is not part of this microscaling format.
 
-Per-block 128x128 scaling (weights):
-  Each 128x128 block has its own scale factor.
-  128x128 = 16,384 elements per scale -> 0.006% overhead.
-  
-  +---+---+---+
-  |s1 |s2 |s3 |  <- each block has independent scale
-  +---+---+---+
-  |s4 |s5 |s6 |
-  +---+---+---+
+Scale-count and storage overhead are different quantities. A `128 x 128` block
+has one factor per 16,384 payloads, a factor-count ratio of about 0.0061%. If
+the payload is one byte and the factor is FP32, the byte ratio is instead
+`4 / 16384`, about 0.0244%. Include factor width, payload width, padding, and
+layout transformations in any storage or bandwidth claim.
 
-Per-tile 1x128 scaling (activations):
-  Each row of 128 elements has its own scale factor.
-  Captures per-channel activation distributions.
-  
-  [s1: ====128 elements====]
-  [s2: ====128 elements====]
-  [s3: ====128 elements====]
-```
+## DeepGEMM FP8 implementations
 
-## DeepGEMM: Tile-wise and Block-wise Scaling
+At commit `891d57b4db1071624b5c8fa0d1e51cb317fa709f`, DeepGEMM uses
+architecture-specific scale representations and accumulation paths.
 
-DeepGEMM implements fine-grained FP8 GEMM with two scaling patterns:
+### SM90
 
-```cuda
-// DeepGEMM FP8 GEMM with fine-grained scaling
-// A (activations): FP8 E4M3 with tile-wise 1x128 FP32 scales
-// B (weights):     FP8 E4M3 with block-wise 128x128 FP32 scales
-// C (output):      FP32 accumulator
+The pinned SM90 1D1D kernel consumes FP32 A/B factors and fixes
+`BLOCK_K == 128`. The DeepSeek-V3 report characterizes the H800 FP8 Tensor Core
+path as retaining about 14 bits and describes this interval as four WGMMAs in
+its configuration. The exact kernel accumulates one K block in `float accum`
+and then applies both factors into a separate `float final_accum`:
 
-// Scale tensor shapes:
-//   scale_A: [M, K/128] -- one FP32 scale per 128 elements along K for each row
-//   scale_B: [K/128, N/128] -- one FP32 scale per 128x128 block
-
-__device__ void deepgemm_fp8_tile(
-    const fp8_e4m3* A,    // [TILE_M, TILE_K] in FP8
-    const fp8_e4m3* B,    // [TILE_K, TILE_N] in FP8
-    const float* scale_A, // [TILE_M, TILE_K/128]
-    const float* scale_B, // [TILE_K/128, TILE_N/128]
-    float* C,             // [TILE_M, TILE_N] accumulator
-    int M, int N, int K)
-{
-    // For each 128-element K-chunk:
-    for (int k_block = 0; k_block < K; k_block += 128) {
-        // 1. Load FP8 A tile [TILE_M, 128] and B tile [128, TILE_N]
-        // 2. Perform MMA: partial = A_fp8 * B_fp8 (in limited-precision FP32)
-        // 3. Apply combined scale: scale_A[m, k_block/128] * scale_B[k_block/128, n_block/128]
-        // 4. Accumulate: C[m, n] += partial * combined_scale
-
-        for (int m = 0; m < TILE_M; m++) {
-            float sa = scale_A[m * (K / 128) + k_block / 128];
-            for (int n_block = 0; n_block < TILE_N; n_block += 128) {
-                float sb = scale_B[(k_block / 128) * (N / 128) + n_block / 128];
-                float combined_scale = sa * sb;
-
-                // Apply scale to the partial MMA result
-                for (int n = n_block; n < n_block + 128; n++) {
-                    C[m * TILE_N + n] += partial[m][n] * combined_scale;
-                }
-            }
-        }
-    }
-}
+```cpp
+final_accum[i * 4 + 0] += scale_a_0 * scale_b_0 * accum[i * 4 + 0];
+final_accum[i * 4 + 1] += scale_a_0 * scale_b_1 * accum[i * 4 + 1];
+final_accum[i * 4 + 2] += scale_a_1 * scale_b_0 * accum[i * 4 + 2];
+final_accum[i * 4 + 3] += scale_a_1 * scale_b_1 * accum[i * 4 + 3];
 ```
 
-## Hopper: CUDA Core Promotion (Nc=128)
+This is a source-specific implementation, not a rule for every Hopper FP8
+kernel. The cited sources do not establish the deleted 0.1% error bound or a
+universal ranking of `Nc=32`, `64`, `128`, and `256`.
 
-On Hopper (SM90), the wgmma instruction accumulates in Tensor Core registers with limited precision (~FP22, not true FP32). To maintain numerical accuracy, DeepGEMM promotes the partial sum to a separate FP32 accumulator on CUDA Cores every 4 wgmma instructions (Nc=128, since each wgmma processes 32 K-elements):
+### SM100
 
-```cuda
-// Hopper FP8 GEMM with CUDA Core promotion (DeepGEMM pattern)
-// Every Nc=128 K-elements, promote Tensor Core accumulator to FP32
+The pinned SM100 1D1D template accepts K scale granularities of 32 or 128 for
+each operand. Its public interface packs four UE8M0 factors in each 32-bit
+container. TMA moves factor blocks to shared memory, UTCCP copies them into
+dedicated TMEM SFA/SFB columns, and block-scaled UMMA consumes the TMEM scale
+addresses. The SM90 `final_accum` promotion loop is absent.
 
-__device__ void hopper_fp8_gemm_with_promotion(
-    const fp8_e4m3* A, const fp8_e4m3* B,
-    const float* scale_A, const float* scale_B,
-    float* C_accumulator,
-    int K)
-{
-    // Tensor Core limited-precision accumulator (FP22-ish)
-    // These are wgmma output registers
-    float tc_acc[TILE_M_PER_THREAD][TILE_N_PER_THREAD] = {0};
-
-    // True FP32 accumulator on CUDA Cores
-    float fp32_acc[TILE_M_PER_THREAD][TILE_N_PER_THREAD] = {0};
-
-    int promotion_interval = 128;  // Nc = 128 elements = 4 wgmma ops
-    int wgmma_count = 0;
-
-    for (int k = 0; k < K; k += 32) {
-        // Issue wgmma (accumulates in limited-precision tc_acc)
-        wgmma_mma_async(tc_acc, smem_A_ptr, smem_B_ptr);
-        wgmma_count++;
-
-        if (wgmma_count == 4) {  // Every 128 K-elements
-            // Promote: transfer tc_acc to fp32_acc on CUDA Cores
-            wgmma_wait();  // Ensure wgmma is complete
-
-            int k_block = k / promotion_interval;
-            for (int m = 0; m < TILE_M_PER_THREAD; m++) {
-                float sa = scale_A[/*...*/];
-                for (int n = 0; n < TILE_N_PER_THREAD; n++) {
-                    float sb = scale_B[/*...*/];
-                    // Add scaled partial to true FP32 accumulator
-                    fp32_acc[m][n] += tc_acc[m][n] * sa * sb;
-                    // Reset TC accumulator for next interval
-                    tc_acc[m][n] = 0;
-                }
-            }
-            wgmma_count = 0;
-        }
-    }
-}
-```
-
-The Nc=128 interval was chosen because:
-- 4 wgmma operations process 128 K-elements (4 x 32)
-- At this interval, the accumulated FP22 error is bounded to ~0.1% relative error
-- Fewer than 4 ops (Nc=32, Nc=64) adds too much promotion overhead
-- More than 4 ops (Nc=256) allows unacceptable precision loss
-
-## Blackwell: Native Block Scaling
-
-On Blackwell, tcgen05.mma supports native block scaling via the UE8M0 (unsigned 8-bit exponent, no mantissa) format. The hardware applies per-block scale factors directly during the MMA operation, eliminating the software promotion step:
-
-```cuda
-// Blackwell native block scaling with UE8M0
-// Scale format: UE8M0 = pure power-of-two scale (2^exponent)
-// Packed: 4 UE8M0 values per 32-bit integer
-
-// DeepGEMM SM100 kernel: scale_A and scale_B are UE8M0 packed
-// tcgen05.mma applies scales automatically during accumulation
-
-struct BlockScaleDescriptor {
-    // 4 UE8M0 scale values packed into one uint32
-    // Each UE8M0 is an 8-bit unsigned exponent: value = 2^(e - 127)
-    uint32_t packed_scales;  // Contains 4 block scales
-
-    // Dequantization for block [i]:
-    //   scale_i = 2^(((packed >> (i*8)) & 0xFF) - 127)
-};
-
-// PTX for tcgen05.mma with block scaling:
-// The .scale modifier tells the hardware to apply UE8M0 scales
-// from a designated SMEM region alongside the MMA operands
-```
+PTX ISA 9.0 expresses the corresponding FP8 block-scaled operand classes with
+this grammar-level form:
 
 ```ptx
-// tcgen05.mma with native block scaling (Blackwell PTX)
-// This instruction applies UE8M0 scales from SMEM during MMA
-tcgen05.mma.cta_group::1.kind::f8f6f4
-    [%tmem_addr],           // TMEM accumulator destination
-    [%desc_a],              // SMEM descriptor for A operand
-    [%desc_b],              // SMEM descriptor for B operand
-    %scale_d,               // Scale descriptor for D (output)
-    %enable_mask,
-    [%scale_a_smem],        // UE8M0 scales for A in SMEM
-    [%scale_b_smem];        // UE8M0 scales for B in SMEM
+tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X
+    [d_tmem], a_desc, b_desc, idesc,
+    [scale_a_tmem], [scale_b_tmem], enable_input_d;
 ```
 
-## UE8M0 vs E4M3 Scale Formats
+This line is an instruction-shape reference, not a complete kernel: declarations,
+legal descriptors, collective participation, scale layouts, ordering, completion,
+and an architecture-specific target are still required. UE8M0 uses power-of-two
+finite values and reserves encoding `0xff` for NaN.
 
-| Property | UE8M0 (Blackwell native) | E4M3 (NVFP4 hackathon) | FP32 (DeepGEMM Hopper) |
-|----------|-------------------------|------------------------|------------------------|
-| Bits | 8 | 8 | 32 |
-| Representable values | Powers of 2 only | 240 distinct values | Full FP32 range |
-| Range | 2^-127 to 2^128 | ~0 to 448 | Full FP32 |
-| Block size | 32 (MXFP standard) | 16 (NVFP4) | 128 (DeepGEMM) |
-| Hardware support | tcgen05.mma native | Software decode | Software promotion |
-| Precision impact | Coarser (power-of-2 only) | Fine (non-power-of-2) | Best (FP32) |
+## Blackwell FP4 block-scale combinations
 
-## NVFP4 Two-Level Scaling
+PTX ISA 9.0 distinguishes the native formats by the complete instruction
+combination, not by “FP4” alone:
 
-The NVFP4 format used in the GPU Mode hackathon has its own scaling scheme:
+| Instruction qualifiers | Payload | Local scale | Group |
+|---|---|---|---:|
+| `.kind::mxf4.block_scale.block32` / `.scale_vec::2X` | E2M1 | UE8M0 | 32 |
+| `.kind::mxf4nvf4.block_scale.block16` / `.scale_vec::4X` | E2M1 | UE4M3 | 16 |
 
-```cuda
-// NVFP4 dequantization with two-level scaling
-// Level 1: per-block FP8 E4M3 scale (every 16 FP4 elements)
-// Level 2: per-tensor FP32 global scale
+The `mxf4nvf4` family also has documented UE8M0 modes, so the kind name alone
+does not select the NVFP4 recipe. NVFP4-compatible UE4M3 scaling is native on
+the documented Blackwell targets; it is not necessarily a software-decode path.
 
-__device__ float dequant_nvfp4(
-    uint8_t fp4_packed,    // Two FP4 values packed in one byte
-    fp8_e4m3 block_scale,  // Per-block scale (every 16 elements)
-    float global_scale)    // Per-tensor global scale
-{
-    // Extract one FP4 value (E2M1 format)
-    // Representable: 0, 0.5, 1, 1.5, 2, 3, 4, 6
-    float fp4_val = decode_e2m1(fp4_packed & 0x0F);
+## Transfer checklist
 
-    // Two-level dequantization
-    float result = global_scale * float(block_scale) * fp4_val;
-    return result;
-}
+1. Match the model/checkpoint recipe: payload encoding, local scale type,
+   optional global scale, and scale geometry.
+2. Match the kernel ABI: logical factor shape is not necessarily its TMA- or
+   TMEM-ready physical layout. Account for packing, padding, transposition, and
+   swizzling.
+3. Match the target instruction. For native Blackwell block scaling, use the
+   complete kind, block/scale-vector qualifier, scale type, and target rules.
+4. Keep preparation in the timed region unless the producer already emits the
+   required layout. Otherwise report preprocessing separately.
+5. Validate output accuracy with the exact quantizer, workload, reference,
+   tolerance, and accumulation path; then measure end-to-end latency or
+   throughput for the actual shapes.
 
-// Block scale layout for NVFP4:
-// For matrix A of shape [M, K]:
-//   scale_A shape: [M, K/16] -- one FP8 E4M3 per 16 FP4 elements
-//   Finer granularity than MXFP4 (block size 32) or DeepGEMM (block size 128)
-```
+## Evidence boundaries
 
-## When to Use
+- More groups require more scale elements, but padding and layout determine the
+  actual traffic and storage cost.
+- Smaller groups and fractional scales provide more representational freedom;
+  they do not guarantee lower error for every tensor or scale-selection method.
+- DeepGEMM's Nc=128 path is evidence for that pinned SM90 implementation, not a
+  universal optimum for Hopper.
+- Native instruction support does not make two recipes ABI-compatible. NVFP4,
+  MXFP4, and DeepGEMM FP8 differ in payload, scale type, grouping, and layout.
 
-- **FP8 training**: Use tile-wise 1x128 for activations and block-wise 128x128 for weights (DeepGEMM pattern). This is the validated approach for training 671B+ parameter models.
-- **FP4 inference on Blackwell**: Use NVFP4 with E4M3 block scales (block size 16) for highest precision, or MXFP4 with UE8M0 scales (block size 32) for native hardware acceleration.
-- **Hopper FP8 inference**: Use CUDA core promotion with Nc=128 interval to maintain precision despite limited TC accumulation.
+## Primary references
 
-## Caveats
-
-- UE8M0 scales are power-of-two only. Non-power-of-two distributions (common in activations) lose precision compared to E4M3 or FP32 scales.
-- Smaller block sizes (16 for NVFP4 vs 128 for DeepGEMM) provide better precision but higher overhead: more scale values to store, load, and apply.
-- The Nc=128 promotion interval on Hopper is a performance-accuracy tradeoff. Reducing Nc improves accuracy but adds more promotion overhead. Increasing Nc risks precision degradation.
-- On Blackwell, native block scaling only works with UE8M0. Using E4M3 or FP32 scales still requires software handling.
+- [DeepSeek-V3 Technical Report v2](https://arxiv.org/abs/2412.19437v2)
+- [DeepGEMM at commit `891d57b`](https://github.com/deepseek-ai/DeepGEMM/tree/891d57b4db1071624b5c8fa0d1e51cb317fa709f)
+- [Transformer Engine 2.13 NVFP4](https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html)
+- [PTX ISA 9.0 `tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)

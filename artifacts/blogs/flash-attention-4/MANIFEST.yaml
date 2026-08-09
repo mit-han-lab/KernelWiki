@@ -4,11 +4,12 @@ code_present: true
 total_blocks: 2
 generated_by: scripts/extract_blog_code.py
 files:
-- local_path: code/01-software-exp-cody-waite-horner.cu
-  heading_path: '## Key Code > ### Software exp (Cody-Waite + Horner)'
+- local_path: code/01-software-exp-published-range-reduction-and-rounded-polynomia.cu
+  heading_path: '## Illustrative Code > ### Software exp (published range reduction
+    and rounded polynomial)'
   fence_lang: cuda
-  sha256: 6fba9c537831bba7b175ee3a050e3adb5ddf99193dee550b7122a4663e3f9164
+  sha256: 89c085df18aa5ae9b8693d1085bf43881b8bc3644068761e0312c9ee7628e71c
 - local_path: code/02-2-cta-cooperative-backward.cu
-  heading_path: '## Key Code > ### 2-CTA cooperative backward'
+  heading_path: '## Illustrative Code > ### 2-CTA cooperative backward'
   fence_lang: cuda
-  sha256: e089feff40c10ebf42fa1ff878f775c21f4f044fc4b6f2f510b43c2666c7e219
+  sha256: 5747bb5ef24ec8a82d9fd80d433d0dc231d0de042af83eeec9414b03a1a53de9

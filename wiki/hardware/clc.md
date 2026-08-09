@@ -6,7 +6,7 @@ architectures: [sm100, sm100a]
 tags: [clc, persistent-kernel, tile-scheduling]
 confidence: source-reported
 related: [technique-persistent-kernels, technique-tile-scheduling, pattern-tail-effect]
-sources: [doc-nvidia-tuning-guide, doc-cutlass-blackwell, pr-cutlass-2161]
+sources: [doc-ptx-isa-sm100, doc-cutlass-clc]
 aliases: [CLC, "cluster launch control"]
 ---
 
@@ -14,291 +14,101 @@ aliases: [CLC, "cluster launch control"]
 
 ## Overview
 
-Cluster Launch Control (CLC) is a Blackwell hardware mechanism for **dynamic tile scheduling** in persistent kernels. It replaces the static grid scheduling model where the CUDA runtime pre-assigns tile coordinates to CTAs at launch time.
+Cluster Launch Control is a Blackwell compute-capability 10.0 mechanism for
+work stealing between running and not-yet-started thread blocks or thread block
+clusters. A CLC kernel still launches the problem-sized grid. Each grid
+coordinate, called a ClcID by CUTLASS, is processed in exactly one of two ways:
 
-With CLC, persistent CTAs dynamically request work from a hardware queue, enabling:
+1. The block or cluster launches normally and first processes its own
+   `blockIdx`.
+2. An existing worker successfully cancels that not-yet-started ClcID and
+   processes the returned coordinate itself.
 
-- **Better load balancing**: No fixed CTA-to-tile mapping; busy SMs consume tiles as they become available.
-- **Tail-effect mitigation**: The "tail" of a GEMM (when remaining tiles < number of SMs) is handled efficiently because idle CTAs pick up remaining work.
-- **Dynamic cancellation**: Tiles can be cancelled via `try_cancel` when the output is no longer needed (e.g., speculative decoding).
+This lets a persistent worker request subsequent work without maintaining a
+separate software work queue. It is especially useful when the set of SMs
+available to a kernel is uneven or changes while the grid is running.
 
-## Static Scheduling vs CLC
+## Request and Decode Protocol
 
-### Static Scheduling (Hopper and earlier)
+`clusterlaunchcontrol.try_cancel` is asynchronous. It writes an opaque 16-byte
+response to shared memory and completes a transaction on a shared-memory
+`mbarrier`. The request does not accept a tile coordinate to cancel.
 
-```
-Launch grid: 256 CTAs for 256 tiles
-CTA 0 -> tile (0,0)     [fixed at launch]
-CTA 1 -> tile (0,1)     [fixed at launch]
-CTA 2 -> tile (0,2)     [fixed at launch]
-...
-CTA 255 -> tile (15,15)  [fixed at launch]
+The normative PTX instruction forms are:
 
-Problem: If SM count = 132, first wave = 132 CTAs.
-         Second wave = 124 CTAs -> 8 SMs idle = 6% waste.
-         For small GEMMs, tail effect dominates.
-```
-
-### CLC Dynamic Scheduling (Blackwell)
-
-```
-Launch grid: 132 persistent CTAs (= SM count)
-CTA 0: request tile -> get (0,0) -> compute -> request tile -> get (2,4) -> ...
-CTA 1: request tile -> get (0,1) -> compute -> request tile -> get (2,5) -> ...
-...
-CTA 131: request tile -> get (0,131) -> compute -> request tile -> ...
-
-All CTAs stay busy until the tile queue is empty.
-Tail: last few tiles distributed to first-available CTAs.
+```ptx
+clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes.b128 [response], [mbar];
+clusterlaunchcontrol.query_cancel.is_canceled.pred.b128 p, response_b128;
+@p clusterlaunchcontrol.query_cancel.get_first_ctaid.v4.b32.b128 {x, y, z, unused}, response_b128;
 ```
 
-## How CLC Works
+A complete loop must:
 
-### Hardware Queue
+1. Allocate and initialize a shared response and `mbarrier`.
+2. Submit one asynchronous request from the selected thread and set the
+   expected transaction size to 16 bytes.
+3. Wait for the corresponding barrier phase to complete.
+4. Decode `is_canceled`; decode `get_first_ctaid` only after success.
+5. Apply the async/generic proxy fences needed before reusing the response.
 
-CLC operates by letting a running CTA or cluster issue `clusterlaunchcontrol.try_cancel` to cancel a not-yet-launched ClcID and take over that work. There is no `clusterlaunchcontrol.try_acquire` PTX instruction.
+After a thread has observed a failed request, issuing another request from that
+thread is undefined. Decoding a CTA ID from a failed response is also undefined.
+A request can fail because no ClcIDs remain or for another scheduling reason,
+including pending higher-priority work.
 
-### CLC Programming Model
+## Thread Block Cluster Rules
 
-```cuda
-__global__ void persistent_gemm_clc(
-    const half* A, const half* B, half* C,
-    int M, int N, int K,
-    int num_tiles_m, int num_tiles_n
-) {
-    // Allocate persistent resources (TMEM, pipeline state)
-    uint32_t tmem_acc = tmem_alloc(256);
+CLC cancellation is cluster-granular when the kernel uses thread block
+clusters. One cluster thread submits the multicast request. Every CTA tracks
+completion with its local shared-memory barrier at cluster scope and receives
+the same encoded first-CTA coordinate. Each CTA then adds its local block rank
+to that first coordinate. A cluster synchronization is needed to guarantee all
+blocks exist before cluster cancellation begins.
 
-    // Shared storage for CLC results (visible to all threads in CTA)
-    __shared__ uint2 clc_tile_coord;
-    __shared__ int clc_has_tile;
+For example, a successful query by a 2x2 worker cluster consumes the matching
+2x2 group of ClcIDs; it is not four unrelated CTA-level cancellations.
 
-    // CLC tile loop: keep requesting tiles until none remain
-    while (true) {
-        // Thread 0 acquires the next tile; result goes to shared memory
-        if (threadIdx.x == 0) {
-            uint2 result;
-            int acquired = 0;
-            asm volatile(
-                "{\n"
-                "  .reg .pred p;\n"
-                "  clusterlaunchcontrol.try_cancel {%0, %1}, p;\n"
-                "  selp.s32 %2, 1, 0, p;\n"
-                "}\n"
-                : "=r"(result.x), "=r"(result.y), "=r"(acquired)
-            );
-            clc_tile_coord = result;
-            clc_has_tile = acquired;
-        }
-        __syncthreads();  // All threads see the shared result
+## CUTLASS 4.5.0 Integration
 
-        // Exit if no more tiles
-        if (!clc_has_tile) break;
+At CUTLASS 4.5.0, the `PersistentScheduler` tag for `arch::Sm100` maps to
+`PersistentTileSchedulerSm100`; newer code can select the intent explicitly
+with `DynamicPersistentScheduler`. The SM100 scheduler uses
+`PipelineCLCFetchAsync`: `advance_to_next_work()` submits a request, while
+`fetch_next_work()` waits for and decodes the staged response.
 
-        int tile_m = clc_tile_coord.x;
-        int tile_n = clc_tile_coord.y;
-
-        // Zero accumulator
-        tmem_zero(tmem_acc, 256);
-
-        // Mainloop: iterate over K dimension
-        for (int k = 0; k < K / TILE_K; ++k) {
-            // TMA load A and B tiles to SMEM
-            tma_load_a(smem_a, A, tile_m, k);
-            tma_load_b(smem_b, B, k, tile_n);
-            wait_barrier();
-
-            // Issue MMA
-            if (threadIdx.x == 0) {
-                asm volatile(
-                    "tcgen05.mma.cta_group::1.kind::f16 "
-                    "[%0], %1, %2, %3, 1;"
-                    :
-                    : "r"(tmem_acc), "l"(desc_a), "l"(desc_b), "r"(0)
-                );
-            }
-        }
-
-        // Epilogue
-        asm volatile("tcgen05.fence::before_thread_sync;");
-        __syncthreads();
-        store_output(tmem_acc, C, tile_m, tile_n);
-    }
-
-    // Cleanup
-    tmem_dealloc(tmem_acc, 256);
-}
-```
-
-## try_cancel API
-
-CLC provides a `try_cancel` mechanism to cancel pending tiles. This is useful for speculative execution where some outputs may not be needed.
-
-```cuda
-// Cancel a specific tile if it hasn't started execution yet
-__device__ bool clc_try_cancel(uint2 tile_coord) {
-    bool cancelled = false;
-    if (threadIdx.x == 0) {
-        asm volatile(
-            "clusterlaunchcontrol.try_cancel.async.shared::cta "
-            "%0, [%1];"
-            : "=r"(cancelled)
-            : "r"(&tile_coord)
-        );
-    }
-    return cancelled;
-}
-```
-
-Use cases for `try_cancel`:
-- **Speculative decoding**: Cancel tiles for rejected draft tokens.
-- **Early termination**: If an attention mask makes certain output tiles zero, cancel them.
-- **Dynamic batching**: Cancel tiles for sequences that have finished.
-
-## CUTLASS Integration
-
-CUTLASS 4.5.0 for SM100 provides CLC support through the `PersistentScheduler` class:
-
-```cuda
-// CUTLASS SM100 persistent GEMM with CLC scheduling
-using Gemm = cutlass::gemm::device::GemmUniversal<
-    cutlass::half_t,              // ElementA
-    cutlass::layout::RowMajor,    // LayoutA
-    cutlass::half_t,              // ElementB
-    cutlass::layout::ColumnMajor, // LayoutB
-    cutlass::half_t,              // ElementC
-    cutlass::layout::RowMajor,    // LayoutC
-    float,                        // ElementAccumulator
-    cutlass::arch::OpClassTensorOp,
-    cutlass::arch::Sm100,         // Blackwell
-    // Tile shape: 128x256x64
-    cutlass::gemm::GemmShape<128, 256, 64>,
-    // Cluster shape
-    cutlass::gemm::GemmShape<2, 1, 1>,
-    // Use CLC persistent scheduler
-    cutlass::gemm::PersistentScheduler
->;
-
-// Launch: CUTLASS handles CLC internally
-Gemm gemm_op;
-gemm_op(args, workspace, stream);
-```
-
-### CUTLASS CLC Tile Scheduler
+A schematic of the relevant CUTLASS 3.x kernel composition is:
 
 ```cpp
-// Simplified CUTLASS CLC scheduler logic
-struct ClcTileScheduler {
-    CUTLASS_DEVICE
-    WorkTileInfo get_next_work() {
-        WorkTileInfo work;
-        // Fetch next tile by cancelling a not-yet-launched ClcID.
-        bool valid = clc_try_cancel(&work.tile_coord);
-        work.is_valid = valid;
+using TileScheduler = cutlass::gemm::DynamicPersistentScheduler;
 
-        if (valid) {
-            // Convert linear tile index to 2D coordinates
-            work.tile_m = work.tile_coord.x;
-            work.tile_n = work.tile_coord.y;
-
-            // Apply swizzle for L2 locality
-            apply_l2_swizzle(work.tile_m, work.tile_n);
-        }
-        return work;
-    }
-};
+using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
+    cute::Shape<int, int, int, int>,
+    CollectiveMainloop,
+    CollectiveEpilogue,
+    TileScheduler>;
 ```
 
-## Performance Impact
+CUTLASS can apply a software coordinate transform to both the initial
+`blockIdx` and decoded CLC responses. `max_swizzle_size` and `raster_order` are
+scheduler arguments used by `swizzle_and_rasterize()`; they are not operands of
+the CLC PTX instruction or a CLC hardware policy configured at launch.
 
-CLC delivers significant performance gains, especially for small-to-medium GEMMs where tail effects dominate:
+## Scope and Limits
 
-### Tail Effect Mitigation
+CLC redistributes ClcIDs that already exist in the launched grid. It does not:
 
-| GEMM Size | Static Scheduler | CLC Scheduler | Improvement |
-|---|---|---|---|
-| 2048x2048 (small) | 86% SM utilization | 98% SM utilization | +14% |
-| 4096x4096 (medium) | 92% SM utilization | 98% SM utilization | +6.5% |
-| 8192x8192 (large) | 97% SM utilization | 99% SM utilization | +2% |
+- discard an application-selected output tile;
+- create more independent tiles than the problem grid contains;
+- guarantee that every SM remains occupied; or
+- universally eliminate GEMM wave quantization.
 
-The canonical benchmark from the "tcgen05 for dummies" tutorial shows the jump from 940 TFLOPS (pipelined, static scheduling) to **1476 TFLOPS** (persistent + CLC), approaching 98% of cuBLAS (1507 TFLOPS).
+Consequently, a 32-tile grid exposes at most 32 independent ClcIDs even on a
+148-SM B200. Any CLC performance result must state the GPU, available SMs,
+software versions, tile and cluster shapes, data types, timed region, and
+measurement method.
 
-### Why CLC Matters for Inference
+## Related
 
-Production LLM inference typically hits shapes where tail effects are severe:
-
-```python
-# Typical LLM GEMM shapes during decode (batch_size=1-64)
-# M is small (batch * seq_len for decode), N and K are large (model dim)
-# Example: Llama-70B decode, batch=32
-M = 32     # small!
-N = 8192   # hidden dim
-K = 8192   # hidden dim
-
-# Tile = 128x256 -> tiles_m = 1, tiles_n = 32 -> only 32 tiles total
-# On B200 (132 SMs): 100 SMs idle with static scheduling
-# CLC: 32 persistent CTAs handle all 32 tiles efficiently
-```
-
-## CLC with 2-SM Cooperative Mode
-
-When using 2-SM cooperative MMA (`cta_group::2`), CLC distributes work in **cluster-sized units**:
-
-```cuda
-// 2-SM cooperative CLC: each successful cancel gets a cluster-sized tile
-__device__ void cooperative_clc_loop() {
-    while (true) {
-        // Fetch tile for the 2-CTA cluster
-        ClusterTile tile;
-        bool valid = clc_try_cancel_cluster(&tile);
-        if (!valid) break;
-
-        // Both CTAs in the cluster share the tile
-        // CTA 0 handles rows 0-127, CTA 1 handles rows 128-255
-        int my_row_start = (blockIdx.x % 2) * 128;
-
-        // Issue cooperative MMA
-        if (threadIdx.x == 0) {
-            asm volatile(
-                "tcgen05.mma.cta_group::2.kind::f16 "
-                "[%0], %1, %2, %3, 1;"
-                :
-                : "r"(tmem_acc), "l"(desc_a), "l"(desc_b), "r"(0)
-            );
-        }
-        // ...
-    }
-}
-```
-
-## L2 Cache Swizzling with CLC
-
-CLC tile ordering can be customized with swizzle patterns to improve L2 cache hit rates:
-
-```cuda
-// Swizzle tile coordinates for better L2 locality
-// Tiles are visited in a Z-order (Morton) curve pattern
-__device__ void apply_l2_swizzle(int& tile_m, int& tile_n, int swizzle_bits) {
-    // Convert linear tile index to swizzled 2D coordinates
-    // This groups spatially adjacent tiles together, improving
-    // L2 reuse for the B matrix (shared across M tiles)
-    int linear = tile_m * num_tiles_n + tile_n;
-    int swizzle_mask = (1 << swizzle_bits) - 1;
-    int group = linear >> swizzle_bits;
-    int within = linear & swizzle_mask;
-
-    tile_m = group / num_tiles_n;
-    tile_n = (group % num_tiles_n) ^ (tile_m & swizzle_mask);
-}
-```
-
-## Comparison: CLC vs Software Persistent Scheduling
-
-| Feature | CLC (Hardware) | Software Atomics |
-|---|---|---|
-| Scheduling overhead | Near zero (hardware) | atomicAdd contention |
-| Tail-effect handling | Optimal | Good with careful design |
-| Cancellation | try_cancel API | Complex (flags + barriers) |
-| L2 swizzle | Configurable at launch | Manual implementation |
-| Portability | SM100+ only | SM70+ |
-| CUTLASS support | Built-in | Manual scheduler |
+- [Persistent kernels](../techniques/persistent-kernels.md)
+- [Tile scheduling](../techniques/tile-scheduling.md)
+- [Two-SM cooperative MMA](2sm-cooperative.md)

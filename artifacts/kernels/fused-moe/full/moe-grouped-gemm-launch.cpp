@@ -1,7 +1,6 @@
-// Extracted from sources/blogs/deepgemm.md by scripts/extract_blog_code.py
-// Heading: ## Key Code > ### MoE grouped-GEMM launch
-// Original fence language: cpp
-// See artifacts/blogs/deepgemm/code/PROVENANCE.yaml for origin + license metadata.
+// KernelWiki illustrative pseudocode; not upstream DeepGEMM or contest code.
+// It documents only the varying-M segmentation used by a grouped GEMM.
+// It is intentionally incomplete and is not a compilable or timed kernel.
 
 // Grouped-GEMM packs a variable list of per-expert GEMMs into one kernel
 // launch via a prefix-sum offset array; layouts are contiguous (M-axis),

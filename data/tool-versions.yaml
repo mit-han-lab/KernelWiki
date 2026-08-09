@@ -18,6 +18,13 @@
 tools:
   - tool: triton
     releases:
+      - name: "3.7.1"
+        released_at: "2026-06-18"
+        channel: stable
+        release_notes_url: "https://github.com/triton-lang/triton/releases/tag/v3.7.1"
+        notes: |
+          Latest checked stable release as of 2026-08-08. The upstream release
+          describes two regression fixes and no new API or feature.
       - name: "3.6.0"
         released_at: "2026-01-21"
         channel: stable
@@ -27,10 +34,9 @@ tools:
           - pr-sglang-22079
           - pr-sglang-21019
         notes: |
-          First Triton release with native Blackwell tcgen05 + TMEM lowering
-          infrastructure. Strongest user-visible Blackwell paths: descriptor/TMA
-          warp-specialized matmul, Gluon multi-CTA / 2CTA, tl.dot_scaled / block
-          scaled. See data/triton-3.6-evidence.md for the per-pathway breakdown.
+          Incremental Blackwell release: broader TCGen5/TMEM copies and layouts,
+          more warp-specialization work, and initial multi-CTA / 2-CTA Gluon
+          support. Native backend support predates this release.
       - name: "3.5.1"
         released_at: "2025-11-12"
         channel: stable
@@ -39,6 +45,25 @@ tools:
           Last 3.5.x patch before the 3.6 Blackwell story. Pages with
           version_sensitive claims valid for ">=3.5,<3.6" should pin to this
           release.
+      - name: "3.3.0"
+        released_at: "2025-04-09"
+        channel: stable
+        release_notes_url: "https://github.com/triton-lang/triton/releases/tag/v3.3.0"
+        evidence_source_ids:
+          - doc-triton-3.3-blackwell
+        notes: |
+          First checked tag after v3.2.0 whose tree contains native TCGen5 MMA,
+          TMEM operations and allocation, MMAv5 lowering, and concrete
+          Blackwell conversion tests.
+      - name: "3.2.0"
+        released_at: "2025-01-22"
+        channel: stable
+        release_notes_url: "https://github.com/triton-lang/triton/releases/tag/v3.2.0"
+        evidence_source_ids:
+          - doc-triton-3.3-blackwell
+        notes: |
+          Checked negative side of the Blackwell backend boundary; corresponding
+          TCGen5 MMA, TMEM, and MMAv5-lowering symbols are absent from this tag.
 
   - tool: cutlass
     releases:

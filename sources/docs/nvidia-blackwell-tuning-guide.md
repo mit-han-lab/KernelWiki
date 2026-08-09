@@ -10,138 +10,30 @@ retrieved_at: 2026-04-16
 
 # NVIDIA Blackwell Tuning Guide
 
-## Overview
+## Scope
 
-Official NVIDIA tuning guide for Blackwell (SM100/SM100a) GPU architectures. The primary reference for understanding Blackwell hardware features and their performance implications for kernel developers.
+Official NVIDIA tuning guidance for Blackwell. Exact tcgen05 instruction grammar, operand locations, descriptor fields, target constraints, and ordering rules should be checked in the version-pinned PTX ISA rather than inferred from this higher-level tuning page.
 
-## Key Hardware Features
+## Evidence-scoped hardware summary
 
-### tcgen05.mma (Tensor Core Generation 05)
+- PTX describes tcgen05 as the fifth-generation TensorCore family. Dense `tcgen05.mma` is asynchronous and is issued by one thread.
+- D resides in TMEM. A can be described in SMEM or addressed in TMEM; B is described in SMEM.
+- The dense kinds in PTX ISA 9.0 are `f16`, `tf32`, `f8f6f4`, `i8`, `mxf8f6f4`, `mxf4`, and `mxf4nvf4`. The three MX forms use the block-scaled grammar.
+- M and N are encoded by the instruction descriptor and have kind-, layout-, CTA-group-, and target-specific constraints. m128n256k16 and m256n256k16 are maximum-shape examples for common F16/BF16 configurations, not an exhaustive shape list.
+- `cta_group::2` cooperates with a peer CTA and can access peer resources as defined by PTX. It does not imply one universal rule that doubles M for every legal configuration.
+- `tcgen05.commit` plus an mbarrier provides completion tracking. `tcgen05.fence` provides ordering around execution-ordering operations; it does not replace the completion wait.
+- The shared-memory descriptor supports multiple swizzle modes, including none, 128B, 64B, and 32B. The selected layout must satisfy its documented constraints.
 
-Replaces Hopper's wgmma.mma_async. Fundamental changes:
+## Cluster Launch Control
 
-- **Single-thread launch**: One thread issues the MMA instruction (vs warpgroup of 128 threads on Hopper)
-- **CTA scope**: Operates at CTA level, not warpgroup level
-- **Direct SMEM operand reads**: Operands read directly from shared memory -- no ldmatrix needed
-- **TMEM accumulator output**: Results written to Tensor Memory, not registers
-- **7 data type variants**: TF32, FP16/BF16, INT8, FP8 (E4M3/E5M2), FP6, FP4/NVFP4
+CLC launches the problem-sized grid. A worker begins with its own `blockIdx`; after that work, it may request cancellation of an unspecified not-yet-started block or cluster and process the returned identifier itself. This work-stealing mechanism can improve utilization in suitable persistent schedules, but it neither deletes application-selected work nor guarantees removal of every last-wave or load-imbalance effect.
 
-Maximum MMA shapes:
-| Configuration | Shape |
-|---|---|
-| 1-SM (1-CTA) | m128 x n256 x k16 (BF16) |
-| 2-SM cooperative | m256 x n256 x k16 (BF16) |
+## Use of performance claims
 
-7 variants: tf32, f16, i8, f8f6f4, mxf8f6f4.block_scale, mxf4.block_scale, mxf4nvf4.block_scale
+Treat quantitative claims as source- and environment-specific. The separate `tcgen05 for dummies` source reports one B200 M=N=K=4096 progression. Its final persistent result uses static scheduling, not CLC.
 
-### Tensor Memory (TMEM)
-
-Dedicated 256KB per-SM memory for MMA accumulators:
-
-- Layout: 128 rows x 512 columns x 32-bit elements
-- Accessible only by the SM's tensor core unit
-- Eliminates register pressure from large accumulator tiles
-- 420 clock cycles end-to-end for cache-miss access (58% less than Hopper's 1000 cycles for register path)
-- Best for multi-stage tensor pipelines with large working sets
-- SMEM better for single-shot small-matrix operations
-- Explicit alloc/dealloc lifecycle
-- Power-of-2 column allocation (minimum 32)
-- Data movement: tcgen05.st (reg->TMEM), tcgen05.ld (TMEM->reg), tcgen05.cp (SMEM->TMEM)
-
-### Cluster Launch Control (CLC)
-
-Hardware-level dynamic tile scheduling:
-
-- Replaces static grid-based tile assignment
-- Dynamically distributes tiles to available SMs
-- Eliminates tail effects (last-wave underutilization)
-- Enables persistent kernels without manual tile queue management
-- `clusterlaunchcontrol.try_cancel` API for graceful termination
-- Critical for grouped GEMM / MoE where group sizes vary
-
-### TMA (Tensor Memory Accelerator)
-
-Async bulk data movement engine (carried from Hopper, enhanced):
-
-- Moves data from global -> shared memory without SM intervention
-- 128-byte alignment requirement for descriptors
-- Supports multicasting to multiple SMs in a cluster
-- Pipelined with mbarrier for async producer-consumer
-
-### 2-SM Cooperative MMA
-
-Two SMs cooperate on a single larger MMA:
-
-- Doubles effective M dimension (m256 vs m128)
-- SMs share the output tile via TMEM
-- Requires SMs to be in the same cluster
-- Best for large GEMM tiles where single-SM MMA is not wide enough
-
-### NVFP4 and Sub-Byte Data Types
-
-Native tensor core support for narrow data types:
-
-- **FP4 (E2M1)**: 4-bit float, representable values: 0, 0.5, 1, 1.5, 2, 3, 4, 6
-- **FP6**: 6-bit float
-- **FP8 (E4M3, E5M2)**: 8-bit float (carried from Hopper)
-- **Block scaling**: Built into MMA instruction. Per-block UE8M0 scale factors.
-- **NVFP4 block scale**: 16 FP4 elements share one FP8 E4M3 scale factor
-
-### PDL (Programmatic Dependent Launch) / GDC (Grid Dependency Control)
-
-- PDL enabled by default on Blackwell
-- Overlaps dependent kernel launches
-- GDC controls inter-kernel dependencies at grid level
-- Reduces kernel launch gaps from ~5us to near-zero for dependent chains
-
-## Hardware Specifications
-
-| Feature | Value |
-|---|---|
-| Architecture | SM100a (B200) |
-| SMs | 142 |
-| Max warps/SM | 64 |
-| 32-bit registers | 64K per SM |
-| SMEM per SM | 228 KB |
-| TMEM per SM | 256 KB (128 rows x 512 cols) |
-| Max thread blocks/SM | 32 |
-| Max cluster size | 8 (portable), 16 (opt-in) |
-| L2 cache | 126 MB (B200) |
-| HBM3e bandwidth | 8 TB/s |
-| Peak FP16/BF16 tensor | ~2x Hopper |
-| Peak FP4 tensor | ~4x Hopper |
-
-## Performance Optimization Path
-
-Demonstrated progression from the tcgen05 tutorial (Gau Nernst):
-
-```
-Naive (17% cuBLAS) -> 128B Swizzling (46%) -> Pipelining (62%)
--> Warp Specialization (80%) -> 2-SM MMA (86%)
--> Persistent Kernel + CLC (98% cuBLAS)
-```
-
-Each step addresses a specific bottleneck:
-1. **Swizzling**: Eliminates shared memory bank conflicts
-2. **Pipelining**: Overlaps TMA loads with compute
-3. **Warp specialization**: Dedicated warps for TMA vs compute
-4. **2-SM cooperative**: Larger effective tile for better reuse
-5. **Persistent + CLC**: Eliminates tail effects and kernel launch overhead
-
-## Hopper-to-Blackwell Migration Summary
-
-| Aspect | Hopper (SM90) | Blackwell (SM100) |
-|---|---|---|
-| MMA instruction | wgmma.mma_async (warpgroup) | tcgen05.mma (single-thread, CTA) |
-| MMA output | Registers | TMEM (256KB/SM) |
-| Max BF16 MMA | m64n256k16 | m128n256k16 (1-CTA), m256n256k16 (2-CTA) |
-| Matrix loading | ldmatrix to registers | Direct from SMEM |
-| Synchronization | Warpgroup (4 warps) | Single thread, fully async |
-| New data types | FP8 | FP4, FP6, FP8 with block scaling |
-| Scaling | External (CUDA core promotion) | Native UE8M0 block scaling in MMA |
-| Register pressure | High (accumulators in regs) | Low (accumulators in TMEM) |
-
-## Sources
+## Primary references
 
 - [NVIDIA Blackwell Tuning Guide](https://docs.nvidia.com/cuda/blackwell-tuning-guide/)
-- [Blackwell Architecture Whitepaper](https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/)
+- [PTX ISA 9.0, CUDA 13.0.2 archive](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html)
+- [CUDA Programming Guide: Cluster Launch Control](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html)

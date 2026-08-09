@@ -16,76 +16,53 @@ tags:
 - ping-pong-scheduling
 - conditional-rescaling
 - cute-dsl
-retrieved_at: 2026-04-27
+retrieved_at: 2026-08-08
 artifact_dir: artifacts/blogs/flash-attention-4/code
 ---
 
-## Summary
+## Evidence Scope
 
-Tri Dao's blog post on FlashAttention-4 design for Blackwell's asymmetric hardware scaling.
+Tri Dao's first-party explanation of FlashAttention-4's Blackwell design and source-reported performance. The two code blocks below are KernelWiki illustrations derived from formulas and dimensions in the post; they are explicitly not verbatim FA4 source from the post.
 
 ## Key Techniques
-- Asymmetric problem: tensor core throughput doubles but SFU count and SMEM bandwidth unchanged
-- Ping-pong scheduling: two 128-token query tiles per CTA
-- Software 2^x: Cody-Waite range reduction + Horner polynomial (Sollya-optimized coefficients)
-- Multiplies exponential throughput without additional SFU hardware
-- Conditional softmax rescaling: only when max jump is large
-- 2-CTA backward: paired CTAs share TMEM, halves SMEM traffic
-- CuTe-DSL implementation: 20-30x faster compilation than C++ templates
+
+- A CTA alternates two 128-row output tiles so tensor-core MMA and non-matmul softmax/correction work can overlap.
+- FA4 evaluates only a selected fraction of exponentials with FMA polynomial code while retaining hardware `ex2` for the rest.
+- The software-selected path uses `n=floor(x)`, a fraction in `[0,1)`, and the post's rounded degree-3 coefficients.
+- Conditional rescaling compares running maxima, normally with `tau=8.0` base-2 units, retains the old reference maximum on skipped updates, and renormalizes at the end.
+- Two-CTA backward shares operand B for five GEMMs, exchanges the required dS half through distributed shared memory for dQ, and reduces dQ global atomic reductions. It does not halve every dQ/dK/dV shared-memory transfer.
 
 ## Performance
-- 1605 TFLOPS on B200 BF16 (71% utilization)
-- 1.1-1.3x over cuDNN 9.13, 2.1-2.7x over Triton
 
-## Key Code
+The post reports up to 1605 TFLOPS/s on B200 BF16, labeled 71%, plus up to 1.3x over cuDNN 9.13 and up to 2.7x over Triton. These are maxima over the author's evaluated configurations, not one fully specified `seqlen=8192, headdim=128` row.
 
-### Software exp (Cody-Waite + Horner)
+## Illustrative Code
+
+### Software exp (published range reduction and rounded polynomial)
 
 ```cuda
-// Software-emulated exp2(x) using Cody-Waite range reduction and a
-// Horner-scheme polynomial, Sollya-optimized coefficients. Lets FA-4
-// overlap the exp path with tcgen05.mma because it stays off the SFU.
-__device__ __forceinline__ float sw_exp2(float x) {
-    // Range reduction: x = n + r, with n = round(x), r in [-0.5, 0.5]
-    int n = __float2int_rn(x);
-    float r = x - (float)n;
-    // Horner-scheme polynomial for 2^r, r in [-0.5, 0.5]
-    float p = 0x1.62e430p-1f;                // ~ ln(2)
-    p = fmaf(p, r, 0x1.ebfc1ep-3f);
-    p = fmaf(p, r, 0x1.c6af98p-5f);
-    p = fmaf(p, r, 0x1.3b2c9cp-7f);
-    p = fmaf(p, r, 0x1.62e43ap-10f);
-    float y = fmaf(r, p, 1.0f);
-    // Scale by 2^n via direct FP32 bit manipulation
-    int bits = __float_as_int(y) + (n << 23);
-    return __int_as_float(bits);
-}
-```
+// KernelWiki scalar illustration derived from the FA4 blog equations.
+// This is not verbatim upstream FA4 code and omits selection and clamping.
+#include <cmath>
 
-### Ping-pong scheduling
-
-<!-- extract-skip: synthesized pseudo-code illustrating the scheduling concept (issue_mma, wait_mma, softmax_and_rescale are placeholders, not upstream functions). Not safe to publish under artifacts/blogs/** as mode=extracted. -->
-```cuda
-// Ping-pong two 128-token query tiles per CTA. While one tile is in the
-// softmax/rescale stage, the other issues tcgen05.mma — the 2x tensor-core
-// throughput on B200 gets fed while the SFU-bound softmax stays out of the
-// critical path.
-for (int tile = 0; tile < Q_tiles; tile += 2) {
-    issue_mma(query_a, key_block);
-    wait_mma();
-    softmax_and_rescale(query_a);           // SFU + MUFU path
-    issue_mma(query_b, key_block);
-    wait_mma();
-    softmax_and_rescale(query_b);
+__host__ __device__ inline float fa4_blog_exp2_reference(float x) {
+    const int n = static_cast<int>(floorf(x));
+    const float f = x - static_cast<float>(n);  // f in [0, 1)
+    const float p = 1.0f + f * (0.6951f + f * (0.2276f + f * 0.0771f));
+    return ldexpf(p, n);
 }
 ```
 
 ### 2-CTA cooperative backward
 
 ```cuda
-// 2-CTA cooperative backward: paired CTAs in a cluster share a single TMEM
-// accumulator half, halving SMEM traffic for dK/dV accumulation.
-asm volatile(
-    "tcgen05.mma.cta_group::2.kind::f16 [%0], %1, %2, %3, 1;"
-    : : "r"(tmem_acc_shared), "l"(desc_a), "l"(desc_b), "r"(0));
+// KernelWiki schematic derived from the FA4 paper/blog dimensions.
+// This is not upstream inline PTX or a complete kernel.
+struct Fa4TwoCtaBackwardShape {
+    static constexpr int cta_group = 2;
+    static constexpr int mma_m = 256;
+    static constexpr int mma_n = 128;
+    static constexpr int mma_k = 128;
+    static constexpr int backward_gemm_count = 5;
+};
 ```

@@ -4,8 +4,8 @@
 lane: triton
 generated_by: scripts/compute_core_prs.py
 total: 267
-captured: 117
-skipped: 150
+captured: 116
+skipped: 151
 prs:
 - id: pr-TensorRT-LLM-10327
   captured: false
@@ -665,7 +665,8 @@ prs:
 - id: pr-vllm-33529
   captured: true
 - id: pr-vllm-34597
-  captured: true
+  captured: false
+  skipped_reason: Triton PR outside the three in-policy sub-scopes
 - id: pr-vllm-35382
   captured: false
   skipped_reason: Triton PR outside the three in-policy sub-scopes

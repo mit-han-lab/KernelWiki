@@ -7,108 +7,80 @@ related: [lang-ptx, hw-tcgen05-mma, hw-tmem, blog-tcgen05-tutorial]
 sources: [blog-tcgen05-tutorial, doc-nvidia-tuning-guide, blog-yue-nvfp4]
 reproducibility: snippet
 architectures: [sm100, sm100a]
-confidence: source-reported
+confidence: verified
+evidence_basis:
+  - source_id: doc-nvidia-tuning-guide
+    evidence_type: official-doc
 ---
 
-## Overview
+## Scope
 
-Plain CUDA C++ with inline PTX is used for hand-optimized Blackwell kernels. The tcgen05 tutorial achieved 98% of cuBLAS performance using this approach.
+CUDA C++ can host PTX instructions that do not yet have a convenient CUDA intrinsic. Gau Nernst's pinned `tcgen05` tutorial uses that approach for a B200 GEMM. For M=N=K=4096 in its disclosed PyTorch 2.9.1/CUDA 13 environment, v6 reports 1475.93 TFLOP/s versus 1506.74 TFLOP/s for cuBLAS, or 97.96%. This is an author-reported result for that configuration, not a portable performance guarantee.
 
-## tcgen05 via Inline PTX
+## Inline-PTX boundary
+
+The CUDA front end does not parse the instruction text inside an `asm()` statement. Operand constraints and address-space conversion therefore remain the wrapper author's responsibility. Use `"r"` for a 32-bit integer register, `"l"` for a 64-bit integer register, and convert a generic pointer with `__cvta_generic_to_shared` before supplying a shared-memory address. Add a `"memory"` clobber when the assembly has memory effects that are hidden from the compiler.
+
+The allocation instruction is collective. For `.cta_group::1`, every lane of one designated warp must execute the same instruction. Synchronize the CTA before another warp reads the address written to shared memory.
 
 ```cuda
-// Allocate TMEM. tcgen05.alloc writes the allocated address into SMEM.
-__device__ uint32_t tmem_alloc_cta(uint32_t* smem_tmem_addr,
-                                   uint32_t num_cols) {
-    if (threadIdx.x == 0) {
-        uint32_t smem_addr =
-            static_cast<uint32_t>(__cvta_generic_to_shared(smem_tmem_addr));
-        asm volatile(
-            "tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], %1;"
-            :: "r"(smem_addr), "r"(num_cols)
-        );
-    }
-    __syncthreads();
-    return *smem_tmem_addr;
-}
-
-// Issue MMA (single thread, typically warp 1 lane 0)
-// idesc_c/idesc_d: immediate descriptors for accumulator C and output D
-__device__ void tcgen05_mma(uint32_t tmem_addr,
-                             uint64_t desc_a, uint64_t desc_b,
-                             uint32_t idesc_c, uint32_t idesc_d) {
+// All 32 lanes of alloc_warp execute this branch.
+if (warp_id == alloc_warp) {
+    uint32_t smem_addr =
+        static_cast<uint32_t>(__cvta_generic_to_shared(smem_tmem_addr));
     asm volatile(
-        "tcgen05.mma.cta_group::1.kind::f16"
-        " [%0], %1, %2, %3, %4;"
-        :: "r"(tmem_addr), "l"(desc_a), "l"(desc_b),
-           "r"(idesc_c), "r"(idesc_d)
-    );
+        "tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 "
+        "[%0], %1;"
+        :: "r"(smem_addr), "r"(num_cols) : "memory");
 }
+__syncthreads();
+uint32_t taddr = *smem_tmem_addr;
+```
 
-// Load TMEM to registers
-__device__ void tmem_load(float* dst, uint32_t tmem_addr, int cols) {
-    asm volatile(
-        "tcgen05.ld.sync.aligned.32x32b.x1.b32 {%0}, [%1];"
-        : "=f"(*dst) : "r"(tmem_addr)
-    );
-}
+An unscaled `kind::f16` MMA takes one instruction descriptor and an `enable-input-d` predicate. A single elected thread may issue this MMA form; converting an ordinary CUDA integer to the required PTX predicate inside the assembly keeps the C++ interface well typed.
 
-// Deallocate TMEM (MUST do before kernel exit)
-__device__ void tmem_dealloc(uint32_t addr, uint32_t num_cols) {
+```cuda
+__device__ inline void tcgen05_mma_f16(
+    uint32_t taddr, uint64_t a_desc, uint64_t b_desc,
+    uint32_t idesc, int enable_input_d) {
     asm volatile(
-        "tcgen05.dealloc.cta_group::1.sync.aligned.b32 %0, %1;"
-        :: "r"(addr), "r"(num_cols)
-    );
+        "{\n\t"
+        ".reg .pred p;\n\t"
+        "setp.ne.b32 p, %4, 0;\n\t"
+        "tcgen05.mma.cta_group::1.kind::f16 "
+        "[%0], %1, %2, %3, p;\n\t"
+        "}"
+        :: "r"(taddr), "l"(a_desc), "l"(b_desc),
+           "r"(idesc), "r"(enable_input_d));
 }
 ```
 
-## mbarrier Synchronization
+`tcgen05.ld` is likewise a warp-level instruction. All participating lanes execute it, then the warp executes `tcgen05.wait::ld.sync.aligned` before consuming the loaded registers. After all readers finish, synchronize at the required CTA or cluster scope and have all lanes of one warp execute the matching collective `tcgen05.dealloc` before kernel exit.
 
-```cuda
-// TMA-MMA synchronization via mbarrier
-// expected_bytes: total bytes the TMA will deliver to this stage
-__device__ void mbarrier_arrive(uint64_t* mbar, uint32_t expected_bytes) {
-    asm volatile(
-        "mbarrier.arrive.expect_tx.shared.b64 _, [%0], %1;"
-        :: "r"((uint32_t)__cvta_generic_to_shared(mbar)),
-           "r"(expected_bytes)
-    );
-}
+## Barrier lifecycle
 
-__device__ void mbarrier_wait(uint64_t* mbar, int phase) {
-    asm volatile(
-        "{\n"
-        ".reg .pred p;\n"
-        "WAIT_LOOP:\n"
-        "  mbarrier.try_wait.parity.shared.b64 p, [%0], %1;\n"
-        "  @!p bra WAIT_LOOP;\n"
-        "}\n"
-        :: "r"((uint32_t)__cvta_generic_to_shared(mbar)),
-           "r"(phase)
-    );
-}
-```
+An `mbarrier.arrive.expect_tx` plus a parity wait is not a complete pipeline by itself. A staged TMA-to-MMA pipeline has these invariants:
 
-## Warp Role Dispatch
+1. An elected thread initializes each barrier with the intended arrival count, then publishes initialization to the async proxy with the appropriate `fence.mbarrier_init`.
+2. The producer reserves a reusable stage, issues TMA against that stage's full barrier, and accounts for the expected transaction bytes.
+3. The consumer waits with acquire semantics on the matching phase before reading the shared-memory stage.
+4. After issuing tcgen05 MMA, it commits completion to a separate barrier; the epilogue waits before loading TMEM.
+5. The last stage user signals a separate empty/reuse barrier. A stage cannot be overwritten until its owner observes that handoff.
+6. Each barrier's parity flips only when its circular stage is revisited. Inline assembly that reads or writes memory invisibly to C++ uses a `"memory"` clobber.
 
-```cuda
-__global__ void blackwell_gemm_kernel(...) {
-    int warp_id = threadIdx.x / 32;
-    int lane_id = threadIdx.x % 32;
+Arrival counts, transaction bytes, scope, and which CTA owns each barrier depend on whether the kernel uses one-CTA or two-CTA MMA. Copy the complete protocol from the pinned implementation rather than treating isolated wait/arrive wrappers as a standalone recipe.
 
-    if (warp_id == 0 && lane_id == 0) {
-        // TMA producer: issue cp.async.bulk.tensor
-        tma_producer_loop(...);
-    } else if (warp_id == 1 && lane_id == 0) {
-        // MMA consumer: issue tcgen05.mma
-        mma_consumer_loop(...);
-    } else if (warp_id >= 2) {
-        // Epilogue: read TMEM, write to global
-        epilogue_loop(...);
-    }
-}
-```
+## One verified role split
+
+The tutorial's v6 kernel launches six warps per CTA: warp 0 elects one lane for TMA, warp 1 collectively allocates TMEM and elects one lane for MMA, and warps 2--5 run the epilogue. Before exit, all threads finish their TMEM reads and warp 0 collectively deallocates TMEM. This is the role split of that implementation, not a requirement of CUDA C++ or tcgen05.
+
+## Primary references
+
+- [CUDA 13.0.2 Inline PTX Assembly guide](https://docs.nvidia.com/cuda/archive/13.0.2/inline-ptx-assembly/index.html)
+- [PTX ISA 9.0 tcgen05 instructions](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05)
+- [Pinned tutorial implementation](https://github.com/gau-nernst/learn-cuda/tree/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100)
 
 ## Related
-- [ptx-sm100](ptx-sm100.md) — PTX instruction reference
-- [tcgen05 tutorial](../../sources/blogs/tcgen05-tutorial.md) — Step-by-step guide
+
+- [ptx-sm100](ptx-sm100.md) — version-pinned PTX instruction forms
+- [tcgen05 tutorial](../../sources/blogs/tcgen05-tutorial.md) — benchmark provenance and progression

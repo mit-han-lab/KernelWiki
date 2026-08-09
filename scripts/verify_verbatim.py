@@ -25,6 +25,10 @@ from pathlib import Path
 import yaml
 import base64
 import json
+from functools import lru_cache
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS_DIR = REPO_ROOT / "artifacts"
@@ -80,6 +84,7 @@ _ENV_ERROR_HINTS = (
     "proxyconnect",
     # Auth / account state (missing auth => env, not content)
     "authentication required",
+    "to authenticate",
     "you must authenticate",
     "you are not logged in",
     "not logged into",
@@ -119,17 +124,104 @@ def run_gh(args):
         raise RuntimeError(f"gh {' '.join(args)} failed: {stderr_text.strip()[:200]}")
 
 
+def _fetch_public_url(url, *, accept="application/octet-stream"):
+    """Fetch a public GitHub URL without credentials.
+
+    GitHub CLI intentionally refuses even public API requests when it has no
+    authenticated host.  The strict verifiers still need to work in clean CI
+    and audit containers, so use GitHub's public raw/diff/timeline endpoints as
+    a transport fallback.  The same pinned revisions and byte comparisons are
+    enforced; this changes only how upstream bytes are obtained.
+    """
+    request = Request(
+        url,
+        headers={
+            "Accept": accept,
+            "User-Agent": "KernelWiki-upstream-verifier/1.0",
+            "X-Requested-With": "XMLHttpRequest",
+        },
+    )
+    try:
+        with urlopen(request, timeout=90) as response:
+            return response.read()
+    except HTTPError as exc:
+        detail = exc.read(300).decode(errors="replace").strip()
+        if exc.code in (403, 429) or _looks_like_env_error(detail):
+            raise EnvError(f"public GitHub fetch environment failure for {url}: HTTP {exc.code} {detail[:160]}")
+        raise RuntimeError(f"public GitHub fetch failed for {url}: HTTP {exc.code} {detail[:160]}")
+    except (URLError, TimeoutError, OSError) as exc:
+        raise EnvError(f"public GitHub fetch environment failure for {url}: {exc}")
+
+
+@lru_cache(maxsize=None)
+def fetch_pull_metadata(upstream_repo, pr_number):
+    """Return the merged state and exact merge commit for a public PR.
+
+    Prefer authenticated ``gh api``.  Without credentials, GitHub's public PR
+    timeline is an upstream first-party record and includes the exact 40-byte
+    merge-commit link.  Unlike a head-ref fallback, this preserves the strict
+    requirement that the recorded SHA name the actual merged revision.
+    """
+    try:
+        return json.loads(run_gh(["api", f"/repos/{upstream_repo}/pulls/{pr_number}"]))
+    except EnvError as gh_error:
+        escaped_repo = quote(str(upstream_repo), safe="/")
+        url = (
+            f"https://github.com/{escaped_repo}/pull/{pr_number}/partials/"
+            "conversation_content?graceful_retry=1&timeline_per_page=1000"
+        )
+        try:
+            timeline = _fetch_public_url(url, accept="text/html").decode(errors="replace")
+        except (EnvError, RuntimeError) as public_error:
+            raise EnvError(f"{gh_error}; public timeline fallback also failed: {public_error}")
+
+        repo_pattern = re.escape(str(upstream_repo))
+        match = re.search(
+            rf"merged\s+commit\s*<a\s+href=\"/{repo_pattern}/commit/([0-9a-f]{{40}})\"",
+            timeline,
+            re.IGNORECASE,
+        )
+        if not match:
+            # Some older timelines omit the merge event from the public HTML
+            # archive.  Use the unauthenticated REST record only for this
+            # exceptional case; normal bulk verification avoids REST's low
+            # anonymous rate limit.
+            api_url = f"https://api.github.com/repos/{escaped_repo}/pulls/{pr_number}"
+            try:
+                data = json.loads(_fetch_public_url(api_url, accept="application/vnd.github+json"))
+            except (EnvError, RuntimeError, json.JSONDecodeError) as public_error:
+                raise EnvError(
+                    f"{gh_error}; public timeline lacked a merge event and "
+                    f"the REST fallback failed: {public_error}"
+                )
+            if not data.get("merged") or not data.get("merge_commit_sha"):
+                raise RuntimeError(
+                    f"public GitHub records do not identify a merged commit for "
+                    f"{upstream_repo}#{pr_number}"
+                )
+            return data
+        return {"merged": True, "state": "closed", "merge_commit_sha": match.group(1)}
+
+
+@lru_cache(maxsize=None)
 def fetch_verbatim(upstream_repo, upstream_sha, upstream_path):
     """Fetch a single file's bytes from GitHub at the pinned SHA."""
     # gh api /repos/{owner}/{repo}/contents/{path}?ref={sha}
     endpoint = f"/repos/{upstream_repo}/contents/{upstream_path}?ref={upstream_sha}"
-    out = run_gh(["api", endpoint])
-    data = json.loads(out)
-    if "content" not in data:
-        raise RuntimeError(f"no content in response for {upstream_repo}:{upstream_path}@{upstream_sha}")
-    return base64.b64decode(data["content"])
+    try:
+        out = run_gh(["api", endpoint])
+        data = json.loads(out)
+        if "content" not in data:
+            raise RuntimeError(f"no content in response for {upstream_repo}:{upstream_path}@{upstream_sha}")
+        return base64.b64decode(data["content"])
+    except EnvError:
+        repo = quote(str(upstream_repo), safe="/")
+        revision = quote(str(upstream_sha), safe="")
+        path = quote(str(upstream_path), safe="/")
+        return _fetch_public_url(f"https://raw.githubusercontent.com/{repo}/{revision}/{path}")
 
 
+@lru_cache(maxsize=None)
 def fetch_upstream_patch(upstream_repo, pr_number, expected_sha=None):
     """Fetch the PR's diff at the declared upstream_sha.
 
@@ -148,8 +240,7 @@ def fetch_upstream_patch(upstream_repo, pr_number, expected_sha=None):
          we shipped.
     """
     if expected_sha:
-        pr_json = run_gh(["api", f"/repos/{upstream_repo}/pulls/{pr_number}"])
-        pr_data = json.loads(pr_json)
+        pr_data = fetch_pull_metadata(upstream_repo, pr_number)
         merge_sha = pr_data.get("merge_commit_sha") or ""
         if not (merge_sha and merge_sha.startswith(expected_sha)):
             head_sha = (pr_data.get("head") or {}).get("sha") or ""
@@ -160,8 +251,14 @@ def fetch_upstream_patch(upstream_repo, pr_number, expected_sha=None):
                 f"not accepted) for {upstream_repo}#{pr_number}; "
                 f"the PR was amended upstream"
             )
-    out = run_gh(["pr", "diff", str(pr_number), "-R", upstream_repo])
-    return out
+    try:
+        return run_gh(["pr", "diff", str(pr_number), "-R", upstream_repo])
+    except EnvError:
+        repo = quote(str(upstream_repo), safe="/")
+        return _fetch_public_url(
+            f"https://github.com/{repo}/pull/{pr_number}.diff",
+            accept="text/plain",
+        )
 
 
 PR_URL_RE = re.compile(r"github\.com/[^/]+/[^/]+/pull/(\d+)")

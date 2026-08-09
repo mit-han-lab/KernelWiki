@@ -1,6 +1,6 @@
 ---
 version_sensitive:
-  id: vs-triton-3.6-blackwell-tcgen05
+  id: vs-triton-3.3-blackwell-tcgen05
 ---
 
 # Topic Map / Primer
@@ -88,7 +88,7 @@ All page IDs below resolve via `get_page.py <id>`. All paths are relative to the
 | CuTe DSL | `lang-cute-dsl` | Preferred high-level path on SM100; native tcgen05/TMEM/CLC bindings. |
 | CUDA C++ | `lang-cuda-cpp` | PTX inline is common; used by CUTLASS, vLLM, SGLang custom kernels. |
 | PTX (SM100) | `lang-ptx` | `tcgen05.*`, `clusterlaunchcontrol.*`, `cp.async.bulk.tensor.*` — low-level control. |
-| Triton | `lang-triton` | On Blackwell: Triton 3.6+ ships native tcgen05 + TMEM lowering through descriptor/TMA + `tl.range(warp_specialize=True)`, `tl.dot_scaled`, and Gluon multi-CTA / 2CTA. Pre-3.6 the framing was "no tcgen05/TMEM exposure"; that historical context is preserved on the page. Cite via `version_sensitive: vs-triton-3.6-blackwell-tcgen05`. |
+| Triton | `lang-triton` | Native Blackwell TCGen5/TMEM compiler support enters between Triton v3.2.0 and v3.3.0. Later releases expand user-visible paths; exact instruction selection remains configuration-dependent. Cite via `version_sensitive: vs-triton-3.3-blackwell-tcgen05`. |
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 id: kernel-nvfp4-gemm
-title: NVFP4 GEMM — 4-bit Floating Point Matrix Multiply
+title: NVFP4 GEMM — GPU Mode Problem 2 Contract
 type: kernel
 architectures:
 - sm100
@@ -12,237 +12,154 @@ tags:
 - block-scale
 - tcgen05
 - tmem
-- warp-specialization
-confidence: source-reported
+- tma
+confidence: verified
+evidence_basis:
+- source_id: doc-transformer-engine-2.13-nvfp4
+  evidence_type: official-doc
+- source_id: doc-ptx-isa-sm100
+  evidence_type: official-doc
 reproducibility: snippet
 kernel_types:
 - gemm
 languages:
-- cuda-cpp
-- cute-dsl
-- ptx
+- python
 related:
 - hw-nvfp4
 - hw-tcgen05-mma
 - hw-tmem
+- hw-tma
 - kernel-nvfp4-gemv
-- technique-warp-specialization
 sources:
 - contest-gpumode-p2
-- doc-cutlass-blackwell
-- pr-cutlass-2139
-performance_claims:
-- gpu: B200
-  dtype: nvfp4
-  shape: standard GEMM configs
-  metric: latency_us
-  value: 10.807
-  utilization: near cuBLAS
-  source_id: contest-gpumode-p2
-artifact_dir: artifacts/kernels/nvfp4-gemm
+- doc-transformer-engine-2.13-nvfp4
+- doc-ptx-isa-sm100
+- doc-cuda-13-0-2-tma
+performance_claims: []
+blackwell_relevance: The official task targets B200 and exact packed-E2M1 and
+  block-scale layouts; it does not require a particular CUTLASS schedule or
+  establish that every problem shape is compute-bound.
 ---
 
-# NVFP4 GEMM -- 4-bit Floating Point Matrix Multiply
+# NVFP4 GEMM — GPU Mode Problem 2 Contract
 
-## Overview
+## Verified scope
 
-NVFP4 GEMM is a compute-bound matrix multiplication kernel operating on NVIDIA's native 4-bit floating-point format (E2M1) with block scaling on Blackwell GPUs. Unlike the memory-bound GEMV, GEMM is dominated by tensor core throughput and benefits from Blackwell's native FP4 MMA instructions via tcgen05.mma, TMA bulk loads, TMEM accumulation, and warp specialization.
+The official NVIDIA rules identify NVFP4 GEMM as Kernel Challenge 2 of the Blackwell NVFP4 Hackathon. The contest ran from November 29 through December 19, 2025; Problem 2 targeted NVIDIA B200 and contributed 20% of the four-problem grand-prize score.
 
-This kernel was Problem 2 of the GPU Mode NVFP4 Hackathon (Nov-Dec 2025), targeting B200 GPUs. Top entries achieved within 1% of cuBLAS performance using CUTLASS SM100 schedules.
+The pinned public task defines observable inputs, correctness, test shapes, benchmark shapes, and ranking. It does not publish a canonical optimized kernel, require CUTLASS, or establish which implementation mechanisms any entrant used. “NVFP4 GEMM” also does not determine a bottleneck by itself: shape, layout, staging, launch geometry, and epilogue can change whether math, memory traffic, occupancy, or launch overhead controls runtime.
 
-## NVFP4 Data Format
+## Format recipe versus task ABI
 
-```
-NVFP4 (E2M1): 4-bit floating point
-  Bit layout: [S][E1][E0][M0]
-  Representable values: 0, 0.5, 1, 1.5, 2, 3, 4, 6 (positive and negative)
+The generic one-dimensional NVFP4 recipe reconstructs each value from a signed E2M1 payload, one E4M3 local scale per 16 consecutive payloads, and a per-tensor FP32 global scale. E2M1 represents zero and signed magnitudes 0.5, 1, 1.5, 2, 3, 4, and 6, with two payloads packed per byte. MXFP4 is different: its local groups contain 32 payloads and use power-of-two UE8M0 scales.
 
-Block scaling:
-  Every 16 FP4 elements share one FP8 (E4M3) scale factor
-  Two-level: per-block E4M3 + per-tensor FP32 global scale
+The contest ABI is narrower and does not expose the generic recipe's FP32 global scales. Its actual generated input has seven tensors:
 
-  Dequantization: x_hat = s_global * s_block * deq_FP4(q)
+| Tensor | Published representation | Physical shape |
+| --- | --- | --- |
+| `a` | packed E2M1, two values per byte | `[M,K/2,L]` |
+| `b` | packed E2M1, two values per byte | `[N,K/2,L]` |
+| `sfa` | logical E4M3 scales | `[M,K/16,L]` |
+| `sfb` | logical E4M3 scales | `[N,K/16,L]` |
+| `sfa_reordered` | MMA-oriented scale copy | `[32,4,ceil(M/128),4,K/64,L]` |
+| `sfb_reordered` | MMA-oriented scale copy | `[32,4,ceil(N/128),4,K/64,L]` |
+| `c` | preallocated FP16 output | `[M,N,L]` |
 
-Key difference from MXFP4:
-  - E4M3 block scale (non-power-of-two) vs UE8M0 (power-of-two only)
-  - Block size 16 (tighter) vs 32 (coarser)
-```
+For each `L` slice, the correctness reference computes the block-scaled equivalent of `A @ B.T` and stores FP16 output. It uses `rtol=1e-3` and `atol=1e-3`.
 
-## CUTLASS SM100 Schedule
+The upstream files contain two interface inconsistencies that implementations must not conceal:
 
-The kernel uses the `KernelPtrArrayTmaWarpSpecialized1SmNvf4Sm100` CUTLASS schedule, which combines TMA async loads with warp-specialized MMA execution.
+- `task.yml` describes a five-member `(a,b,sfa,sfb,c)` tuple, while `task.py`, `template.py`, and `reference.py` expose the seven tensors above.
+- Task and template prose label scale tensors E4M3FNUZ, while `reference.py` constructs `torch.float8_e4m3fn` values. A submission must follow the tensors supplied by the actual harness rather than treating those suffixes as interchangeable.
 
-```cpp
-// CUTLASS dispatch for NVFP4 GEMM on Blackwell
-using Schedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized1SmNvf4Sm100;
+## Host-checkable shape contract
 
-// Tile configuration
-using TileShape = cute::Shape<_128, _256, _128>;  // M, N, K tile
-using ClusterShape = cute::Shape<_1, _1, _1>;      // 1-SM mode
+The published task requires `K` divisible by 256. Divisibility of `M` and `N` depends on the submission's selected MMA tile. The following CPU-only helper reproduces the published storage shapes; it does not decode FP4, apply scales, or model a GPU kernel:
 
-// Element types
-using ElementA = cutlass::float_e2m1_t;  // NVFP4
-using ElementB = cutlass::float_e2m1_t;  // NVFP4
-using ElementC = float;                   // FP32 accumulator
-using ElementScale = cutlass::float_e4m3_t;  // FP8 E4M3 block scales
+```python
+def task_storage_shapes(m, n, k, l=1):
+    if min(m, n, k, l) <= 0:
+        raise ValueError("dimensions must be positive")
+    if k % 256:
+        raise ValueError("K must be divisible by 256")
 
-// Kernel definition
-using Kernel = cutlass::gemm::device::GemmUniversal<
-    ElementA, cutlass::layout::RowMajor,
-    ElementB, cutlass::layout::ColumnMajor,
-    ElementC, cutlass::layout::RowMajor,
-    float,  // accumulator type
-    cutlass::arch::OpClassTensorOp,
-    cutlass::arch::Sm100,
-    TileShape, ClusterShape, Schedule
->;
-```
-
-## Warp-Specialized Kernel Structure
-
-```cpp
-// Warp specialization: TMA producer + MMA consumer + epilogue
-// Shared memory holds pipelined A/B tiles + scale factors
-
-constexpr int NUM_STAGES = 4;  // Pipeline depth
-
-// Shared memory layout
-struct SharedStorage {
-    // Double-buffered across NUM_STAGES
-    nvfp4_t A_smem[NUM_STAGES][BLOCK_M * BLOCK_K / 2];  // Packed FP4: 2 per byte
-    nvfp4_t B_smem[NUM_STAGES][BLOCK_N * BLOCK_K / 2];
-    fp8_t   sfa_smem[NUM_STAGES][BLOCK_M * (BLOCK_K / 16)];  // 1 scale per 16 elements
-    fp8_t   sfb_smem[NUM_STAGES][BLOCK_N * (BLOCK_K / 16)];
-    uint64_t mbarrier[NUM_STAGES];
-};
-
-__global__ void nvfp4_gemm_kernel(
-    const nvfp4_t* A, const nvfp4_t* B,
-    const fp8_t* sfa, const fp8_t* sfb,
-    float sf_a_global, float sf_b_global,
-    float* C, int M, int N, int K
-) {
-    extern __shared__ SharedStorage smem[];
-    int warp_id = threadIdx.x / 32;
-    int lane_id = threadIdx.x % 32;
-
-    if (warp_id == 0 && lane_id == 0) {
-        // TMA producer warp: async bulk loads
-        for (int k = 0; k < K; k += BLOCK_K) {
-            int stage = (k / BLOCK_K) % NUM_STAGES;
-
-            // TMA descriptor-based bulk load (128-byte aligned)
-            asm volatile(
-                "cp.async.bulk.tensor.2d.shared::cluster.global.tile"
-                ".mbarrier::complete_tx::bytes"
-                " [%0], [%1, {%2, %3}], [%4];"
-                :: "r"((uint32_t)&smem->A_smem[stage]),
-                   "l"(tma_desc_A),
-                   "r"(tile_m), "r"(k),
-                   "r"((uint32_t)&smem->mbarrier[stage])
-            );
-            // Similarly for B, sfa, sfb
-        }
-    } else if (warp_id == 1 && lane_id == 0) {
-        // MMA consumer warp: tcgen05.mma
-        uint32_t tmem_addr = tmem_alloc_cta(256);  // 256 TMEM columns
-
-        for (int k = 0; k < K; k += BLOCK_K) {
-            int stage = (k / BLOCK_K) % NUM_STAGES;
-            // Wait for TMA to complete this stage
-            mbarrier_wait(&smem->mbarrier[stage]);
-
-            // tcgen05.mma with native block scaling
-            // Reads A/B from SMEM, accumulates into TMEM
-            asm volatile(
-                "tcgen05.mma.cta_group::1.kind::f8f6f4"
-                " [%0], %1, %2, %3, %4;"
-                :: "r"(tmem_addr),
-                   "l"((uint64_t)&smem->A_smem[stage]),
-                   "l"((uint64_t)&smem->B_smem[stage]),
-                   "r"(packed_scales),
-                   "n"(1)  // scale_D enabled
-            );
-        }
-
-        // Signal epilogue warps
-    } else {
-        // Epilogue warps: read from TMEM, apply global scales, store to C
-        // tmem -> registers -> global
+    return {
+        "a_packed": (m, k // 2, l),
+        "b_packed": (n, k // 2, l),
+        "sfa_logical": (m, k // 16, l),
+        "sfb_logical": (n, k // 16, l),
+        "sfa_reordered": (32, 4, (m + 127) // 128, 4, (k + 63) // 64, l),
+        "sfb_reordered": (32, 4, (n + 127) // 128, 4, (k + 63) // 64, l),
+        "c": (m, n, l),
     }
-}
+
+
+for valid_k in (256, 512, 1536, 2048, 2304, 7168, 16384):
+    task_storage_shapes(128, 256, valid_k)
+
+assert (256 // 16) % 128 != 0  # the former scale-array assertion was invalid
 ```
 
-## 128-Byte TMA Alignment
+Nine of the ten official correctness shapes fail the former `(K/16) % 128 == 0` assertion, including the smallest valid case with `K=256`.
 
-All TMA operands require 128-byte alignment. For NVFP4 (2 elements per byte), this means K dimensions must be multiples of 256 elements:
+## Blackwell implementation boundary
 
-```cpp
-// Critical: pad tensors to 128-byte boundaries for TMA
-// NVFP4: 2 elements per byte, so 256 elements = 128 bytes
-static_assert(K % 256 == 0, "K must align to 128 bytes for FP4 TMA");
+The native Blackwell instruction path supports block-of-16 NVFP4 through `tcgen05.mma...kind::mxf4nvf4.block_scale.block16`. It uses UE4M3 scale elements, which CUTLASS names `float_ue4m3_t`; UE8M0 is the MXFP4 scale type. Converting NVFP4 scales to UE8M0 would discard fractional scale values and is not a required NVFP4 preprocessing step.
 
-// For scale factors: FP8 is 1 byte per element
-// 128 bytes = 128 scale values
-// Since 1 scale per 16 FP4 elements: 128 scales cover 2048 FP4 elements
-static_assert((K / 16) % 128 == 0, "Scale array must align to 128 bytes");
-```
+CUTLASS defines `KernelPtrArrayTmaWarpSpecialized1SmNvf4Sm100`, but its direct official example is a grouped pointer-array kernel. The symbol's existence is not evidence that the contest entrants used it. CUTLASS's current official NVFP4 examples use `nv_float4_t<float_e2m1_t>`, collective mainloop and epilogue builders, `kernel::GemmUniversal`, and `device::GemmUniversalAdapter`; an old scalar-template `device::GemmUniversal` sketch is not interchangeable with that API.
 
-## Scale Factor Conversion
+TMA likewise has no universal 128-byte alignment rule for every operand. CUDA 13.2.1 generally requires a 16-byte-aligned global base and 16-byte-multiple strides for a tiled tensor map, with additional datatype-, interleave-, swizzle-, and mode-specific restrictions. Problem 2's `K % 256 == 0` rule belongs to the task ABI; it does not follow as a universal TMA theorem.
 
-The tcgen05.mma instruction expects UE8M0 (unsigned power-of-two exponent only) scales, but NVFP4 uses FP8 E4M3 (non-power-of-two). Conversion is needed:
+TMEM's 128-lane by 512-column organization is a storage and addressing model, not a universal 128-by-512 logical output-tile limit. Official CUTLASS NVFP4 configurations include a cooperative two-SM MMA tile with logical shape 256 by 256 by 256.
 
-```cpp
-// Convert FP8 E4M3 block scales to UE8M0 for tcgen05.mma hardware
-// E4M3: 4 exponent bits, 3 mantissa bits (non-power-of-two)
-// UE8M0: 8 exponent bits, 0 mantissa bits (power-of-two only)
-__device__ uint32_t pack_scales_ue8m0(
-    fp8_e4m3_t s0, fp8_e4m3_t s1, fp8_e4m3_t s2, fp8_e4m3_t s3
-) {
-    uint8_t u0 = fp8_e4m3_to_ue8m0(s0);  // Round to nearest power-of-two
-    uint8_t u1 = fp8_e4m3_to_ue8m0(s1);
-    uint8_t u2 = fp8_e4m3_to_ue8m0(s2);
-    uint8_t u3 = fp8_e4m3_to_ue8m0(s3);
-    return (u3 << 24) | (u2 << 16) | (u1 << 8) | u0;
-}
-```
+## Published performance records
 
-## Competition Results
+The task ranks the geometric mean across three benchmark cases. It labels the following values a speed-of-light analysis based on the maximum of B200 FP4 Tensor Core math time and DRAM-memory time at a 1.5 GHz clock:
 
-Problem 2 top performers (geometric mean across benchmark configs):
+| M | N | K | L | Theoretical time (µs) |
+| ---: | ---: | ---: | ---: | ---: |
+| 128 | 7168 | 16384 | 1 | 8.994 |
+| 128 | 4096 | 7168 | 1 | 2.354 |
+| 128 | 7168 | 2048 | 1 | 1.333 |
 
-| Rank | Participant | Latency (us) |
-|------|-------------|--------------|
-| 1 | Simon | 10.807 |
-| 2 | yue | 10.914 |
-| 3 | currybab | 10.931 |
+These are theoretical comparison rows, not measured contestant latencies and not cuBLAS results.
 
-## When to Use
+The public Popcorn endpoint currently gives the following dated snapshot. To make its small floating-point `submission_score` values readable beside the task's microsecond presentation, the table shows `submission_score × 10^6`; it does not relabel the rows as prize placements.
 
-- Inference with 4-bit quantized weights on Blackwell
-- MLP layers in LLMs where weight matrices are NVFP4-quantized
-- Compute-bound matrix multiplications where tensor core utilization is the bottleneck
+| Current rank | User | API score × 10^6 | Submission timestamp (UTC) |
+| ---: | --- | ---: | --- |
+| 1 | `gau.nernst` | 9.981889 | 2025-12-21 00:43:03 |
+| 2 | `s.am._` | 10.060110 | 2025-12-20 17:45:21 |
+| 3 | `billcarson` | 10.137411 | 2025-12-21 03:05:32 |
+| 8 | `Simon` | 10.806750 | 2025-12-16 20:18:42 |
+| 9 | `yue` | 10.914084 | 2025-12-11 04:36:45 |
+| 10 | `currybab` | 10.930623 | 2025-12-19 08:10:18 |
 
-## Caveats
+Snapshot fetched August 8, 2026. Because the current first three submissions postdate the official December 19 cutoff, this endpoint alone cannot establish winners or final prize rankings. It also publishes no contestant source, CUTLASS attribution, cuBLAS comparison, raw trials, or variance.
 
-- SM100/SM100a only -- no Hopper support for native FP4 tensor core instructions
-- Scale factor conversion (E4M3 to UE8M0) adds overhead if not precomputed
-- TMA requires 128-byte alignment for all operands
-- TMEM size (128x512 per SM) limits maximum output tile to 128 rows x 512 cols (32-bit)
+## Applicability
 
-## Sources
+Use this task contract only when the packed E2M1 payloads, logical and reordered scales, transpose convention, FP16 output, tolerances, and B200 target match the workload. “Four-bit weights” alone is insufficient: INT4, MXFP4, other scale granularities, and other layouts are not interchangeable with this ABI.
 
-- [GPU Mode NVFP4 Hackathon](https://github.com/gpu-mode/reference-kernels)
-- [NVIDIA NVFP4 Blog](https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/)
-- [NVFP4 Format Details](https://haroldbenoit.com/notes/ml/engineering/precision/nvfp4-format)
-- [CUTLASS SM100 documentation](https://docs.nvidia.com/cutlass/latest/CHANGELOG.html)
+The documented native tensor-core path is Blackwell-specific; Hopper has no native FP4 tensor-core instruction. This does not exclude software conversion or emulation. Choose TMA, TMEM allocation, CUTLASS schedules, warp specialization, tile sizes, and stage counts only after validating their exact API constraints and profiling the actual shapes.
 
-## Full Reference Implementation
+## Primary sources
 
-The reference bundle lives in [`artifacts/kernels/nvfp4-gemm/full/`](../../artifacts/kernels/nvfp4-gemm/full/) and combines the upstream PR-2139 diff (`PR-2139-blockwise-groupwise-gemm.patch`, `mode: upstream-patch`, SHA-pinned to `ca4fdbea` on NVIDIA/cutlass) with an extracted CUTLASS-schedule / TMA snippet from the `tflops-gap-fp4-moe` blog (`blackwell-cutlass-schedules-and-tma.cu`, `mode: extracted`). Labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/nvfp4-gemm/variants/`](../../artifacts/kernels/nvfp4-gemm/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
+- [Official contest rules](https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf)
+- [Pinned task definition](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/task.yml)
+- [Pinned task types](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/task.py)
+- [Pinned starter template](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/template.py)
+- [Pinned correctness reference](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/reference.py)
+- [Public Popcorn leaderboard API](https://site--bot--dxfjds728w5v.code.run/submissions/nvfp4_gemm/NVIDIA?limit=12)
+- [Transformer Engine 2.13 NVFP4 recipe](https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html)
+- [cuBLAS block-scaling formats](https://docs.nvidia.com/cuda/cublas/index.html#element-1d-block-scaling-for-fp8-and-fp4-data-types)
+- [PTX ISA 9.0 block-scaled `tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+- [Pinned CUTLASS NVFP4 example](https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu)
+- [Pinned CUTLASS grouped NVFP4 example](https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu)
+- [CUDA 13.2.1 tensor-map constraints](https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html)
 
 Query via:
 
 ```bash
-python3 scripts/get_page.py kernel-nvfp4-gemm --include-code
+conda run -n base python scripts/get_page.py kernel-nvfp4-gemm
 ```

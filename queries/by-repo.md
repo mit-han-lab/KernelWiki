@@ -259,7 +259,7 @@
 | [#6819](../sources/prs/cccl/PR-6819.md) | Use integer promotion for `warp_reduce` | 2025-12-01 |  | gemm |
 | [#6811](../sources/prs/cccl/PR-6811.md) | Integrate decoupled lookahead warpspeed scan | 2025-11-28 |  | gemm |
 | [#6597](../sources/prs/cccl/PR-6597.md) | Split fixed-size segmented reduce dispatch header | 2025-11-12 |  | gemm |
-| [#6152](../sources/prs/cccl/PR-6152.md) | Fix debug section around line 390 of dispatch_topk | 2025-10-08 |  | gemm |
+| [#6152](../sources/prs/cccl/PR-6152.md) | Fix debug section around line 390 of dispatch_topk | 2025-10-08 | top-k-selection | top-k-selection |
 | [#6069](../sources/prs/cccl/PR-6069.md) | Add dynamic CUB dispatch for segmented_sort | 2025-09-30 |  | gemm |
 | [#6077](../sources/prs/cccl/PR-6077.md) | [CUB] Use `BlockLoadToShared` in `DeviceMerge` | 2025-09-30 |  | gemm |
 | [#5408](../sources/prs/cccl/PR-5408.md) | Combine `block_reduce_warp_reduction_nondeterministic.cuh` specialization with original deterministic one  | 2025-08-01 |  | gemm |
@@ -267,7 +267,7 @@
 | [#4961](../sources/prs/cccl/PR-4961.md) | Add nondeterministic reduce that uses atomics | 2025-06-11 |  | gemm |
 | [#4716](../sources/prs/cccl/PR-4716.md) | Split Optimize Warp Reduce PR - CUB part | 2025-05-15 |  | gemm |
 | [#3691](../sources/prs/cccl/PR-3691.md) | Fix SM100 histogram tunings | 2025-02-05 |  | gemm |
-| [#3559](../sources/prs/cccl/PR-3559.md) | Add b200 tunings for scan.exclusive.sum | 2025-01-28 |  | gemm |
+| [#3559](../sources/prs/cccl/PR-3559.md) | Add b200 tunings for scan.exclusive.sum | 2025-01-28 | parallel-scan | parallel-scan |
 | [#3517](../sources/prs/cccl/PR-3517.md) | Fix the vectorized loading of BlockLoad | 2025-01-24 |  | gemm |
 | [#3236](../sources/prs/cccl/PR-3236.md) | Fix scan / sm90 perf regression  | 2025-01-02 |  | gemm |
 | [#2944](../sources/prs/cccl/PR-2944.md) | fix thread-reduce performance regression | 2024-11-22 |  | gemm |
@@ -529,7 +529,7 @@
 | [#2416](../sources/prs/flashinfer/PR-2416.md) | feat: update trtllm-gen MoE cubins | 2026-01-26 |  | gemm, moe, tma |
 | [#2415](../sources/prs/flashinfer/PR-2415.md) | Remove cudaMalloc/Free in GDN prefill kernel | 2026-01-25 |  | prefill |
 | [#2405](../sources/prs/flashinfer/PR-2405.md) | perf: improve gdn decode cute-dsl kernels | 2026-01-23 |  | decode |
-| [#2387](../sources/prs/flashinfer/PR-2387.md) | A Blackwell-optimized version of selective_state_update (decode) | 2026-01-22 | warp-specialization, pipeline-stages, double-buffering | tcgen05, decode |
+| [#2387](../sources/prs/flashinfer/PR-2387.md) | A Blackwell-optimized version of selective_state_update (decode) | 2026-01-22 | warp-specialization, pipeline-stages, double-buffering | decode |
 | [#2398](../sources/prs/flashinfer/PR-2398.md) | feat: cuteDSL fp4 moe for better DSR1 performance. | 2026-01-22 | kernel-fusion, pipeline-stages | fp4, gemm, grouped-gemm |
 | [#2404](../sources/prs/flashinfer/PR-2404.md) | perf: mm_fp4 heuristic prioritizes CUTLASS over cuDNN on SM103 | 2026-01-22 |  | fp4, gemm |
 | [#2395](../sources/prs/flashinfer/PR-2395.md) | feat: Add output_both_sf_layouts option to add_rmsnorm_fp4quant API | 2026-01-21 |  | fp4 |
@@ -2344,7 +2344,7 @@
 | [#24722](../sources/prs/vllm/PR-24722.md) | [Kernel][Quantization] add w4a8 support for marlin kernel | 2025-09-12 | kernel-fusion | fp4, fp8, gemm |
 | [#24727](../sources/prs/vllm/PR-24727.md) | [Model] Support Qwen3-VL Model Series | 2025-09-12 |  | moe |
 | [#24774](../sources/prs/vllm/PR-24774.md) | [Bug] Fix `is_flashmla_supported` Check Error | 2025-09-12 |  | attention, mla |
-| [#23696](../sources/prs/vllm/PR-23696.md) | [Kernel][tcgen05] nvfp4 fused tcgen05 moe | 2025-09-11 | kernel-fusion, fine-grained-quantization | tcgen05, nvfp4, moe |
+| [#23696](../sources/prs/vllm/PR-23696.md) | [Kernel][B200] mxfp4 fused cutlass moe | 2025-09-11 | kernel-fusion, fine-grained-quantization | fp4, fp8, moe |
 | [#24666](../sources/prs/vllm/PR-24666.md) | [Performance] Move apply_w8a8_block_fp8_linear to an op class | 2025-09-11 |  | fp8, gemm, quantization |
 | [#24673](../sources/prs/vllm/PR-24673.md) | [NVIDIA] Blackwell Family | 2025-09-11 |  | fp8, quantization |
 | [#24521](../sources/prs/vllm/PR-24521.md) | [Feature] Disallow FlashMLA on Blackwell | 2025-09-09 |  | attention, mla |
@@ -2593,7 +2593,7 @@
 | [#17280](../sources/prs/vllm/PR-17280.md) | [NVIDIA] Support Cutlass w8a8 FP8 for Blackwell Geforce GPUs (sm120) | 2025-04-28 |  | fp8, quantization |
 | [#17283](../sources/prs/vllm/PR-17283.md) | [BugFix] Fix cascade attention - RuntimeError: scheduler_metadata must have shape (metadata_size) | 2025-04-28 |  | attention |
 | [#17289](../sources/prs/vllm/PR-17289.md) | [Misc][ROCm] Exclude `cutlass_mla_decode` for ROCm build | 2025-04-28 |  | decode, mla |
-| [#16032](../sources/prs/vllm/PR-16032.md) | [NVIDIA] Support Cutlass MLA for Blackwell GPUs | 2025-04-27 | warp-specialization, persistent-kernel | tcgen05, mla, moe |
+| [#16032](../sources/prs/vllm/PR-16032.md) | [NVIDIA] Support Cutlass MLA for Blackwell GPUs | 2025-04-27 | persistent-kernel | mla, attention |
 | [#17267](../sources/prs/vllm/PR-17267.md) | [BugFix] Fix vllm_flash_attn install issues | 2025-04-27 |  | attention, mla |
 | [#17222](../sources/prs/vllm/PR-17222.md) | [Bugfix] Get a specific type of layer from forward context | 2025-04-26 |  | attention |
 | [#17180](../sources/prs/vllm/PR-17180.md) | [Bugfix] gemma[2,3] interleaved attention when sliding window is disabled | 2025-04-25 |  | attention, gemm |

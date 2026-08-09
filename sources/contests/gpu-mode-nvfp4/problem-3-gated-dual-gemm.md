@@ -7,181 +7,70 @@ architectures:
 - sm100a
 tags:
 - nvfp4
+- fp4
+- block-scale
 - gemm
-- fp4
-- block-scale
-- tcgen05
-- tmem
-- tma
-techniques:
-- warp-specialization
-- kernel-fusion
-- epilogue-fusion
-- pipeline-stages
-hardware_features:
-- nvfp4
-- fp4
-- block-scale
-- tcgen05
-- tmem
-- tma
+- gated-dual-gemm
 kernel_types:
 - gated-dual-gemm
 - gemm
-- fused-kernel
 languages:
-- cuda-cpp
-- ptx
-- cute-dsl
-url: https://github.com/gpu-mode/reference-kernels
-submissions:
-- rank: 1
-  participant: Simon (veitner)
-  score: ~19us geomean
-  technique: Fused dual GEMM with shared A tile, epilogue SiLU fusion, dual TMEM accumulator
-    layout, CUTLASS SM100 schedule
-  submission_truth: unavailable
-  code_unavailable_reason: Simon's gated-dual-GEMM winning submission posted in the
-    GPU Mode Discord problem-3 thread; not republished publicly
-- rank: 2
-  participant: yue
-  score: ~19.5us geomean
-  technique: CUTLASS warp-specialized dual GEMM with TMA pipeline overlap for W_gate
-    and W_up streams
-  submission_truth: unavailable
-  code_unavailable_reason: Yue's gated-dual-GEMM submission posted in the GPU Mode
-    Discord problem-3 thread; blog covers problem-1 progression, not this problem
-- rank: 3
-  participant: currybab
-  score: ~20us geomean
-  technique: Epilogue-fused SiLU + element-wise multiply, shared input tiling across
-    both GEMMs
-  submission_truth: unavailable
-  code_unavailable_reason: currybab's gated-dual-GEMM submission posted in the GPU
-    Mode Discord problem-3 thread; no public republish at collection time
+- python
+url: https://github.com/gpu-mode/reference-kernels/tree/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm
+problem_number: 3
+description: Exact public task and correctness-reference scope at the challenge-opening
+  commit; no unpublished leaderboard or submission details are asserted.
 ---
 
 # Problem 3: NVFP4 Gated Dual GEMM
 
-## Problem Description
+## Verified identity
 
-Fused gated dual GEMM implementing the standard MLP gate-up pattern found in modern LLMs (e.g., LLaMA, DeepSeek, Qwen):
+The official NVIDIA rules name this Kernel Challenge 3 and give its entry window as December 20, 2025 through January 16, 2026. The public GPU Mode task at commit `c5b2f7c062d5015f29c3a1043cfd04954397944c` targets NVIDIA B200.
 
-```
-gate = A @ W_gate    // First GEMM
-up   = A @ W_up      // Second GEMM
-out  = SiLU(gate) * up  // Activation + element-wise multiply
-```
+## Exact operation
 
-Both GEMMs use NVFP4 (E2M1) block-scaled inputs on B200 GPUs. The challenge is fusing the two GEMMs with the SiLU activation and element-wise multiply into a single kernel launch.
+For each batch index `l`, the reference computes:
 
-**Nature**: Compute-bound (two full GEMMs), with fusion opportunity in the epilogue.
-
-## Timeline
-
-December 20, 2025 -- January 16, 2026. Third problem, weighted 30% for grand prize.
-
-## Optimization Techniques
-
-### Kernel Fusion Strategy
-
-The naive approach requires 3 kernel launches:
-1. GEMM for gate projection
-2. GEMM for up projection
-3. Element-wise SiLU(gate) * up
-
-The fused approach combines all three into a single kernel:
-
-```
-// Fused approach: single kernel, shared input tiles
-// 1. Load A tile from SMEM (shared between both GEMMs)
-// 2. Load W_gate tile -> compute partial gate accumulator
-// 3. Load W_up tile -> compute partial up accumulator
-// 4. In epilogue: apply SiLU to gate, multiply with up, write output
+```python
+gate = scaled_mm(a[:, :, l], b1[:, :, l].T, sfa, sfb1)
+up = scaled_mm(a[:, :, l], b2[:, :, l].T, sfa, sfb2)
+output[:, :, l] = silu(gate) * up
 ```
 
-Key benefit: Input matrix A is loaded once from HBM and reused for both GEMMs, cutting global memory traffic for A in half.
+The two products share `a` and its scale tensor `sfa`; `b1` and `b2` have separate scale tensors. The FP32 product results are combined and converted to FP16 by the correctness reference.
 
-### Epilogue Fusion
+## Published tensor contract
 
-The SiLU activation and element-wise multiply are fused into the GEMM epilogue:
+| Tensor | Dtype | Logical shape |
+| --- | --- | --- |
+| `a` | NVFP4 E2M1 | `[M,K,L]`, K-major |
+| `b1`, `b2` | NVFP4 E2M1 | `[N,K,L]`, K-major |
+| `sfa` | FP8 E4M3FNUZ | `[M,K/16,L]`, K-major |
+| `sfb1`, `sfb2` | FP8 E4M3FNUZ | `[N,K/16,L]`, K-major |
+| `c` | FP16 | `[M,N,L]` |
 
-```cpp
-// SiLU(x) = x * sigmoid(x) = x / (1 + exp(-x))
-// Applied to gate GEMM output, then multiplied with up GEMM output
+The submission tuple also includes reordered copies of all three scale tensors and a preallocated output. There is an upstream dtype-label inconsistency at this commit: `task.yml` and `template.py` call the scales E4M3FNUZ, while `reference.py` constructs `torch.float8_e4m3fn`. This capture preserves that distinction instead of silently choosing one spelling.
 
-// In CUTLASS epilogue visitor:
-struct SiLUGateFusion {
-    template <typename AccumTile>
-    __device__ auto operator()(AccumTile const& gate_acc, AccumTile const& up_acc) {
-        auto gate_f32 = convert<float>(gate_acc);
-        auto up_f32 = convert<float>(up_acc);
-        // SiLU + element-wise multiply
-        return gate_f32 * sigmoid(gate_f32) * up_f32;
-    }
-};
-```
+`K` must be divisible by 256. The task additionally requires `M` and `N` to be divisible by the selected MMA tile dimensions. The correctness checker uses relative and absolute tolerances of `1e-3`.
 
-### Dual Accumulator Management in TMEM
+## Published benchmark and scoring contract
 
-Both GEMM accumulators must fit in TMEM simultaneously:
+| M | N | K | L | Theoretical speed-of-light time (µs) |
+| ---: | ---: | ---: | ---: | ---: |
+| 256 | 4096 | 7168 | 1 | 4.708 |
+| 512 | 4096 | 7168 | 1 | 8.714 |
+| 256 | 3072 | 4096 | 1 | 2.125 |
+| 512 | 3072 | 7168 | 1 | 6.535 |
 
-- TMEM capacity: 128 rows x 512 columns x 32-bit per SM
-- Gate accumulator: occupies one region of TMEM
-- Up accumulator: occupies adjacent region
-- Careful tile sizing to fit both without spilling
+Ranking uses the geometric mean of benchmark times. The task labels the last column a speed-of-light analysis based on the maximum of FP4 Tensor Core math time and DRAM-memory time for B200 at a 1.5 GHz clock. These are theoretical comparison values, not measured winning latencies.
 
-```
-// TMEM layout for dual GEMM:
-// [0, 255]   columns: gate accumulator
-// [256, 511] columns: up accumulator
-// Both share the same 128 rows
-```
+## Evidence boundary
 
-### Warp Specialization for Dual GEMM
+The public task and reference do not publish a final leaderboard, winning source, launch count, TMEM partition, TMA pipeline, CUTLASS schedule, physical input-load count, or compute-/memory-bound verdict for a submission. No such implementation or result claims are retained in this source capture.
 
-Extended warp specialization with separate pipelines for each GEMM's weight loads:
+## Primary sources
 
-- **TMA warp group 1**: Loads A tiles + W_gate tiles
-- **TMA warp group 2**: Loads W_up tiles (A tiles shared)
-- **Compute warps**: Execute tcgen05.mma for both GEMMs
-- **Epilogue warps**: Fused SiLU + multiply + FP16 output
-
-### Pipeline Scheduling
-
-Multi-stage software pipeline handles both weight streams:
-
-```
-// Stage N:   TMA loads A[n], W_gate[n], W_up[n]
-// Stage N-1: tcgen05.mma on A[n-1] * W_gate[n-1], A[n-1] * W_up[n-1]
-// Stage N-2: Epilogue fusion on completed tiles
-```
-
-The shared A tile across both GEMMs means only 3 TMA streams (A, W_gate, W_up) instead of 4 (A_gate, W_gate, A_up, W_up).
-
-## Relevance to LLM Inference
-
-This pattern appears in every transformer MLP block using gated activations:
-- **LLaMA/LLaMA-2/LLaMA-3**: SwiGLU MLP (gate + up projections)
-- **DeepSeek-V3**: Same gated MLP structure in each expert
-- **Qwen-3**: SwiGLU in both dense and MoE variants
-- **Mistral/Mixtral**: Gated MLP in every layer
-
-Fusing the dual GEMM reduces kernel launch overhead and halves the A matrix memory traffic, making it essential for inference latency optimization.
-
-## CUTLASS Schedule
-
-Top performers used CUTLASS 4.x with the SM100 NVFP4 schedule:
-
-```cpp
-using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized1SmNvf4Sm100;
-
-// The dual GEMM is composed as two CUTLASS GEMMs with shared input
-// and a fused epilogue visitor
-```
-
-## Sources
-
-- [gpu-mode/reference-kernels](https://github.com/gpu-mode/reference-kernels) (`/problems/nvidia/nvfp4_dual_gemm/`, `/problems/nvidia/modal_nvfp4_dual_gemm/`)
-- [GPU MODE Hackathon (Luma)](https://luma.com/9n27uem4)
-- [NVIDIA Forums Announcement](https://forums.developer.nvidia.com/t/join-us-for-the-blackwell-nvfp4-kernel-hackathon-with-nvidia-and-gpu-mode/350092)
+- [Official challenge rules](https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf)
+- [Pinned public task](https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/task.yml)
+- [Pinned correctness reference](https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/reference.py)

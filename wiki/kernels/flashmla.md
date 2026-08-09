@@ -22,215 +22,128 @@ kernel_types:
 - sparse-attention
 languages:
 - cuda-cpp
+- python
 related:
 - hw-tcgen05-mma
 - hw-tmem
 - kernel-nsa
 sources:
 - blog-flashmla
-- pr-flashinfer-1117
-- pr-vllm-39752
-performance_claims:
-- gpu: B200
-  dtype: bf16
-  shape: dense prefill, variable seqlen
-  metric: TFLOPS
-  value: 1460
-  utilization: ~65%
-  source_id: blog-flashmla
-- gpu: B200
-  dtype: fp8
-  shape: sparse prefill
-  metric: TFLOPS
-  value: 1450
-  utilization: ~65%
-  source_id: blog-flashmla
-blackwell_relevance: SM100 dense prefill achieves 1460 TFLOPS (vs 660 on SM90); Blackwell
-  tcgen05 enables higher MLA throughput.
+- doc-deepseek-v2-mla
+- pr-cutlass-2466
+- pr-cutlass-2472
+performance_claims: []
+blackwell_relevance: FlashMLA supports sparse MLA decode and prefill on SM100 and
+  bundles NVIDIA's dense MHA prefill path; its pinned snapshot requires CUDA 12.9+
+  for SM100.
 artifact_dir: artifacts/kernels/flashmla
 ---
 
 # FlashMLA -- Multi-head Latent Attention
 
-## Overview
+## Scope
 
-FlashMLA provides high-performance kernels for DeepSeek's Multi-head Latent Attention (MLA) mechanism, which compresses the KV cache from 327-516 KB/token (standard MHA) down to 70 KB/token through a learned low-rank projection into a latent space. This extreme compression (4.66-7.28x reduction) is critical for serving DeepSeek-V3/V3.2 models at scale.
+FlashMLA is DeepSeek's attention-kernel library for DeepSeek-V3 and DeepSeek-V3.2-Exp. At pinned commit [`71c7379`](https://github.com/deepseek-ai/FlashMLA/tree/71c737929f2567bd0a094ae140f8f60f390b1232), the library contains MLA-mode decode and sparse-prefill operators plus a dense **MHA** prefill operator contributed for SM100. The repository's term “MLA mode” distinguishes MQA-shaped `d_qk=576, d_v=512` kernels from MHA-shaped `d_qk=192/128, d_v=128` kernels; it does not mean every operator in the package is MLA.
 
-FlashMLA includes four kernel variants: dense MLA decoding (SM90), sparse MLA decoding (SM90/SM100), dense MLA prefill (SM100), and sparse MLA prefill (SM90/SM100).
+## MLA Cache Reduction Versus a Concrete Cache ABI
 
-## MLA KV Cache Layout
+The DeepSeek-V2 paper describes the model-level reduction in elements cached per layer and token:
 
-Each token in the MLA KV cache occupies 656 bytes:
+- MHA: `2 * n_h * d_h`
+- MLA: `d_c + d_h^R`, approximately `4.5 * d_h` for its `d_c=4*d_h` and `d_h^R=d_h/2` configuration
 
-```
-Token KV Cache Entry (656 bytes total):
-+------------------------------------------+
-| FP8 compressed KV data    | 512 bytes    |  <-- Latent KV representation
-| FP32 scaling factors      |  16 bytes    |  <-- Per-head scales
-| BF16 RoPE embeddings      | 128 bytes    |  <-- Position encodings
-+------------------------------------------+
+These formulas are independent of storage dtype and layer count. They should not be converted to whole-model KB/token figures without naming those additional assumptions.
 
-Paged KV cache:
-  Page size = 64 tokens (dense) or variable (sparse)
-  Each page = 64 * 656 = 41,984 bytes
-```
+FlashMLA's **656-byte** layout is narrower: it is the DeepSeek-V3-family FP8 sparse-decode cache ABI, not the definition of an MLA cache. One token contains:
 
-## Dense MLA Decoding (SM90)
+| Region | Representation | Bytes |
+|---|---|---:|
+| NoPE latent data | 512 `float8_e4m3` values | 512 |
+| NoPE group scales | four `float32` values, one per 128 values | 16 |
+| RoPE data | 64 unquantized `bfloat16` values | 128 |
+| **Total** |  | **656** |
 
-The decode kernel targets memory-bound inference with paged KV cache (block size 64). It achieves up to 3000 GB/s memory bandwidth and 660 TFLOPS on H800.
+Dense decode uses a BF16 cache. The pinned quantization tests also contain a separate 512-dimensional sparse layout, so code must select the model/layout contract rather than assuming 656 bytes universally. `page_block_size` is taken from the cache tensor; 64 is a test default, not a fixed API rule.
 
-```cpp
-// Dense MLA decode kernel structure (SM90, BF16)
-// Memory-bound: bandwidth utilization is the primary metric
+## Supported Paths at `71c7379`
 
-template <int HEAD_DIM, int BLOCK_KV>
-__global__ void flashmla_decode_dense(
-    const half* __restrict__ Q,       // [batch, num_heads, head_dim]
-    const int8_t* __restrict__ KV,    // Paged KV cache (FP8)
-    const float* __restrict__ scales, // Per-head scales
-    const half* __restrict__ rope,    // RoPE embeddings
-    const int* __restrict__ page_table,
-    half* __restrict__ O,
-    float* __restrict__ L              // Log-sum-exp
-) {
-    // Each warpgroup handles one query head
-    const int head_id = blockIdx.x;
-    const int batch_id = blockIdx.y;
+| Operator | Architecture | Attention mode | Documented cache/input format |
+|---|---|---|---|
+| Dense decode | SM90 | MQA (`576/512`) | BF16 paged KV |
+| Sparse decode | SM90, SM100 | MQA (`576/512`) | FP8 KV, dequantized for BF16 MMA; BF16 output |
+| Dense prefill | SM100 | MHA (`192/128` or `128/128`) | BF16 Q/K/V |
+| Sparse prefill | SM90, SM100 | MQA | BF16 Q and KV |
 
-    // Load query into registers
-    half Q_reg[HEAD_DIM];
-    load_query(Q, batch_id, head_id, Q_reg);
+CUDA 12.8 or newer and PyTorch 2.0 or newer are required; the pinned README requires CUDA 12.9 or newer for SM100.
 
-    float acc[HEAD_DIM] = {0.0f};
-    float lse = -INFINITY;
+## Sparse Contracts
 
-    // Iterate over KV pages
-    for (int page = 0; page < num_pages; page++) {
-        int page_idx = page_table[batch_id * max_pages + page];
+Sparse decode receives `indices[batch, s_q, topk]`. Each nonnegative value already encodes a physical page and offset:
 
-        // TMA load KV page into shared memory
-        __shared__ int8_t KV_smem[BLOCK_KV * 656];
-        tma_load_async(KV_smem, KV + page_idx * BLOCK_KV * 656);
-        cp_async_wait();
-
-        // Compute attention scores for this page
-        for (int t = 0; t < BLOCK_KV; t++) {
-            // Dequantize KV: fp8 -> bf16, apply scale
-            half K_token[HEAD_DIM], V_token[HEAD_DIM];
-            dequant_kv(KV_smem + t * 656, scales, K_token, V_token);
-
-            // Apply RoPE
-            apply_rope(K_token, rope + (page * BLOCK_KV + t) * 64);
-
-            // Score and accumulate (online softmax)
-            float score = dot_product(Q_reg, K_token, HEAD_DIM);
-            float new_lse = logaddexp(lse, score);
-            float rescale = exp(lse - new_lse);
-            for (int d = 0; d < HEAD_DIM; d++)
-                acc[d] = acc[d] * rescale + exp(score - new_lse) * V_token[d];
-            lse = new_lse;
-        }
-    }
-
-    // Write output
-    store_output(O, batch_id, head_id, acc);
-    L[batch_id * num_heads + head_id] = lse;
-}
+```text
+encoded = physical_page * page_block_size + offset_in_page
 ```
 
-## Sparse MLA (SM90/SM100)
+Because the physical page is already encoded, sparse decode does not use `block_table`; `-1` marks an invalid entry. The kernel consumes these indices but does not produce the top-k selection, so an indexing stage outside the attention call must supply them.
 
-Sparse MLA uses token-level sparsity indices to select only relevant tokens from the KV cache, dramatically reducing memory reads for long sequences.
+Sparse prefill is a different interface. It receives BF16 `q[s_q,h_q,d_qk]`, BF16 `kv[s_kv,h_kv,d_qk]`, and `indices[s_q,h_kv,topk]`; it has no batch dimension, requires `h_kv=1` in the documented equivalence, and accepts `-1` or values at least `s_kv` as invalid. It returns `(out, max_logits, lse)`.
 
-```cpp
-// Sparse MLA: only attend to selected tokens via indices tensor
-// Each query has a variable-length list of relevant token indices
+## Source-Reported Performance
 
-template <int HEAD_DIM>
-__global__ void flashmla_sparse(
-    const half* Q,
-    const int8_t* KV_cache,
-    const float* scales,
-    const int* token_indices,   // Selected token indices per query
-    const int* num_selected,    // Number of selected tokens per query
-    half* O
-) {
-    const int query_id = blockIdx.x;
-    const int n_tokens = num_selected[query_id];
+The following are maxima reported by the pinned first-party README. They were not reproduced here, and the README does not provide complete shape, timing, sample-count, or variance cells, so they are intentionally excluded from structured `performance_claims`.
 
-    // Only load and compute on selected tokens
-    for (int i = 0; i < n_tokens; i += BLOCK_SIZE) {
-        int tok_idx = token_indices[query_id * MAX_TOKENS + i];
+| Operator | Environment stated by source | Precision scope | Author-reported observation |
+|---|---|---|---|
+| Dense MLA decode | H800 SXM5, CUDA 12.8 | BF16 cache | Up to 3000 GB/s in a memory-bound configuration; up to 660 TFLOPS in a compute-bound configuration |
+| Sparse MLA decode | H800 SXM5, CUDA 12.8 | FP8 KV, BF16 MMA | 410 TFLOPS in a compute-bound configuration |
+| Sparse MLA decode | B200; software version not stated in the row | FP8 KV, BF16 MMA | Up to 350 TFLOPS; the author says it was not well optimized |
+| Dense MHA prefill | B200; NVIDIA-reported | BF16 inputs | Up to 1460 TFLOPS forward and 1000 TFLOPS backward |
+| Sparse MLA prefill | H800 SXM5, CUDA 12.8 | BF16 inputs | Up to 640 TFLOPS forward |
+| Sparse MLA prefill | B200, CUDA 12.9 | BF16 inputs | Up to 1450 TFLOPS forward |
 
-        // Load only the selected token's KV entry (656 bytes)
-        load_kv_entry(KV_cache, tok_idx, K_local, V_local);
-        dequant_and_accumulate(Q, K_local, V_local, scales, acc, lse);
-    }
-}
-```
+The numbers compare different operators, phases, shapes, precision scopes, and machines. In particular, `1460` is dense MHA prefill, not a replacement for the `660` dense-MLA-decode observation.
 
-## Dense Prefill (SM100)
+## SM100 Implementation Notes
 
-The SM100 prefill kernel leverages tcgen05.mma and TMEM for the compute-heavy forward and backward passes, achieving 1460 TFLOPS forward and 1000 TFLOPS backward on B200.
+The pinned DeepSeek SM100 sources use TMA, `tcgen05` tensor-core operations, and TMEM in specialized sparse-decode/prefill and dense-MHA-prefill code. Those mechanisms are implementation-specific: they do not make the CUTLASS and FlashInfer files in this repository copies of DeepSeek FlashMLA.
 
-```cpp
-// SM100 dense prefill: tcgen05.mma with TMEM accumulation
-// Uses warp specialization: TMA warps + MMA warps + softmax warps
+The local [`full/`](../../artifacts/kernels/flashmla/full/) bundle contains two byte-verified **adjacent implementations**:
 
-// Forward pass structure:
-// 1. TMA loads Q, K, V tiles into SMEM
-// 2. tcgen05.mma computes S = Q @ K^T into TMEM
-// 3. Softmax warpgroup applies online softmax on TMEM data
-// 4. tcgen05.mma computes O = softmax(S) @ V into TMEM
-// 5. TMEM -> SMEM -> Global memory for output
+- NVIDIA CUTLASS Example 77 MLA forward at merge `9baa06dd`
+- FlashInfer's SM100 FMHA-MLA header at commit `9a05c92a`
 
-// Key: TMEM holds both S matrix and O accumulator
-// No register spill for large tile sizes
-```
+Their exact per-file origins are recorded in `full/PROVENANCE.yaml`. The [`variants/`](../../artifacts/kernels/flashmla/variants/) directory contains a small KernelWiki-derived layout/index helper, explicitly marked as non-upstream. For the DeepSeek implementation itself, use commit `71c7379` linked above.
 
-## Performance
+## Selection and Validation Checklist
 
-| Variant | GPU | Dtype | TFLOPS | Bandwidth |
-|---------|-----|-------|--------|-----------|
-| Dense decode | H800 | BF16 | 660 | 3000 GB/s |
-| Sparse decode | H800 | FP8 | 410 | -- |
-| Sparse decode | B200 | FP8 | 350 | -- |
-| Dense prefill fwd | B200 | BF16 | 1460 | -- |
-| Dense prefill bwd | B200 | BF16 | 1000 | -- |
-| Sparse prefill | H800 | FP8 | 640 | -- |
-| Sparse prefill | B200 | FP8 | 1450 | -- |
+- Match the operator family, `d_qk/d_v`, architecture, CUDA version, cache dtype, and index shape exactly.
+- Treat the 656-byte layout as a V3-family FP8 sparse-decode ABI, not a generic MLA property.
+- Generate sparse indices before invoking FlashMLA and validate invalid-index/page encoding rules.
+- Benchmark the target decode or prefill workload; do not transfer TFLOPS or bandwidth across the table's distinct regimes.
+- Validate output and LSE against the repository reference before relying on throughput.
 
-## Architecture Integration
+## Sources and Local Query
 
-FlashMLA is deployed in production for DeepSeek-V3 and V3.2 inference:
-- SGLang and vLLM provide day-0 support
-- CUTLASS SM100 includes MLA attention kernels with fused reduction
-- FlashMLA sparse kernels are used by DeepSeek-V3.2-Exp with NSA
+- [DeepSeek FlashMLA at audited commit `71c7379`](https://github.com/deepseek-ai/FlashMLA/tree/71c737929f2567bd0a094ae140f8f60f390b1232)
+- [DeepSeek-V2 MLA paper, v5](https://arxiv.org/html/2405.04434v5)
+- [CUTLASS PR 2466, SM100 MLA-shape backward](https://github.com/NVIDIA/cutlass/pull/2466)
+- [CUTLASS PR 2472, SM100 MLA-shape forward](https://github.com/NVIDIA/cutlass/pull/2472)
 
-## When to Use
-
-- DeepSeek-V3/V3.2 model serving with MLA architecture
-- Long-context inference where KV cache size is the bottleneck
-- Combined with NSA for sparse attention on long sequences
-
-## Caveats
-
-- MLA-specific: the latent KV cache format (656 bytes/token) is tied to DeepSeek's architecture
-- Dense prefill is SM100 only
-- Sparse MLA requires a separate indexing pass to select relevant tokens
-
-## Sources
-
-- [FlashMLA GitHub](https://github.com/deepseek-ai/FlashMLA)
-- [DeepSeek-V3 Technical Report](https://arxiv.org/abs/2412.19437)
-- [CUTLASS SM100 Attention Changelog](https://docs.nvidia.com/cutlass/latest/CHANGELOG.html)
-
-## Full Reference Implementation
-
-Verbatim upstream code lives in [`artifacts/kernels/flashmla/full/`](../../artifacts/kernels/flashmla/full/); labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/flashmla/variants/`](../../artifacts/kernels/flashmla/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
-
-Query via:
+Query the page and its labeled artifacts with:
 
 ```bash
-python3 scripts/get_page.py kernel-flashmla --include-code
+conda run -n base python scripts/get_page.py kernel-flashmla --include-code
+```
+
+The mode-specific byte arithmetic can be checked without a GPU:
+
+```python
+# KernelWiki-derived contract check; not upstream FlashMLA code.
+def v3_fp8_sparse_bytes() -> int:
+    nope_bytes = 512
+    scale_bytes = 4 * 4
+    rope_bytes = 64 * 2
+    return nope_bytes + scale_bytes + rope_bytes
+
+assert v3_fp8_sparse_bytes() == 656
 ```

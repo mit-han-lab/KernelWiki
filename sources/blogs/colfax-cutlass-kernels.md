@@ -5,21 +5,21 @@ author: Colfax Research
 url: https://github.com/ColfaxResearch/cutlass-kernels
 source_category: community-note
 architectures:
-- sm90
-- sm100
+- sm90a
 tags:
 - cuda-cpp
+- cute-dsl
 - gemm
 - tma
 - wgmma
-- persistent-kernel
-- tile-scheduling
 - pipeline-stages
+- warp-specialization
 retrieved_at: '2026-05-20'
 description: Source-map entry imported from KernelPilot for CUTLASS GEMM kernel examples and scheduling patterns.
 ---
 
-Colfax CUTLASS kernel examples are a complementary source-map route for
-production-shaped GEMM patterns. Use them alongside CUTLASS PR pages when a
-candidate needs concrete tile scheduling, persistent scheduling, or TMA pipeline
-code.
+At commit `84f0802e2b4a1bf068ac70359f20ffdb368c8f6a`, this repository contains
+Hopper SM90a CUTLASS/CuTe GEMM and FMHA examples. The FMHA READMEs and compile
+scripts pin CUDA 12.2/12.3, CUTLASS 3.3/3.4, and SM90a; `src/fmha-pipeline/`
+implements TMA pipelining with optional warp specialization. The pinned tree is
+not evidence for SM100, a persistent scheduler, or a tile scheduler.

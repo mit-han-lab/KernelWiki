@@ -1,16 +1,14 @@
 origin_url: derived
 upstream_repo: derived
 license: MIT-style-inherited-from-kernelwiki-tooling
-retrieved_at: '2026-04-17'
+retrieved_at: '2026-08-08'
 asset_mode: derived
 derived_from:
-- pr-vllm-23696
-- kernel-gated-dual-gemm
-- technique-epilogue-fusion
+- contest-gpumode-p3
 size_cap_truncated: false
-generated_by: Phase 3 Round 3 task12 (gated-dual-gemm variants)
+generated_by: KernelWiki verifier remediation
 files:
-- local_path: 01-fused-epilogue-swiglu-skeleton.cu
+- local_path: 01-gated-dual-gemm-semantics.py
   role: derived-source
   mode: derived
-  sha256: 85e158c184546912579ac5270451471a96f135efa3584bafbf45064e5fb7e223
+  sha256: ac13383732fc5c946ae1698cc0776131dd399c507736b28a1a7d4f45a976daeb

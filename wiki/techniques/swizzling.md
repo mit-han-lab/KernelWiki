@@ -4,163 +4,91 @@ title: "Shared Memory Swizzling"
 type: technique
 architectures: [sm100, sm90]
 tags: [swizzling, shared-memory-optimization, tma]
-confidence: source-reported
-reproducibility: snippet
+confidence: verified
+evidence_basis:
+  - source_id: doc-cuda-13-0-2-tma
+    evidence_type: official-doc
+reproducibility: concept
 prerequisites: [hw-tma]
 related: [hw-tma, technique-pipeline-stages, pattern-memory-bound]
-sources: [doc-nvidia-tuning-guide, blog-tcgen05-tutorial, blog-modular-blackwell]
-blackwell_relevance: "128-byte swizzling mandatory for Blackwell tcgen05 inputs; same concept on Hopper but less critical."
+sources: [doc-cuda-13-0-2-tma, doc-ptx-isa-sm100, blog-tcgen05-tutorial]
+blackwell_relevance: "SM100 TMA and tcgen05 support multiple shared-memory mappings, including no swizzle and 32B, 64B, and 128B swizzles; correctness requires the producer and consumer to describe the same legal layout, not universal 128B use."
 ---
 
-## Overview
+# Shared-memory swizzling
 
-Shared memory swizzling remaps the linear address layout of a matrix tile in SMEM so that threads accessing consecutive columns (or rows) hit different 32-byte banks rather than the same bank. This eliminates bank conflicts that would otherwise serialize concurrent accesses. On Blackwell (SM100), 128-byte swizzling is mandatory for TMA loads and tcgen05.mma operands. Without it, performance drops to 46% of the achievable throughput for GEMM workloads.
+## Bank-conflict model
 
-## Why 128-Byte Swizzling is Mandatory on Blackwell
+Shared memory has 32 banks, and successive 32-bit words map to successive banks. For one warp memory request, accesses to different words in the same bank require serialized wavefronts; same-word reads can broadcast and do not create that conflict. The result therefore depends on the exact byte address requested by every participating lane.
 
-Shared memory has 32 banks, each 4 bytes wide (128 bytes total per bank cycle). When a warp accesses a matrix stored in row-major layout, threads in the same warp reading elements from consecutive rows in the same column hit the same bank, causing a 32-way bank conflict.
+A swizzle permutes address chunks so a target access pattern may distribute its requests over banks more evenly. It can reduce conflicts for that pattern, but it does not make every access to the tile conflict-free. A layout favorable to an MMA operand can still be unfavorable to a CUDA-core row, column, transpose, or epilogue access.
 
-The TMA unit on both Hopper and Blackwell encodes the swizzle pattern as part of the tensor descriptor. The tcgen05.mma instruction expects its SMEM operands to already be swizzled in the 128-byte pattern. Using unswizzled data produces incorrect MMA results.
+## Three mappings must agree
 
-The tcgen05-tutorial benchmark progression shows the impact:
+For a TMA-to-tcgen05 path, keep these layers consistent:
 
-```
-Naive (no swizzle):   255 TFLOPS  (17% of cuBLAS)
-128B swizzle applied: 695 TFLOPS  (46% of cuBLAS)
-                      ---- 2.7x improvement from swizzling alone ----
-```
+1. The tensor map describes how TMA places the global-memory box into shared memory, including interleave and swizzle.
+2. The shared-memory allocation and base address satisfy the alignment and span constraints of that mapping.
+3. The tcgen05 shared-memory descriptor describes the same physical-to-logical layout, leading/stride dimensions, base offset, and swizzle mode expected by the MMA operand.
 
-## How 128-Byte Swizzling Works
+PTX ISA 9.0 permits ordinary tcgen05 shared-memory descriptor modes with no swizzle and 32B, 64B, or 128B spans, plus a 128B/base-32B mode. In the descriptor's three-bit layout field, ordinary no-swizzle is `0`, 128B/base-32B is `1`, ordinary 128B is `2`, 64B is `4`, and 32B is `6`; values `3`, `5`, and `7` are invalid. Legality also depends on MMA kind, element type, major mode, shape, CTA group, and target.
 
-The swizzle function XORs a portion of the column address with the row address to scatter accesses across banks:
+The CUDA 13.0.97 Driver API exposes TMA modes including:
 
-```cuda
-// 128-byte swizzle: XOR bits [4:6] of the byte offset with the row index
-// This ensures that consecutive rows accessing the same logical column
-// map to different physical SMEM banks.
-//
-// For a tile stored in SMEM with TILE_N columns of 2-byte elements:
-//   byte_offset = row * (TILE_N * sizeof(half)) + col * sizeof(half)
-//   swizzled_offset = byte_offset ^ ((row & 0x7) << 4)
-//
-// The mask 0x7 = 3 bits, shift 4 = bits [4:6], giving 8-row periodicity
-// across the 128-byte bank group.
+| Tensor-map mode | Documented chunk mapping |
+|---|---|
+| `CU_TENSOR_MAP_SWIZZLE_NONE` | No bank swizzle |
+| `CU_TENSOR_MAP_SWIZZLE_32B` | 16B chunks within a 32B span |
+| `CU_TENSOR_MAP_SWIZZLE_64B` | 16B chunks within a 64B span |
+| `CU_TENSOR_MAP_SWIZZLE_128B` | 16B chunks within a 128B span |
+| `CU_TENSOR_MAP_SWIZZLE_128B_ATOM_32B` | 32B chunks within a 128B span |
+| `CU_TENSOR_MAP_SWIZZLE_128B_ATOM_64B` | 64B chunks within a 128B span; support is operation/type-specific |
 
-__device__ int swizzle_128B(int row, int col, int stride_bytes) {
-    int byte_offset = row * stride_bytes + col * sizeof(half);
-    // XOR bits [4:6] of byte offset with low 3 bits of row
-    int swizzled = byte_offset ^ ((row & 0x7) << 4);
-    return swizzled;
-}
-```
+These names define mappings, not universal datatype or tile-size recommendations. The tensor-map encoder imposes mode-, interleave-, datatype-, alignment-, and box-size constraints; for example, ordinary 128B modes require the inner bounding-box byte span not to exceed 128 bytes. Check the exact archived API for the selected type and operation.
 
-Visually, for an 8-row x 64-column half-precision tile (128 bytes per row):
+## CuTe address-bit form
 
-```
-Without swizzle (row-major):
-  Row 0: bank 0,1,2,...,31  bank 0,1,2,...,31
-  Row 1: bank 0,1,2,...,31  bank 0,1,2,...,31
-  Row 2: bank 0,1,2,...,31  bank 0,1,2,...,31
-  -> Column access = 8-way bank conflict
+CUTLASS 4.5.0 defines [`Swizzle<BBits, MBase, SShift>`](https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/swizzle.hpp):
 
-With 128B swizzle (XOR pattern):
-  Row 0: bank 0,1,2,...,31  bank 0,1,2,...,31
-  Row 1: bank 1,2,3,...,0   bank 1,2,3,...,0    (rotated by 1)
-  Row 2: bank 2,3,4,...,1   bank 2,3,4,...,1    (rotated by 2)
-  -> Column access = conflict-free
-```
+- `BBits` is the number of mask bits;
+- `MBase` is the number of least-significant address bits kept invariant; and
+- `SShift` is the distance between the two bit fields.
 
-## TMA Swizzle Encoding
+For `Swizzle<3,4,3>`, three address bits beginning above the four invariant low bits are XORed with the three-bit field shifted by three positions. Equivalently, address bits 7:9 affect bits 4:6. This is an address transformation, not a general `row & 7` rule: equivalence to row-based indexing depends on stride, byte units, base alignment, and layout composition.
 
-The TMA descriptor encodes the swizzle mode when creating a tensor map. The swizzle mode must match what the consumer (tcgen05.mma or wgmma) expects:
+CUTLASS also distinguishes a position-independent composed swizzle layout from a position-dependent swizzle pointer, because hardware swizzling depends on the shared-memory pointer address. Reuse a pinned complete layout/descriptor construction or prove the composition and required base alignment; a `Swizzle` type alone is not a complete TMA or MMA contract.
 
-```cuda
-// Creating a TMA descriptor with 128-byte swizzle
-#include <cuda.h>
+## Tensor-map construction checklist
 
-CUtensorMap tensor_map;
+For `cuTensorMapEncodeTiled`, record and validate all inputs rather than copying only the swizzle enumerator:
 
-// Swizzle mode: CU_TENSOR_MAP_SWIZZLE_128B
-// This tells TMA to apply the 128-byte XOR swizzle pattern
-// when writing data into shared memory
-cuTensorMapEncodeTiled(
-    &tensor_map,
-    CU_TENSOR_MAP_DATA_TYPE_FLOAT16,
-    2,                                    // 2D tensor
-    global_ptr,                           // global memory base
-    global_dims,                          // {N, M} dimensions
-    global_strides,                       // {N * sizeof(half), sizeof(half)}
-    tile_dims,                            // {TILE_N, TILE_M}
-    element_strides,                      // {1, 1}
-    CU_TENSOR_MAP_INTERLEAVE_NONE,
-    CU_TENSOR_MAP_SWIZZLE_128B,           // 128-byte swizzle
-    CU_TENSOR_MAP_L2_PROMOTION_NONE,
-    CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE
-);
-```
+1. Use a correctly aligned `CUtensorMap` object and global base pointer.
+2. Supply rank-sized global dimensions, rank-minus-one byte strides (the fastest dimension is implicit), rank-sized box dimensions, and rank-sized element strides.
+3. Satisfy the global alignment, stride, box, interleave, datatype, and selected-swizzle constraints.
+4. Check the returned `CUresult`; do not launch with an output descriptor after encoding failed.
+5. Use a shared-memory base and tcgen05 descriptor that represent the same mapping as the tensor map.
 
-The available swizzle modes and their use cases:
+An invalid encoder combination can fail explicitly. A successfully encoded tensor map paired with the wrong consumer layout may instead read the wrong logical elements, so a successful API return is not a correctness oracle.
 
-| Swizzle Mode | Bank Spread | Use Case |
-|-------------|-------------|----------|
-| `SWIZZLE_NONE` | No remapping | Non-MMA data (flags, scales) |
-| `SWIZZLE_32B` | 32-byte groups | Narrow tiles, small data types |
-| `SWIZZLE_64B` | 64-byte groups | Medium tiles |
-| `SWIZZLE_128B` | 128-byte groups | Standard for BF16/FP16 MMA operands |
+## Source-reported tutorial result
 
-## CuTe Swizzle Layout
+Gau Nernst's pinned B200 tutorial compares M=N=K=4096 kernels with PyTorch 2.9.1 and CUDA 13. Its 3D TMA version changes from a 16-byte inner tile with no swizzle to a 128-byte inner tile with 128B swizzling and matching tcgen05 descriptors:
 
-In CuTe/CUTLASS, swizzle is expressed as a layout composition:
+| Tutorial version | Author-reported TFLOP/s |
+|---|---:|
+| v1b: 3D 16B TMA | 252.81 |
+| v2b: 3D 128B TMA plus 128B swizzle | 695.43 |
 
-```cuda
-// CuTe swizzle layout for 128-byte swizzle pattern
-// Swizzle<B, M, S> where:
-//   B = number of bits in the base (non-swizzled) portion
-//   M = number of bits in the mask
-//   S = shift amount
-//
-// Swizzle<3, 4, 3> encodes the 128B swizzle:
-//   3 base bits (8-byte alignment)
-//   4 mask bits (16 rows)
-//   3 shift bits (8-column groups)
+The combined change is approximately 2.75× and the v2b endpoint is about 46% of the tutorial's 1506.74 TFLOP/s cuBLAS result. It is not a bank-conflict or swizzle-only ablation. The author notes that the earlier contiguous `8×16B` tile might already span all 32 banks, lacked Nsight Compute access, and offers wider TMA transfers as an alternative explanation.
 
-using SmemLayoutAtom = decltype(
-    composition(
-        Swizzle<3, 4, 3>{},
-        Layout<Shape<_8, _64>,
-               Stride<_64, _1>>{}
-    )
-);
+## Verification procedure
 
-// Tile the atom across the full SMEM tile
-using SmemLayoutA = decltype(
-    tile_to_shape(SmemLayoutAtom{}, Shape<Int<TILE_M>, Int<TILE_K>>{})
-);
-```
+For each candidate mapping:
 
-## Verification: Detecting Bank Conflicts
+1. Keep global tensor, box, consumer instruction, tile shape, synchronization, and output oracle fixed. Change only the producer/consumer layout pair when an isolated comparison is possible.
+2. Check every tensor-map encoder result and run correctness tests that distinguish rows, columns, tiles, boundaries, and out-of-bounds fill. Do not rely on random uniform values that can hide permutations.
+3. Use the installed Nsight Compute's `--query-metrics` or Memory Workload Analysis rather than assuming one metric name exists on every chip/tool version. Current documentation includes `l1tex__data_bank_conflicts_pipe_lsu.sum` and request/wavefront/conflict analysis.
+4. Compare executed shared-memory requests, ideal versus excessive wavefronts, bank conflicts, TMA behavior, total time, and occupancy. Zero observed CUDA-core bank conflicts neither proves the MMA descriptor matches nor explains a performance change by itself.
+5. Record GPU, clocks, toolkit, profiler, compiler, exact addresses/alignment, layout types, descriptor fields, warmup, repetitions, and trial statistic.
 
-Use `nvprof` or Nsight Compute to verify that swizzling eliminates conflicts:
-
-```python
-# Nsight Compute command to check shared memory bank conflicts
-# Look for "Shared Memory Bank Conflicts" metric
-# ncu --metrics l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum \
-#     ./my_kernel
-
-# Expected results:
-# Without swizzle: bank_conflicts >> 0
-# With 128B swizzle: bank_conflicts == 0
-```
-
-## When to Use
-
-- **All Blackwell tensor core kernels**: 128-byte swizzling is not optional. Both TMA and tcgen05.mma require it for correct results and peak performance.
-- **Hopper wgmma kernels**: Same requirement applies; wgmma expects swizzled SMEM operands.
-- **Non-MMA shared memory access**: If multiple warps access the same SMEM tile in a column pattern (e.g., reduction), swizzling prevents serialization.
-
-## Caveats
-
-- The swizzle mode in the TMA descriptor must exactly match the access pattern of the consumer. A mismatch produces silently incorrect results, not a runtime error.
-- Swizzled layouts make SMEM address computation non-trivial. Using CuTe's layout algebra avoids manual indexing errors.
-- For data types wider than 2 bytes (e.g., FP32 accumulators), the optimal swizzle mode may differ. TMEM accumulators avoid this issue since they use a separate address space.
+Select the mapping that is legal and correct for both producer and every consumer, then retain it only where the controlled target workload improves. Do not infer the choice from architecture name, element width, or “MMA versus non-MMA” alone.

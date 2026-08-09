@@ -1,12 +1,15 @@
 origin_url: https://github.com/sgl-project/sglang/pull/21019
 upstream_repo: sgl-project/sglang
-upstream_sha: 5bdc07d9
+upstream_sha: 5bdc07d974f6cf236fa765a685453ea5e587a838
 license: inherits-from-upstream
 retrieved_at: '2026-04-17'
 asset_mode: verbatim
 size_cap_truncated: false
 generated_by: Phase 3 Round 3 task12 (gated-delta-net anchor)
 source_pr_id: pr-sglang-21019
+bundle_scope: >-
+  Adjacent fused split/reshape/concatenate preprocessing for Qwen3-Next and
+  Qwen3.5 projection outputs; not a GDN recurrence, prefill, or decode kernel.
 files:
 - local_path: gdn_fused_proj.py
   sha256: c4ef85167eb11065721e76dd5d63d6f346f309f84822578dd4a3874249acef89

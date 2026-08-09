@@ -1,8 +1,8 @@
 ---
 id: blog-deepgemm
-title: DeepGEMM — FP8 GEMM Library
+title: DeepGEMM — Pinned Upstream Project Summary
 author: DeepSeek AI
-url: https://github.com/deepseek-ai/DeepGEMM
+url: https://github.com/deepseek-ai/DeepGEMM/tree/891d57b4db1071624b5c8fa0d1e51cb317fa709f
 source_category: benchmark-blog
 architectures:
 - sm100
@@ -15,84 +15,29 @@ tags:
 - jit-compilation
 - tcgen05
 - wgmma
-retrieved_at: 2026-04-16
-artifact_dir: artifacts/blogs/deepgemm/code
+retrieved_at: 2026-04-27
+artifact_dir: artifacts/kernels/deepgemm/full
 ---
 
-## Summary
+## Scope
 
-DeepSeek's high-performance FP8 GEMM library with fine-grained scaling, supporting both Hopper and Blackwell.
+This source entry summarizes DeepGEMM at commit [`891d57b4db1071624b5c8fa0d1e51cb317fa709f`](https://github.com/deepseek-ai/DeepGEMM/tree/891d57b4db1071624b5c8fa0d1e51cb317fa709f). The local SM90 and SM100 FP8 1D1D files are byte-verified copies from that commit; see their [`PROVENANCE.yaml`](../../artifacts/kernels/deepgemm/full/PROVENANCE.yaml).
 
-## Key Techniques
-- Fine-grained quantization: tile-wise 1×128 activations, block-wise 128×128 weights
-- SM90: WGMMA with Nc=128 CUDA core promotion (FP22→FP32)
-- SM100: tcgen05.mma with TMEM, packed UE8M0 scale format, all memory layouts
-- MoE grouped GEMMs: M-axis grouping, contiguous/masked/K-grouped layouts
-- JIT compilation via NVRTC
-- ~300 lines core kernel code
-- Up to 1550 TFLOPS on H800
+## Verified Techniques
 
-## Key Code
+- SM90 uses FP32 scale factors. Its pinned 1D1D kernel fixes `BLOCK_K == 128`, accumulates WGMMA partial results in `float accum[...]`, and applies A/B scales into a separate `float final_accum[...]` after each K block.
+- SM100 uses packed UE8M0 scale factors. Its pinned 1D1D kernel copies factor blocks into TMEM, constructs a block-scaled UMMA descriptor, and accumulates through the selected TMEM operation without the SM90 CUDA-core `final_accum` loop.
+- M-grouped contiguous and masked APIs vary M with N/K fixed. `masked_m` contains an integer valid-M length for each group. K-grouped APIs instead vary K while M/N remain fixed.
+- Kernels are generated and JIT compiled. NVCC is the default compiler; `DG_JIT_USE_NVRTC=1` opts into NVRTC. Generated code and compiler settings participate in the cache signature.
+- The pinned README exposes NT only for SM90 FP8 and NT/TN/NN/TT dense interfaces for SM100.
 
-### Nc=128 CUDA-core promotion (Hopper SM90)
+## Performance Scope
 
-```cpp
-// On Hopper, the TC accumulator is only ~FP22-precise. DeepGEMM promotes
-// the partial sum to an FP32 CUDA-core accumulator every Nc=128 columns
-// (4 consecutive WGMMAs of n=32 each) to avoid precision drift.
-constexpr int Nc = 128;
-constexpr int WGMMA_N = 32;
+The pinned README contains a source-reported claim of **up to 1550 TFLOPS on H800**. It does not attach that number to `M=N=K=4096`, report approximately 90% utilization, or retain a complete reproduction environment. No more specific measurement is attributed to this source entry.
 
-float cuda_core_acc[TILE_M][TILE_N] = {0};
+## Primary References
 
-for (int k = 0; k < K; k += Nc) {
-    __half2 tc_acc[TILE_M][WGMMA_N];
-    memset(tc_acc, 0, sizeof(tc_acc));
-    for (int sub_k = 0; sub_k < Nc; sub_k += WGMMA_K) {
-        wgmma_mma_async(tc_acc, A_smem + sub_k, B_smem + sub_k);
-    }
-    wgmma_wait();
-    for (int m = 0; m < TILE_M; m++)
-        for (int n = 0; n < TILE_N; n++)
-            cuda_core_acc[m][n] += (float)tc_acc[m][n] * scale_a[m] * scale_b[n];
-}
-```
-
-### SM100 path — tcgen05.mma with UE8M0 block scaling
-
-```cpp
-// On Blackwell, tcgen05.mma consumes UE8M0 scale factors directly.
-// 4 UE8M0 values pack into a single uint32; TMEM accumulates in full FP32
-// precision so no CUDA-core promotion is needed.
-uint32_t packed_scales = pack_ue8m0(sf[0], sf[1], sf[2], sf[3]);
-asm volatile(
-    "tcgen05.mma.cta_group::1.kind::f8f6f4.block_scale "
-    "[%0], %1, %2, [%3], %4, 1;\n"
-    :: "r"(tmem_acc), "l"(desc_a), "l"(desc_b),
-       "r"(sf_tmem_addr), "r"(0));
-```
-
-### MoE grouped-GEMM launch
-
-```cpp
-// Grouped-GEMM packs a variable list of per-expert GEMMs into one kernel
-// launch via a prefix-sum offset array; layouts are contiguous (M-axis),
-// masked (variable-K), or K-grouped depending on router output.
-struct GroupedGemmArgs {
-    int num_groups;
-    int* m_prefix;                    // [num_groups+1]
-    const __nv_fp8_e4m3* A;
-    const __nv_fp8_e4m3* B;
-    const float* scales_a;
-    const float* scales_b;
-    __half* C;
-    int N, K;
-};
-
-__global__ void grouped_gemm_launch(GroupedGemmArgs args) {
-    int group = blockIdx.y;
-    int m_start = args.m_prefix[group];
-    int m_end   = args.m_prefix[group + 1];
-    // Dispatch a standard tile-level GEMM for [m_start, m_end) × N × K.
-}
-```
+- [README at the pinned commit](https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md)
+- [GEMM API at the pinned commit](https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/csrc/apis/gemm.hpp)
+- [JIT compiler at the pinned commit](https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/csrc/jit/compiler.hpp)
+- [DeepSeek-V3 Technical Report v2](https://arxiv.org/abs/2412.19437v2)

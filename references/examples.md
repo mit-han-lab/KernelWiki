@@ -1,6 +1,6 @@
 ---
 version_sensitive:
-  id: vs-triton-3.6-blackwell-tcgen05
+  id: vs-triton-3.3-blackwell-tcgen05
 ---
 
 # Worked Query Examples
@@ -109,7 +109,7 @@ python3 scripts/get_page.py contest-gpumode-p1
 
 **Navigation path**:
 1. `wiki/kernels/gated-delta-net.md` — conceptual + code
-2. `wiki/languages/triton-blackwell.md` — current Triton 3.6+ Blackwell lowering surfaces (tcgen05 + TMEM via descriptor/TMA + warp_specialize, `tl.dot_scaled`, Gluon multi-CTA); pre-3.6 historical context preserved in a clearly-marked subsection
+2. `wiki/languages/triton-blackwell.md` — native TCGen5/TMEM backend support from v3.3, later v3.5/v3.6 surface expansions, and the evidence limits on plain `tl.dot` instruction selection
 3. Source PRs: `pr-vllm-*` for gated_delta, FlashInfer GDN kernels
 
 **Command**:

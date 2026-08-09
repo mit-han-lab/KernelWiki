@@ -1,21 +1,22 @@
-origin_url: https://github.com/deepseek-ai/FlashMLA
+origin_url: https://github.com/deepseek-ai/FlashMLA/tree/71c737929f2567bd0a094ae140f8f60f390b1232
 upstream_repo: blog
-upstream_sha: 71c737929f2567bd0a094ae140f8f60f390b1232
+upstream_sha: none
 license: inherits-from-source-blog
 retrieved_at: 2026-04-27
 asset_mode: extracted
 generated_by: scripts/extract_blog_code.py
 size_cap_truncated: false
 files:
-- local_path: 01-mla-decode-inner-loop.cu
+- local_path: 01-v3-fp8-sparse-decode-byte-check.py
   role: extracted-block
   mode: extracted
   upstream_path: inline-in-blog-markdown
-  heading_path: '## Key Code > ### MLA decode inner loop'
-  sha256: 4d3950b24b3da7a36e1db9d60a0492ed963d1b49ad6a1b97adeab54abaf4548f
-- local_path: 02-sparse-mla-kv-retrieval-kernel-v3-2.cu
+  heading_path: '## Exact V3 FP8 Sparse-Decode Layout > ### V3 FP8 sparse-decode byte
+    check'
+  sha256: bfc0a6df6b2e04ce4f894a9df04926d4120b4e370354d68e80a55c1645565c7e
+- local_path: 02-decode-page-index-round-trip.py
   role: extracted-block
   mode: extracted
   upstream_path: inline-in-blog-markdown
-  heading_path: '## Key Code > ### Sparse-MLA KV-retrieval kernel (V3.2)'
-  sha256: 9b0499c0ddb77a9cebd370e84929d7149ebdc03163768369c95a12ae0b5c4f7f
+  heading_path: '## Sparse Index Contracts > ### Decode page-index round trip'
+  sha256: a0bbc6f0248adc67b8113e3faa66c1be8924aafce665ebf89b43f0e2f0e4a405

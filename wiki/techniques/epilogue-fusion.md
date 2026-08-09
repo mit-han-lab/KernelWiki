@@ -9,8 +9,13 @@ tags:
 - epilogue-fusion
 - tmem
 - warp-specialization
-confidence: source-reported
-reproducibility: snippet
+confidence: verified
+evidence_basis:
+  - source_id: doc-cutlass-blackwell
+    evidence_type: official-doc
+  - source_id: pr-vllm-16032
+    evidence_type: upstream-code
+reproducibility: pseudocode
 prerequisites:
 - hw-tmem
 - technique-warp-specialization
@@ -22,200 +27,119 @@ sources:
 - doc-cutlass-blackwell
 - blog-colfax-cutlass
 - pr-vllm-16032
-blackwell_relevance: TMEM-based epilogue fusion is new to Blackwell; Hopper pattern
-  provides conceptual foundation.
+blackwell_relevance: SM100 tcgen05 accumulators are read from TMEM into registers before supported output transforms and stores.
 artifact_dir: artifacts/kernels/epilogue-fusion
 ---
 
-## Overview
+# Epilogue Fusion
 
-Epilogue fusion overlaps the post-MMA operations (scaling, bias addition, activation functions, quantization, store to global memory) with ongoing MMA computation. On Blackwell, the accumulator lives in TMEM rather than registers, enabling dedicated epilogue warps (typically warps 2-15) to read TMEM concurrently while the MMA warp (warp 1) continues accumulating the next tile. This overlap is achieved by double-buffering the TMEM accumulator: the MMA warp writes to one half while the epilogue warps read from the other half.
+## Definition and boundary
 
-## TMEM-to-Register Epilogue Path
+Epilogue fusion computes output transformations—such as `alpha*acc + beta*C`, bias, activation, output conversion, or auxiliary values—inside the producer kernel before final output materialization. It can remove an intermediate tensor or launch only when the unfused comparison would otherwise materialize or launch that work.
 
-On Blackwell, the MMA result resides in Tensor Memory (TMEM). Epilogue warps must copy relevant portions of TMEM into registers before applying element-wise operations and writing to global memory:
+Fusion does not by itself imply overlap with the next MMA tile. A schedule may drain one completed accumulator after the mainloop, or it may use disjoint storage and specialized roles to overlap a completed region's epilogue with independent MMA work. Participant counts and role IDs come from the concrete kernel; there is no architectural default of fourteen epilogue warps.
 
-```cuda
-// Epilogue warp: read TMEM accumulator, apply fused operations, store
-// This runs on warps 2-15 while warp 1 continues MMA on next tile
-__device__ void epilogue_warp_fn(
-    int warp_id,
-    int tile_m, int tile_n,
-    float scale, const float* bias,
-    half* C, int ldc)
-{
-    int lane_id = threadIdx.x % 32;
+## SM100 TMEM-to-output path
 
-    // Each epilogue warp handles a stripe of the output tile
-    // 14 warps, TILE_M = 128 -> ~9 rows per warp
-    int rows_per_warp = (TILE_M + 13) / 14;
-    int row_start = (warp_id - 2) * rows_per_warp;
-    int row_end   = min(row_start + rows_per_warp, TILE_M);
+For tcgen05, D resides in TMEM. An ordinary arithmetic epilogue first uses a legal collective `tcgen05.ld` mapping, or a library wrapper around it, to transfer a partition into per-thread registers. The load is asynchronous with respect to the issuing thread, so the matching `tcgen05.wait::ld` completion must occur before those registers are consumed.
 
-    for (int r = row_start; r < row_end; r++) {
-        int global_row = tile_m * TILE_M + r;
+CUTLASS 4.5.0's `fp16_gemm_2.py` demonstrates the typed route:
 
-        for (int c = lane_id; c < TILE_N; c += 32) {
-            // Step 1: Load accumulator from TMEM into register
-            float acc = tmem_load_f32(r, c);
-
-            // Step 2: Fused epilogue operations (all in registers)
-            // Scale
-            acc *= scale;
-            // Bias
-            acc += bias[tile_n * TILE_N + c];
-            // ReLU activation
-            acc = fmaxf(acc, 0.0f);
-
-            // Step 3: Store to global memory
-            int global_col = tile_n * TILE_N + c;
-            C[global_row * ldc + global_col] = __float2half(acc);
-        }
-    }
-}
+```python
+copy_atom_t2r = cute.make_copy_atom(
+    tcgen05.Ld32x32bOp(tcgen05.Repetition.x32), cutlass.Float32
+)
+tiled_copy_t2r = tcgen05.make_tmem_copy(copy_atom_t2r, tCtAcc_epi)
+thr_copy_t2r = tiled_copy_t2r.get_slice(tidx)
+tTR_tAcc = thr_copy_t2r.partition_S(tCtAcc_epi)
+tTR_rAcc = cute.make_rmem_tensor(..., cutlass.Float32)
+cute.copy(tiled_copy_t2r, tTR_tAcc_slice, tTR_rAcc)
 ```
 
-## Overlapping MMA with Epilogue via Double-Buffering
+This is an API-routing fragment, not standalone code: the official file supplies the exact tensor layouts, selected load shape, participant group, edge predicates, accumulator-completion handoff, register-to-SMEM conversion, TMA-store pipeline, tail, and TMEM cleanup.
 
-The key to epilogue fusion on Blackwell is TMEM double-buffering. The 512-column TMEM space is split into two halves (columns 0-255 and 256-511). While the MMA warp accumulates into one half, the epilogue warps drain the other:
+## Correctness contract
 
-```cuda
-// TMEM double-buffering for MMA-epilogue overlap
-//
-// TMEM layout: 128 rows x 512 columns (32-bit elements)
-// Buffer A: columns [0, 255]    -- 128 x 256 accumulator
-// Buffer B: columns [256, 511]  -- 128 x 256 accumulator
-//
-// Timeline:
-// Tile 0: MMA -> buffer A     | epilogue idle (no prior result)
-// Tile 1: MMA -> buffer B     | epilogue reads buffer A
-// Tile 2: MMA -> buffer A     | epilogue reads buffer B
-// Tile 3: MMA -> buffer B     | epilogue reads buffer A
-//    ... ping-pong continues ...
+| Boundary | Proof required before crossing it |
+|---|---|
+| tcgen05 MMA → TMEM reader | the relevant asynchronous MMA is committed and its completion observed |
+| TMEM → result registers | the legal collective load completes before dependent arithmetic |
+| registers → output | element/layout mapping and output-edge predicates cover exactly the valid coordinates |
+| TMEM reader → region reuse | every reader's load has completed and the matching reusable barrier phase is released |
+| kernel tail | all output stores complete as required and every TMEM allocation is collectively freed |
 
-__device__ void mma_epilogue_overlap(
-    const GemmParams& params,
-    int num_tiles)
-{
-    int warp_id = threadIdx.x / 32;
+For a multi-region overlap schedule, simultaneously live TMEM regions must also be disjoint. Equal 256-column halves are one possible policy for a 512-column allocation, not an epilogue-fusion requirement. Reusable mbarriers need correct expected-arrival counts and phase/parity tracking.
 
-    __shared__ uint64_t mbar_mma_done[2];    // One per TMEM buffer half
-    __shared__ uint64_t mbar_epi_done[2];    // Epilogue completion signals
+## CUTLASS 4.5.0 fusion interface
 
-    if (threadIdx.x == 0) {
-        for (int i = 0; i < 2; i++) {
-            mbarrier_init(&mbar_mma_done[i], 1);
-            mbarrier_init(&mbar_epi_done[i], 1);
-        }
-    }
-    __syncthreads();
+`cutlass::epilogue::fusion::LinCombEltAct` has this parameter order:
 
-    if (warp_id == 1) {
-        // === MMA WARP ===
-        for (int t = 0; t < num_tiles; t++) {
-            int buf = t % 2;  // Alternate between buffer halves
-
-            // Wait for epilogue to finish reading this buffer
-            if (t >= 2) {
-                mbarrier_wait(&mbar_epi_done[buf]);
-            }
-
-            // Issue MMA, accumulating into TMEM buffer half
-            int tmem_col_offset = buf * 256;
-            tcgen05_mma_with_offset(tmem_col_offset,
-                                    params.smem_A, params.smem_B);
-
-            // Signal epilogue that this buffer is ready
-            mbarrier_arrive(&mbar_mma_done[buf]);
-        }
-
-    } else if (warp_id >= 2) {
-        // === EPILOGUE WARPS ===
-        for (int t = 0; t < num_tiles; t++) {
-            int buf = t % 2;
-
-            // Wait for MMA to finish filling this buffer
-            mbarrier_wait(&mbar_mma_done[buf]);
-
-            // Read from TMEM buffer half and write to global memory
-            int tmem_col_offset = buf * 256;
-            epilogue_store(params, t, tmem_col_offset, warp_id);
-
-            // ALL epilogue warps must finish reading TMEM before MMA reuses
-            // the buffer. Each epilogue warp arrives on mbar_epi_done;
-            // mbar_epi_done is initialized with count = NUM_EPILOGUE_WARPS.
-            // MMA warp waits on this mbarrier before writing to this half.
-            if (lane_id == 0) {
-                mbarrier_arrive(&mbar_epi_done[buf]);
-            }
-            // mbar_epi_done[buf] fires only after ALL epilogue warps arrive
-        }
-    }
-}
+```cpp
+template <
+  template <class> class ActivationFn,
+  class ElementOutput,
+  class ElementCompute,
+  class ElementSource = ElementOutput,
+  class ElementScalar = ElementCompute,
+  cutlass::FloatRoundStyle Round = cutlass::FloatRoundStyle::round_to_nearest>
+struct LinCombEltAct;
 ```
 
-## CUTLASS Epilogue Patterns
+For SM100 construction, `cutlass::epilogue::collective::CollectiveBuilder` receives architecture, operator class, tile/cluster shapes, `EpilogueTileAuto` or an explicit epilogue tile, accumulator/compute/C/D types and layouts, alignment, `EpilogueScheduleAuto` or an explicit supported schedule, and finally a supported fusion operation or callbacks type.
 
-CUTLASS 4.5.0 provides composable epilogue visitors that fuse arbitrary element-wise operations after GEMM:
+There is no CUTLASS 4.5.0 type named `Sm100EpilogueTmaWarpSpecialized`. Support is constrained by the exact architecture, operator class, schedule, tile, layout, alignment, datatype, and fusion callback combination. Use `Gemm::can_implement(arguments)` and a tagged example rather than reconstructing a builder signature from prose.
 
-```cuda
-// CUTLASS SM100 epilogue with fused scale + bias + activation
-// Uses the EVT (Epilogue Visitor Tree) pattern
+The vLLM PR 16032 NVFP4 wrapper is one pinned C++ construction example: it uses `CollectiveBuilder<... EpilogueTileAuto, ... EpilogueScheduleAuto>` and derives mainloop shared-memory stages with `StageCountAutoCarveout<sizeof(CollectiveEpilogue::SharedStorage)>`.
 
-using EpilogueOp = cutlass::epilogue::fusion::LinCombEltAct<
-    cutlass::epilogue::thread::ReLU,   // Activation function
-    float,                              // Compute type
-    float,                              // Scale type
-    cutlass::half_t                     // Output type
->;
+## Operation shapes
 
-// The epilogue descriptor tells CUTLASS how to partition work
-// across the 14 epilogue warps
-using CollectiveEpilogue = cutlass::epilogue::collective::Sm100EpilogueTmaWarpSpecialized<
-    cutlass::gemm::TagToStrideC_t<cutlass::layout::RowMajor>,
-    cutlass::gemm::TagToStrideC_t<cutlass::layout::RowMajor>,
-    EpilogueOp,
-    cutlass::gemm::EpilogueDefault  // Default tiling
->;
+| Operation | Data dependency |
+|---|---|
+| Source linear combination | `D = alpha*acc + beta*C` |
+| Per-row/per-column bias | add a separately laid-out broadcast bias input |
+| Activation | apply a supported functor such as ReLU, GELU, or SiLU to the output fragment |
+| Output conversion/quantization | convert the accumulator fragment and, when required, generate/store scale metadata |
+| Gated product | combine two values, for example `SiLU(gate) * up`; requires both inputs and a supported/custom callback |
+| Online-softmax rescale | rescale a prior partial output after a new row maximum; requires the attention reduction state |
+| Residual | combine a separately supplied residual/source tensor at the defined point in the expression tree |
 
-// In the kernel, the epilogue is invoked after the mainloop:
-// epilogue(
-//     problem_shape,
-//     collective_mainloop.get_accumulator(),  // TMEM reference
-//     epilogue_params,                         // scale, bias pointers
-//     shared_storage                           // SMEM for TMA stores
-// );
-```
+These are operation categories, not a claim that every composition is supported by one built-in SM100 visitor. In particular, reductions, multiple outputs, auxiliary tensors, and broadcasts add synchronization and layout requirements beyond a pointwise activation.
 
-## Common Fused Epilogue Operations
+## Overlap and performance evaluation
 
-| Operation | Description | Typical Use |
-|-----------|-------------|-------------|
-| Scale + Bias | `y = alpha * acc + beta * C` | Standard GEMM epilogue |
-| ReLU / GeLU / SiLU | Element-wise activation | MLP layers |
-| Quantize | FP32 accumulator to FP8/FP16 | Inference quantization |
-| SwiGLU gate | `y = SiLU(gate) * up` | Gated dual GEMM (LLM FFN) |
-| Softmax rescale | `y = acc * exp(max_old - max_new)` | Attention epilogue |
-| Residual add | `y = acc + residual` | Transformer blocks |
+When an implementation overlaps the epilogue with independent MMA work, verify both directions of the handoff: compute-complete before read, and load/read-complete before overwrite. Include the prologue (no prior result), steady-state wraparound, final drain, and deallocation path in tests.
 
-## When to Use
+Evaluate a defined fused/unfused pair with identical inputs, output semantics, launch policy, warmup, and timing statistics. Record registers, spills, SMEM, TMEM columns, barriers, threads/CTA, cluster shape, and occupancy. Sweep supported epilogue group sizes, load shapes, output tiles, and store stages. The PTX ISA defines no equal-share bandwidth model for a fixed number of epilogue warps; diagnose TMEM-load, conversion, barrier, and store bottlenecks with generated code and profiler data.
 
-- **All Blackwell GEMMs with non-trivial epilogues**: The 14 epilogue warps are available by default in the warp-specialized model. Fusing operations avoids a separate kernel launch and an extra global memory round-trip.
-- **Attention kernels**: The softmax rescaling and output accumulation can be overlapped with the next KV tile's MMA.
-- **Quantized inference**: FP32-to-FP8 conversion in the epilogue avoids writing FP32 intermediates to global memory.
+Fusing output conversion can avoid a global FP32 intermediate when the baseline would write and reread that intermediate. It does not guarantee a speedup: added registers, shared-memory staging, synchronization, edge handling, or reduced occupancy can outweigh saved traffic.
 
-## Caveats
+Useful negative tests delay one reader, skip a barrier phase, reuse a TMEM region early, omit the final store tail, and exercise partial M/N tiles. Each fault should be detected by output comparison or a bounded watchdog.
 
-- The epilogue can only read TMEM after the MMA for that tile is complete. The double-buffer synchronization is mandatory to prevent reading partial results.
-- TMEM-to-register bandwidth is not unlimited. With 14 warps simultaneously reading TMEM, each warp gets a proportional share. Very wide output tiles (large TILE_N) may bottleneck on TMEM read bandwidth.
-- Simple epilogues (just store) waste the 14 epilogue warps. For such cases, consider reducing the CTA size or assigning epilogue warps to other work (e.g., next-tile TMA prefetch).
+## Artifact provenance
 
-## Full Reference Implementation
+The artifact bundle contains mixed provenance modes:
 
-Verbatim upstream code lives in [`artifacts/kernels/epilogue-fusion/full/`](../../artifacts/kernels/epilogue-fusion/full/); labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/epilogue-fusion/variants/`](../../artifacts/kernels/epilogue-fusion/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
+- `full/nvfp4_scaled_mm_kernels.cu` is verbatim from vLLM merge `ed7a29d9f8b48978e3bbf43599d21b4de65387e0` and byte-matches SHA-256 `e8aed5ccb3dd9de26c3aeff159a242a46dcb7c7d8d0351b6c44ff1f8d2f7effa`.
+- `full/tmem-load-into-registers-for-epilogue.cu` is an extracted historical snippet from a local source card; it is not an upstream-verbatim kernel and must not be treated as standalone safe code.
+- `variants/01-double-buffered-tmem-epilogue-skeleton.cu` is explicitly labeled derived/not-upstream and is incomplete pseudocode.
 
-Query via:
+Retrieve the page and bundle with:
 
 ```bash
-python3 scripts/get_page.py technique-epilogue-fusion --include-code
+conda run -n base python scripts/get_page.py technique-epilogue-fusion --include-code
 ```
+
+## Primary references
+
+- [PTX ISA 9.0 tcgen05 load and wait](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld)
+- [PTX ISA 9.0 tcgen05 completion](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit)
+- [CUTLASS 4.5.0 fusion operations](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/epilogue/fusion/operations.hpp)
+- [CUTLASS 4.5.0 collective builder](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/epilogue/collective/collective_builder.hpp)
+- [CUTLASS 4.5.0 CuTe DSL epilogue example](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py)
+- [vLLM PR 16032 NVFP4 wrapper](https://github.com/vllm-project/vllm/blob/ed7a29d9f8b48978e3bbf43599d21b4de65387e0/csrc/quantization/fp4/nvfp4_scaled_mm_kernels.cu)
+
+## Related
+
+- [Tensor Memory](../hardware/tmem.md) — load, wait, and lifetime rules
+- [warp specialization](warp-specialization.md) — participant groups and role invariants
+- [double buffering](double-buffering.md) — optional multi-region overlap protocol

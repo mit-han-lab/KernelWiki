@@ -1,19 +1,26 @@
 ---
 id: doc-tfla
-title: "Tiled Flash Linear Attention (TFLA)"
-url: https://arxiv.org/abs/2503.14376
+title: Tiled Flash Linear Attention (TFLA)
+url: https://arxiv.org/abs/2503.14376v3
 source_category: paper
-architectures: [sm100, sm90]
-tags: [linear-attention, gated-delta-net, chunk-parallelism, tcgen05, wgmma]
-retrieved_at: 2026-04-16
+architectures:
+- sm90
+tags:
+- linear-attention
+- chunk-parallelism
+- triton
+retrieved_at: 2026-08-08
 ---
 
-## Summary
+## Verified scope
 
-Paper on Tiled Flash Linear Attention enabling arbitrarily large chunk sizes for linear attention.
+Tiled Flash Linear Attention adds a second level of sequence parallelization within each chunk. The paper states that this enables arbitrarily large chunks, raises arithmetic intensity, and reduces the need to materialize intermediate recurrent states.
 
-## Key Techniques
-- Two levels of sequence parallelism: standard chunkwise + tiling within chunks
-- Prevents materialization of intermediate memory states
-- Matmuls emitted as inline PTX: WGMMA on Hopper, tcgen05 on Blackwell
-- Improves arithmetic intensity for linear attention variants including GatedDeltaNet
+The paper applies TFLA to mLSTM. Its official `NX-AI/mlstm_kernels` repository at commit `5b98ff8e2bec189b3d3c249405bab5149564d6f8` provides PyTorch, JAX, and Triton mLSTM implementations and reports H100 benchmarks.
+
+This source does not establish a Gated DeltaNet implementation, a Blackwell implementation, or inline WGMMA/tcgen05 assembly. Those claims are outside the cited paper and code revision.
+
+## Primary sources
+
+- [Paper revision 3](https://arxiv.org/abs/2503.14376v3)
+- [Official code at `5b98ff8`](https://github.com/NX-AI/mlstm_kernels/tree/5b98ff8e2bec189b3d3c249405bab5149564d6f8)

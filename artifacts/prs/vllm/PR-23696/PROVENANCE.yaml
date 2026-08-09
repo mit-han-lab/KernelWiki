@@ -1,12 +1,16 @@
 origin_url: https://github.com/vllm-project/vllm/pull/23696
 upstream_repo: vllm-project/vllm
-upstream_sha: 074854b2
+upstream_sha: 074854b24f6e0b1e237a004283e1f46d98c0d73c
 license: inherits-from-upstream
 retrieved_at: '2026-04-17'
 asset_mode: verbatim
 size_cap_truncated: false
 generated_by: scripts/fetch_pr_diff.py
 source_pr_id: pr-vllm-23696
+notes: >-
+  diff.patch is the aggregate merged diff across all five changed paths. The
+  key-files tree intentionally retains only kernel_warmup.py as a representative
+  byte-verified file; it is not the complete changed-file set.
 files:
 - local_path: diff.patch
   role: pr-diff

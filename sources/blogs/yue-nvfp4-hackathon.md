@@ -16,7 +16,6 @@ tags:
 techniques:
 - vectorized-loads
 - cache-policy
-- register-reuse
 - loop-unrolling
 hardware_features:
 - nvfp4
@@ -29,126 +28,43 @@ languages:
 - cuda-cpp
 - ptx
 - cute-dsl
-retrieved_at: 2026-04-16
-artifact_dir: artifacts/blogs/yue-nvfp4-hackathon/code
+retrieved_at: 2026-08-08
 ---
 
-# Blackwell NVFP4 Kernel Hackathon Journey (Yue Zhang)
+# Blackwell NVFP4 Kernel Hackathon Journey
 
-## Overview
+## Evidence Scope
 
-Yue Zhang's detailed account of optimizing Problem 1 (NVFP4 Batched GEMV) in the GPU Mode hackathon. Documents the full optimization journey from a naive CuTe DSL implementation (~100us) to a highly optimized CUDA/PTX kernel (22.392us) -- a 4.5x improvement through systematic optimization.
+This is an evidence-scoped summary of Yue Zhang's own optimization report for Problem 1. Its performance values and explanations are author-reported; the post does not provide raw repeated-trial data or a complete released submission. At retrieval, the post still said its source-code link was coming soon.
 
-## Performance Progression
+## Reported Progression
 
-| Stage | Approach | Latency | Improvement |
-|-------|----------|---------|-------------|
-| 1 | CuTe DSL baseline | ~100us | -- |
-| 2 | Naive CUDA (coalesced access) | ~443us | (worse than CuTe initially) |
-| 3 | Hardware intrinsics | ~39us | 11.4x from stage 2 |
-| 4 | PTX assembly | ~27us | 1.44x from stage 3 |
-| 5 | ILP optimization | ~22.9us | 1.18x from stage 4 |
-| 6 | Final tuned | 22.392us | 4.5x from stage 1 |
+| Stage | Combined change | Author-reported latency |
+|---|---|---:|
+| Initial CuTe DSL | First working CuTe path | ~100 µs |
+| Optimized CuTe DSL | Scale-load/arithmetic changes and thread collaboration | ~33 µs |
+| Initial CUDA | Naive hand-written path | ~2000 µs |
+| CUDA optimization 1 | Coalescing, shared B, thread collaboration, warp reduction | ~443 µs |
+| CUDA optimization 2 | Remove shared B, per-thread tiles, `float4` loads, hardware intrinsics | ~39 µs |
+| CUDA optimization 3 | Vectorized PTX FP4 and scale decode | ~27 µs |
+| Parameter tuning | Threads per row and rows per block | ~26 µs |
+| ILP | Two tiles per loop iteration | ~22.9 µs |
+| Aggressive PTX fusion | Decode, scales, multiply, and accumulation in a larger PTX block | ~22.3 µs |
+| Submitted leaderboard score | Geometric mean | 22.392 µs |
 
-Key observation: The initial naive CUDA attempt was slower than CuTe DSL, demonstrating that manual optimization requires deep understanding of the hardware to outperform a well-designed DSL.
+The 443-to-39 step is not a coalescing-only result, and the 443-to-27 endpoints do not isolate C intrinsics versus PTX. Each spans multiple simultaneous changes.
 
-## Key Optimization Steps
+## Reported Technical Details
 
-### Step 1: CuTe DSL Baseline (~100us)
+- The CuTe path reduced duplicate scale loads and scale-product arithmetic, then used multiple threads per output with a shared-memory partial-sum reduction.
+- Loading the entire B vector into shared memory and double buffering with asynchronous copy did not improve that CuTe attempt.
+- The first CUDA improvement combined coalescing, B/SFB shared-memory staging, multiple threads per row, and warp reduction.
+- The next CUDA stage removed B shared-memory staging and combined per-thread K tiles, 16-byte `float4` loads, and hardware FP4 conversion intrinsics.
+- The PTX stage used `mov.b32` decomposition and packed `cvt.rn.f16x2.e2m1x2` conversion as part of a vectorized decode path.
+- Processing two tiles per loop improved the author's implementation; three or four tiles were slightly slower.
 
-```cpp
-// CuTe DSL approach:
-// - Automatic partition/copy for NVFP4 data
-// - Handles packing/unpacking of FP4 values
-// - Reasonable but not optimal memory access patterns
-// Result: ~100us -- decent starting point
-```
+These observations do not establish that shared memory, load width, inline PTX, or ILP has the same effect in another kernel.
 
-CuTe DSL provided a functional baseline without requiring deep hardware knowledge, but left significant performance on the table for this memory-bound kernel.
+## Primary Source
 
-### Step 2: Coalesced Memory Access (~443us, then improved)
-
-Initial hand-written CUDA was actually slower because the memory access pattern was not properly coalesced:
-
-```cpp
-// Bad: each thread reads non-contiguous FP4 elements
-// Good: threads in a warp read contiguous 128-byte chunks
-// The FP4 packing (2 elements per byte) requires careful indexing
-// to maintain coalesced access at the byte level
-```
-
-After fixing coalescing, performance improved dramatically but still required hardware-specific optimizations.
-
-### Step 3: Hardware Intrinsics (~39us)
-
-Replaced generic type conversions with NVIDIA FP4 hardware intrinsics:
-
-```cpp
-// Generic: manual bit manipulation for FP4 -> FP16 conversion
-// float val = decode_fp4_manual(packed_byte >> 4);  // slow
-
-// Hardware intrinsic: single instruction for FP4 -> FP16x2
-// __half2 result = __cvt_fp4x2_to_halfx2(packed_fp4);  // fast
-```
-
-The hardware intrinsic path is 11.4x faster than the manual approach, demonstrating the importance of using ISA-specific instructions for sub-byte data types.
-
-### Step 4: PTX Assembly (~27us)
-
-Dropped to raw PTX for fine-grained control:
-
-```asm
-// Key PTX optimizations:
-// 1. cvt.rn.f16x2.e2m1x2 for FP4 conversion (vs C intrinsic)
-cvt.rn.f16x2.e2m1x2 %result, %fp4_packed;
-
-// 2. Byte unpacking via mov.b32 (vs bitwise shift/mask)
-mov.b32 {b0, b1, b2, b3}, %packed_word;
-// Splits 32-bit word into 4 bytes without arithmetic
-
-// 3. Cache-qualified loads
-ld.global.L1::no_allocate.v4.u64 {a0,a1,a2,a3}, [addr_a];  // stream A
-ld.global.L1::evict_last.v4.u64 {b0,b1,b2,b3}, [addr_b];   // keep B hot
-```
-
-The PTX byte unpacking (`mov.b32 {a,b,c,d}`) is a critical optimization: it replaces 3-4 shift/mask instructions with a single register move, and the savings compound across the entire K dimension.
-
-### Step 5: ILP Optimization (~22.9us)
-
-Increased instruction-level parallelism by unrolling and interleaving independent operations:
-
-```cpp
-// Before: sequential FP4 decode + accumulate
-for (int k = 0; k < K; k += 16) {
-    decode_fp4(a[k:k+16]);
-    accumulate(partial_sum);
-}
-
-// After: unrolled with interleaved decode + accumulate
-// Decode batch[i+1] while accumulating batch[i]
-// Multiple independent accumulator registers
-```
-
-### Final Result: 22.392us
-
-The final kernel combined all optimizations. Key factors in the 4.5x total improvement:
-1. Hardware FP4 conversion intrinsics (biggest single win)
-2. PTX byte unpacking (avoids bitwise overhead)
-3. Cache policy differentiation (A: no-allocate, B: evict-last)
-4. ILP through unrolling and register interleaving
-5. Proper memory coalescing for FP4 packed data
-
-## Key Lessons Shared
-
-1. **CuTe DSL is a good starting point**: Even for memory-bound kernels, CuTe provides a reasonable baseline. But for the last 4x of performance, manual optimization is required.
-
-2. **Hardware intrinsics are essential for sub-byte types**: Generic FP4 decoding is an order of magnitude slower than hardware-specific paths.
-
-3. **PTX gives control that C++ cannot**: Cache policies, byte unpacking, and instruction scheduling are only accessible at the PTX level.
-
-4. **Memory-bound kernels need different optimization strategies**: Unlike compute-bound GEMM (where tensor core utilization is key), GEMV optimization is about maximizing memory bandwidth utilization.
-
-## Sources
-
-- [Yue's Hackathon Journey](https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html)
-- [gpu-mode/reference-kernels](https://github.com/gpu-mode/reference-kernels)
+- [Yue Zhang, “My Blackwell NVFP4 Kernel Hackathon Journey”](https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html)

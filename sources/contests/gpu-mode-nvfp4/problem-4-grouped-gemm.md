@@ -10,185 +10,69 @@ tags:
 - grouped-gemm
 - fp4
 - block-scale
-- tcgen05
-- tmem
-- tma
 - moe
-techniques:
-- warp-specialization
-- tile-scheduling
-- pipeline-stages
-- kernel-fusion
-hardware_features:
-- nvfp4
-- fp4
-- block-scale
-- tcgen05
-- tmem
-- tma
-- clc
 kernel_types:
 - grouped-gemm
 - gemm
 - moe
 languages:
-- cuda-cpp
-- ptx
-- cute-dsl
-url: https://github.com/gpu-mode/reference-kernels
-submissions:
-- rank: 1
-  participant: (reward hack - invalidated)
-  score: 11.191us geomean (invalid)
-  technique: 'Exploited eval harness: batched all 15 benchmark problems into first
-    call, subsequent calls returned pre-computed results'
-  submission_truth: unavailable
-  code_unavailable_reason: Problem-4 rank-1 slot was invalidated after a reward-hacking
-    incident; no legitimate kernel was archived, so there is no code to collect
-- rank: 2
-  participant: Simon (veitner)
-  score: ~13.2us geomean
-  technique: CLC dynamic tile scheduling, CUTLASS grouped GEMM with ptr-array interface,
-    cross-group TMA prefetching
-  submission_truth: unavailable
-  code_unavailable_reason: Simon's grouped-GEMM submission posted in the GPU Mode
-    Discord problem-4 thread; not republished publicly
-- rank: 3
-  participant: currybab
-  score: ~13.5us geomean
-  technique: Group packing for small-M experts, warp-specialized pipeline with group-boundary-aware
-    scheduling
-  submission_truth: unavailable
-  code_unavailable_reason: currybab's grouped-GEMM submission posted in the GPU Mode
-    Discord problem-4 thread; no public republish at collection time
+- python
+url: https://github.com/gpu-mode/reference-kernels/tree/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm
+problem_number: 4
+description: Exact public task and correctness-reference scope after the published
+  K-divisibility correction; no unpublished legitimate leaderboard is asserted.
 ---
 
 # Problem 4: NVFP4 Grouped GEMM
 
-## Problem Description
+## Verified identity
 
-Multiple GEMMs with variable M dimensions but shared N and K, directly relevant to Mixture-of-Experts (MoE) inference on B200 GPUs:
+The official NVIDIA rules name this Kernel Challenge 4, give its entry window as January 17 through February 13, 2026, and assign it 40% of the four-problem grand-prize score. The public GPU Mode task at commit `ae67948685dfccf54ae8374dc9402addb7aae4f6` targets NVIDIA B200.
 
-```
-for i in range(num_groups):
-    C[i] = A[i] @ B[i]
-    // A[i] shape: (M_i x K), variable M per group (tokens routed to expert i)
-    // B[i] shape: (K x N), shared N and K across all groups
-    // All in NVFP4 with block scaling
-```
+## Exact group contract
 
-**Nature**: Compute-bound with load-balancing challenge. Variable M_i across groups means some experts receive many tokens while others receive few.
+The operation is a list of independent block-scaled products. Group `i` computes `C_i = A_i @ B_i.T`. Unlike an M-grouped MoE-only interface, the official correctness cases can vary `M_i`, `N_i`, and `K_i` within the same list.
 
-## Timeline
+| Per-group value | Published dtype | Logical shape |
+| --- | --- | --- |
+| `a_i` | packed NVFP4 E2M1, two values per byte | `[M_i,K_i/2,L_i]` |
+| `b_i` | packed NVFP4 E2M1, two values per byte | `[N_i,K_i/2,L_i]` |
+| `c_i` | FP16 | `[M_i,N_i,L_i]` |
+| `sfa_i` | FP8 E4M3FNUZ in task/template | `[M_i,K_i/16,L_i]` |
+| `sfb_i` | FP8 E4M3FNUZ in task/template | `[N_i,K_i/16,L_i]` |
+| size | integers | `(M_i,N_i,K_i,L_i)` |
 
-January 17 -- February 13, 2026. Final problem, weighted 40% (heaviest) for grand prize.
+The actual Python tuple contains four lists: `(abc_tensors, sfasfb_tensors, sfasfb_reordered_tensors, problem_sizes)`. `task.yml` initially describes only three names, while `template.py`, `task.py`, and `reference.py` expose the reordered-scale list as the fourth value. The first two lists contain logical scales; the third contains layout-reordered scale copies intended for the custom kernel.
 
-Grand Prize: Dell Pro Max with GB300 NVLink. Weighted scoring across all 4 problems: 10% / 20% / 30% / 40%.
+At this revision, the prose/template label scales `float8_e4m3fnuz`, but the generator constructs `torch.float8_e4m3fn`. This source capture preserves that upstream inconsistency. Each published case uses `L=1`; `K_i` is divisible by 256, and each `M_i`/`N_i` must satisfy the selected MMA tile divisibility.
 
-## MoE Relevance
+The correctness reference independently invokes `torch._scaled_mm` for each group with `B_i` transposed, writes FP16 output, and checks with `rtol=1e-3` and `atol=1e-3`.
 
-Grouped GEMM is the core compute kernel for MoE inference:
-- DeepSeek-V3: 256 experts, tokens routed to 8 experts each
-- Qwen3-Next: 512 experts, ~19 active per token
-- Each expert's forward pass is a grouped GEMM where M_i = number of tokens routed to expert i
+## Published benchmark and scoring contract
 
-The variable M dimension creates significant load imbalance challenges. Some experts may receive hundreds of tokens while others receive zero.
+| Groups | M values | N | K | L | Theoretical speed-of-light time (µs) |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 8 | 80, 176, 128, 72, 64, 248, 96, 160 | 4096 | 7168 | 1 | 18.833 |
+| 8 | 40, 76, 168, 72, 164, 148, 196, 160 | 7168 | 2048 | 1 | 10.667 |
+| 2 | 192, 320 | 3072 | 4096 | 1 | 2.406 |
+| 2 | 128, 384 | 4096 | 1536 | 1 | 1.525 |
 
-## Optimization Techniques
+Ranking uses the geometric mean of benchmark results. The task labels the final column a speed-of-light analysis based on the maximum of B200 FP4 Tensor Core math time and DRAM-memory time at a 1.5 GHz clock. These are theoretical comparison values, not contestant measurements.
 
-### Dynamic Tile Scheduling with CLC
+## Reward-hack boundary
 
-Cluster Launch Control (CLC) enables hardware-level dynamic work distribution:
+GPU Mode's official postmortem records a submission that temporarily reported `11.191 µs`, roughly `2 µs` ahead of the next entry, before being scrubbed. During correctness, it ran a real padded 8-group kernel on each of 15 cloned objects. During timing, one call launched a merged 120-group kernel for all 15 objects and calls 2 through 15 returned cached output pointers; the harness divided the combined work by 15. This number is therefore an invalid amortized exploit result, not a legitimate performance record.
 
-```
-// CLC dynamically assigns tiles to SMs based on availability
-// Critical for grouped GEMM where groups have vastly different sizes
-// Small groups (M_i < tile_M) waste compute with static scheduling
-// CLC balances load across SMs at hardware speed
-```
+The postmortem points to `gpu-mode/reference-kernels` PR #104 as the evaluation-harness response. It does not establish a FlashInfer-Bench or MLSys 2026 causal link.
 
-Without CLC, static tile assignment leaves SMs idle when their assigned group finishes early. CLC redistributes remaining tiles to available SMs.
+## Evidence boundary
 
-### Group Packing and Scheduling
+The task fixes observable tensors, correctness, benchmark workloads, theoretical estimates, timeout, and scoring. It does not require one GPU launch, CUTLASS, CLC, TMA, TMEM, a persistent scheduler, or a particular bottleneck classification. No legitimate final ranks, winner source, or implementation techniques are published in the pinned task, so none are asserted here.
 
-Multiple small groups can be packed into shared tile grids:
+## Primary sources
 
-```
-// Naive: one kernel launch per group (high launch overhead)
-// Better: single kernel, all groups in one grid
-// Best: tile scheduler that packs small groups efficiently
-
-// For groups with M_i < tile_M (e.g., M_i=3, tile_M=128):
-// Pack multiple small groups into shared tiles
-// or use specialized small-M kernels
-```
-
-### Warp Specialization for Variable Workloads
-
-The warp specialization pattern adapts to variable group sizes:
-
-- **TMA warps**: Prefetch tiles for the next group while current group computes
-- **Compute warps**: Execute tcgen05.mma on current tiles
-- **Scheduling warps**: Track group boundaries and manage tile assignment
-
-### CUTLASS Grouped GEMM Schedule
-
-```cpp
-// CUTLASS 4.x grouped GEMM for NVFP4 on SM100
-using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized1SmNvf4Sm100;
-
-// Ptr-array interface: each group has its own A, B, C pointers
-// M array specifies per-group row count
-// N and K shared across all groups
-using GemmKernel = cutlass::gemm::kernel::GemmUniversal<
-    ProblemShape,         // GroupedGemmProblemShape
-    CollectiveMainloop,
-    CollectiveEpilogue
->;
-```
-
-### Pipeline Overlap Across Groups
-
-When processing multiple groups sequentially within a CTA:
-
-```
-// While computing group[i] tiles:
-//   TMA prefetches group[i+1] weight tiles
-//   Previous group[i-1] epilogue writes complete
-// This hides group-transition latency
-```
-
-## The Reward Hack
-
-A notable submission to Problem 4 reported 11.191us (~2us ahead of the next competitor):
-
-**Mechanism**:
-1. **Correctness phase**: The evaluation harness clones data objects, so the real kernel runs correctly on fresh data
-2. **Timing phase**: The harness reuses the same data objects. The exploit detects first call, fires a single fused super-batch covering all 15 benchmark problems (all 120 groups across all configs). Subsequent calls 2-15 detect pre-computed results and return immediately
-
-**Impact**: Led to improvements in the FlashInfer-Bench evaluation methodology for the MLSys 2026 contest. The incident demonstrated that kernel benchmarking harnesses must isolate timing runs from state carried across invocations.
-
-## Performance Data
-
-| Approach | Approximate Time |
-|----------|-----------------|
-| Reward hack submission | 11.191us (invalid) |
-| Legitimate top performers | ~13-14us range |
-| CUTLASS baseline | ~15us range |
-
-Exact legitimate leaderboard data not fully published due to the hack incident.
-
-## Key Challenges
-
-1. **Load imbalance**: Expert routing creates highly variable M_i values. Some groups may have M_i=0 (no tokens routed)
-2. **Small-group efficiency**: Groups with M_i < tile_M waste compute on padding
-3. **Group-transition overhead**: Switching between groups incurs pointer arithmetic and descriptor updates
-4. **TMA alignment**: Each group's A matrix must be 128-byte aligned for TMA, requiring careful memory layout
-5. **TMEM reuse**: Accumulator tiles in TMEM must be cleared between groups
-
-## Sources
-
-- [gpu-mode/reference-kernels](https://github.com/gpu-mode/reference-kernels) (`/problems/nvidia/nvfp4_group_gemm/`)
-- [Reward Hack Writeup](https://www.gpumode.com/news/reward-hacking-nvfp4)
-- [GPU MODE Hackathon (Luma)](https://luma.com/9n27uem4)
-- [NVIDIA Forums Announcement](https://forums.developer.nvidia.com/t/join-us-for-the-blackwell-nvfp4-kernel-hackathon-with-nvidia-and-gpu-mode/350092)
+- [Official challenge rules](https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf)
+- [Pinned public task](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm/task.yml)
+- [Pinned starter template](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm/template.py)
+- [Pinned correctness reference](https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm/reference.py)
+- [Official reward-hack postmortem](https://www.gpumode.com/news/reward-hacking-nvfp4)

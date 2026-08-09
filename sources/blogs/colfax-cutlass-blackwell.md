@@ -28,51 +28,21 @@ Detailed tutorial on CUTLASS abstraction for Blackwell UMMA (tcgen05.mma) with s
 - Architectural progression: Volta → Hopper TMA → Blackwell TMEM+UMMA
 - Sub-byte GEMM tutorial covering NVFP4, MXFP4, block scaling
 
-## Key Code
+## Verified implementation notes
 
-### TMEM allocation + tcgen05.mma (single-thread launch)
+The article is useful for understanding CUTLASS's `MMA_Atom`/`MMA_Traits`
+layering and TMEM-backed accumulators, but abbreviated inline PTX is not a safe
+substitute for the ISA grammar:
 
-```cuda
-// UMMA on Blackwell: one thread drives the MMA for the whole CTA.
-// Accumulator lives in TMEM, not registers.
-__shared__ uint32_t tmem_addr;
+- `tcgen05.alloc` and `tcgen05.dealloc` are warp-collective for
+  `cta_group::1`; they are not lane-0-only instructions.
+- `tcgen05.mma` is issued by one thread, but its full operand list includes a
+  disable-output-lane vector whose width depends on the CTA group.
+- `tcgen05.ld` is warp-collective and asynchronous; use its documented shape,
+  repetition, register mapping, and completion mechanism.
+- CUTLASS supplies exact wrapper types and layouts for supported combinations;
+  choose the atom from the version-pinned library rather than reconstructing a
+  template signature from prose.
 
-if (threadIdx.x == 0) {
-    // Allocate 128 rows × 256 cols of TMEM for the accumulator
-    asm volatile("tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], 256;\n"
-                 :: "r"(&tmem_addr));
-}
-__syncthreads();
-
-// Issue UMMA: A and B live in SMEM, C accumulates into TMEM
-if (threadIdx.x == 0) {
-    asm volatile(
-        "tcgen05.mma.cta_group::1.kind::f16 [%0], %1, %2, %3, 1;\n"
-        :: "r"(tmem_addr), "l"(desc_a), "l"(desc_b), "r"(0));
-}
-```
-
-### TMEM load into registers for epilogue
-
-```cuda
-// Epilogue warps drain TMEM → registers using tcgen05.ld
-// Each warp loads 32 columns (=128 bytes) at a time.
-float reg[4];
-asm volatile(
-    "tcgen05.ld.sync.aligned.32x32b.x4.b32 "
-    "{%0, %1, %2, %3}, [%4];\n"
-    : "=f"(reg[0]), "=f"(reg[1]), "=f"(reg[2]), "=f"(reg[3])
-    : "r"(tmem_addr + warp_col_offset));
-```
-
-### CUTLASS MMA_Atom wrapping
-
-```cpp
-// The CUTLASS two-level abstraction: MMA_Atom wraps the PTX intrinsic,
-// MMA_Traits maps logical MxNxK shapes to TMEM addressing.
-using Atom = cute::MMA_Atom<cute::SM100_MMA_F16BF16_SS<
-    cute::half_t, cute::half_t, float,     // A, B, C types
-    128, 256,                               // MxN tile
-    cute::UMMA::Major::K, cute::UMMA::Major::K
->>;
-```
+For executable references, use the [PTX ISA 9.0 tcgen05 sections](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+and the [CUTLASS 4.5.0 SM100 examples](https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/70_blackwell_gemm).

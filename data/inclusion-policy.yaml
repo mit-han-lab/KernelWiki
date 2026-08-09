@@ -2,9 +2,8 @@
 ## Consumed by scripts/compute_core_prs.py
 ##
 ## Two separate lanes (CuTe DSL and Triton) are classified with different
-## criteria because Triton on SM100 has no direct tcgen05/TMEM access
-## (see wiki/languages/triton-blackwell.md), so Triton's useful scope is
-## narrower than CuTe DSL's.
+## criteria because their Blackwell kernel coverage and production maturity
+## differ by workload. See wiki/languages/triton-blackwell.md.
 
 cute-dsl:
   description: |
@@ -62,20 +61,19 @@ cute-dsl:
 
 triton:
   description: |
-    Triton is a scoped Blackwell lane. As of Triton 3.6 (released
-    2026-01-21), Triton has native SM100 lowering through tcgen05 + TMEM
-    via descriptor/TMA + warp_specialize, tl.dot_scaled, and Gluon
-    multi-CTA / 2CTA, but production peak-performance leadership for
-    compute-bound matmul/attention on Blackwell still favors hand-written
-    CuTe-DSL / CUTLASS / FA-4 / TRT-LLM kernels for many workloads
-    (downstream evidence: pr-sglang-5390 measured CUTLASS tcgen05_mla
-    ~27% faster than the Triton MLA decode baseline; pr-sglang-21595
-    moved Blackwell datacenter multimodal attention default away from
-    triton_attn). We therefore capture Triton PRs in three sub-scopes
-    that remain genuinely useful on Blackwell rather than mirroring the
-    full CuTe-DSL lane.
+    Triton is a scoped Blackwell lane. Native TCGen5/TMEM compiler support
+    enters between Triton v3.2.0 and v3.3.0. Later releases expand explicit
+    user surfaces and maturity: v3.5 includes Gluon TCGen5/TMEM and
+    block-scaled matmul tutorials, while v3.6 adds broader layouts/copies,
+    warp-specialization work, and initial multi-CTA / 2-CTA Gluon support.
+    Exact instruction selection remains shape-, dtype-, layout-, target-, and
+    compiler-configuration-dependent. Production routing also remains
+    workload-specific: pr-sglang-5390 reports one scoped CUTLASS-over-Triton
+    MLA result, and pr-sglang-21595 moves one SM100 attention default to FA4.
+    We therefore capture Triton PRs in three useful Blackwell sub-scopes
+    rather than mirroring the full CuTe-DSL lane.
 
-    See data/version-claims.yaml::vs-triton-3.6-blackwell-tcgen05 for the
+    See data/version-claims.yaml::vs-triton-3.3-blackwell-tcgen05 for the
     version-sensitive claim record this rationale references.
 
   capture_criteria:

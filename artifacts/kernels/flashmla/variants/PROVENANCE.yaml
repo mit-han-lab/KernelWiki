@@ -5,12 +5,11 @@ retrieved_at: '2026-04-17'
 asset_mode: derived
 derived_from:
 - blog-flashmla
-- pr-cutlass-2472
-- hw-tmem
 size_cap_truncated: false
-generated_by: Phase 3 Round 3 task12 (flashmla variants)
+generated_by: KernelWiki verifier remediation
+bundle_scope: verified layout and index contract only; not an attention kernel
 files:
-- local_path: 01-mla-decode-inner-loop.cu
+- local_path: 01-mla-layout-and-index-contract.cu
   role: derived-source
   mode: derived
-  sha256: 4f494dc2d282468966a1e2028bc50d0ef0c364b34d24f75ee881608ddef2df69
+  sha256: aa886373129daedc09b9dae7a23960b021256647e1002399db0dca82053c6f96

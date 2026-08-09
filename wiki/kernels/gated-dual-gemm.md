@@ -1,17 +1,16 @@
 ---
 id: kernel-gated-dual-gemm
-title: Gated Dual GEMM (Gate-Up + SwiGLU Fusion)
+title: GPU Mode NVFP4 Gated Dual GEMM
 type: kernel
 architectures:
 - sm100
-- sm90
+- sm100a
 tags:
 - gated-dual-gemm
 - gemm
 - fused-kernel
-- kernel-fusion
 - nvfp4
-- tmem
+- block-scale
 confidence: source-reported
 reproducibility: snippet
 kernel_types:
@@ -19,8 +18,7 @@ kernel_types:
 - gemm
 - fused-kernel
 languages:
-- cuda-cpp
-- cute-dsl
+- python
 related:
 - kernel-nvfp4-gemm
 - kernel-fused-moe
@@ -28,100 +26,77 @@ related:
 - technique-epilogue-fusion
 sources:
 - contest-gpumode-p3
-- blog-deepgemm
-- blog-tflops-gap-fp4-moe
-- pr-vllm-23696
-performance_claims:
-- gpu: B200
-  dtype: nvfp4
-  shape: M=1024 N=2*2048 K=7168 (gate-up MLP)
-  metric: latency_us
-  value: 18.5
-  utilization: compute-bound
-  source_id: contest-gpumode-p3
-blackwell_relevance: TMEM holds two accumulators simultaneously (gate, up), enabling
-  single-kernel fusion that Hopper register file could not handle efficiently.
+performance_claims: []
+blackwell_relevance: The official challenge targets NVIDIA B200 and its NVFP4
+  block-scaled tensor contract; no winning instruction schedule is asserted.
 artifact_dir: artifacts/kernels/gated-dual-gemm
 ---
 
-# Gated Dual GEMM
+# GPU Mode NVFP4 Gated Dual GEMM
 
-## Overview
+## Verified scope
 
-Gated dual GEMM fuses two matrix multiplications with activation and elementwise operations — the canonical MLP gate-up pattern used by LLaMA, Qwen, DeepSeek, and most modern LLMs. Fusion eliminates two global memory roundtrips compared to separate gate/up GEMM + SwiGLU.
+The official NVIDIA rules identify NVFP4 Gated Dual GEMM as Kernel Challenge 3 of the Blackwell NVFP4 Hackathon, open from December 20, 2025 through January 16, 2026. The public GPU Mode problem at challenge-opening commit `c5b2f7c` targets NVIDIA B200.
 
-This was Problem 3 of the GPU Mode NVFP4 Hackathon.
+For each batch index, the required result is two block-scaled matrix products sharing the same left operand, with SiLU applied only to the first branch:
 
-## Fused Operation
-
-```
-Given x, W_gate, W_up (weights shared same K dimension)
-Standard (unfused):
-  gate = x @ W_gate      (GEMM 1: reads x, W_gate, writes gate)
-  up   = x @ W_up         (GEMM 2: reads x, W_up, writes up)
-  silu = gate * sigmoid(gate)  (elementwise: reads gate, writes silu)
-  out  = silu * up        (elementwise: reads silu, up, writes out)
-
-Fused:
-  out = SiLU(x @ W_gate) * (x @ W_up)  (single kernel, no intermediate GMEM)
+```python
+def gated_dual_result(a, b1, b2, scale_a, scale_b1, scale_b2, scaled_mm):
+    gate = scaled_mm(a, b1.T, scale_a, scale_b1)
+    up = scaled_mm(a, b2.T, scale_a, scale_b2)
+    return silu(gate) * up
 ```
 
-## Kernel Structure (Blackwell)
+This fixes result semantics and branch order. It does not require the submission entry point to use one GPU launch or forbid intermediate storage.
 
-```cuda
-template <int BLOCK_M, int BLOCK_N, int BLOCK_K, int NUM_STAGES>
-__global__ void gated_dual_gemm_nvfp4(
-    const nvfp4_t* __restrict__ X,        // [M, K] input
-    const nvfp4_t* __restrict__ W_gate,   // [N, K] gate weights
-    const nvfp4_t* __restrict__ W_up,     // [N, K] up weights
-    const fp8_t* sf_x, const fp8_t* sf_gate, const fp8_t* sf_up,
-    half* __restrict__ output,             // [M, N] output
-    int M, int N, int K
-) {
-    // Two TMEM regions: one accumulator per GEMM
-    uint32_t tmem_gate = tmem_alloc(256);
-    uint32_t tmem_up   = tmem_alloc(256);
+## Published tensor contract
 
-    for (int k = 0; k < K; k += BLOCK_K) {
-        int stage = (k / BLOCK_K) % NUM_STAGES;
-        mbarrier_wait(&tma_done[stage]);
+| Tensor | Published dtype | Logical shape |
+| --- | --- | --- |
+| `a` | NVFP4 E2M1 | `[M,K,L]`, K-major |
+| `b1`, `b2` | NVFP4 E2M1 | `[N,K,L]`, K-major |
+| `sfa` | FP8 E4M3FNUZ | `[M,K/16,L]`, K-major |
+| `sfb1`, `sfb2` | FP8 E4M3FNUZ | `[N,K/16,L]`, K-major |
+| `c` | FP16 | `[M,N,L]` |
 
-        // Two MMAs per K-tile: gate and up
-        // Both read same X tile, different weight tiles
-        tcgen05_mma(x_smem[stage], wg_smem[stage], tmem_gate);
-        tcgen05_mma(x_smem[stage], wu_smem[stage], tmem_up);
-    }
+The submission tuple also supplies layout-reordered copies of `sfa`, `sfb1`, and `sfb2`, plus preallocated `c`. `K` is divisible by 256; `M` and `N` must be divisible by the selected MMA tile dimensions. The correctness checker uses `rtol=1e-3` and `atol=1e-3`.
 
-    // Fused epilogue: SiLU(gate) * up
-    float g = tmem_load(tmem_gate);
-    float u = tmem_load(tmem_up);
-    float s = g / (1.0f + expf(-g));  // SiLU
-    output[row * N + col] = __float2half(s * u);
+The pinned upstream files contain one dtype-label inconsistency: `task.yml` and `template.py` call the scales E4M3FNUZ, while `reference.py` constructs `torch.float8_e4m3fn`. A backend must follow the actual submission objects rather than treating those spellings as interchangeable.
 
-    tmem_dealloc(tmem_gate, 256);
-    tmem_dealloc(tmem_up, 256);
-}
-```
+## Published workloads and theoretical bounds
 
-## Key Optimizations
+| M | N | K | L | Task speed-of-light time (µs) |
+| ---: | ---: | ---: | ---: | ---: |
+| 256 | 4096 | 7168 | 1 | 4.708 |
+| 512 | 4096 | 7168 | 1 | 8.714 |
+| 256 | 3072 | 4096 | 1 | 2.125 |
+| 512 | 3072 | 7168 | 1 | 6.535 |
 
-1. **X reuse**: Same X tile feeds both MMAs — loaded once, used twice
-2. **TMEM dual accumulator**: Blackwell's 512-column TMEM fits two 256-col accumulators side-by-side
-3. **Fused epilogue**: SiLU and multiply happen after TMEM load, no intermediate SMEM
-4. **Shared SFA**: X's block scales apply to both gate and up computations
+Ranking uses the geometric mean of the four benchmark times. The task explicitly labels the final column a speed-of-light analysis based on the maximum of B200 FP4 Tensor Core math time and DRAM-memory time at a 1.5 GHz clock. These values are theoretical comparison bounds, not measured contestant results. The former `M=1024, N=4096, K=7168, 18.5 µs` record is not one of the published workloads and has been removed.
 
-## When To Use
+## Implementation boundary
 
-- MLP layers in modern LLMs (LLaMA, Qwen, DeepSeek, Mistral)
-- Any dual-output operation sharing one input
-- MoE expert computations (expand to per-expert fused kernels)
+The shared `a` and `sfa` inputs create an opportunity to reuse data across the two products, and a genuinely fused epilogue can avoid writing both full-precision products to global memory. Those are optimization possibilities, not task guarantees.
 
-## Full Reference Implementation
+The public task/reference does not establish a final leaderboard, winning source, single-launch decomposition, physical load count, TMEM accumulator partition, TMA pipeline, CUTLASS schedule, or compute-/memory-bound classification. If an implementation uses `tcgen05`, TMEM, or TMA, its exact descriptors, scale layouts, synchronization, allocation, and architecture requirements must be verified from that implementation and the version-matched ISA.
 
-The reference bundle lives in [`artifacts/kernels/gated-dual-gemm/full/`](../../artifacts/kernels/gated-dual-gemm/full/) and combines the upstream vLLM PR-23696 diff (`vllm-PR-23696-gated-dual-gemm.patch`, `mode: upstream-patch`) with an extracted CUTLASS-schedule snippet from the `tflops-gap-fp4-moe` blog (`blackwell-cutlass-schedules-and-tma.cu`, `mode: extracted`). Labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/gated-dual-gemm/variants/`](../../artifacts/kernels/gated-dual-gemm/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
+Compatibility is correspondingly narrower than “any dual-output operation”: a model/backend must match the two same-shaped NVFP4 products, scale storage and layouts, first-branch SiLU, FP16 output, batching, and divisibility rules. Grouped per-expert MoE execution is a different contract unless an implementation explicitly supplies that grouping layer.
+
+## Local artifacts
+
+The `full/` bundle contains the byte-pinned official `task.yml` from commit `c5b2f7c`; it is the problem specification, not an optimized submission. The unrelated third-party schedule extract and duplicate vLLM MXFP4 MoE patch formerly stored here were removed; the latter remains preserved in its own PR artifact collection.
+
+The `variants/` bundle contains a standard-library semantic reference for two small dense products followed by `SiLU(gate) * up`. Its self-test compares compact and expanded forms and rejects the wrong alternative that gates the second branch. It does not model NVFP4 packing, block scales, GPU execution, or performance.
+
+## Primary sources
+
+- [Official challenge rules](https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf)
+- [Pinned public task](https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/task.yml)
+- [Pinned starter template](https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/template.py)
+- [Pinned correctness reference](https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/reference.py)
 
 Query via:
 
 ```bash
-python3 scripts/get_page.py kernel-gated-dual-gemm --include-code
+conda run -n base python scripts/get_page.py kernel-gated-dual-gemm --include-code
 ```

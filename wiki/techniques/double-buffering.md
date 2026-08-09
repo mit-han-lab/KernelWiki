@@ -4,243 +4,111 @@ title: "Double/Multi-Buffering Patterns"
 type: technique
 architectures: [sm100, sm90]
 tags: [double-buffering, tmem, pipeline-stages]
-confidence: source-reported
-reproducibility: snippet
+confidence: verified
+evidence_basis:
+  - source_id: doc-nvidia-tuning-guide
+    evidence_type: official-doc
+reproducibility: pseudocode
 prerequisites: [hw-tmem]
 related: [hw-tmem, technique-pipeline-stages, technique-epilogue-fusion]
 sources: [blog-tcgen05-tutorial, doc-nvidia-tuning-guide, pr-flashinfer-2387]
-blackwell_relevance: "TMEM double-buffering is Blackwell-specific (half of 512 columns each); SMEM double-buffering transfers from Hopper."
+blackwell_relevance: "SM100 can keep independent accumulator regions in TMEM while a separate SMEM pipeline stages operands; either mechanism remains an implementation and tuning choice."
 ---
 
-## Overview
+# Double/Multi-Buffering Patterns
 
-Double-buffering (and multi-buffering) allocates two or more copies of a data buffer so that one copy can be written while another is read. On Blackwell, this pattern applies at two distinct levels: (1) TMEM double-buffering for overlapping MMA accumulation with epilogue readout, and (2) SMEM multi-stage buffering for overlapping TMA loads with MMA consumption. Both levels operate simultaneously in a well-optimized kernel.
+## What the pattern guarantees
 
-## TMEM Double-Buffering
+Double- or multi-buffering reserves disjoint storage regions and transfers ownership between producers and consumers. While a consumer reads stage `s`, a producer may fill another stage. The storage alone does not establish overlap: the program also needs a completion edge before consumption and a read-complete edge before reuse.
 
-Tensor Memory (TMEM) on Blackwell has 128 rows x 512 columns of 32-bit elements (256 KB per SM). For a standard GEMM with TILE_M=128, TILE_N=256, the accumulator requires 128 x 256 = 32,768 elements, which fits in half the TMEM column space (256 out of 512 columns). The other 256 columns serve as the second buffer.
+On SM100 these ideas can be applied independently:
 
-```cuda
-// TMEM double-buffering: ping-pong between two 128x256 accumulator regions
-//
-// TMEM physical layout (per SM):
-// +------ 256 cols ------+------ 256 cols ------+
-// |                      |                      |
-// |   Buffer A (active)  |   Buffer B (drain)   |  128 rows
-// |   MMA writes here    |   Epilogue reads     |
-// |                      |                      |
-// +----------------------+----------------------+
-//
-// After tile completes, roles swap:
-// Buffer A becomes "drain", Buffer B becomes "active"
+- SMEM stages can hold operand tiles while TMA production overlaps MMA consumption.
+- Separate TMEM regions can hold output accumulators while an epilogue drains a completed region and MMA writes a different region.
 
-#define TMEM_BUF_A_OFFSET  0
-#define TMEM_BUF_B_OFFSET  256
-#define TMEM_COLS_PER_BUF  256
+The pinned `matmul_v6.cu` from Gau Nernst's tutorial uses both mechanisms. That is a concrete design, not a rule that every optimized Blackwell GEMM needs both.
 
-__device__ void tmem_double_buffer_mainloop(
-    const GemmParams& params,
-    int num_output_tiles)
-{
-    int warp_id = threadIdx.x / 32;
-    int lane_id = threadIdx.x % 32;
+## TMEM regions
 
-    // Synchronization between MMA warp and epilogue warps
-    __shared__ uint64_t mbar_acc_ready[2];   // MMA done, epilogue can read
-    __shared__ uint64_t mbar_acc_drained[2]; // Epilogue done, MMA can reuse
+The CTA-visible TMEM address structure has 128 lanes and 512 columns of 32-bit cells. Allocation is column-granular across all 128 lanes. A kernel that allocates 512 columns may choose two 256-column regions:
 
-    if (threadIdx.x == 0) {
-        mbarrier_init(&mbar_acc_ready[0], 1);
-        mbarrier_init(&mbar_acc_ready[1], 1);
-        mbarrier_init(&mbar_acc_drained[0], 1);
-        mbarrier_init(&mbar_acc_drained[1], 1);
-    }
-    __syncthreads();
-
-    for (int tile = 0; tile < num_output_tiles; tile++) {
-        int buf = tile % 2;
-        int tmem_offset = buf ? TMEM_BUF_B_OFFSET : TMEM_BUF_A_OFFSET;
-
-        if (warp_id == 1) {
-            // === MMA WARP ===
-            // Wait for epilogue to finish draining this buffer
-            if (tile >= 2) {
-                mbarrier_wait(&mbar_acc_drained[buf]);
-            }
-
-            // Clear accumulator region before new tile
-            if (lane_id == 0) {
-                tmem_clear(tmem_offset, TMEM_COLS_PER_BUF);
-            }
-            __syncwarp();
-
-            // Accumulate K-tiles into this TMEM buffer
-            for (int k = 0; k < num_k_tiles; k++) {
-                // (TMA load sync omitted -- see pipeline-stages)
-                if (lane_id == 0) {
-                    tcgen05_mma_accumulate(tmem_offset);
-                }
-                __syncwarp();
-            }
-
-            // Signal epilogue that accumulator is ready
-            if (lane_id == 0) {
-                mbarrier_arrive(&mbar_acc_ready[buf]);
-            }
-
-        } else if (warp_id >= 2) {
-            // === EPILOGUE WARPS ===
-            // Wait for MMA to finish accumulating
-            mbarrier_wait(&mbar_acc_ready[buf]);
-
-            // Read TMEM and store to global memory
-            int rows_per_warp = TILE_M / 14;
-            int my_row = (warp_id - 2) * rows_per_warp;
-            for (int r = my_row; r < my_row + rows_per_warp; r++) {
-                for (int c = lane_id; c < TMEM_COLS_PER_BUF; c += 32) {
-                    float val = tmem_load_f32(r, tmem_offset + c);
-                    // Apply epilogue and store...
-                    params.C_ptr[r * params.N + c] = __float2half(val);
-                }
-            }
-
-            // All epilogue warps must finish reading TMEM before the MMA
-            // warp can overwrite this half-buffer. Each epilogue warp arrives
-            // on a shared mbarrier; the mbarrier is initialized with
-            // arrival_count = NUM_EPILOGUE_WARPS (e.g. 14 for warps 2-15).
-            // The MMA warp waits on this mbarrier before reusing the buffer.
-            if (lane_id == 0) {
-                mbarrier_arrive(&mbar_acc_drained[buf]);
-            }
-            // mbar_acc_drained[buf] fires only after ALL epilogue warps arrive
-        }
-    }
-}
+```text
+region[0] = columns [0, 256)
+region[1] = columns [256, 512)
 ```
 
-## SMEM Multi-Stage Buffering
+This equal split is one implementation choice. The actual invariant is that every simultaneously live region is inside the allocation and does not alias another region whose MMA or epilogue access is still outstanding. Region sizes can differ, and logical element capacity depends on the tcgen05 instruction kind and packing rather than the raw cell count alone.
 
-Shared memory multi-buffering provides multiple copies of the A and B input tiles so that TMA loads can overlap with MMA consumption:
+For each region, prove this lifecycle:
 
-```cuda
-// SMEM multi-stage buffer allocation
-// 3 stages, each holding one A tile and one B tile
-//
-// Memory layout:
-// +--------+--------+--------+
-// | Stage0 | Stage1 | Stage2 |
-// | A0 B0  | A1 B1  | A2 B2  |
-// +--------+--------+--------+
-//
-// Pipeline state at steady state:
-// Stage 0: TMA loading (k+2)
-// Stage 1: Ready, waiting for MMA
-// Stage 2: MMA consuming (k)
+| Transition | Required edge |
+|---|---|
+| free → MMA-owned | every prior epilogue load from the region has completed |
+| MMA-owned → ready | relevant tcgen05 work is committed to an mbarrier and completion is observed |
+| ready → epilogue-owned | readers observe the matching barrier phase before `tcgen05.ld` |
+| epilogue-owned → free | all collective loads complete with `tcgen05.wait::ld`, then every reader reports completion |
 
-constexpr int SMEM_STAGES = 3;
-constexpr int TILE_A_BYTES = TILE_M * TILE_K * sizeof(half);  // e.g. 16 KB
-constexpr int TILE_B_BYTES = TILE_K * TILE_N * sizeof(half);  // e.g. 32 KB
-constexpr int STAGE_BYTES  = TILE_A_BYTES + TILE_B_BYTES;     // e.g. 48 KB
-// Total SMEM for operands: 3 * 48 KB = 144 KB
+TMEM must first be allocated by the required participating warp and its address safely published. Matching collective deallocation is required before every kernel exit. Reused mbarriers need the correct arrival count and phase/parity state; a one-time wait on an address is not a reusable two-buffer protocol.
 
-struct SmemBuffers {
-    half A[SMEM_STAGES][TILE_M][TILE_K];
-    half B[SMEM_STAGES][TILE_K][TILE_N];
-    uint64_t mbar_full[SMEM_STAGES];   // TMA done -> MMA can consume
-    uint64_t mbar_empty[SMEM_STAGES];  // MMA done -> TMA can refill
-};
+## SMEM stages
+
+An SMEM operand stage normally has its own full/empty state:
+
+1. The producer waits until stage `s` is empty.
+2. It issues the stage's TMA copies and accounts for expected transaction bytes.
+3. The consumer observes the full barrier's matching phase before using the stage.
+4. After the final dependent read, the consumer releases the empty barrier for reuse.
+
+For binary16 `A[128,64]` and `B[64,256]`, the unpadded payload arithmetic is:
+
+```text
+A = 128 × 64 × 2 bytes = 16 KiB
+B =  64 × 256 × 2 bytes = 32 KiB
+one stage = 48 KiB; three stages = 144 KiB
 ```
 
-## Combined TMEM + SMEM Double-Buffering
+That is not a complete C++ shared-storage layout. Barriers, descriptors, epilogue scratch, padding, alignment, and swizzled physical layouts also consume or constrain shared memory. Compute capability 10.0 supports up to 228 KiB of shared memory per SM, while per-block opt-in limits and all other residency resources still apply.
 
-A fully optimized Blackwell GEMM uses both levels simultaneously:
+FlashInfer PR 2387 is a second pinned example. Its merged `selective_state_update.cuh` has `state[numStages][...]` plus `bar_full` and `bar_empty` arrays and uses stage-specific producer/consumer handoffs. One path selects three stages and another caps a geometry-derived count at four, illustrating why stage count is policy rather than an architecture-wide default.
 
-```cuda
-// Combined double-buffering: SMEM (3-stage) + TMEM (2-buffer)
-//
-// Outer loop: output tiles (TMEM double-buffered)
-//   Inner loop: K-tiles (SMEM 3-stage pipelined)
-//
-// Timeline for 2 output tiles, 6 K-tiles each:
-//
-// TMEM buf:     |---- A (tile 0) ----|---- B (tile 1) ----|
-// MMA warp:     | k0  k1  k2  k3  k4  k5 | k0  k1  k2 ...
-// TMA warp:     |k2 k3 k4 k5  -  -  k2 k3 k4 k5 ...
-// Epilogue:     | idle                | drain A  | drain B |
-// SMEM stage:   |0  1  2  0  1  2    |0  1  2  0  1  2   |
-//
-// Key insight: the epilogue of tile 0 overlaps with the MMA of tile 1.
-// This is only possible because they use different TMEM buffers.
+## Hopper and Blackwell storage tradeoff
 
-__device__ void full_double_buffered_gemm(const GemmParams& params) {
-    int warp_id = threadIdx.x / 32;
+For Hopper `wgmma.mma_async.m64nNk16` with FP32 D, each warpgroup thread holds `N/2` accumulator registers. At `N=256`, one D fragment is 128 registers per thread; two simultaneously live fragments are 256 registers, or 1024 bytes, per thread before other live values. That arithmetic describes the ISA fragment, not a promise that a C++ array stays in registers or that a particular launch is resident.
 
-    for (int out_tile = 0; out_tile < num_output_tiles; out_tile++) {
-        int tmem_buf = out_tile % 2;
+On SM100, tcgen05 keeps resident D in TMEM. This avoids a long-lived per-thread D vector, but the kernel still uses registers for addresses, descriptors, loop and barrier state, `tcgen05.ld` destinations, and epilogue temporaries. TMEM buffering also consumes TMEM capacity and synchronization state. Neither architecture therefore has a fixed occupancy result from “double buffering” alone.
 
-        if (warp_id == 0) {
-            // TMA producer: fill SMEM stages for this output tile's K-loop
-            tma_producer_loop(params, out_tile);
-        } else if (warp_id == 1) {
-            // MMA: consume SMEM stages, accumulate into TMEM[tmem_buf]
-            mma_consumer_loop(params, tmem_buf);
-        } else {
-            // Epilogue: drain TMEM[1-tmem_buf] from previous tile
-            if (out_tile > 0) {
-                epilogue_drain(params, out_tile - 1, 1 - tmem_buf);
-            }
-        }
+| Concern | Hopper WGMMA D | Blackwell tcgen05 D |
+|---|---|---|
+| Resident storage | per-thread register fragment | allocated TMEM region |
+| Two live outputs | two disjoint register fragments | two disjoint TMEM regions |
+| Epilogue access | dependent use after WGMMA completion | collective `tcgen05.ld` and `tcgen05.wait::ld` after MMA completion |
+| Main resource question | compiled registers, SMEM, block shape, and other limits | TMEM columns plus compiled registers, SMEM, block/cluster shape, and other limits |
 
-        // Lightweight sync point between tiles
-        // (mbarrier-based, not __syncthreads)
-    }
+## Decide with a controlled comparison
 
-    // Final epilogue for last tile
-    if (warp_id >= 2) {
-        epilogue_drain(params, num_output_tiles - 1,
-                       (num_output_tiles - 1) % 2);
-    }
-}
-```
+Buffering is useful only when useful producer/consumer work overlaps enough to repay extra storage and coordination. For each concrete variant:
 
-## Comparison with Hopper
+1. Keep shape, datatype, outputs, launch policy, warmup, and timing statistics identical.
+2. Compare one versus multiple TMEM regions and the legal SMEM stage counts.
+3. Record compiled registers/thread, spill traffic, static/dynamic SMEM, TMEM columns, barriers, threads/CTA, and cluster shape.
+4. Use the CUDA occupancy APIs for the actual resource record; do not infer a universal CTA/SM count from an instruction tile.
+5. Inspect profiler pipeline and barrier stalls. PTX specifies mbarrier semantics, not a fixed “few cycles” latency.
+6. Inspect generated PTX/SASS and execute correctness tests that force region wraparound and pipeline-tail paths.
 
-On Hopper (SM90), there is no TMEM. The accumulator lives in registers, and double-buffering the accumulator requires explicit register management:
+Useful negative tests deliberately delay the epilogue, swap a barrier phase, omit the final drain, or reuse a region early. A correct test should detect stale/overwritten output or time out under a watchdog rather than silently accepting the broken schedule.
 
-```cuda
-// Hopper: accumulator double-buffering uses register arrays
-// Each warpgroup maintains two register-based accumulators
-// This doubles register pressure and reduces occupancy
+## Primary references
 
-// Hopper approach (register pressure is the primary constraint):
-float acc_buf0[REG_TILE_M][REG_TILE_N];  // First accumulator
-float acc_buf1[REG_TILE_M][REG_TILE_N];  // Second accumulator
-// Total: 2 * REG_TILE_M * REG_TILE_N * 4 bytes per thread
-// For a 64x256 tile with 128-thread warpgroup:
-//   each thread holds 2 * (64/4) * (256/128) * 4 = 2 * 16 * 2 * 4 = 256 bytes
-//   = 64 registers just for accumulators
+- [PTX ISA 9.0 Tensor Memory](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory)
+- [PTX ISA 9.0 tcgen05 allocation](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc)
+- [PTX ISA 9.0 tcgen05 load and wait](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld)
+- [PTX ISA 9.0 mbarrier](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier)
+- [CUDA 13.0.2 Blackwell Tuning Guide](https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy)
+- [Pinned combined SMEM/TMEM example](https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu)
+- [FlashInfer PR 2387 merged source](https://github.com/flashinfer-ai/flashinfer/blob/18804cd51734cccf807356d017733bc757677f15/include/flashinfer/mamba/selective_state_update.cuh)
 
-// Blackwell approach: TMEM holds both buffers with zero register cost
-// MMA warp uses ~0 registers for accumulators
-// All 256 KB of TMEM is dedicated accumulator space
-```
+## Related
 
-| Aspect | Hopper (Registers) | Blackwell (TMEM) |
-|--------|-------------------|------------------|
-| Accumulator storage | Thread-local registers | CTA-wide TMEM |
-| Double-buffer cost | 2x register usage | Zero register cost |
-| Typical occupancy impact | Reduces from 2 to 1 CTA/SM | No impact |
-| Epilogue access | Direct (already in registers) | TMEM load required |
-| Max accumulator size | ~16K elements (register limited) | 128x512 = 65K elements |
-
-## When to Use
-
-- **TMEM double-buffering**: Always use on Blackwell when the epilogue takes more than trivial time. The only cost is the TMEM space, which is plentiful.
-- **SMEM multi-stage buffering**: Always use for GEMM/attention mainloops. 3 stages is the default; increase to 4-5 only if the K-loop is long and memory latency is high.
-- **Combined**: The standard approach for production Blackwell GEMM kernels. Both CUTLASS and CuTe-DSL kernels use this pattern.
-
-## Caveats
-
-- TMEM double-buffering requires that the accumulator fits in half the TMEM columns (256 out of 512). For very wide tiles (TILE_N > 256 with FP32 accumulators), the tile must be split or a different buffering strategy used.
-- SMEM multi-stage buffering is constrained by the 228 KB SMEM limit. With 3 stages of large tiles, there may not be enough SMEM left for epilogue scratch space.
-- The mbarrier synchronization between TMEM buffers adds a few cycles of overhead per tile. For kernels with very few K-iterations per tile, this overhead is proportionally larger.
+- [Tensor Memory](../hardware/tmem.md) — allocation, addressing, and lifetime rules
+- [pipeline stages](pipeline-stages.md) — SMEM pipeline construction and tail handling
+- [epilogue fusion](epilogue-fusion.md) — work performed while draining an output tile

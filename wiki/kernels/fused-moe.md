@@ -1,27 +1,22 @@
 ---
 id: kernel-fused-moe
-title: Fused MoE — FP8 Block-Scale Routing + Dual GEMM
+title: FlashInfer Track A FP8 Block-Scale MoE
 type: kernel
 architectures:
 - sm100
 - sm100a
-- sm90
 tags:
 - moe
-- fused-kernel
 - fp8
 - block-scale
-- kernel-fusion
-- warp-specialization
 - grouped-gemm
-- gated-dual-gemm
+- kernel-fusion
 confidence: source-reported
 reproducibility: snippet
 kernel_types:
 - moe
-- fused-kernel
 - grouped-gemm
-- gated-dual-gemm
+- fused-kernel
 languages:
 - cuda-cpp
 - cute-dsl
@@ -33,253 +28,137 @@ related:
 - technique-tile-scheduling
 sources:
 - contest-flashinfer-track-a
-- blog-deepgemm
-- pr-vllm-23696
-performance_claims:
-- gpu: B200
-  dtype: fp8
-  shape: topk=8, experts=32, hidden=7168, intermediate=2048, batch=4096
-  metric: TFLOPS
-  value: 1262
-  utilization: ~56%
-  source_id: contest-flashinfer-track-a
-blackwell_relevance: SM100 enables native FP8 block-scale MoE via tcgen05 with higher
-  throughput; technique transfers from Hopper FP8 MoE.
+performance_claims: []
+blackwell_relevance: The MLSys 2026 Track A definition and official evaluation
+  target NVIDIA B200 (sm_100a); this page documents the logical benchmark
+  contract, not a particular launch decomposition.
 artifact_dir: artifacts/kernels/fused-moe
 ---
 
-# Fused MoE -- FP8 Block-Scale Routing + Dual GEMM
+# FlashInfer Track A FP8 Block-Scale MoE
 
-## Overview
+## Scope
 
-Fused MoE kernels combine the full Mixture-of-Experts forward pass into minimal kernel launches: routing, token dispatch, gate-up dual GEMM, SwiGLU activation, down projection GEMM, and token combine. In unfused implementations this requires 5-7 separate kernel launches; fused variants reduce this to 1-3 launches, eliminating intermediate global memory roundtrips and saving up to 21.9% activation memory traffic.
+FlashInfer's MLSys 2026 contest calls Track A **Fused MoE** with FP8 support and targets NVIDIA B200. Its exact benchmark definition is `moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048`. The definition says that DeepSeek-style routing and two grouped GEMMs are included. That operation-level scope does **not** establish that an implementation uses one GPU launch.
 
-This is Track A of the FlashInfer MLSys 2026 contest, targeting B200 GPUs with DeepSeek-V3-style MoE parameters.
+## Fixed Benchmark Geometry
 
-## MoE Forward Pass Structure
+| Field | Value | Meaning |
+| --- | ---: | --- |
+| `seq_len` | variable | Number of input tokens; this is not labeled request batch size |
+| global experts | 256 | Width of `routing_logits` |
+| local experts | 32 | Experts whose weights are resident on one EP rank |
+| expert parallelism | 8 | `256 / 32` ranks in the published definition |
+| `top_k` | 8 | Selected global experts per token |
+| `n_group` | 8 | Groups of 32 global experts |
+| `topk_group` | 4 | Groups retained before global top-k selection |
+| hidden size | 7168 | Input and output width |
+| intermediate size | 2048 | Per-expert SwiGLU width |
+| GEMM1 output | 4096 | Concatenated W13 output, `2 * 2048` |
+| scale block | 128 | Fixed granularity for this DeepSeek-FP8 trace |
 
-```
-Input tokens x [batch, hidden_dim=7168]
-    |
-    v
-[Router] top-k=8 experts from 32, grouped (8 groups, top_group=4)
-    |
-    v
-[Dispatch] Scatter tokens to selected experts
-    |
-    v
-[Gate-Up Dual GEMM]
-    gate = x @ W_gate        [batch_expert, hidden -> intermediate]
-    up   = x @ W_up          [batch_expert, hidden -> intermediate]
-    |
-    v
-[SwiGLU Activation]
-    h = SiLU(gate) * up      Element-wise: SiLU(x) = x * sigmoid(x)
-    |
-    v
-[Down GEMM]
-    y = h @ W_down            [batch_expert, intermediate -> hidden]
-    |
-    v
-[Combine] Weighted sum of expert outputs per token (router weights)
-    |
-    v
-Output [batch, hidden_dim=7168]
-```
+The `e32` suffix means **32 local experts**, not 32 total experts.
 
-## Kernel Fusion Strategy
+## Tensor Contract
 
-```
-Unfused (vLLM): 7 kernel launches
-  1. Router softmax
-  2. Top-k selection
-  3. Token dispatch (scatter)
-  4. Gate GEMM
-  5. Up GEMM
-  6. SiLU + multiply
-  7. Down GEMM + combine
+For `T = seq_len`, the published benchmark signature is:
 
-Partially fused (SGLang): 5 kernel launches
-  1. Router + top-k
-  2. Dispatch
-  3. Gate-Up fused GEMM + SiLU (3 ops -> 1 kernel)
-  4. Down GEMM
-  5. Combine
+| Input | Dtype | Shape |
+| --- | --- | --- |
+| `routing_logits` | FP32 | `[T, 256]` |
+| `routing_bias` | BF16 | `[256]` |
+| `hidden_states` | FP8 E4M3FN | `[T, 7168]` |
+| `hidden_states_scale` | FP32 | `[56, T]` |
+| `gemm1_weights` | FP8 E4M3FN | `[32, 4096, 7168]` |
+| `gemm1_weights_scale` | FP32 | `[32, 32, 56]` |
+| `gemm2_weights` | FP8 E4M3FN | `[32, 7168, 2048]` |
+| `gemm2_weights_scale` | FP32 | `[32, 56, 16]` |
+| `local_expert_offset` | INT32 | scalar |
+| `routed_scaling_factor` | FP32 | scalar |
 
-Fully fused (ideal): 1-2 launches
-  All ops in single kernel, or gate-up-silu + down-combine
-```
+The output is BF16 `[T, 7168]`. These scale tensors are explicit storage inputs; this page does not infer their runtime cost from their existence.
 
-## Gated Dual GEMM Kernel (Hackathon Problem 3)
+This derived helper makes the fixed shape arithmetic executable without pretending to encode FlashInfer's physical layouts:
 
-The gate-up projection fuses two GEMMs with SiLU activation and element-wise multiply:
-
-```cpp
-// Fused gate-up: two GEMMs + SiLU + multiply in one kernel
-// Avoids writing intermediate gate and up results to global memory
-
-template <int BLOCK_M, int BLOCK_N, int BLOCK_K, int NUM_STAGES>
-__global__ void gated_dual_gemm_fused(
-    const fp8_t* __restrict__ X,       // [M, K] input tokens
-    const fp8_t* __restrict__ W_gate,  // [N, K] gate weights
-    const fp8_t* __restrict__ W_up,    // [N, K] up weights
-    const float* __restrict__ sf_x,    // Block scales for X
-    const float* __restrict__ sf_gate, // Block scales for W_gate
-    const float* __restrict__ sf_up,   // Block scales for W_up
-    half* __restrict__ output,         // [M, N] fused output
-    int M, int N, int K
-) {
-    // Two TMEM regions: one for gate accumulator, one for up accumulator
-    uint32_t tmem_gate = tmem_alloc_cta(256);
-    uint32_t tmem_up = tmem_alloc_cta(256);
-
-    // Pipelined main loop
-    for (int k = 0; k < K; k += BLOCK_K) {
-        int stage = (k / BLOCK_K) % NUM_STAGES;
-        barrier_wait(stage);
-
-        // Two MMAs per K-tile: gate and up projections
-        // Both read same X tile, different weight tiles
-        asm volatile(
-            "tcgen05.mma.cta_group::1.kind::f8f6f4"
-            " [%0], %1, %2, %3, %4;"
-            :: "r"(tmem_gate), "l"(x_smem[stage]),
-               "l"(wg_smem[stage]), "r"(scales_gate), "n"(1)
-        );
-        asm volatile(
-            "tcgen05.mma.cta_group::1.kind::f8f6f4"
-            " [%0], %1, %2, %3, %4;"
-            :: "r"(tmem_up), "l"(x_smem[stage]),
-               "l"(wu_smem[stage]), "r"(scales_up), "n"(1)
-        );
+```python
+def track_a_shapes(tokens: int) -> dict[str, tuple[int, ...]]:
+    assert tokens > 0
+    return {
+        "routing_logits": (tokens, 256),
+        "hidden_states": (tokens, 7168),
+        "hidden_states_scale": (7168 // 128, tokens),
+        "gemm1_weights": (32, 2 * 2048, 7168),
+        "gemm1_weights_scale": (32, (2 * 2048) // 128, 7168 // 128),
+        "gemm2_weights": (32, 7168, 2048),
+        "gemm2_weights_scale": (32, 7168 // 128, 2048 // 128),
     }
 
-    // Fused epilogue: SiLU(gate) * up
-    // Read both accumulators from TMEM, apply activation, store result
-    float gate_val = tmem_load_f32(tmem_gate);
-    float up_val = tmem_load_f32(tmem_up);
 
-    // SiLU(x) = x * sigmoid(x) = x / (1 + exp(-x))
-    float silu_gate = gate_val / (1.0f + expf(-gate_val));
-    output[row * N + col] = __float2half(silu_gate * up_val);
-
-    // Deallocate TMEM
-    tmem_dealloc(tmem_gate, 256);
-    tmem_dealloc(tmem_up, 256);
-}
+assert track_a_shapes(7)["gemm1_weights_scale"] == (32, 32, 56)
 ```
 
-## FP8 Block-Scale MoE (FlashInfer API)
+At FlashInfer commit `7f614b86470180bab2d22e36fd1775791c6bf3e6`, the corresponding public entry point is `flashinfer.fused_moe.trtllm_fp8_block_scale_moe`. Its complete call includes the eight tensors above plus `num_experts=256`, `top_k=8`, `n_group=8`, `topk_group=4`, `intermediate_size=2048`, the local expert interval, the routed scaling factor, and DeepSeek-V3 routing mode.
 
-```python
-# FlashInfer API for fused MoE
-# Single function call replaces 5-7 separate kernel launches
-import flashinfer
+## Reference Semantics
 
-output = flashinfer.fused_moe.trtllm_fp8_block_scale_moe(
-    hidden_states=x,            # [batch, 7168] BF16 input
-    w_gate_up=w_gate_up,        # [32, 2*2048, 7168] FP8 (fused gate+up weights)
-    w_down=w_down,              # [32, 7168, 2048] FP8 (down weights)
-    router_weights=router_w,    # [batch, 32] FP32 routing logits
-    topk=8,                     # Select top-8 experts per token
-    num_groups=8,               # Expert grouping
-    topk_group=4,               # Top groups to select from
-    block_scale_gate_up=sf_gu,  # Block scales [32, 2*2048, 7168/128] FP8
-    block_scale_down=sf_d,      # Block scales [32, 7168, 2048/128] FP8
-)
-```
+The official reference performs these steps:
 
-## Triton Fused Gate-Up Kernel
+1. Convert routing logits to `s = sigmoid(logits)` and form selection scores `s + routing_bias`.
+2. Reshape 256 scores into eight groups of 32. Sum the top two selection scores in each group, then retain four groups.
+3. Select eight global experts from the retained groups using the biased selection scores.
+4. Form combine weights from the **unbiased** sigmoid values for those eight experts, normalize per token, and multiply by `routed_scaling_factor`.
+5. For global expert IDs in `[local_expert_offset, local_expert_offset + 32)`, dequantize the relevant activation and weight blocks, compute one W13 projection, split its 4096 columns into two 2048-column halves, apply SwiGLU, and compute W2.
+6. Accumulate each local expert result into the token output using that expert's combine weight. Experts outside the local interval contribute nothing on that rank.
 
-```python
-import triton
-import triton.language as tl
+The W13 representation permits one logical `A @ W13.T` followed by a split. It does not require two separately allocated TMEM accumulators, and the benchmark contract does not prescribe a tcgen05 instruction sequence.
 
-@triton.jit
-def fused_moe_gate_up_triton(
-    X_ptr, W_gate_ptr, W_up_ptr, Out_ptr,
-    expert_ids_ptr, token_counts_ptr,
-    sf_x_ptr, sf_gate_ptr, sf_up_ptr,
-    N: tl.constexpr, K: tl.constexpr,
-    BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr, BLOCK_K: tl.constexpr,
-):
-    """Fused gate-up GEMM + SiLU for one expert's tokens."""
-    expert_id = tl.program_id(2)
-    pid_m = tl.program_id(0)
-    pid_n = tl.program_id(1)
+## Small Derived Reference
 
-    token_count = tl.load(token_counts_ptr + expert_id)
-    m_start = pid_m * BLOCK_M
-    if m_start >= token_count:
-        return
+[`01-routing-plus-fusion-skeleton.py`](../../artifacts/kernels/fused-moe/variants/01-routing-plus-fusion-skeleton.py) is a CPU-checkable, parameterized reference for grouped selection and local W13/SwiGLU/W2 accumulation. It is derived KernelWiki code, not an optimized kernel and not an upstream contest solution.
 
-    n_start = pid_n * BLOCK_N
-    offs_m = m_start + tl.arange(0, BLOCK_M)
-    offs_n = n_start + tl.arange(0, BLOCK_N)
+## Official Evaluation Boundary
 
-    gate_acc = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
-    up_acc = tl.zeros([BLOCK_M, BLOCK_N], dtype=tl.float32)
+The starter-kit evaluation document at commit `75ccd05cafceb0fd1f86be4cd0f2117249463c66` records:
 
-    for k in range(0, K, BLOCK_K):
-        offs_k = k + tl.arange(0, BLOCK_K)
-        x_tile = tl.load(X_ptr + offs_m[:, None] * K + offs_k[None, :])
-        wg_tile = tl.load(W_gate_ptr + expert_id * N * K
-                          + offs_n[:, None] * K + offs_k[None, :])
-        wu_tile = tl.load(W_up_ptr + expert_id * N * K
-                          + offs_n[:, None] * K + offs_k[None, :])
-        gate_acc += tl.dot(x_tile, tl.trans(wg_tile))
-        up_acc += tl.dot(x_tile, tl.trans(wu_tile))
+- bare-metal NVIDIA B200 (`sm_100a`) with clocks locked to `3996,1965`;
+- container `flashinfer/flashinfer-ci-cu132:20260401-2c675fb`;
+- CUDA 13.2, Python 3.12, PyTorch 2.12.0+cu132, and Triton 3.6.0;
+- correctness gates `atol=1`, `rtol=0.3`, and matched ratio `0.9` for the MoE command; and
+- an arithmetic mean of per-workload `FlashInfer baseline latency / candidate latency` as the single-definition MoE score.
 
-    # Fused epilogue: SiLU(gate) * up
-    silu_gate = gate_acc * tl.sigmoid(gate_acc)
-    result = silu_gate * up_acc
-    tl.store(Out_ptr + offs_m[:, None] * N + offs_n[None, :],
-             result.to(tl.float16))
-```
+The current primary sources do not support the former framework TFLOPS/latency table, its launch counts, or the structured 1262-TFLOPS record. No performance result is retained here. The official trace axis is `seq_len`; relabeling its endpoints as prefill/decode or batch size requires a separate serving experiment.
 
-## Framework Baselines (B200)
+## Implementation Risks That Must Be Measured
 
-| Framework | Batch 4096 TFLOPS | Batch 1 Latency | Kernel Launches |
-|-----------|-------------------|-----------------|-----------------|
-| SGLang | 1262 | 206.9us | 5 (fused) |
-| FlashInfer CuTe DSL | 1225 | 481.9us | 1-2 (fully fused) |
-| vLLM | 1117 | 369.5us | 7 (unfused) |
+- Routing produces different token counts per expert, hence different grouped-GEMM M dimensions. A scheduler can mitigate that imbalance; no single bottleneck is universal across token counts and tactics.
+- Small M or partially filled GEMM tiles can reduce utilization. This is a workload-dependent risk, not a retained performance result.
+- At the pinned FlashInfer revision, runtime autotuning enumerates valid tactics and selects GEMM1 and GEMM2 tactics over token buckets. Record the exact revision and tuning state in any measurement.
+- The FP8 element type alone is insufficient for compatibility. Routing method, global/local expert mapping, scale dtype and granularity, tensor layout, activation, and output semantics must all match.
+- CUDA-graph layout requirements are backend-specific. DeepGEMM's masked grouped layout is one documented decode case when the CPU does not know expert token counts; it is not a universal graph requirement.
+- TMA alignment depends on the tensor-map configuration. CUDA 13.2.1 requires a 64-byte-aligned tensor-map object and ordinarily a 16-byte-aligned global base, with additional requirements for selected interleave, dtype, and swizzle modes; it does not require every expert pointer to be 128-byte aligned.
 
-## Challenges
+## Adjacent Local Artifacts
 
-1. **No pre-tuned FP8 MoE config for B200**: Tile sizes and pipeline stages need empirical tuning
-2. **FP8 numerical overflow**: Block scaling (block size 128) required for stability
-3. **Batch-size sensitivity**: batch=1 is latency-critical (kernel launch overhead dominates); batch=4096 is throughput-critical
-4. **Expert load imbalance**: Variable token counts per expert cause tail effects
-5. **TMA alignment**: 128-byte alignment required for all TMA descriptors
-6. **Dual TMEM allocation**: Gate and up accumulators each need TMEM space, competing for the 256KB budget
+The files under [`full/`](../../artifacts/kernels/fused-moe/full/) are mixed **adjacent references**, not a full implementation of this benchmark:
 
-## When to Use
+- `vllm-PR-23696-dual-gemm.patch` is the aggregate merged diff for vLLM's MXFP4-weight fused expert-compute integration (BF16 activations on Hopper and MXFP8 activations on Blackwell).
+- `flashinfer_cutedsl.py` is byte-identical to an SGLang FP4 CuteDSL runner at commit `c554dc5c64b661f2c53225b03a76359eaddc39e4`.
+- `moe-grouped-gemm-launch.cpp` is local illustrative pseudocode for varying per-expert M segments.
 
-- MoE model inference (DeepSeek-V3, Mixtral, etc.)
-- Both prefill (high batch, throughput-critical) and decode (low batch, latency-critical)
-- When gate-up GEMM fusion provides measurable speedup over separate launches
-
-## Caveats
-
-- Full fusion (routing through combine) is extremely complex to implement correctly
-- Expert load imbalance is the primary practical bottleneck
-- CUDA graph compatibility requires masked layout (fixed allocation per expert)
-- Small expert token counts cause thin-GEMM inefficiency on tensor cores
-- FP8 block scaling adds memory overhead for scale factor storage
+None supplies the exact Track A FP8 implementation or substantiates performance/launch claims. Their hashes and exact scopes are recorded in the bundle provenance.
 
 ## Sources
 
-- [FlashInfer MLSys 2026 Contest](https://mlsys26.flashinfer.ai/)
-- [GPU Mode NVFP4 Hackathon Problem 3](https://github.com/gpu-mode/reference-kernels)
-- [DeepGEMM MoE](https://github.com/deepseek-ai/DeepGEMM)
-- [SGLang Fused MoE](https://github.com/sgl-project/sglang)
+- [MLSys 2026 FlashInfer contest](https://mlsys26.flashinfer.ai/)
+- [Exact FP8 MoE benchmark definition](https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048)
+- [Starter-kit evaluation contract at `75ccd05`](https://github.com/flashinfer-ai/flashinfer-bench-starter-kit/blob/75ccd05cafceb0fd1f86be4cd0f2117249463c66/EVALUATION.md)
+- [FlashInfer trace reference at `7f614b8`](https://github.com/flashinfer-ai/flashinfer/blob/7f614b86470180bab2d22e36fd1775791c6bf3e6/flashinfer/trace/templates/moe.py)
+- [FlashInfer API implementation at `7f614b8`](https://github.com/flashinfer-ai/flashinfer/blob/7f614b86470180bab2d22e36fd1775791c6bf3e6/flashinfer/fused_moe/core.py)
+- [CUDA 13.2.1 tensor-map requirements](https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html)
+- [CUTLASS efficient-GEMM small-dimension discussion](https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/efficient_gemm.md)
+- [DeepGEMM grouped-layout documentation at `891d57b4`](https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md)
 
-## Full Reference Implementation
-
-Verbatim upstream code lives in [`artifacts/kernels/fused-moe/full/`](../../artifacts/kernels/fused-moe/full/); labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/fused-moe/variants/`](../../artifacts/kernels/fused-moe/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
-
-Query via:
+Query the page and its explicitly labeled artifacts with:
 
 ```bash
 python3 scripts/get_page.py kernel-fused-moe --include-code
