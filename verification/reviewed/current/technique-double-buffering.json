@@ -1,0 +1,100 @@
+{
+  "path": "wiki/techniques/double-buffering.md",
+  "id": "technique-double-buffering",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-double-buffering-current-c001",
+      "claim": "The page correctly defines buffering as disjoint stage ownership plus completion/reuse edges, distinguishes independent SMEM and TMEM uses, and scopes their simultaneous use to a concrete pinned SM100 kernel.",
+      "claim_type": "mechanism",
+      "covers": ["u001", "u002", "u003", "u004", "u005"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_STAGES arrays, BLOCK_N*2 allocation, TMA/MMA/epilogue role loops and barriers","observation":"The implementation contains separate multi-stage SMEM storage and disjoint ping-pong TMEM regions with explicit ownership handoffs."}],
+      "challenge": {"alternative":"The kernel only double-buffers one address space or uses the two copies sequentially without overlap.","check":"Trace stage indices, TMEM offsets, and independently executing warp-role loops.","outcome":"Different address spaces and regions are active under separate producer/MMA/epilogue roles; the page does not generalize beyond this example."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c002",
+      "claim": "The TMEM geometry, optional 256/256 address split, and disjoint-live-region invariant agree with PTX ISA 9.0 while avoiding a false universal logical-element capacity.",
+      "claim_type": "code",
+      "covers": ["u006", "u007", "u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"organization, addressing, allocation, and packing","observation":"The ISA defines 128 lanes, 512 columns, 32-bit cells, column-wide allocation and instruction-dependent packing; the displayed half-open ranges are arithmetically disjoint."}],
+      "challenge": {"alternative":"Every two-buffer implementation must divide the structure into equal halves or 65,536 cells always mean 65,536 FP32 outputs.","check":"Separate allocation/address geometry from implementation policy and instruction-kind packing.","outcome":"The page explicitly calls the split optional and refuses a universal logical-element count."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c003",
+      "claim": "The four TMEM state transitions and lifecycle paragraph correctly require compute completion before reads, collective load completion before reuse, phase-aware barriers, collective allocation/address publication, and matching deallocation before exit.",
+      "claim_type": "mechanism",
+      "covers": ["u009", "u010", "u011", "u012", "u013", "u014"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation/deallocation collective and lifetime rules","observation":"The allocation, publication, matching collective cleanup, and before-exit conditions match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"collective load and wait completion","observation":"tcgen05.ld is asynchronous and its register result requires wait::ld before use; source lifetimes extend through completion."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"phase and arrival semantics","observation":"Reusable barriers operate in phases with expected arrivals, matching the page's reusable-protocol warning."}],
+      "challenge": {"alternative":"A fence or CTA barrier alone licenses readback, and kernel exit implicitly releases TMEM.","check":"Distinguish ordering from tcgen05 commit/completion and inspect the explicit deallocation obligation.","outcome":"The normative instructions require completion tracking and matching deallocation; the page retains both edges."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c004",
+      "claim": "The SMEM full/empty sequence and FlashInfer case accurately describe per-stage producer/consumer ownership; the example's three- and up-to-four-stage policies are source-scoped rather than universal defaults.",
+      "claim_type": "mechanism",
+      "covers": ["u015", "u016", "u017", "u018", "u019", "u023"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15; SHA-256 40a2de44b1f29b4b4c213e74e530131c9a43be5e602daa3c8bbd901a3b281446","locator":"SharedStorage/SharedStorageHorizontal, producer and consumer loops, dispatch near numStages","observation":"The merged source has numStages storage and full/empty barriers, waits before produce/consume/reuse, three stages in one path, and min(totalStages,4) in another."}],
+      "challenge": {"alternative":"The full/empty names are cosmetic and no transaction-byte or phase handoff occurs.","check":"Trace barrier_arrive_tx, waits, and arrive operations for one stage around its TMA and consumer accesses.","outcome":"The source explicitly attaches bytes to full, waits on matching stages, and returns empty ownership after consumption."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c005",
+      "claim": "The binary16 stage-size block computes exactly 16 KiB for A, 32 KiB for B, 48 KiB per stage, and 144 KiB for three unpadded stages while disclaiming a complete C++ layout.",
+      "claim_type": "code",
+      "covers": ["u020", "u021"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python exact integer computation for 128*64*2, 64*256*2, and three-stage totals","environment":"Conda base, host CPU","reference":"binary16 payload uses two bytes per element","result":"16384 B = 16 KiB, 32768 B = 32 KiB, 49152 B = 48 KiB, and 147456 B = 144 KiB.","negative_control":"Four-byte elements produce 32/64/96/288 KiB and therefore do not match the labeled binary16 example."}],
+      "challenge": {"alternative":"The total silently includes barriers, padding and epilogue storage.","check":"Compare the formula's named unpadded payload with the immediately following disclaimer.","outcome":"Only operand payload is counted, and all omitted allocation components are explicitly named."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c006",
+      "claim": "The resource caveat correctly scopes 228 KiB shared memory per SM to compute capability 10.0 and distinguishes it from per-block opt-in and other residency limits.",
+      "claim_type": "compatibility",
+      "covers": ["u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"compute capability 10.0 shared-memory and occupancy bullets","observation":"The guide reports 228 KiB per SM and describes occupancy as dependent on multiple resource limits."}],
+      "challenge": {"alternative":"228 KiB is available to every Blackwell CTA or applies to compute capability 12.0 as well.","check":"Read the table/bullet architecture scope and per-block opt-in discussion.","outcome":"The page restricts the figure to compute capability 10.0 and avoids a per-CTA or all-Blackwell guarantee."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c007",
+      "claim": "The Hopper/Blackwell comparison correctly computes WGMMA FP32 D as N/2 registers per thread, distinguishes resident D from whole-kernel register use, and rejects fixed occupancy conclusions from buffering alone.",
+      "claim_type": "mechanism",
+      "covers": ["u024", "u025", "u026", "u027", "u028", "u029"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"m64nNk16 f32 D fragment","observation":"Each thread has N/2 f32 D registers, giving 128 for N=256 and 256 for two simultaneous fragments."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"TMEM D and register load destination","observation":"tcgen05 D resides at a TMEM address and loads produce per-thread registers, supporting the scoped distinction."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy resource calculation","observation":"Actual residency requires complete compiled/launch resource inputs, matching the table's resource-dependent wording."}],
+      "challenge": {"alternative":"Two fragments require only 64 registers per thread or TMEM removes every register associated with output handling.","check":"Substitute N=256 in the ISA fragment formula and inspect tcgen05.ld destination/state requirements.","outcome":"The exact result is 256 f32 D registers for two Hopper fragments; Blackwell removes resident D only, exactly as stated."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c008",
+      "claim": "The controlled-comparison workflow uses concrete compiler, occupancy, profiler, generated-code, wraparound, tail, and negative-test evidence and correctly denies that PTX defines a fixed mbarrier latency.",
+      "claim_type": "performance",
+      "covers": ["u030", "u031", "u032", "u033", "u034", "u035", "u036", "u037"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy APIs","observation":"Occupancy is evaluated from the concrete kernel and launch resources, supporting the required resource record."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mbarrier semantics","observation":"The ISA specifies ordering, arrival and phase behavior but no fixed cycle latency."}],
+      "challenge": {"alternative":"Correct ownership can be established by steady-state output tests alone or a universal barrier cost makes measurement unnecessary.","check":"Exercise first reuse and final-tail states and search the normative ISA for a latency guarantee.","outcome":"Those boundary paths are distinct protocol states, and the ISA contains no portable timing promise; the prescribed tests discriminate both failures."}
+    },
+    {
+      "claim_id": "technique-double-buffering-current-c009",
+      "claim": "All seven primary links and three related local pages resolve to the intended pinned documents/files, while fabricated external and local controls fail.",
+      "claim_type": "other",
+      "covers": ["u038", "u039", "u040", "u041", "u042", "u043", "u044", "u045", "u046", "u047"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"HTTP-check seven exact primary URLs; resolve three relative wiki links; repeat with fabricated CUDA and wiki paths","environment":"current KernelWiki worktree and network, 2026-08-09","reference":"All named sources/pages should resolve and controls should fail.","result":"All seven exact URLs returned HTTP 200 and all three local files existed.","negative_control":"The fabricated CUDA document returned HTTP 404 and wiki/techniques/not-a-page.md was absent."}],
+      "challenge": {"alternative":"A redirect hides a missing revision or a similarly named local page satisfies the links.","check":"Require exact final HTTP success and exact relative target existence.","outcome":"Both immutable GitHub blob URLs and archived CUDA pages resolved; exact local paths existed while controls failed."}
+    }
+  ],
+  "commands": ["conda-base exact payload arithmetic with negative control", "PTX ISA 9.0 and archived tuning-guide inspection", "exact-revision source and artifact hash comparison", "external/local link checks with broken controls"],
+  "scope": "All 47 current units for body hash e32c3558c9bc6483db8f063a150cca5c88247952aa4d168c007310ad16e98baa were checked against archived primary documentation, exact-revision code, arithmetic, and link controls.",
+  "residual_risk": "No CUDA toolkit or SM90/SM100 GPU is installed locally. The page deliberately gives no performance crossover, occupancy result, or barrier latency; those remain measurements for each concrete kernel."
+}

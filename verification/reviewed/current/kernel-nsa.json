@@ -1,0 +1,107 @@
+{
+  "path": "wiki/kernels/nsa.md",
+  "id": "kernel-nsa",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-nsa-current-c001",
+      "claim": "NSA is the ACL 2025 three-branch natively trainable design; the authors report comparable-or-better quality on their evaluated tasks, and the paper's efficiency implementation is evidenced on A100/SM80 rather than Hopper or Blackwell.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126/","revision":"ACL 2025 anthology record fetched 2026-08-08","locator":"publication metadata and abstract","observation":"The official proceedings record identifies the paper, venue, authors, natively trainable hardware-aligned scope, and source-reported quality result."},{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 4 experimental setup","observation":"The efficiency study specifies eight A100 GPUs and provides no Hopper/Blackwell compatibility or performance result."}],
+      "challenge": {"alternative":"Algorithmic portability is enough to list SM90/SM100, or the quality result is a universal guarantee.","check":"Separate tested hardware and evaluated tasks from plausible portability and untested models.","outcome":"Only A100 is directly evidenced and quality is explicitly scoped to the paper's evaluations."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c002",
+      "claim": "The page accurately gives NSA's learned gated sum, compression/selection/window roles, reuse of compression scores, and main experimental hyperparameters 32/16, 64 with 16 selected blocks, and 512.",
+      "claim_type": "mechanism",
+      "covers": ["u003", "u004", "u005", "u006", "u007", "u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 3.1, Equations 5-14, and Section 4.1 setup","observation":"The paper defines three input-gated branch outputs, learned block compression with position encoding, selection scores derived from compression attention, a recent-token window, and the listed experimental block/stride/count/window values."}],
+      "challenge": {"alternative":"The branches are simply concatenated or averaged, selection independently scores all fine blocks, or the numeric settings are architectural constants.","check":"Trace the equations and distinguish experimental setup from mechanism definition.","outcome":"The output is a learned gated sum, selection explicitly reuses compression scores, and the values are reported configuration choices rather than invariants."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c003",
+      "claim": "The KernelWiki-derived CPU function implements the stated gated branch-vector sum, rejects missing/misaligned gates, and its ungated control produces a distinct result; the removed sparse and window sketches fail discriminating normalization and coverage cases.",
+      "claim_type": "code",
+      "covers": ["u009", "u010", "u011", "u016"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python -c '<exact gated_branch_sum from page; asserted three-branch result, ungated result, and missing-gate rejection>'","environment":"KernelWiki host; conda base standard-library Python","reference":"current page's CPU semantic function and gate equation","result":"Exited 0 and printed 'NSA gated branch semantic reference: PASS; ungated and missing-gate controls differ'; gated output was [1.0,10.0] and raw sum was [9.0,26.0].","negative_control":"The same inputs without gates differed, and a missing gate raised ValueError."},{"command":"conda run -n base python -c '<evaluate former first-block softmax update and former block-stride scalar window loop>'","environment":"KernelWiki host; conda base standard-library Python","reference":"immutable baseline u005/u006 listings","result":"Former selected-attention update returned 4.0 instead of normalized 2.0 with the wrong log-partition; former window positions were [0,2] instead of [0,1,2,3].","negative_control":"Stable normalized softmax and unit-stride enumeration returned the mathematically complete reference results."}],
+      "challenge": {"alternative":"The reference accidentally hard-codes the example, or the former errors disappear on realistic tiles.","check":"Inspect the generic loops/validation and choose one-block/equal-score cases where later iterations cannot repair normalization or skipped tokens.","outcome":"The current function operates generically over branch count and width; the former counterexamples isolate structural errors independent of realistic tensor size."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c004",
+      "claim": "The page accurately scopes the paper's Triton design to group-centric query loading, shared sparse indices, contiguous selected KV blocks, and grid parallelism for nearly constant query/output loops, while declining to invent an exact grid or published source listing.",
+      "claim_type": "mechanism",
+      "covers": ["u012", "u013", "u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 3.3 Hardware-aligned Sparse Attention","observation":"The authors describe existing-kernel compatibility for compression/window, a specialized Triton selected-attention kernel, all query heads in a GQA group resident in SRAM, shared sparse indices, continuous KV-block loads, and query/output grid loops. They do not publish the removed code or the formerly asserted exact grid tuple."}],
+      "challenge": {"alternative":"The paper mandates a three-dimensional query-block/head/batch grid or individual-token sparse gathers.","check":"Compare the exact implementation paragraph with the stronger alternatives.","outcome":"Only loop placement and contiguous blocks are specified; the page now preserves that evidence boundary."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c005",
+      "claim": "The efficiency table correctly separates 9.0x/6.0x Figure 5 timing reports from Table 4's 11.6x expected memory-volume ratio, records the A100/GQA/dimension setup, lists missing reproducibility fields, and leaves structured performance metadata empty.",
+      "claim_type": "performance",
+      "covers": ["u017", "u018", "u019", "u020"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 4.2, Figure 5, and Table 4","observation":"The paper reports 9.0x forward and 6.0x backward at 64K against Triton FlashAttention-2 on the stated A100 setup, and labels 11.6x expected based on 65,536 versus 5,632 memory-access tokens. The setup lists g=4, h=16, dk=192, dv=128 but omits the page-listed reproducibility fields."}],
+      "challenge": {"alternative":"11.6x is a measured decode latency from the same benchmark, or dtype and software can be safely inferred from typical A100 usage.","check":"Read the table heading/derivation and search the efficiency setup for each missing field.","outcome":"The decode value is explicitly expected rather than timed, and the omitted fields cannot be inferred into a structured record."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c006",
+      "claim": "DeepSeek-V3.2-Exp deploys the later DSA mechanism with an indexer selecting up to 2,048 token positions and directs its CUDA paths to DeepGEMM and FlashMLA; this observable graph differs from NSA's gated compression/selection/window architecture.",
+      "claim_type": "compatibility",
+      "covers": ["u021", "u022"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepseek-v32/README.md","revision":"DeepSeek-V3.2-Exp 87e509a2e5a100d221c97df52c6e8be7835f0057","locator":"DSA release and high-performance CUDA kernels","observation":"The first-party release names DSA and links indexer logits to DeepGEMM and sparse attention to FlashMLA."},{"path":"/tmp/kernelwiki-deepseek-v32/inference/config_671B_v3.2.json","revision":"same commit","locator":"index_topk","observation":"The released configuration sets index_topk to 2048."},{"path":"/tmp/kernelwiki-deepseek-v32/inference/model.py","revision":"same commit","locator":"Indexer.forward and MLA.forward","observation":"The model performs learned top-k token selection and constructs an attention mask, without NSA's compression and sliding-window branch outputs."},{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232","locator":"Sparse Attention Kernels","observation":"FlashMLA states that its sparse kernels power DSA in V3.2-Exp."}],
+      "challenge": {"alternative":"DSA is merely a production rename of NSA and can inherit all paper claims.","check":"Compare the first-party inference graph and configuration with NSA Equations 5-14.","outcome":"DSA has a separate learned indexer/top-k mask and lacks the two other NSA outputs, so equivalence is observably false."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c007",
+      "claim": "The applicability section correctly requires native training/model compatibility, preserves the GQA sharing mechanism, rejects a universal 32K threshold, scopes compression/Triton costs, and makes CUDA Graph use conditional on profiling a CPU-bound repeated workflow.",
+      "claim_type": "compatibility",
+      "covers": ["u023", "u024", "u025", "u026", "u027", "u028"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Sections 3-4, Limitations, and Appendix B","observation":"The paper motivates native training, defines GQA-group sharing and learned compression, evaluates lengths without declaring a 32K cutoff, and notes Triton abstraction overhead versus native CUDA without publishing a CPU-launch profile."},{"url":"https://docs.nvidia.com/dl-cuda-graph/troubleshooting/performance-issues.html","revision":"NVIDIA CUDA Graphs guide fetched 2026-08-08","locator":"Performance Issues","observation":"NVIDIA scopes primary graph benefit to CPU-bound work and warns that GPU-bound workflows may see minimal benefit or regress."}],
+      "challenge": {"alternative":"Any long-context checkpoint can adopt NSA post hoc, or CUDA Graphs are always beneficial for decode.","check":"Compare the paper's training dependency and vendor graph bottleneck conditions with those universal claims.","outcome":"Both depend on preconditions the page now states explicitly."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c008",
+      "claim": "All six cited source links resolve to the intended ACL record/PDF, pinned DeepSeek and FlashMLA revisions, NVIDIA CUDA Graph guidance, and explicitly third-party PyTorch repository.",
+      "claim_type": "other",
+      "covers": ["u029", "u030", "u031", "u032", "u033", "u034"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <each of six Primary sources URLs>","environment":"KernelWiki host, 2026-08-08","reference":"HTTP resolution, source identity, and immutable repository revisions","result":"All six targets returned HTTP 200; repository URLs retained their full claimed commits and the lucidrains project identity is explicitly third-party.","negative_control":"A nonexistent sibling ACL Anthology path returned HTTP 404."}],
+      "challenge": {"alternative":"A link is dead, mutable where it claims a pin, or the third-party repository is presented as official.","check":"Follow redirects, inspect host/path/commit/owner, and compare a same-host invalid control.","outcome":"Every positive target has the stated identity/scope and the negative control fails distinctly."}
+    },
+    {
+      "claim_id": "kernel-nsa-current-c009",
+      "claim": "The documented query returns the corrected NSA page, while a near-name unknown page ID fails distinctly.",
+      "claim_type": "code",
+      "covers": ["u035"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py kernel-nsa","environment":"KernelWiki worktree; conda base","reference":"current page and regenerated indexes","result":"Exited 0 and returned the corrected gated three-branch mechanism, source-scoped efficiency table, and NSA-versus-DSA distinction.","negative_control":"kernel-nsa-broken exited nonzero with 'No page found'."}],
+      "challenge": {"alternative":"The query resolves stale generated content or accepts arbitrary near-name IDs.","check":"Search the positive output for newly unique text and compare the invalid ID.","outcome":"Corrected unique sections are present and the unknown ID is rejected."}
+    }
+  ],
+  "commands": [
+    "inspect ACL paper equations, kernel-design section, efficiency setup/results, limitations, and native-training appendix",
+    "inspect pinned DeepSeek-V3.2-Exp and FlashMLA first-party source for DSA identity and execution graph",
+    "run the exact CPU gated-branch reference with ungated and missing-gate controls under conda base",
+    "run counterexamples against the immutable baseline's two removed pseudo-kernels",
+    "run six-link HTTP positive controls and one same-host 404 control",
+    "regenerate indexes and run get_page positive and near-name negative controls"
+  ],
+  "residual_risk": "No A100/Blackwell GPU, CUDA toolkit, or official NSA implementation is available locally. Source-reported performance was not reproduced, so no structured performance tuple is retained and the page explicitly records missing benchmark fields.",
+  "scope": "All 35 current coverage units for body hash 70483995c616c5db093c78410e006ee58b4ba3b50d6a9c3d4df495d17ee83b8b were checked against the ACL paper, immutable first-party deployment source, version-pinned FlashMLA source, vendor guidance, and discriminating host controls."
+}

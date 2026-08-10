@@ -1,0 +1,193 @@
+{
+  "path": "wiki/techniques/external-source-map-research.md",
+  "id": "technique-external-source-map-research",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-external-source-map-research-original-c001",
+      "claim": "Once profiling has identified an edit family, searching a small upstream source repository for the measured mechanism and inspecting exact files is a valid way to find candidate implementations.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "tma/tma_copy.h, pipeline-gemm/sm90_gemm_multistage.cu, streamk/tile_scheduler.hpp, transpose-cute/",
+          "observation": "The pinned repository contains compact, mechanism-specific examples whose exact paths can be inspected after a profiler has narrowed the candidate class."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-load-store",
+          "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
+          "locator": "ld_matrix_x{1,2,4}.cu and st_matrix_x{1,2,4}.cu",
+          "observation": "The repository is a small set of direct ldmatrix/stmatrix instruction examples rather than a general optimization authority."
+        }
+      ],
+      "challenge": {
+        "alternative": "The source cards alone are sufficient implementation evidence, so exact upstream files do not need inspection.",
+        "check": "Compare the source-card summaries with the pinned repository file trees and implementations.",
+        "outcome": "Several source-card architecture and mechanism labels exceed the code's actual scope, while exact files discriminate what is present."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-original-c002",
+      "claim": "The displayed clone-and-grep snippet is reproducible enough to support exact implementation citations.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "git revision and repository tree",
+          "observation": "The snippet clones the moving default branch and records neither this immutable revision nor an exact file; future results can change."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-load-store/README.md",
+          "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
+          "locator": "repository scope and six .cu files",
+          "observation": "This repository only demonstrates ldmatrix/stmatrix, so the shared broad regular expression does not establish the page's wider TMA, swizzle, Stream-K, or vector-width scope."
+        }
+      ]
+    },
+    {
+      "claim_id": "technique-external-source-map-research-original-c003",
+      "claim": "Load/store and transpose examples are relevant candidate sources after profiling identifies long-scoreboard or sector-utilization symptoms, without proving that vector width or layout is the cause.",
+      "claim_type": "mechanism",
+      "covers": ["u003", "u004"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-transpose",
+          "revision": "simveit/effective_transpose 994b2b5acaa67f80e411df3e8274b6ae13fd1949",
+          "locator": "transpose_naive.cu, transpose_swizzle.cu and transpose_swizzle_batched.cu",
+          "observation": "The pinned SM90a examples compare TMA transpose variants and explicitly encode 128-byte tensor-map swizzling."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-nvidia-samples",
+          "revision": "NVIDIA-developer-blog/code-samples 3350d216083a902ccbf5b31665e3b82096a75b55",
+          "locator": "series/cuda-cpp/coalescing-global/coalescing.cu and series/cuda-cpp/transpose/transpose.cu",
+          "observation": "The source tree contains direct coalescing and shared-memory transpose examples, including a bank-conflict-free padded layout."
+        }
+      ],
+      "challenge": {
+        "alternative": "Those profiler symptoms uniquely diagnose a layout or vector-width defect.",
+        "check": "Inspect whether the repositories define profiler-counter causality or instead provide candidate mechanisms.",
+        "outcome": "They provide implementation examples but no symptom-to-cause theorem; the page only recommends searching before editing."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-original-c004",
+      "claim": "The Colfax repositories contain Hopper pipelined GEMM and TMA/barrier examples relevant to investigating barrier or TMA-wait stalls before changing stages or producer/consumer roles.",
+      "claim_type": "mechanism",
+      "covers": ["u005", "u006"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "pipeline-gemm/README.md, pipeline-gemm/sm90_gemm_multistage.cu and tma/tma_copy.h",
+          "observation": "The pinned files implement SM90 TMA copies, transaction barriers, multistage GEMM, and a warp-specialized alternative."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-colfax-cutlass/src/fmha-pipeline",
+          "revision": "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a",
+          "locator": "README.md and fmha_pipe_ws.h",
+          "observation": "The source documents and implements SM90a software pipelining with optional warp specialization and CUTLASS PipelineTmaAsync."
+        }
+      ],
+      "challenge": {
+        "alternative": "The examples establish that changing stage count or role split will improve any kernel with these stalls.",
+        "check": "Inspect the stated target/version and configuration scope of each example.",
+        "outcome": "The sources are Hopper-specific candidate implementations and make no portable performance guarantee; the page says to search them before changing code."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-original-c005",
+      "claim": "The pinned cfx repository contains persistent data-parallel and Stream-K schedulers relevant to investigating tail waves before adding shape-specific dispatch.",
+      "claim_type": "mechanism",
+      "covers": ["u007", "u008"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx/streamk",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "tile_scheduler.hpp classes and cli_options.h scheduler values",
+          "observation": "The source implements SingleTileScheduler, DataParallelPersistentTileScheduler, and StreamKPersistentTileScheduler, selectable as non-persistent, persistent, Stream-K, or heuristic modes."
+        }
+      ],
+      "challenge": {
+        "alternative": "A tail wave proves that a persistent or Stream-K scheduler is the best fix.",
+        "check": "Inspect whether the repository connects profiler tail metrics to a universal scheduler choice.",
+        "outcome": "It exposes alternatives and shape controls rather than a universal choice; the page treats them as candidates to inspect."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-original-c006",
+      "claim": "Citing a local source page plus an exact upstream path, commit, or URL is sufficient implementation provenance.",
+      "claim_type": "other",
+      "covers": ["u009"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "plan.md",
+          "revision": "repository remediation contract",
+          "locator": "sections 5 and 8",
+          "observation": "Evidence must record a revision and an exact section, symbol, line, or table locator; a moving repository URL by itself is insufficient."
+        },
+        {
+          "path": "sources/blogs/colfax-cutlass-kernels.md",
+          "revision": "baseline body 4fa361c619785bf4e42b8fd58ce26e98c998de467797e6cea6b778a328fe3184",
+          "locator": "frontmatter and body",
+          "observation": "The local summary assigns SM100 and persistent/tile-scheduling scope although the pinned source is SM90a and contains no such implementation, demonstrating why the source page is only a lead."
+        }
+      ]
+    },
+    {
+      "claim_id": "technique-external-source-map-research-original-c007",
+      "claim": "The linked repositories provide TMA, swizzle, Stream-K, persistence, and load/store mechanics on both Hopper- and Blackwell-era kernels.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "pipeline-gemm, streamk, tma and transpose-cute build files/source symbols",
+          "observation": "The relevant modern examples compile for SM90a and use SM90 TMA/GMMA facilities; no SM100 target or tcgen05 implementation appears."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-colfax-cutlass",
+          "revision": "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a",
+          "locator": "FMHA READMEs, compile scripts and CUTLASS GEMM source",
+          "observation": "The repository explicitly targets Hopper SM90/SM90a with CUDA 12.2/12.3 and SM90 TMA/WGMMA."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-transpose",
+          "revision": "simveit/effective_transpose 994b2b5acaa67f80e411df3e8274b6ae13fd1949",
+          "locator": "README.md and Makefile",
+          "observation": "The repository calls itself a Hopper transpose example and compiles with -arch=sm_90a."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-load-store",
+          "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
+          "locator": "README.md and Makefile",
+          "observation": "The repository is six ldmatrix/stmatrix examples compiled for sm_90a, not a Blackwell source map."
+        }
+      ]
+    }
+  ],
+  "commands": [
+    "git ls-remote each linked repository and inspect pinned shallow clones",
+    "rg exact architecture, mechanism and scheduler symbols in each pinned tree"
+  ],
+  "scope": "All nine baseline body units, frontmatter architecture claims, and all five linked source-card scopes were checked against exact upstream repository revisions.",
+  "residual_risk": "No GPU benchmark was run. The verified workflow claims are candidate-discovery rules, not claims that a profiler symptom proves a root cause or that a transferred implementation improves performance."
+}

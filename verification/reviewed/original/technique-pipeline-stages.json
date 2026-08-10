@@ -1,0 +1,162 @@
+{
+  "path": "wiki/techniques/pipeline-stages.md",
+  "id": "technique-pipeline-stages",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-pipeline-stages-original-c001",
+      "claim": "A three-to-five-stage SMEM pipeline hides global-memory latency entirely and is critical for high utilization on every Hopper/Blackwell kernel.",
+      "claim_type": "performance",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-best-practices-guide/index.html#asynchronous-copy-from-global-memory-to-shared-memory","revision":"CUDA 13.0.2 Best Practices Guide","locator":"asynchronous-copy pipeline tradeoffs","observation":"Overlap and benefit depend on work balance, issue/completion, occupancy, resource use and workload; documentation provides no universal stage range or complete-latency-hiding guarantee."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c002",
+      "claim": "The tutorial progression is 695 TFLOP/s without pipelining, 940 with three stages, and 1476 immediately after adding warp specialization.",
+      "claim_type": "code",
+      "covers": ["u002", "u003"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"sources/blogs/tcgen05-tutorial.md","revision":"Gau Nernst article/source commit 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"source-reported progression","observation":"v2b=695.43, v3 pipelining=939.61, v4 warp specialization=1208.83, v5 2-SM=1302.29 and v6 static persistence=1475.93; the last line skips two changes."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c003",
+      "claim": "For the author's exact 4096-cubed B200 setup, the pipelining step changes 695.43 to 939.61 TFLOP/s, approximately a 35.1-percent increase, and the author attributes that step to TMA/MMA overlap.",
+      "claim_type": "performance",
+      "covers": ["u002", "u004"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"sources/blogs/tcgen05-tutorial.md","revision":"Gau Nernst article/source commit 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"v2b/v3 progression and pipelining description","observation":"The source reports those values for consecutive variants, with v3 adding pipelining."}],
+      "challenge": {"alternative":"The delta is a portable B200 theorem or independently reproduced isolated latency percentage.","check":"Inspect benchmark scope and adjacent source changes.","outcome":"It is only an author-reported result for the disclosed shape/environment; the verified claim is scoped accordingly."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c004",
+      "claim": "A circular SMEM pipeline allocates multiple operand stages and cycles producer/consumer ownership through them.",
+      "claim_type": "mechanism",
+      "covers": ["u005"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"state[numStages], stage modulo loops and full/empty barriers","observation":"The merged implementation allocates per-stage storage and cycles stage indices through explicit producer/consumer handoffs."}],
+      "challenge": {"alternative":"Multiple copies are used only sequentially and therefore do not form a pipeline.","check":"Trace producer and consumer loops around the same modulo-indexed stages.","outcome":"Separate roles advance with stage-specific full/empty waits, enabling simultaneous ownership of different stages."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c005",
+      "claim": "The displayed pipelined_gemm is a complete safe three-stage TMA/tcgen05 implementation.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 MMA completion and operand lifetimes","observation":"The consumer releases SMEM immediately after an opaque asynchronous MMA issue without attaching/waiting for completion; syncwarp does not complete tcgen05."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"initialization, phase/tokens and transaction completion","observation":"The code omits async-proxy publication fencing, reusable barrier phase/token state, initial empty-stage seeding, and a correct tail protocol."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c006",
+      "claim": "The optimal stage count depends on per-stage work/latency and resource constraints rather than being an architectural constant.",
+      "claim_type": "performance",
+      "covers": ["u007"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"numStages dispatch choices","observation":"Different code paths select three stages or cap a geometry-derived total at four, demonstrating implementation dependence."}],
+      "challenge": {"alternative":"One architecture-wide stage count is always optimal regardless of tile or K depth.","check":"Compare source-selected counts across paths with different geometry.","outcome":"The exact merged kernel uses different policies, rejecting the constant-stage alternative."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c007",
+      "claim": "Two stages give partial hiding, three fully hide latency for most GEMMs, four-to-five give full hiding with margin, and more than five are universally excessive.",
+      "claim_type": "performance",
+      "covers": ["u008", "u009", "u010", "u011"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"pipeline construction and stage policies across tutorial variants","observation":"Stage counts derive from tile, shared-memory capacity and schedule; no tagged source defines the table's universal hiding classifications or thresholds."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c008",
+      "claim": "For CC10.0's 228-KiB per-SM shared-memory budget, binary16 A[128,64] and B[64,256] payloads occupy 16 and 32 KiB; three unpadded stages are 144 KiB and five are 240 KiB.",
+      "claim_type": "compatibility",
+      "covers": ["u012", "u013", "u014", "u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python exact byte/KiB and percentage arithmetic; compare 5-stage total with 228 KiB","environment":"Conda base, host CPU","reference":"binary16 is 2 bytes and CC10.0 guide reports 228 KiB/SM","result":"16+32=48 KiB/stage; 3=144 KiB=63.16% of 228; 5=240 KiB>228.","negative_control":"Treating KB as decimal or binary16 as 4 bytes fails the listed values."}],
+      "challenge": {"alternative":"144 KiB is the complete dynamic shared-memory allocation or 228 KiB is guaranteed per CTA.","check":"Account for barriers/padding/other storage and distinguish per-SM from opt-in per-block limits.","outcome":"Only unpadded operand payload and per-SM capacity are verified; the original caveat that other storage remains is retained in scope."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c009",
+      "claim": "mbarrier supports phase-based asymmetric producer/consumer synchronization without requiring every CTA thread to execute each wait.",
+      "claim_type": "mechanism",
+      "covers": ["u018"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mbarrier object, phases, arrivals and waits","observation":"mbarrier is addressable state with expected arrivals/transactions and phase-aware waits usable by designated producer/consumer participants."}],
+      "challenge": {"alternative":"mbarrier is just a spelling of CTA-wide bar.sync and all threads must participate identically.","check":"Compare participant/arrival semantics and transaction completion with bar.sync.","outcome":"mbarrier permits explicitly counted asymmetric arrivals and waits, matching the scoped claim."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c010",
+      "claim": "The displayed PTX block is an accurate complete phase protocol, and autonomous TMA completion removes the producer from the critical path.",
+      "claim_type": "code",
+      "covers": ["u019", "u020"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tensor-copy grammar and mbarrier complete_tx","observation":"The shown copy form omits required `.tile` and full operand/context details; transaction expectation and proxy ordering are not represented."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"phase completion","observation":"An arrival does not generically 'flip phase' at issue; phase changes after expected arrivals/transactions complete. Autonomous completion reduces explicit producer work but does not prove the producer is absent from the performance critical path."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c011",
+      "claim": "The Modular series establishes that a five-stage input pipeline alone reaches 85 percent of SOTA, was selected to hide an approximately 400-cycle B200 HBM latency, and has the displayed exact steady-state timeline.",
+      "claim_type": "code",
+      "covers": ["u021", "u022"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://www.modular.com/blog/matrix-multiplication-on-nvidias-blackwell-part-3-the-optimizations-behind-85-of-sota-performance","revision":"Modular Part 3, fetched 2026-08-09","locator":"Kernel 6 pipeline, warp specialization, write-out double buffering and final result","observation":"The article uses five stages but attributes the eventual 85% endpoint to a sequence including 2-SM, pipelining/warp specialization and output write-back double buffering; it does not provide the page's 400-cycle premise or exact fabricated stage timeline."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c012",
+      "claim": "Pipelining is never harmful for all compute- and memory-bound GEMMs, and it is almost always paired with warp specialization.",
+      "claim_type": "performance",
+      "covers": ["u023", "u025"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-best-practices-guide/index.html#asynchronous-copy-from-global-memory-to-shared-memory","revision":"CUDA 13.0.2 Best Practices Guide","locator":"pipeline/performance considerations","observation":"Extra stages consume shared memory and coordination state and can reduce occupancy; profitability and whether warp roles are specialized depend on the concrete schedule."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c013",
+      "claim": "Attention mainloops can pipeline KV tile production with computation when their dependencies and buffer ownership permit it.",
+      "claim_type": "mechanism",
+      "covers": ["u024"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2407.08608","revision":"FlashAttention-3 paper","locator":"asynchronous pipeline and warp specialization","observation":"The paper pipelines asynchronous data movement and tensor-core/non-matmul work across attention tiles."}],
+      "challenge": {"alternative":"Every KV tile must be loaded synchronously immediately before its MMA.","check":"Inspect the staged attention schedule and producer/consumer roles.","outcome":"Independent next-tile movement overlaps current work under explicit synchronization."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c014",
+      "claim": "Unpadded operand SMEM payload grows linearly with stage count and therefore competes with tile size and other shared storage.",
+      "claim_type": "mechanism",
+      "covers": ["u026"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python sweep stage_count*per_stage_bytes","environment":"Conda base, host CPU","reference":"Each independent stage contains one fixed-size operand payload.","result":"Payload is exactly linear for stage counts 1-16.","negative_control":"Adding a fixed per-kernel overhead makes total allocation affine, confirming the page limits the linear statement to stage payload."}],
+      "challenge": {"alternative":"Stages alias the same SMEM and consume no additional payload.","check":"Require producer and consumer simultaneous ownership of different stages.","outcome":"Safe simultaneous ownership needs disjoint buffers, producing the stated linear payload term."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c015",
+      "claim": "Barrier initialization overhead is negligible and placing initialization in a syncthreads block is a sufficient pre-TMA publication protocol.",
+      "claim_type": "performance",
+      "covers": ["u027"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-init","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"initialization and visibility","observation":"The ISA defines initialization plus required memory/proxy ordering and participant conditions but no negligible-cost guarantee; __syncthreads alone is not a generic substitute for every required proxy fence."}]
+    },
+    {
+      "claim_id": "technique-pipeline-stages-original-c016",
+      "claim": "Incorrect phase/reuse tracking can deadlock or corrupt a reusable pipeline, and short loops require guarded prologue/tail handling because steady state may never be reached.",
+      "claim_type": "mechanism",
+      "covers": ["u028", "u029"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"phase and wait semantics","observation":"Waiting on the wrong phase may never complete or may observe the wrong reuse; bounded loops must avoid waiting for stages that were never produced."}],
+      "challenge": {"alternative":"Modulo indexing alone makes phases and short-loop boundaries automatic.","check":"Run the state machine for num_k_tiles below stage count and for first stage reuse.","outcome":"Some stages are never produced in the short case and reuse changes expected phase, requiring the guards stated."}
+    }
+  ],
+  "commands": ["author progression and exact-revision source inspection", "archived PTX mbarrier/TMA inspection", "Conda-base payload arithmetic and state controls", "Modular primary article comparison"],
+  "scope": "All 29 baseline units for body hash d990987f96b0c765ab7753798f189a2125cbab0619c1671b450e305a4c628966 were reviewed, including code, ordering, table, arithmetic and performance-attribution claims.",
+  "residual_risk": "No CUDA compiler or SM100 GPU is available locally. Stage profitability and exposed latency remain target measurements."
+}

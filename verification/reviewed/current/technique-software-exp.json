@@ -1,0 +1,159 @@
+{
+  "claims": [
+    {
+      "challenge": {
+        "alternative": "FA4 removes the hardware exponential path entirely and the polynomial alone defines the optimization.",
+        "check": "Trace fragment selection and the surrounding forward schedule in the pinned source.",
+        "outcome": "The implementation selects hardware or software per fragment and couples the split to two softmax warpgroups, TMEM staging, and correction; the page states that hybrid scope."
+      },
+      "claim": "FA4's SM100 forward path evaluates a configuration-dependent fraction of exponentials with software FMA polynomial code while retaining hardware exp2 for the rest, inside a larger warp-specialized pipeline.",
+      "claim_id": "technique-software-exp-current-c001",
+      "claim_type": "mechanism",
+      "covers": ["u001", "u002"],
+      "evidence": [
+        {
+          "locator": "forward pipeline and faster exponential sections",
+          "observation": "The first-party description states a tunable per-row split between hardware MUFU and software exponential and documents the two softmax warpgroups, TMEM stages, and correction role.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        },
+        {
+          "locator": "softmax.py apply_exp2_convert and flash_fwd_sm100.py tuning table",
+          "observation": "The pinned code branches between cute.math.exp2 and ex2_emulation_2 by fragment and contains both zero-emulation and mixed configurations.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/tree/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The feeds imply an architecture-wide SFU bottleneck and a fixed software speedup.",
+        "check": "Read the dimensions and distinguish analytical per-tile accounting from a measured software-exp ablation.",
+        "outcome": "The source fixes M=N=D=128 and reports modeled resource cycles; the page preserves that scope and explicitly rejects the unsupported universal inference."
+      },
+      "claim": "The authors' B200 M=N=D=128 model uses 8192 BF16 tensor-core ops/cycle, 16 exp ops/cycle, 128 shared-memory bytes/cycle, and assigns 1024, 1024, and 768 forward cycles respectively, without defining universal software-exp throughput.",
+      "claim_id": "technique-software-exp-current-c002",
+      "claim_type": "performance",
+      "covers": ["u003", "u004"],
+      "evidence": [
+        {
+          "locator": "Feeds and Speeds",
+          "observation": "The source lists the exact feeds and forward speeds for M=N=D=128 and motivates overlap rather than an isolated instruction-throughput result.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "FA4 uses nearest-integer reduction, a symmetric interval, four Taylor FMAs, or hardware ex2 for reconstruction.",
+        "check": "Inspect constants, rounding modes, coefficient table, Horner evaluator, and combine function at the pinned revision.",
+        "outcome": "The exact code uses lower clamp -127, floor-style reduction via add.rm and 2^23+2^22, degree-3 packed Horner on [0,1), and integer exponent-field reconstruction; every page value matches."
+      },
+      "claim": "Pinned FA4 clamps below -127 under an x<=127 assumption, derives floor and a fraction in [0,1), evaluates the listed degree-3 Sollya coefficient set with packed FMAs, reconstructs through exponent-field integer operations, and uses log2(e) to map natural exponential inputs.",
+      "claim_id": "technique-software-exp-current-c003",
+      "claim_type": "code",
+      "covers": ["u005", "u006", "u007", "u008", "u009", "u010", "u011", "u012", "u013", "u014", "u015", "u016"],
+      "evidence": [
+        {
+          "locator": "POLY_EX2, evaluate_polynomial_2, combine_int_frac_ex2, ex2_emulation, ex2_emulation_2",
+          "observation": "The exact source contains the page's full coefficients, clamp/assumption, magic constant, rounding direction, three packed Horner steps, and integer reconstruction.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/utils.py"
+        },
+        {
+          "locator": "Faster exponential section",
+          "observation": "The authors describe Cody-Waite floor reduction, degree-3 Horner coefficients selected with Sollya on [0,1), and exponent-bit combination.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The sampled error is a formal maximum or the old degree-4 coefficient result was accidentally reused.",
+        "check": "Recompute the current coefficient set over its stated interval and run the old coefficient set as a negative control.",
+        "outcome": "The current set reproduced about 8.763e-5 while the negative control produced about 5.568e-5; the page explicitly labels its value sampled rather than a proof."
+      },
+      "claim": "A 1,000,002-point host grid over [0,1] gives approximately 8.763e-5 maximum sampled relative error for the pinned rounded degree-3 coefficients, without establishing a continuous error bound.",
+      "claim_id": "technique-software-exp-current-c004",
+      "claim_type": "semantics",
+      "covers": ["u017"],
+      "evidence": [
+        {
+          "command": "Evaluate sum(p_i*x**i) / 2**x - 1 at x=i/1000001 for i=0..1000001",
+          "environment": "Conda base Python 3 host arithmetic",
+          "negative_control": "The removed degree-4 Taylor set on [-0.5,0.5] produced 5.5684318728932425e-5 instead of the current result.",
+          "reference": "Pinned POLY_EX2[3] coefficient tuple in flash_attn/cute/utils.py",
+          "result": "Maximum absolute sampled relative error 8.762961710306882e-5 at x approximately 0.1007928992."
+        }
+      ],
+      "oracle": "host-experiment",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "BF16 conversion makes scalar and end-to-end validation unnecessary, or an SFU utilization metric alone selects the winning split.",
+        "check": "Trace error propagation and configuration-dependent hybrid settings through the concrete softmax pipeline.",
+        "outcome": "Approximation affects numerator and denominator, special cases live outside the helper, and pinned settings include hardware-only and mixed paths; the procedure tests all discriminating layers."
+      },
+      "claim": "Software-exp adoption requires scalar/special-case accuracy tests, complete attention correctness, generated-code inspection, resource profiling, and matched performance sweeps over the hybrid fraction rather than dtype or profiler-label assumptions.",
+      "claim_id": "technique-software-exp-current-c005",
+      "claim_type": "other",
+      "covers": ["u018", "u019", "u020", "u021", "u022", "u023", "u024", "u025"],
+      "evidence": [
+        {
+          "locator": "utils.py helper assumptions; softmax.py special cases; flash_fwd_sm100.py tuning table",
+          "observation": "The pinned source separates helper-domain assumptions from softmax special handling and selects different emulation frequencies, including zero, by configuration.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/tree/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute"
+        },
+        {
+          "locator": "forward pipeline and benchmark sections",
+          "observation": "The authors treat exponential selection as one component of a coupled pipeline and report configuration-level results, supporting the page's requirement for end-to-end controlled comparison.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The 1.1-1.3x figure is an isolated software-exp speedup.",
+        "check": "Inspect the benchmark label and the full list of forward design changes.",
+        "outcome": "The comparison is complete FA4 forward versus cuDNN 9.13 and includes multiple co-designed mechanisms; the page says exactly that."
+      },
+      "claim": "FA4 reports complete forward speedups of 1.1-1.3x over cuDNN 9.13 on evaluated B200 BF16 cases, not a software-exponential-only ablation.",
+      "claim_id": "technique-software-exp-current-c006",
+      "claim_type": "performance",
+      "covers": ["u026"],
+      "evidence": [
+        {
+          "locator": "Attention Benchmarks and forward-pass design",
+          "observation": "The first-party comparison is labeled for FA4 forward and the implementation includes pipelining, software/hardware exp, conditional rescaling, TMEM staging, and scheduling.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": [
+    "Inspect pinned FA4 utils.py, softmax.py, and flash_fwd_sm100.py at a369df7",
+    "Compare first-party feeds-and-speeds and benchmark scope",
+    "Recompute the published rounded coefficient error with a negative control"
+  ],
+  "id": "technique-software-exp",
+  "page_verdict": "verified",
+  "path": "wiki/techniques/software-exp.md",
+  "residual_risk": "No B200 SASS or performance run was available. The numerical grid is a regression measurement, not a formal bound, and the page requires target-specific accuracy and performance validation.",
+  "scope": "All 26 current body units, pinned code links, numerical value, performance provenance, architecture scope, and frontmatter claim were checked."
+}

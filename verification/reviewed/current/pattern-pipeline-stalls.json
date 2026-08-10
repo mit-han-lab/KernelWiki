@@ -1,0 +1,60 @@
+{
+  "claims": [
+    {
+      "challenge": {"alternative":"Low unit activity or barrier-wait samples are sufficient to diagnose a pipeline bottleneck.","check":"Compare the page's qualification with Nsight Compute's sampling and stall guidance.","outcome":"The profiler documents sampled readiness states and warns that stalls need not affect performance; the page requires scheduler under-issue, correlation, and a causal test."},
+      "claim": "Low execution-unit activity and barrier-wait samples are diagnostic leads rather than causal proof; Nsight Compute stall data should be interpreted with scheduler issue evidence, available chip-specific metrics, and sampling limitations.",
+      "claim_id": "pattern-pipeline-stalls-current-c001",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002"],
+      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html","revision":"Nsight Compute 2025.3","locator":"Scheduler Statistics, Warp State Statistics, PM and warp sampling","observation":"The guide distinguishes issue/eligibility statistics from sampled warp states, cautions that stalls may not affect performance, documents queryable metric availability, and says warp sampling has no time resolution."}],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {"alternative":"The page still confuses TMA transaction completion with tcgen05 ordering or prescribes one phase update for every wait.","check":"Trace each checklist item to PTX mbarrier counters, wait validity/visibility, tcgen05 completion, and fence semantics.","outcome":"The rewritten checklist assigns TMA bytes to complete_tx, phase to each reused object, MMA completion to commit/mbarrier, and tcgen05 fences only to applicable cross-thread execution-ordering handoffs."},
+      "claim": "The correctness gate accurately separates mbarrier arrival and transaction-byte accounting, per-object phase tracking, TMA acquire visibility, asynchronous tcgen05 completion, cross-thread tcgen05 ordering, and pipeline boundary handling.",
+      "claim_id": "pattern-pipeline-stalls-current-c002",
+      "claim_type": "semantics",
+      "covers": ["u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011"],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"PTX ISA 9.0","locator":"mbarrier lifecycle, arrive, complete_tx, and waits","observation":"PTX defines separate arrival/transaction counters, current-or-prior phase state/parity, and acquire visibility for associated bulk copies."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"PTX ISA 9.0","locator":"tcgen05 completion and execution ordering","observation":"PTX distinguishes commit/mbarrier completion from before/after-thread-sync ordering across execution-ordering operations."}],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {"alternative":"The workflow merely relabels pipeline stages, warp specialization, buffering, and ping-pong as guaranteed fixes.","check":"Inspect whether each row states a falsifiable target, controls, and costs and whether the workflow rejects failed predictions.","outcome":"Every change is conditional on a concrete edge, holds relevant variables fixed, records resource costs, and is rejected when predicted wait/time movement does not occur."},
+      "claim": "The workflow diagnoses pipeline stalls through reproducible timing, profiler correlation, an edge-specific prediction, and one-variable tests of stage depth, role separation, TMEM buffering, or two-tile interleaving with explicit correctness and resource controls.",
+      "claim_id": "pattern-pipeline-stalls-current-c003",
+      "claim_type": "semantics",
+      "covers": ["u012", "u013", "u014", "u015", "u016", "u017", "u018", "u019", "u020", "u021"],
+      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html","revision":"Nsight Compute 2025.3","locator":"profiling sections and reproducibility","observation":"The profiler exposes the stated section categories and documents replay, sampling, and reproducibility considerations."},{"url":"https://github.com/gau-nernst/learn-cuda/tree/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100","revision":"3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"v3-v6 implementations","observation":"The pinned versions demonstrate concrete stage, role, 2-SM, persistent, and output-overlap configurations with nontrivial storage and synchronization state."},{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper v1","locator":"section 3.1.2","observation":"The paper supplies the concrete two-output-tile attention case and describes maximized, not guaranteed, overlap."}],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {"alternative":"The table still mislabels stage count, rounds the ratios incorrectly, or attributes v6 to CLC.","check":"Compare every value and version label with the article, inspect pinned v3 instantiation, and recompute each ratio from 1506.74.","outcome":"All six TFLOP/s values and labels match; v3 uses two stages, v6 says static scheduling, CLC is explicitly absent, and recomputation gives the displayed ratios to two decimals."},
+      "claim": "For the tutorial's disclosed B200 4096-cubed experiment, the page accurately reports v1a through v6 values and cuBLAS ratios, identifies v3 as a two-stage source, and scopes the cumulative v6 endpoint to static persistence without CLC.",
+      "claim_id": "pattern-pipeline-stalls-current-c004",
+      "claim_type": "performance",
+      "covers": ["u022", "u023", "u024", "u025", "u026", "u027", "u028", "u029"],
+      "evidence": [{"url":"https://gau-nernst.github.io/tcgen05/","revision":"retrieved 2026-08-09","locator":"version result tables and closing progression","observation":"The article reports cuBLAS 1506.74; v1a 254.62; v2b 695.43; v3 939.61; v4 1208.83; v5 1302.29; and v6 static persistence 1475.93 TFLOP/s, and says CLC was not added. Dividing each kernel value by the stated cuBLAS value yields the displayed ratios."},{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v3.cu","revision":"3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"matmul_v3 function","observation":"The v3 launch instantiates NUM_STAGES=2."}],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {"alternative":"One or more primary-reference labels point to unrelated or unpinned material.","check":"Resolve each listed URL and compare its subject or revision with the label.","outcome":"The links resolve respectively to Nsight Compute 2025.3 profiling, PTX ISA 9.0 mbarrier, PTX ISA 9.0 tcgen05 fence, pinned tutorial v3 source, and the first-party tutorial progression."},
+      "claim": "The primary-reference list links to the exact profiler guide, version-pinned mbarrier and tcgen05 contracts, pinned tutorial v3 source, and first-party progression used by the page.",
+      "claim_id": "pattern-pipeline-stalls-current-c005",
+      "claim_type": "semantics",
+      "covers": ["u030", "u031", "u032", "u033", "u034"],
+      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html","revision":"Nsight Compute 2025.3","locator":"document title and contents","observation":"Official kernel profiling guide."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html","revision":"PTX ISA 9.0","locator":"mbarrier and tcgen05 fence sections","observation":"Official version-pinned ISA contains both linked contracts."},{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v3.cu","revision":"3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"file","observation":"Pinned tutorial v3 implementation."},{"url":"https://gau-nernst.github.io/tcgen05/","revision":"retrieved 2026-08-09","locator":"article","observation":"First-party tutorial and result progression."}],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": ["Inspect PTX ISA 9.0 mbarrier and tcgen05 handoff contracts", "Inspect Nsight Compute 2025.3 profiler semantics", "Inspect pinned tutorial source and recompute ratios in Conda base"],
+  "id": "pattern-pipeline-stalls",
+  "page_verdict": "verified",
+  "path": "wiki/patterns/pipeline-stalls.md",
+  "residual_risk": "No target GPU or Nsight Compute installation is available locally, so the diagnostic procedure was source-verified but not executed. Tutorial performance remains author-reported.",
+  "scope": "All 34 current body units for hash 0c5294d705b6402ce30d3482e6d7f3bb2cb0ca6bf75e81712347ff1d23959d45 were challenged against profiler, ISA, paper, source, and arithmetic evidence."
+}

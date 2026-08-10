@@ -1,0 +1,104 @@
+{
+  "path": "wiki/kernels/nvfp4-gemv.md",
+  "id": "kernel-nvfp4-gemv",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c001",
+      "claim": "Problem 1 is a B200 block-scaled NVFP4 batched GEMV whose three published theoretical rows are DRAM-limited under the task model, while that task-specific result does not classify every GEMV implementation or shape.",
+      "claim_type": "performance",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description and speed-of-light analysis","observation":"The task names the B200 GEMV operation and uses max(FFMA, DRAM). An 8-TB/s payload calculation matched all three published rows within five percent, while a deliberately broken 16-TB/s control differed by more than 45 percent."},{"path":"/tmp/kernelwiki-amandeep-nvfp4.html","revision":"author post fetched 2026-08-08","locator":"Why 3x Off and takeaways","observation":"The author identifies this task and attempt-7 kernel as memory-bound while documenting implementation-dependent failed optimizations."}],
+      "challenge": {"alternative":"The theoretical rows are FFMA-limited or the task proves a datatype-wide bottleneck theorem.","check":"Compare the rows against the 8-TB/s byte model and retain only task-specific wording.","outcome":"The DRAM model reproduces the rows closely, while neither source supports extrapolation to every implementation."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c002",
+      "claim": "At commit ae679486 the actual callable receives the seven displayed physical tensors, pads logical N=1 B/SFB to 128 rows, uses only output column zero, requires K divisible by 64, constructs E4M3FN scales despite E4M3FNUZ prose, and exposes no FP32 global-scale arguments.",
+      "claim_type": "code",
+      "covers": ["u002", "u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"input_t","observation":"The type is a seven-tensor tuple."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py","revision":"same commit","locator":"generate_input, create_scale_factor_tensors, ref_kernel, and return tuple","observation":"The exact physical payload, logical-scale, reordered-scale, and output shapes match; B is padded to 128, only res[:,0] is stored, scale dtype is float8_e4m3fn, and no global-scale scalar is returned."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml","revision":"same commit","locator":"description and K rule","observation":"The logical prose tuple, e4m3fnuz label, K-divisible-by-64 condition, and implementation-selected M-tile condition are explicit. A conda-base shape reconstruction matched all seven largest-row shapes, accepted K=64, and rejected K=63."}],
+      "challenge": {"alternative":"The extra two values are FP32 global scales or physical B really has one row.","check":"Trace every value returned by generate_input and every value unpacked by ref_kernel.","outcome":"The fifth and sixth inputs are reordered E4M3 scale tensors, and B/SFB are allocated with 128 rows; no scalar globals occur."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c003",
+      "claim": "The task ranks the geometric mean of the three exact theoretical rows at a 1.5 GHz B200 clock; NVIDIA documents 8 TB/s HBM3e for one GB200 GPU, and the table values are model outputs rather than measured kernel results.",
+      "claim_type": "performance",
+      "covers": ["u012", "u013", "u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemv/task.yml","revision":"ae679486","locator":"speed-of-light table and ranking_by","observation":"The three shapes/times, 1.5 GHz assumption, and geometric-mean ranking match exactly."},{"url":"https://resources.nvidia.com/en-us-blackwell-architecture/blackwell-architecture-technical-brief","revision":"official brief fetched 2026-08-08","locator":"GB200 GPU memory subsystem","observation":"The brief specifies 8 TB/s HBM3e for one GPU."}],
+      "challenge": {"alternative":"The times are contestant measurements or 8 TB/s is a two-GPU aggregate.","check":"Read the task's speed-of-light label and the brief's one-GPU column.","outcome":"The task labels a theoretical analysis and the vendor scope is one GPU."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c004",
+      "claim": "The dated public snapshot reports aggregate geometric-mean scores with the stated top-three and Yue rows; its ranks are mutable, and post-cutoff timestamps on current ranks 2-3 prevent treating it as an official prize-placement snapshot.",
+      "claim_type": "performance",
+      "covers": ["u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://site--bot--dxfjds728w5v.code.run/submissions/nvfp4_gemv/NVIDIA?limit=100","revision":"snapshot fetched 2026-08-08","locator":"ranks 1-3 and 11 with submission_score and submission_time","observation":"Scores and names match the page; ranks 2-3 have November 30 UTC timestamps and Yue is rank 11 at 22.392217755."},{"url":"https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf","revision":"official rules fetched 2026-08-08","locator":"Kernel 1 end time","observation":"The official deadline is November 28 at 11:59 p.m. PT, before the current rank-2 and rank-3 timestamps."}],
+      "challenge": {"alternative":"The API freezes cutoff placements or every current top row predates the deadline.","check":"Compare its row timestamps with the exact rules deadline.","outcome":"At least ranks 2-3 postdate the deadline, so the page correctly avoids winner language."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c005",
+      "claim": "PTX ISA 9.0 defines the displayed packed E2M1 conversion, typed b32-to-four-byte move, and v2/v4 u64 load widths; Yue used the conversion/move in an author-reported path, while the ISA makes no universal performance promise.",
+      "claim_type": "code",
+      "covers": ["u018", "u019", "u020"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cvt","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"packed alternate-format cvt","observation":"The exact cvt.rn.f16x2.e2m1x2 form is documented."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-mov","revision":"same archive","locator":"scalar-to-vector mov","observation":"A b32 source may be decomposed into four byte destinations with matching total size."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld","revision":"same archive","locator":"vector loads","observation":"v2.u64 and v4.u64 move 128 and 256 bits; the ISA specifies semantics, not relative speed."},{"url":"https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html","revision":"author post fetched 2026-08-08","locator":"Optimization 3","observation":"The author shows mov.b32 and packed cvt in the reported vectorized PTX decode stage."}],
+      "challenge": {"alternative":"The suffix counts bytes, the move cannot target b8 lanes, or the author did not use these forms.","check":"Apply PTX vector/type-size rules and inspect the author's displayed asm.","outcome":"The widths and typed decomposition are exact, and both instructions appear in the author's code block; no speed theorem is inferred."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c006",
+      "claim": "Amandeep reports the cache policies, wider PTX loads, and exact-K specializations observed in three solutions, while the author's own 64-bit wider-load and 80-to-64 register-cap experiments establish that these tuning effects are implementation-dependent.",
+      "claim_type": "performance",
+      "covers": ["u021"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/","revision":"author post fetched 2026-08-08","locator":"attempts 9 and 11; What the Top Solutions Did Differently","observation":"The post reports A no-allocate, B evict-last, v2/v4 loads, exact-K templates, and register budgets as observations; it also reports the author's wider load 16-25 percent slower and register-cap change having zero effect."}],
+      "challenge": {"alternative":"The inspected code proves the techniques universally faster and the failed trials used identical mechanisms.","check":"Separate the author's retrospective observations from the controlled changes in the author's own kernel.","outcome":"The post itself presents shape/code-dependent successes and counterexamples, matching the page's conditional wording."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c007",
+      "claim": "The ten-row table faithfully reports Yue's combined stage boundaries and author-reported timings, identifies 22.392 as an aggregate submitted score, and accurately notes that whole-B shared-memory loading did not improve one CuTe attempt.",
+      "claim_type": "performance",
+      "covers": ["u022", "u023", "u024", "u025", "u026", "u027", "u028", "u029", "u030", "u031", "u032", "u033"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html","revision":"author post fetched 2026-08-08","locator":"CuTe attempt and CUDA Optimizations 1-6","observation":"Every stage label, combined change, approximate timing, submitted score, and failed whole-B shared-memory idea matches the post."},{"url":"https://site--bot--dxfjds728w5v.code.run/submissions/nvfp4_gemv/NVIDIA?limit=100","revision":"snapshot fetched 2026-08-08","locator":"Yue row","observation":"The aggregate score is 22.392217755 microseconds."}],
+      "challenge": {"alternative":"The table isolates each listed technique or 22.392 is one benchmark row.","check":"Trace the author's headings and compare the endpoint's aggregate score field.","outcome":"The page explicitly labels combined changes and source reporting, and the endpoint/task identify a geometric-mean score."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c008",
+      "claim": "The practical guidance correctly scopes use to matching N=1 NVFP4 operands, calls for profiling before bottleneck choices, describes the compiled-entry tradeoff of retained exact-K dispatch, requires version/target revalidation for PTX, records Transformer Engine 2.13 inference support as SM 10.0+, and notes that the task mandates results rather than implementation techniques.",
+      "claim_type": "compatibility",
+      "covers": ["u034", "u035", "u036", "u037", "u038"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemv/task.yml","revision":"ae679486","locator":"task contract and templates","observation":"The task fixes N=1 input/output semantics and checker criteria but does not require cache/load/register implementation choices."},{"url":"https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/","revision":"author post fetched 2026-08-08","locator":"attempts, exact-K specialization, and takeaways","observation":"The failed tuning attempts support profiling-dependent guidance, and launch-time exact-K dispatch entails retaining referenced specialization entries."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"versioning and target ISA notes","observation":"Instruction and target support are explicitly versioned."},{"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4 recipe and Supported devices","observation":"The exact recipe is required and inference support is listed as SM 10.0+."}],
+      "challenge": {"alternative":"Generic FP4 weights are compatible, lower resource settings are always better, PTX is permanently target-independent, or the contest prescribes a canonical kernel.","check":"Compare the exact recipe/task ABI, the author's counterexamples, archived PTX target notes, and task checker scope.","outcome":"Each alternative is excluded by the cited source; the page states conditional practice rather than performance guarantees."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemv-current-c009",
+      "claim": "All nine primary-source links resolve to the intended pinned task, rules, vendor documents, and author posts.",
+      "claim_type": "other",
+      "covers": ["u039", "u040", "u041", "u042", "u043", "u044", "u045", "u046"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"curl -L -A 'Mozilla/5.0' -sS -o /dev/null -w '%{http_code}' <each current Primary Sources URL>","environment":"KernelWiki host, network fetched 2026-08-08","reference":"Each link should resolve to its named primary source.","result":"All nine linked targets returned HTTP 200 and their paths/titles matched the labels.","negative_control":"An invented same-site Simon article slug returned HTTP 404."}],
+      "challenge": {"alternative":"The sites return generic success for missing paths or a label points to an adjacent document.","check":"Inspect target paths/titles and compare a same-site missing-page control.","outcome":"The intended targets resolved while the fabricated slug was rejected."}
+    }
+  ],
+  "commands": [
+    "conda run -n base python -c '<seven-tensor shape and K-boundary experiment>'",
+    "conda run -n base python -c '<8-TB/s model and 16-TB/s negative control>'",
+    "curl current primary-source URLs with same-site 404 control"
+  ],
+  "scope": "All 46 current units for body hash 15a1de756e23c26b7938e4b0c5e12e918492d5f204e504a428fcb1573c5bbd26 were checked against gpu-mode/reference-kernels ae679486, official rules and NVIDIA versioned documentation, the public leaderboard snapshot fetched 2026-08-08, the author posts, and host controls.",
+  "residual_risk": "No B200 or CUDA toolkit is installed locally. Performance values remain explicitly author-reported or theoretical; no contestant implementation attribution is made from the leaderboard API, and no current rank is called an official prize placement."
+}

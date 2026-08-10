@@ -1,0 +1,295 @@
+{
+  "path": "wiki/kernels/fused-moe.md",
+  "id": "kernel-fused-moe",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-fused-moe-original-c001",
+      "claim": "The FlashInfer Track A kernel covers the full MoE forward path in one to three launches and saves up to 21.9% of activation traffic relative to a five-to-seven-launch implementation.",
+      "claim_type": "performance",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"description and signature","observation":"The official definition says only that routing and two grouped GEMMs are included. It gives no launch count or 21.9% traffic result, and its explicit inputs/outputs do not define a separate dispatch/combine benchmark contract."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c002",
+      "claim": "Fused MoE is Track A of the FlashInfer MLSys 2026 contest, which targets NVIDIA B200 and uses a DeepSeek-V3/R1-style FP8 MoE definition.",
+      "claim_type": "compatibility",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://mlsys26.flashinfer.ai/","revision":"site fetched 2026-08-08","locator":"Contest Overview and Track A","observation":"The organizer identifies B200 as the target and names Track A Fused MoE with FP8 support, linking the exact benchmark."},{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"tags and axes","observation":"The definition is tagged deepseek-v3/deepseek-r1 and records the fixed dimensions."}],
+      "challenge": {"alternative":"Track A is a generic MoE contest or targets Hopper as well as B200.","check":"Read the organizer's challenge target and follow its Track A link to the definition tags.","outcome":"The organizer says B200 and the linked definition names DeepSeek-V3/R1; no Hopper target is stated for this contest track."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c003",
+      "claim": "The displayed pipeline routes each token to top-8 experts from a total of 32 and otherwise represents the benchmark's routing, W13/SwiGLU, W2, and weighted-combine semantics.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"Axes and Reference Implementation","observation":"Routing logits span 256 global experts; 32 is num_local_experts for EP=8. The reference selects top-8 globally after grouped routing, computes only the local expert interval, splits the 4096-row W13 result for SwiGLU, performs W2, and accumulates routing-weighted outputs."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c004",
+      "claim": "vLLM uses exactly seven launches, SGLang exactly five, and a fully fused implementation exactly one or two launches with the displayed operation boundaries.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md","revision":"flashinfer-bench-starter-kit 75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"FlashInfer Baselines and MoE evaluation command","observation":"The official evaluation defines one FlashInfer wrapper baseline and measures submitted solution entry points; it records no framework launch-count decomposition."},{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe","observation":"One Python call enters a staged runner with routing and two separately tuned GEMM tactics; a call count is not a GPU launch count."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c005",
+      "claim": "The gated first projection is logically W13: a single 2I-wide GEMM result is split into up and gate halves, followed by a fused SwiGLU product.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The official trace reference computes G1=A@W13.T, splits G1 into X1/X2, and computes silu(X2)*(X1+beta) before W2."}],
+      "challenge": {"alternative":"Gate and up must be two independently launched GEMMs with separate accumulator allocations.","check":"Inspect the reference's W13 tensor shape and GEMM1 expression.","outcome":"W13 is one [2I,H] tensor and the reference issues one logical matmul producing both halves; separate launches/allocations are not part of the contract."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c006",
+      "claim": "The displayed CUDA function is a usable SM100 FP8 block-scale gated-dual-GEMM kernel with valid tcgen05 instructions, TMEM allocation, synchronization, indexing, and scale handling.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe wrapper and runner call","observation":"The first-party implementation uses compiled TensorRT-LLM/FlashInfer runners and explicit tensor contracts, not the displayed helpers or inline assembly."},{"path":"wiki/hardware/tcgen05-mma.md","revision":"KernelWiki page already verified against PTX ISA 9.2","locator":"Instruction Forms and Ownership","observation":"Real tcgen05 forms use architecture-defined descriptors, predicates, and allocation ownership. The displayed instruction string omits required form/operands and the function also references undefined storage, rows, columns, and helpers."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c007",
+      "claim": "The displayed keyword call is the FlashInfer benchmark API: BF16 hidden states, 32-wide routing logits, fused w_gate_up/w_down keywords, and FP8 block-scale tensors in the shown shapes.",
+      "claim_type": "code",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"Signature and baseline wrapper","observation":"The benchmark requires float8 hidden_states [T,7168], routing_logits [T,256], separate gemm1/gemm2 weight and FP32 scale tensors, plus local_expert_offset and routed_scaling_factor. Its wrapper passes the complete positional contract to trtllm_fp8_block_scale_moe; the displayed keyword names and shapes do not match."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c008",
+      "claim": "The displayed Triton kernel correctly implements a routed, block-scaled fused gate-up projection.",
+      "claim_type": "code",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"DeepSeek routing reference and _fp8_moe_run_experts","observation":"A correct path uses global expert IDs, a local expert offset, routing weights, all three FP32 scale tensors, bounds-safe gathering, W13 splitting, W2, and weighted accumulation. The displayed kernel leaves expert_ids and every scale pointer unused, lacks K/M/N masks and local offsets, and never performs W2 or combine."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c009",
+      "claim": "On B200 at the stated batch sizes, SGLang records 1262 TFLOPS/206.9 us with five launches, FlashInfer CuTe DSL 1225 TFLOPS/481.9 us with one-to-two launches, and vLLM 1117 TFLOPS/369.5 us with seven launches.",
+      "claim_type": "performance",
+      "covers": ["u009", "u010", "u011"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition and traces fetched 2026-08-08","locator":"definition, solutions, and per-workload traces","observation":"The official page contains no such framework table or launch counts, and searches of the complete serialized page find none of 1262, 206.9, 1225, 481.9, or 369.5. The isolated official traces report latency_ms per seq_len and solution, not the asserted mixed TFLOPS/batch table."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c010",
+      "claim": "There is no tuned FP8 MoE configuration for B200, so tile sizes and stages must be selected manually from scratch.",
+      "claim_type": "compatibility",
+      "covers": ["u012"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoERunner tactic enumeration and autotuner selection","observation":"The official implementation enumerates architecture/shape-valid GEMM1 and GEMM2 tactics and supplies token-bucketed runtime autotuning."},{"path":"/tmp/kernelwiki-flashinfer-pinned/benchmarks/bench_trtllm_gen_fused_moe_autotuner.py","revision":"same commit","locator":"bench_trtllm_gen_fused_moe_autotuner_fp8","observation":"A first-party B200-capable benchmark explicitly compares untuned and autotuned FP8-block tactics and passes tune_max_num_tokens."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c011",
+      "claim": "Block size 128 is required specifically to prevent FP8 numerical overflow and guarantee stability.",
+      "claim_type": "compatibility",
+      "covers": ["u013"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe_ds_routing_trace axes and inputs","observation":"The source defines 128 as this DeepSeek-FP8 trace's scale granularity and receives already-quantized FP8 tensors plus FP32 scales; it does not compute scales or state a stability requirement."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"DeepSeek-V3 Technical Report v2 capture","locator":"Fine-Grained Quantization","observation":"The paper motivates smaller groups as better accommodating local outliers and documents phase-specific exceptions; it does not state that 128 is a universal overflow-stability threshold."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c012",
+      "claim": "The benchmark's batch=1 workload is launch-overhead dominated and its batch=4096 workload is throughput dominated.",
+      "claim_type": "performance",
+      "covers": ["u014"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"Axes","observation":"The varied axis is seq_len (number of tokens), not batch, and the definition supplies no profile attributing latency to launch overhead or compute throughput."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c013",
+      "claim": "Dynamic routing gives experts different M dimensions, which can create scheduling tail effects unless grouped work is balanced.",
+      "claim_type": "performance",
+      "covers": ["u015"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout)","observation":"The first-party documentation states that each expert may process a varying number of tokens and represents those expert problems with varying M segments."}],
+      "challenge": {"alternative":"A grouped or persistent scheduler makes expert imbalance disappear as a scheduling concern.","check":"Compare the logical per-group M sizes with the scheduler's finite assignment of tiles.","outcome":"Grouping can mitigate the tail, but it does not make unequal tile counts equal; the claim is conditional and does not say every implementation suffers the same magnitude."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c014",
+      "claim": "Every TMA descriptor and expert tensor base must be aligned to 128 bytes.",
+      "claim_type": "compatibility",
+      "covers": ["u016"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.2.1","locator":"cuTensorMapEncodeTiled parameter requirements","observation":"The tensor-map object address is 64-byte aligned, the ordinary globalAddress requirement is 16 bytes, and selected interleave/data-type cases require 32 bytes. A 128-byte global alignment applies to particular swizzle considerations, not every descriptor or tensor base."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c015",
+      "claim": "Gate and up necessarily require two separate TMEM allocations that compete for the entire 256-KB SM budget.",
+      "claim_type": "code",
+      "covers": ["u017"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The benchmark contract represents gate and up as one concatenated W13 tensor and one logical 2I-wide GEMM result, then splits it for SwiGLU. It does not require two independent accumulator allocations."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c016",
+      "claim": "The exact kernel contract applies to DeepSeek-V3, Mixtral, and other MoE inference models without further compatibility checks.",
+      "claim_type": "compatibility",
+      "covers": ["u018"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"tags, axes, and signature","observation":"The definition is specifically tagged DeepSeek-V3/R1 and fixes routing method, 256/32 expert geometry, FP8 type, block-scale layouts, and dimensions. It contains no Mixtral compatibility statement."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c017",
+      "claim": "The benchmark directly establishes both prefill and decode behavior by treating high batch as prefill and low batch as decode.",
+      "claim_type": "compatibility",
+      "covers": ["u019"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"Axes","observation":"The trace varies seq_len/number of tokens and does not label workloads as serving prefill, decode, or request batch size."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c018",
+      "claim": "A W13/SwiGLU fusion is appropriate when a matched measurement shows it improves the intended workload over separate projections.",
+      "claim_type": "performance",
+      "covers": ["u020"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The reference contract permits one concatenated W13 matmul and immediate SwiGLU, so the candidate fusion preserves the logical operation; the page conditions use on an actual measured benefit rather than asserting one."}],
+      "challenge": {"alternative":"Combining gate and up always wins regardless of layout or workload.","check":"Read the conditional wording and compare it with the contract rather than an unqualified speed claim.","outcome":"The claim applies only after a matched measurement, so it does not assert universal benefit."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c019",
+      "claim": "A routing-through-combine implementation must coordinate grouped routing, local expert selection, W13, activation, W2, and weighted accumulation.",
+      "claim_type": "code",
+      "covers": ["u021"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"DeepSeek routing reference and _fp8_moe_run_experts","observation":"The official reference spells out each of these dependent stages and their global/local expert mapping."}],
+      "challenge": {"alternative":"The single public API call means the implementation contract is only one simple matrix operation.","check":"Inspect the reference implementation behind the wrapper.","outcome":"The call is a wrapper; the reference separately implements routing, two GEMMs, activation, and weighted accumulation."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c020",
+      "claim": "Expert load imbalance is the single primary bottleneck for all practical workloads of this definition.",
+      "claim_type": "performance",
+      "covers": ["u022"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoERunner tuning and separate GEMM1/GEMM2 tactic selection","observation":"The implementation selects shape- and architecture-valid tactics separately for the two GEMMs across token buckets, rather than encoding one universal primary bottleneck."},{"path":"/tmp/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md","revision":"commit 75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"MoE evaluation and scoring","observation":"The contest measures whole-operation latency across workloads and publishes no profile that ranks load imbalance as the primary cause."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c021",
+      "claim": "CUDA graph compatibility universally requires a fixed masked expert layout.",
+      "claim_type": "compatibility",
+      "covers": ["u023"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (masked layout)","observation":"DeepGEMM presents masked layout as one supported decoding case when CUDA graphs are enabled and the CPU does not know expert token counts, not as a universal CUDA-graph requirement."},{"path":"artifacts/kernels/fused-moe/full/flashinfer_cutedsl.py","revision":"SGLang c554dc5c64b661f2c53225b03a76359eaddc39e4; SHA-256 de6bd663...","locator":"ensure_cutedsl_wrapper and standard dispatch function","observation":"This exact upstream FP4-adjacent runner preallocates CUDA-graph buffers while accepting StandardDispatchOutput; it does not impose DeepGEMM's masked M-grouped ABI."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c022",
+      "claim": "Small per-expert M dimensions can leave too few or partially filled GEMM tiles and reduce GPU utilization.",
+      "claim_type": "performance",
+      "covers": ["u024"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/efficient_gemm.md","revision":"CUTLASS documentation fetched 2026-08-08","locator":"Threadblock-level GEMM","observation":"NVIDIA states that small M or N can leave threads outside the problem and that small M/N with large K may launch too few threadblocks to use all SMs."}],
+      "challenge": {"alternative":"Grouped scheduling always combines enough small expert problems to eliminate thin-GEMM inefficiency.","check":"Read the stated small-dimension tile/wave conditions and distinguish mitigation from elimination.","outcome":"Grouping can increase aggregate parallel work but individual problem tiles may remain partial; the claim says can cause, not must dominate."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c023",
+      "claim": "The benchmark's FP8 block-scale format stores additional scale-factor tensors beyond its quantized activations and weights.",
+      "claim_type": "compatibility",
+      "covers": ["u025"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition fetched 2026-08-08","locator":"Signature","observation":"The inputs explicitly include three non-empty FP32 scale tensors with shapes [56,T], [32,32,56], and [32,56,16] in addition to FP8 data tensors."}],
+      "challenge": {"alternative":"Scales are implicit in FP8 payloads and require no separate storage.","check":"Inspect the signature's independent tensor names, dtypes, and shapes.","outcome":"All three scale arrays are explicit inputs; the claim is limited to storage existence and does not quantify a performance penalty."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c024",
+      "claim": "The FlashInfer MLSys 2026 contest link is the organizer page for Track A.",
+      "claim_type": "other",
+      "covers": ["u026"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://mlsys26.flashinfer.ai/","revision":"site fetched 2026-08-08","locator":"Track A Fused MoE","observation":"The live organizer page identifies Track A and links the exact FP8 MoE definition."}],
+      "challenge": {"alternative":"The URL is stale or belongs to a different contest track.","check":"Open the page and follow the Track A link.","outcome":"The page is live, identifies MLSys 2026 NVIDIA Track, and names Fused MoE as Track A."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c025",
+      "claim": "GPU Mode NVFP4 Hackathon Problem 3 is a source for this FP8 routed MoE benchmark.",
+      "claim_type": "compatibility",
+      "covers": ["u027"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels 51e22db671d36c1c76091c43c36a44546ba324a1","locator":"task inputs and output","observation":"Problem 3 is an NVFP4 dual GEMM over A, B1, and B2; it contains no expert routing, local-expert offset, W2 down projection, or FP8 DeepSeek block-scale MoE contract."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c026",
+      "claim": "DeepGEMM's MoE implementation is direct evidence for this exact FlashInfer FP8 Track A contract.",
+      "claim_type": "compatibility",
+      "covers": ["u028"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs and Mega MoE sections","observation":"The repository supplies generic grouped GEMMs and a distributed FP8xFP4 Mega MoE path with symmetric memory; it does not define the contest's routing-logit ABI, fixed FP8 tensors, or FlashInfer wrapper."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c027",
+      "claim": "The linked SGLang code is direct evidence for the exact FP8 Track A benchmark implementation and its asserted launch/performance table.",
+      "claim_type": "compatibility",
+      "covers": ["u029"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/fused-moe/full/flashinfer_cutedsl.py","revision":"SGLang c554dc5c64b661f2c53225b03a76359eaddc39e4; SHA-256 de6bd663...","locator":"module constants and registered fused function","observation":"The byte-matched upstream file is a standard-path FP4 CuteDSL runner: it quantizes activations with fp4_quantize and invokes CuteDslMoEWrapper. It is not the FP8 DeepSeek benchmark and contains no asserted table values or launch counts."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c028",
+      "claim": "The local full bundle is a verbatim upstream implementation of the page's FP8 fused MoE, and its derived variant faithfully represents production fusion.",
+      "claim_type": "code",
+      "covers": ["u030"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/fused-moe/full/PROVENANCE.yaml","revision":"SHA-256 3832ddeeeafe8055e44c890283926365817763af2c724c54cce0872c53699f17","locator":"bundle notes and file entries","observation":"The bundle mixes an MXFP4 vLLM PR diff, an FP4 SGLang runner, and locally extracted pseudocode, so it is not one upstream FP8 implementation."},{"path":"artifacts/kernels/fused-moe/variants/01-routing-plus-fusion-skeleton.py","revision":"SHA-256 2cc640b1baa1a6cd42718616ffe2cf78a9b6d4eb3317464f059c6fd442439342","locator":"fused_moe_forward","observation":"The derived function incorrectly boolean-multiplies masks for routing-weight indexing and asserts that three unrelated projects fuse all stages; it is neither a correct reference nor production code."}]
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c029",
+      "claim": "scripts/get_page.py can retrieve kernel-fused-moe with its artifact code, while an unknown page ID fails.",
+      "claim_type": "code",
+      "covers": ["u031", "u032"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py kernel-fused-moe --include-code","environment":"KernelWiki worktree; conda base","reference":"scripts/get_page.py","result":"Exited 0 and emitted the fused-moe page plus artifact content.","negative_control":"kernel-fused-moe-broken exited 1 with 'No page found'."}],
+      "challenge": {"alternative":"The command only prints Markdown and silently ignores --include-code or unknown IDs.","check":"Run the documented command and an unknown-ID negative control.","outcome":"The real ID emitted artifact-inclusive output and the control failed distinctly."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-original-c030",
+      "claim": "A reproducible structured B200 record establishes 1262 TFLOPS at topk=8, experts=32, H=7168, I=2048, batch=4096 and about 56% utilization.",
+      "claim_type": "performance",
+      "covers": ["u033"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"definition and traces fetched 2026-08-08","locator":"Axes, traces, and serialized solutions","observation":"The definition uses seq_len and distinguishes 256 global from 32 local experts. It has no 1262-TFLOPS or 56%-utilization record, and the repository page supplies no timing method, repetitions, variance, or exact source cell for the structured value."}]
+    }
+  ],
+  "commands": [
+    "inspect FlashInfer-Bench definition and serialized official reference/baseline wrapper fetched 2026-08-08",
+    "inspect FlashInfer 7f614b8 trace template, API, runner validation, and autotuner",
+    "inspect flashinfer-bench-starter-kit 75ccd05 evaluation contract",
+    "inspect vLLM PR 23696 merge 074854b2, SGLang c554dc5c, DeepGEMM 891d57b4, GPU Mode reference-kernels 51e22db, and CUDA 13.2.1 TMA requirements",
+    "run get_page positive and unknown-ID negative controls under conda base"
+  ],
+  "residual_risk": "No B200, CUDA toolkit, or contest dataset is installed locally, so no candidate kernel, launch trace, numeric accuracy, or performance result was reproduced. Performance entries without a complete official record were removed rather than inferred from serialized historical traces.",
+  "scope": "All 33 baseline units for body hash c3f18f75c945dcd3475248cde9377aacfb323444fc25b68d9eef038acb26e09d were checked against the official contest/benchmark contract and pinned first-party implementations."
+}

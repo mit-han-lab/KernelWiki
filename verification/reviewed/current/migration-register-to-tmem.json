@@ -1,0 +1,130 @@
+{
+  "path": "wiki/migration/register-to-tmem.md",
+  "id": "migration-register-to-tmem",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "migration-register-to-tmem-current-c001",
+      "claim": "The Hopper description correctly gives the per-thread FP32 D fragment as N/2 registers for wgmma.m64nNk16, hence 128 at N=256, and identifies WGMMA asynchronous fence/commit/wait before dependent use.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"f32 D fragment and WGMMA async proxy operations","observation":"The fragment is N/2 f32 registers per thread and WGMMA defines fence, commit_group, and wait_group ordering/completion operations."}],
+      "challenge": {"alternative":"128 is a warpgroup total or WGMMA completes synchronously when issued.","check":"Inspect the per-thread fragment wording and async-proxy group operations.","outcome":"The count is explicitly per thread and dependent access requires the documented async lifecycle."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c002",
+      "claim": "The Blackwell description accurately gives TMEM's 128-by-512-by-32-bit CTA-visible structure and tcgen05 D residency while narrowing the benefit to removal of resident D registers, not elimination of all register, occupancy, spill, or tile constraints.",
+      "claim_type": "mechanism",
+      "covers": ["u002", "u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM organization and tcgen05 D","observation":"The dimensions/cell width and distinct TMEM D destination match; 128*512*4 bytes is 256 KiB."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"occupancy bullets","observation":"Compute capability 10.0 retains 64K 32-bit registers/SM and a 255-register/thread maximum, so the limitations are correctly preserved."}],
+      "challenge": {"alternative":"TMEM replaces the entire register file or guarantees a larger resident tile/CTA count.","check":"Separate the MMA D operand location from all other kernel live state and occupancy resources.","outcome":"Only D residency changes categorically; the page explicitly requires whole-kernel compiled evidence for the rest."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c003",
+      "claim": "All seven storage/lifecycle table rows correctly contrast WGMMA register D and scale-d/group completion with tcgen05 TMEM D, enable-input-d, commit/mbarrier, collective ld/wait, explicit deallocation, and disjoint storage for simultaneous live outputs.",
+      "claim_type": "mechanism",
+      "covers": ["u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA D, scale-d, commit/wait","observation":"Register D and false scale-d D=A*B semantics match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"same archive","locator":"tcgen05 D, enable-input-d, commit, ld, waits, allocation","observation":"TMEM destination, false-predicate first write, completion/readback, and cleanup rows match the separate instruction contracts."}],
+      "challenge": {"alternative":"An instruction tile is always a CTA tile or two buffers can overlap the same TMEM columns safely.","check":"Inspect descriptor-defined instruction shapes and TMEM address/lifetime rules.","outcome":"The page explicitly rejects the tile equivalence and requires disjoint live regions."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c004",
+      "claim": "Lifecycle steps 1-2 accurately state one CTA-group mode, power-of-two column allocation in [32,512] across all 128 lanes, whole-warp cta_group::1 execution, shared taddr publication, and peer-liveness requirements for cta_group::2.",
+      "claim_type": "mechanism",
+      "covers": ["u012", "u013"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation range/unit, issue granularity, shared result, peer and group rules","observation":"Every stated allocation and participation condition matches the normative section."}],
+      "challenge": {"alternative":"One elected lane can allocate because only one shared taddr is returned, or peer allocation can launch the second CTA implicitly.","check":"Read mandatory sync/aligned warp granularity and cta_group::2 peer activity conditions.","outcome":"All lanes of the designated warp participate and the peer must already be launched/live."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c005",
+      "claim": "Lifecycle steps 3-5 correctly distinguish barrier publication, false enable-input-d first-write semantics, valid single-thread MMA issue and descriptors, and tcgen05 commit/mbarrier completion from fence-only ordering.",
+      "claim_type": "mechanism",
+      "covers": ["u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"MMA grammar, issue granularity, D predicate and lifetimes","observation":"The descriptor/predicate/single-thread and D=A*B conditions match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"commit versus fence completion/ordering","observation":"Commit attaches completion to an mbarrier, while fences order execution without completing the asynchronous MMA."}],
+      "challenge": {"alternative":"Zero-storing all TMEM is mandatory or __syncthreads after a fence completes MMA.","check":"Use false enable-input-d semantics and the distinct commit/fence specifications.","outcome":"The predicate supplies first-write semantics and only the completion path licenses consumers/reuse."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c006",
+      "claim": "Lifecycle steps 6-7 correctly require collective legal tcgen05.ld plus wait::ld before register use, reader completion before overwrite/free, matching collective deallocation, and coverage of every kernel exit path.",
+      "claim_type": "mechanism",
+      "covers": ["u017", "u018"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ld collectivity, asynchronous completion, wait and lifetimes","observation":"The readback requirements match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"same archive","locator":"matching deallocation and before-exit obligation","observation":"All allocated TMEM must be deallocated collectively with matching address/count/group before exit."}],
+      "challenge": {"alternative":"Lane 0 may deallocate after issuing loads because wait::ld is warp-local and kernel exit releases the rest.","check":"Combine load lifetime with deallocation issue granularity and explicit-exit rule.","outcome":"All readers must finish and all lanes of the designated warp must execute deallocation; exit is not implicit cleanup."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c007",
+      "claim": "The six representative PTX forms are legal PTX ISA 9.0 forms and the surrounding warning accurately identifies the declarations, descriptors, participation, barrier, and inline-assembly context they omit.",
+      "claim_type": "code",
+      "covers": ["u019", "u020"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"alloc, unscaled f16 MMA, commit, 32x32b.x1 ld, wait::ld, and dealloc grammars","observation":"Every exact form is listed with the contextual constraints named by the page."}],
+      "challenge": {"alternative":"The forms compose into a runnable sequence as displayed or the MMA predicate may be a literal integer.","check":"Inspect required operand declarations/types and asynchronous/collective prerequisites.","outcome":"The page calls them representative forms only and explicitly denies standalone status."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c008",
+      "claim": "The overlap section gives the necessary compute-complete, read-complete, and nonaliasing stage-ownership edges and correctly rejects TMEM as a prerequisite for all tensor/non-matmul overlap by citing Hopper FA3.",
+      "claim_type": "mechanism",
+      "covers": ["u021", "u022", "u023", "u024", "u025"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"completion and operand lifetime rules","observation":"The three edges follow directly from asynchronous completion, TMEM read lifetime, and safe destination reuse."},{"url":"https://arxiv.org/abs/2407.08608","revision":"FlashAttention-3 paper","locator":"Hopper warp specialization and matmul/softmax interleaving","observation":"FA3 is a primary counterexample to the claim that register accumulators make overlap impossible."}],
+      "challenge": {"alternative":"Disjoint addresses alone make overlap safe or FA3 only overlaps TMA with MMA.","check":"Trace completion/reuse edges and read FA3's explicit matmul/softmax interleaving contribution.","outcome":"Disjoint storage does not supply completion, and FA3 explicitly overlaps tensor-core and non-matmul work on Hopper."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c009",
+      "claim": "The FA4 case study accurately reports TMEM score/output accumulators and specialized MMA/softmax/correction roles, software-selected polynomial exp2 work, and an author-reported up-to-1605-TFLOP/s B200 BF16 maximum labeled 71 percent without deriving universal resource claims.",
+      "claim_type": "performance",
+      "covers": ["u026"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2603.05451v1","revision":"FlashAttention-4 paper v1","locator":"forward architecture and TMEM mapping","observation":"The accumulator placement and warp roles match."},{"url":"https://tridao.me/blog/2026/flash4/","revision":"Tri Dao first-party post, fetched 2026-08-08","locator":"software exp and performance sections","observation":"The software-selected FMA polynomial and up-to-1605/71-percent author result match the scoped wording."}],
+      "challenge": {"alternative":"The result establishes a fixed register count or migration-only speedup for every FA workload.","check":"Inspect what the paper/post actually report versus omitted compiler resource rows and ablations.","outcome":"The page explicitly limits the number to a source-reported maximum and draws no universal resource conclusion."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c010",
+      "claim": "The retuning workflow correctly requires concrete compiler resource data, CUDA occupancy calculation, legal-shape and pipeline sweeps, controlled benchmarks, and generated-code inspection while rejecting a fixed 420-cycle tcgen05.ld theorem.",
+      "claim_type": "performance",
+      "covers": ["u027", "u028", "u029", "u030", "u031", "u032"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy APIs and resource dependence","observation":"Occupancy requires actual launch/resource inputs rather than tile inference."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"PTX ISA 9.0","locator":"ld shape/semantics","observation":"The ISA defines legal collective mappings/completion but no universal latency."}],
+      "challenge": {"alternative":"ISA legality plus TMEM capacity is sufficient to choose the fastest tile without compiling or timing.","check":"Compare architecture legality with documented multi-resource occupancy and absence of timing guarantees.","outcome":"Legality cannot establish allocation, residency, spills, or workload performance; the measurement workflow is necessary."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c011",
+      "claim": "All six common-error bullets follow from the verified TMEM instruction-only address space, collective issue rules, distinct fence/completion semantics, enable-input-d first-write behavior, finite registers, and mandatory explicit deallocation.",
+      "claim_type": "mechanism",
+      "covers": ["u033", "u034", "u035", "u036", "u037", "u038"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"addressing, allocation, MMA, fence/commit, ld/st/wait and deallocation","observation":"The dedicated address model and each lifecycle rule directly support the warnings."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"finite register resources","observation":"Moving D does not establish whole-kernel no-spill behavior."}],
+      "challenge": {"alternative":"The bullets are merely conservative style preferences and lane-0/fence/implicit-exit forms are still legal shortcuts.","check":"Read the mandatory aligned collective, asynchronous completion, and explicit deallocation language.","outcome":"Those shortcuts violate normative behavior; only the performance-tuning warning remains empirical as stated."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-current-c012",
+      "claim": "All eight primary URLs and three related local links resolve to the named archived sections, papers, and pages; fabricated external and local controls fail.",
+      "claim_type": "other",
+      "covers": ["u039", "u040", "u041", "u042", "u043", "u044", "u045", "u046", "u047", "u048", "u049"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"HTTP-check eight primary URLs; resolve three relative links and inspect target IDs; repeat with fabricated HTTP and local paths","environment":"current KernelWiki worktree and network, 2026-08-09","reference":"Targets should resolve to archived CUDA 13.0.2 sections, FA3/FA4 papers, hw-tmem, hw-tcgen05-mma, and pattern-register-pressure.","result":"All eight URLs returned HTTP 200 and all three files existed with expected IDs.","negative_control":"A fabricated CUDA archive page returned HTTP 404 and wiki/migration/not-register-to-tmem.md was absent."}],
+      "challenge": {"alternative":"Anchor redirects mask a missing document or a similarly named relative page is used.","check":"Require exact page HTTP success and inspect local frontmatter IDs against link intent.","outcome":"Every exact document/page resolved and both broken controls failed."}
+    }
+  ],
+  "commands": ["conda-base arithmetic checks for fragment and capacity formulas", "archived primary-source inspection", "external/local link checks with negative controls"],
+  "scope": "All 49 current units for body hash 7f0bb2f02e5a9f1f50c0c9003dc0baeeee3685876e3897726abbd12a14ae611a were checked against CUDA 13.0.2 PTX ISA 9.0, archived tuning guidance, FA3/FA4 primary sources, and host controls.",
+  "residual_risk": "No Hopper/Blackwell compiler or GPU is installed locally. The page intentionally contains no concrete occupancy or migration-speed claim; users must obtain compiler resources and target measurements for their kernel."
+}

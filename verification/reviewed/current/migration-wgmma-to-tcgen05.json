@@ -1,0 +1,177 @@
+{
+  "path": "wiki/migration/wgmma-to-tcgen05.md",
+  "id": "migration-wgmma-to-tcgen05",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c001",
+      "claim": "The migration comparison accurately maps issue granularity, accumulator and operand locations, completion, ordering, and narrow-format differences without assuming one WGMMA or tcgen05 A path.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006", "u007", "u008", "u009"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-matrix-multiply-and-accumulate-operations",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA operand/execution sections; tcgen05 issue, MMA grammar, kind, fence, and commit sections",
+          "observation": "Every current table cell matches the pinned instruction models, including both A-location alternatives and separate completion/ordering mechanisms."
+        }
+      ],
+      "challenge": {
+        "alternative": "The rewrite still assumes WGMMA register A or tcgen05 SMEM A universally.",
+        "check": "Compare the table and following warning with all SS/RS and SMEM/TMEM A grammar alternatives.",
+        "outcome": "The current page states both alternatives and makes porting conditional on the exact old form."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c002",
+      "claim": "The dependency-ordered checklist preserves the required operand inventory, legal instruction selection, collective TMEM lifecycle, source lifetime, completion, epilogue transfer, cta_group consistency, and workload retuning steps.",
+      "claim_type": "semantics",
+      "covers": ["u010", "u011", "u012", "u013", "u014", "u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "alloc/dealloc, MMA source lifetime, commit, ld, descriptor, and cta_group rules",
+          "observation": "The checklist follows the normative dependency order and confines performance-sensitive choices to explicit retuning."
+        }
+      ],
+      "challenge": {
+        "alternative": "The checklist releases A/B after issue, deallocates before epilogue, or treats fences as completion.",
+        "check": "Trace source lifetime, completion, load, and deallocation ordering through steps 3-7.",
+        "outcome": "Storage remains live through completion, epilogue transfer follows completion, and deallocation occurs before exit without an unsafe early placement."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c003",
+      "claim": "The TMEM lifecycle section correctly states the b32 shared-memory allocation result, power-of-two column constraints, warp-collective group-1 issue, two-warp group-2 issue, and mandatory deallocation before exit.",
+      "claim_type": "semantics",
+      "covers": ["u018", "u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.7.1 syntax, description, issue rules, and before-exit mandate",
+          "observation": "Each lifecycle statement follows directly from the allocation-management section and Table 46."
+        }
+      ],
+      "challenge": {
+        "alternative": "alloc is lane-0-issued like MMA, or CTA teardown implicitly handles deallocation.",
+        "check": "Inspect mandatory sync/aligned warp semantics and the explicit deallocate-before-exit sentence.",
+        "outcome": "The current page correctly rejects both alternatives."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c004",
+      "claim": "The synchronization section correctly assigns MMA completion to commit/mbarrier and cross-thread ordering/code-motion control to tcgen05 fences composed with execution-ordering operations.",
+      "claim_type": "semantics",
+      "covers": ["u020"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "mbarrier-based completion, specialized inter-thread synchronization, and fence description",
+          "observation": "The ISA gives the two mechanisms the distinct guarantees stated by the page."
+        }
+      ],
+      "challenge": {
+        "alternative": "fence plus __syncthreads drains the MMA pipeline and commit is optional.",
+        "check": "Compare the explicit completion list with fence's ordering-only contract.",
+        "outcome": "Only commit/mbarrier tracks MMA completion, matching the rewrite."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c005",
+      "claim": "The epilogue section accurately describes warp-access-restricted, asynchronous tcgen05.ld transfer into GPRs and the need for tcgen05.wait::ld when completion must be observed.",
+      "claim_type": "semantics",
+      "covers": ["u021"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.8.1 access restrictions, 9.7.16.8.3 tcgen05.ld, and wait-based completion",
+          "observation": "TMEM is lane-partitioned by warp, ld transfers to register vectors asynchronously, and wait::ld observes load completion."
+        }
+      ],
+      "challenge": {
+        "alternative": "Any single thread can read arbitrary TMEM lanes synchronously into scalar variables.",
+        "check": "Inspect issue/access restrictions and async completion for ld.",
+        "outcome": "The current warp-level description preserves the actual access model."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c006",
+      "claim": "The layout and shape guidance correctly treats 128B swizzling and maximum BF16 tiles as optional configuration examples rather than universal correctness or factor-of-two migration rules.",
+      "claim_type": "semantics",
+      "covers": ["u022", "u023"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "Table 40 swizzle modes; instruction descriptor and data-path layouts",
+          "observation": "The ISA defines multiple valid swizzles and shapes, with M/N selected through idesc under configuration-specific constraints."
+        }
+      ],
+      "challenge": {
+        "alternative": "Only 128B and M=128/256 are valid dense tcgen05 choices.",
+        "check": "Inspect alternative descriptor encodings and multiple layout organizations.",
+        "outcome": "The pinned tables directly support the current non-categorical wording."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c007",
+      "claim": "The role and register-budget guidance correctly separates single-thread MMA issue from total kernel thread needs and recommends retuning without guaranteeing occupancy gains.",
+      "claim_type": "mechanism",
+      "covers": ["u024", "u025"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "role partition, pipeline participants, and TMEM accumulator path",
+          "observation": "The example combines single-thread MMA issue with warp/CTA work for TMA, allocation, and accumulator consumption, demonstrating that total role counts remain a design variable."
+        }
+      ],
+      "challenge": {
+        "alternative": "Single-thread issue means a one-thread kernel is optimal or guarantees more resident CTAs.",
+        "check": "Compare issue granularity with all collective pipeline roles and resource constraints.",
+        "outcome": "The current page explicitly rejects that inference and recommends measurement."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-current-c008",
+      "claim": "The CUTLASS guidance matches the pinned SM100 construction flow and exact schedule identifiers, and points to an existing complete example.",
+      "claim_type": "compatibility",
+      "covers": ["u026", "u027"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/70_blackwell_gemm/70_blackwell_fp16_gemm.cu",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "CollectiveBuilder, kernel::GemmUniversal, and device adapter; include/cutlass/gemm/dispatch_policy.hpp schedule tags",
+          "observation": "The current description follows the example's construction and both named 1SM/2SM schedule tags exist in the pinned dispatch-policy header."
+        }
+      ],
+      "challenge": {
+        "alternative": "A single nonexistent schedule alias still appears or the example uses device::GemmUniversal directly.",
+        "check": "Exact-token search the current names and trace the example's type chain.",
+        "outcome": "Only existing pinned names remain and the kernel/device layering is described accurately."
+      }
+    }
+  ],
+  "scope": "All 27 freshly rescanned current units were verified against CUDA 13.0.2 PTX ISA 9.0 and pinned CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5.",
+  "residual_risk": "No CUDA toolchain or NVIDIA GPU is available locally, so this is an evidence-scoped migration procedure rather than a compiled port. Workload-specific performance still requires target-hardware validation."
+}

@@ -1,0 +1,74 @@
+{
+  "path": "wiki/techniques/warp-specialization.md",
+  "id": "technique-warp-specialization",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-warp-specialization-current-c001",
+      "claim": "The page correctly defines warp specialization as software role partitioning and limits the ISA contrast to WGMMA warpgroup issue/register D versus tcgen05 one-thread issue/TMEM D, while retaining explicit operands and asynchronous completion.",
+      "claim_type": "mechanism",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006", "u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions-wgmma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA description, operands and completion","observation":"WGMMA is warpgroup-level, uses per-thread accumulator registers, explicit A/B operands and commit/wait groups."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"same archive","locator":"tcgen05.mma thread, operands and D semantics","observation":"The instruction is issued by one thread, writes D in TMEM, consumes explicit descriptors/addresses and is asynchronous."}],
+      "challenge": {"alternative":"Single-thread issue implies a mandatory dedicated MMA warp and autonomous hardware operand movement.","check":"Read the normative participation rule and full operand grammar separately from a software kernel's branch structure.","outcome":"PTX names an executing thread and explicit operands but assigns no persistent warp role; the page preserves that boundary."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-current-c002",
+      "claim": "The three version-pinned role maps accurately describe the four-warp tutorial, CUTLASS 4.5.0's four control categories plus variable epilogue warps, and the 16-warp FlashInfer/FA4 attention layouts without promoting any one map to an architecture rule.",
+      "claim_type": "mechanism",
+      "covers": ["u008", "u009", "u010", "u011", "u012"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v4.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_WARPS, role branches and common epilogue","observation":"Exactly four warps launch; elected lanes in 0/1 run load/compute and all threads execute the output path after completion."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"thread-count constants and WarpCategory","observation":"MMA/Sched/MainloopLoad/EpilogueLoad occupy the first four warps and remaining epilogue count derives from CollectiveEpilogue::ThreadCount."},{"path":"artifacts/prs/flashinfer/PR-1039/key-files/include/flashinfer/attention/blackwell/kernel/sm100_fmha_fwd_kernel_tma_warpspecialized.hpp","revision":"captured PR 1039 revision 9a05c92a","locator":"Sm100FmhaCtxKernelWarpspecializedSchedule","observation":"The explicit 0-15 role mapping matches the table."},{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f","locator":"warp ID tuples and configuration adjustments","observation":"The initial role sets and conditional reassignment match the scoped FA4 paragraph."}],
+      "challenge": {"alternative":"All examples reduce to the same 1/1/14 structure after counting elected lanes.","check":"Count launched warps and trace which warps execute scheduler, load, correction and epilogue branches in each source.","outcome":"The sources have materially different totals and roles; the page's configuration-specific presentation is required."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-current-c003",
+      "claim": "The synchronization checklist correctly requires initialized/published barriers, expected TMA transactions, data-ready wait and proxy ordering, tcgen05 commit-and-wait before stage reuse, a separate cross-thread TMEM handoff, and completion of TMEM loads before deallocation.",
+      "claim_type": "semantics",
+      "covers": ["u013", "u014", "u015", "u016", "u017", "u018", "u019", "u020"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mbarrier initialization, phases, transactions and visibility","observation":"Initialization/publication and expected-transaction phase completion match the first handoff steps."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"tcgen05 commit and completion","observation":"Commit associates prior async work with an mbarrier; completion must be observed before operands/results are handed off."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"same archive","locator":"before/after_thread_sync ordering","observation":"The fences pair with execution ordering and are explicitly not completion waits."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-dealloc","revision":"same archive","locator":"TMEM deallocation and prior-operation completion","observation":"TMEM must remain valid through dependent operations and deallocation has collective constraints."}],
+      "challenge": {"alternative":"syncwarp after issue is enough because one elected lane submitted the MMA.","check":"Distinguish warp execution convergence from asynchronous tensor-core completion and operand lifetime.","outcome":"syncwarp does not track tcgen05 completion; the page correctly requires commit/mbarrier completion and separate ordering."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-current-c004",
+      "claim": "The tutorial paragraph accurately reports v3=939.61 and v4=1208.83 TFLOP/s for the disclosed 4096-cubed B200 setup, computes a 269.22/28.65-percent step, and refuses to generalize it.",
+      "claim_type": "performance",
+      "covers": ["u021"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"sources/blogs/tcgen05-tutorial.md","revision":"Gau Nernst article and source commit 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"scope and source-reported progression","observation":"The source card gives the exact environment and adjacent v3/v4 values with warp specialization as the v4 change."}],
+      "challenge": {"alternative":"The percentage is an architecture-wide isolated speedup or includes a different baseline.","check":"Recompute from adjacent source rows and inspect disclosed scope/other changes.","outcome":"(1208.83/939.61-1)=28.6523%; the page labels it a source-variant step only."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-current-c005",
+      "claim": "The selection guidance treats specialization, role counts and 1SM/2SM mode as independently measured choices and identifies the relevant balance/resource/correctness counters without claiming a universal optimum.",
+      "claim_type": "performance",
+      "covers": ["u022", "u023", "u024", "u025", "u026", "u027", "u028"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v3.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"temporally pipelined predecessor","observation":"A non-specialized pipeline provides the exact kind of controlled baseline requested."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"role counts, shared storage, cluster shape and pipeline state","observation":"The implementation exposes configuration/resource dimensions corresponding to the proposed controls and supplies no universal participant count."}],
+      "challenge": {"alternative":"One MMA warp inherently serializes the tensor cores and 2SM is always the remedy.","check":"Inspect the tutorial's elected-lane issue loop and separate CTA-group selection from outstanding async MMA submission.","outcome":"One lane submits multiple operations before commit, while 1SM/2SM legality and resources are separate; the page's measurement-first rule holds."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-current-c006",
+      "claim": "The local bundle section accurately distinguishes captured and derived modes, reports local hash/duplicate agreement plus the unavailable historical upstream ref, and the Conda-base retrieval command emits both artifact modes.",
+      "claim_type": "code",
+      "covers": ["u029", "u030", "u031", "u032"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"sha256sum full/variant files; cmp full file with PR-1039 key-file; git ls-remote/fetch historical revision; conda run -n base python scripts/get_page.py technique-warp-specialization --include-code","environment":"Repository host, network available, no GPU","reference":"Provenance hashes/modes and documented retrieval behavior","result":"Hashes and duplicate full bytes agree; variants declare derived; the abbreviated 9a05c92a object was not fetchable while the page explicitly records that limit; get_page exited zero and emitted both bundles.","negative_control":"The derived file differs from the captured full file and a nonexistent page ID fails."}],
+      "challenge": {"alternative":"The page overstates the full file as freshly verified upstream or lets the derived skeleton masquerade as canonical code.","check":"Compare the exact wording with provenance mode and failed remote retrieval result.","outcome":"It says locally hash-verified captured evidence, explicitly disclaims fresh retrieval, and warns that the derived skeleton is not complete upstream code."}
+    }
+  ],
+  "commands": [
+    "conda run -n base python compute tutorial delta and retrieve page artifacts",
+    "rg exact role maps in pinned tutorial, CUTLASS, FlashInfer and FlashAttention sources",
+    "sha256sum/cmp artifacts and test historical remote revision"
+  ],
+  "scope": "All 32 current semantic units for body hash 9cff7bf68b39a3b6cef5c930d99bd525e7e3f232e933f44bee877722f8ecaa6c were checked against pinned ISA/source and discriminating host checks.",
+  "residual_risk": "No CUDA compiler or SM100 GPU is available, so performance guidance remains an evaluation protocol. The historical abbreviated FlashInfer object could not be freshly fetched; local captured evidence is scoped accordingly."
+}

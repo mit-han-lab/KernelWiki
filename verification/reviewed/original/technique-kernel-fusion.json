@@ -1,0 +1,75 @@
+{
+  "path": "wiki/techniques/kernel-fusion.md",
+  "id": "technique-kernel-fusion",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-kernel-fusion-original-c001",
+      "claim": "Kernel fusion always eliminates intermediate global-memory round trips and is critical because MoE/attention pipelines generally use five to seven launches.",
+      "claim_type": "performance",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"Track A reference operation","observation":"The operation includes routing and two grouped GEMMs but defines observable semantics, not a launch count or guarantee that every intermediate remains on chip."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"CUTLASS v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"fusion operation graph types","observation":"Fusion describes in-kernel expression composition; whether a specific unfused baseline would materialize an intermediate and whether the fused schedule avoids all traffic are separate implementation facts."}]
+    },
+    {
+      "claim_id": "technique-kernel-fusion-original-c002",
+      "claim": "The displayed CUDA kernel is a valid fused dual-GEMM implementation using two independent 256-column TMEM allocations.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM allocation, address and capacity rules","observation":"TMEM allocation is collective, returns a shared result, must obey legal column counts and lifecycle rules, and the SM has 512 columns total. The sketch's tmem_alloc/tmem_load/tcgen05_mma calls are invented and omit completion/free semantics."},{"url":"https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"dual-GEMM correctness reference","observation":"The operation requires two scaled matrix products and SwiGLU but does not prescribe two TMEM allocations or this instruction schedule."}]
+    },
+    {
+      "claim_id": "technique-kernel-fusion-original-c003",
+      "claim": "vLLM uses the listed seven-kernel graph, SGLang the listed five-kernel graph, and an ideal one-to-two-launch implementation saves exactly 21.9% activation traffic.",
+      "claim_type": "performance",
+      "covers": ["u003", "u004", "u005"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"FlashInfer Track A benchmark definition checked 2026-08-08","locator":"operation definition and traces","observation":"The primary benchmark defines routing and expert computations but provides no framework launch counts, ideal launch topology, or 21.9% traffic result."},{"url":"https://github.com/flashinfer-ai/flashinfer/blob/7f614b86470180bab2d22e36fd1775791c6bf3e6/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoE reference","observation":"The reference uses one logical W13 projection split for SwiGLU and does not support the page's gate/up launch decomposition or cross-framework counts."}]
+    },
+    {
+      "claim_id": "technique-kernel-fusion-original-c004",
+      "claim": "SM100 has only 256 TMEM columns total, which directly limits the number of fused accumulators.",
+      "claim_type": "compatibility",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM organization","observation":"Each SM exposes 512 columns of 128 lanes, not 256 total. Accumulator feasibility also depends on mapping, datatype, shapes and simultaneous lifetimes."}]
+    },
+    {
+      "claim_id": "technique-kernel-fusion-original-c005",
+      "claim": "Fusing a complex epilogue can increase register/resource pressure and reduce occupancy, so the resource impact must be measured.",
+      "claim_type": "performance",
+      "covers": ["u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"resource-dependent occupancy","observation":"Registers and shared memory per block constrain resident blocks; adding live epilogue state can therefore affect occupancy, without guaranteeing that it does."}],
+      "challenge": {"alternative":"Fusion always lowers pressure because it deletes intermediate buffers.","check":"Distinguish global buffers from per-thread registers and per-block shared state used by the fused expression.","outcome":"Deleting a global tensor does not remove the extra values that must remain live inside the fused kernel."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-original-c006",
+      "claim": "A fusion opportunity requires a dependency graph that is DAG-compatible with CTA scope.",
+      "claim_type": "mechanism",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"routing and local-expert reference","observation":"The logical operation includes cross-token/expert selection and accumulation; an implementation may use multiple CTAs, multiple launches, atomics, clusters or workspace. 'DAG-compatible with CTA scope' is neither defined nor a necessary universal fusion criterion."}]
+    },
+    {
+      "claim_id": "technique-kernel-fusion-original-c007",
+      "claim": "The fused-MoE and epilogue-fusion related links resolve to the intended pages.",
+      "claim_type": "other",
+      "covers": ["u009", "u010"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"test -f wiki/kernels/fused-moe.md && test -f wiki/techniques/epilogue-fusion.md","environment":"baseline worktree","reference":"Resolve relative links and inspect frontmatter IDs.","result":"Both files exist with IDs kernel-fused-moe and technique-epilogue-fusion.","negative_control":"wiki/kernels/not-fused.md does not exist."}],
+      "challenge": {"alternative":"One relative link escapes its directory or resolves to an unrelated page.","check":"Resolve from wiki/techniques and inspect target IDs.","outcome":"Both targets match their labels."}
+    }
+  ],
+  "commands": ["inspect pinned FlashInfer Track A reference and GPU Mode gated dual-GEMM reference", "resolve related links with a broken-target control"],
+  "scope": "All ten immutable baseline units and frontmatter TMEM claim were checked against PTX ISA 9.0 and pinned primary implementations/contracts.",
+  "residual_risk": "No GPU profile was run; launch-count, traffic and speed claims lacking a reproducible primary record are refuted rather than estimated."
+}

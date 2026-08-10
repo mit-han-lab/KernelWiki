@@ -1,0 +1,142 @@
+{
+  "path": "wiki/techniques/persistent-kernels.md",
+  "id": "technique-persistent-kernels",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-persistent-kernels-original-c001",
+      "claim": "Persistent kernels always launch exactly one CTA per SM, and CLC replaces their software scheduler with a query that returns new work or lets a CTA cancel itself.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"Dynamic Scheduler rules and request flow","observation":"CLC launches the problem-sized grid; each worker processes its initial blockIdx then cancels a not-yet-launched ClcID and processes the returned coordinate. try_cancel does not cancel the caller, and persistent grid size is policy/resource dependent."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c002",
+      "claim": "CLC can let a running compute-capability-10.0 worker acquire a not-yet-started grid coordinate after its initial blockIdx work, enabling hardware-assisted dynamic work redistribution.",
+      "claim_type": "mechanism",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"CLC dynamic scheduler rules","observation":"The documented worker handles blockIdx first and can cancel/receive an unlaunched ClcID for subsequent work."}],
+      "challenge": {"alternative":"CLC creates new tiles or assigns every tile through a separate hardware queue.","check":"Trace the initial and canceled-ID paths against the launched grid.","outcome":"Every work ID already exists in the grid and is handled either by ordinary launch or cancellation, exactly as scoped."}
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c003",
+      "claim": "The displayed persistent_gemm_clc loop correctly queries work first, retries when none exists, and then uses try_cancel for self-termination.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel/query semantics and restrictions","observation":"try_cancel is itself the asynchronous request to cancel another not-yet-started block/cluster; query decodes that response. After a thread observes failure, another request from that thread is undefined. The block reverses the protocol and invents self-cancellation."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c004",
+      "claim": "The text control-flow block completely describes a CLC loop as repeated cancel/wait/query, returning immediately on failure.",
+      "claim_type": "code",
+      "covers": ["u004", "u005"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"16-byte response, mbarrier transaction, proxy fences, query and cluster rules","observation":"The sequence omits initial blockIdx work, expect-tx/publication/fences, the exact failure restriction, and cluster-rank coordinate derivation. It is not a complete protocol even though cancel-before-query is directionally correct."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c005",
+      "claim": "The Hopper-style static-stride example maps CTA i to indices i + iteration*gridDim.x and converts a flat index into row-major tile coordinates.",
+      "claim_type": "code",
+      "covers": ["u006", "u007"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python enumerate static-stride assignments for multiple grid/tile counts and test uniqueness/coverage","environment":"Conda base, host CPU","reference":"Each valid flat tile index should occur exactly once and map by quotient/remainder.","result":"All indices [0,total_tiles) were covered once with tile_m=idx//tiles_n and tile_n=idx%tiles_n.","negative_control":"Using stride total_ctas-1 produced duplicate assignments."}],
+      "challenge": {"alternative":"The loop skips or duplicates tiles when total_tiles is not divisible by gridDim.x.","check":"Enumerate nondivisible sizes and compare the sorted union with the exact index range.","outcome":"The final iteration counts differ by at most one and the union remains exact."}
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c006",
+      "claim": "The comparison table accurately states that CLC assigns arbitrary tiles, automatically balances variable tile costs, minimizes ordinary tail waves, chains problems, uses try_cancel for self-termination, and applies a hardware swizzled raster.",
+      "claim_type": "mechanism",
+      "covers": ["u008", "u009", "u010", "u011", "u012", "u013"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"dynamic scheduler and software swizzle rules","observation":"CLC redistributes existing unlaunched ClcIDs to address uneven SM availability. CUTLASS applies swizzle/raster as a software coordinate transform; CLC neither chains distinct problems nor guarantees ordinary tail elimination."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"request/query result","observation":"try_cancel targets another not-yet-started grid entity; failure means no returned work, not caller cancellation."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c007",
+      "claim": "CUTLASS 4.5.0 provides PersistentTileSchedulerSm100 and PipelineCLCFetchAsync integration for CLC-backed scheduling.",
+      "claim_type": "compatibility",
+      "covers": ["u014"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"CUTLASS implementation links and scheduler pipeline","observation":"The official tagged documentation identifies PersistentTileSchedulerSm100 and PipelineCLCFetchAsync and describes their producer/consumer roles."}],
+      "challenge": {"alternative":"The scheduler is a generic software queue with no CLC instruction path.","check":"Follow the linked scheduler/pipeline sources to the arch CLC wrappers.","outcome":"The fetch pipeline submits and decodes clusterlaunchcontrol operations for the SM100 scheduler."}
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c008",
+      "claim": "The displayed PersistentTileSchedulerSm100 class is a valid simplified CUTLASS 4.5.0 API with clc_init, clc_query_tile and clc_try_cancel helpers and a thread-0 CTA broadcast.",
+      "claim_type": "code",
+      "covers": ["u015"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/gemm/kernel/sm100_tile_scheduler.hpp","revision":"CUTLASS 4.5.0 e406c186","locator":"PersistentTileSchedulerSm100 interface and CLC pipeline calls","observation":"The displayed helper API and init policy do not exist. Real code uses WorkTileInfo, get_current_work/fetch_next_work/advance_to_next_work, PipelineCLCFetchAsync state, cluster participation and software swizzle/raster transforms."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c009",
+      "claim": "The tutorial isolates a 940-to-1476 TFLOP/s, 57-percent improvement caused by CLC persistence, specifically through eliminated tail, reduced launches and CLC-controlled L2 swizzle.",
+      "claim_type": "code",
+      "covers": ["u016", "u017", "u018", "u019", "u020", "u021"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"v6 persistent kernel and static tile assignment","observation":"v6 uses persistent static scheduling, not CLC."},{"path":"sources/blogs/tcgen05-tutorial.md","revision":"pinned source card verified against author article/commit","locator":"progression table and supported takeaways","observation":"939.61 is v3 pipelining and 1475.93 is v6 after warp specialization, 2-SM MMA and persistence; the article explicitly says CLC and threadblock swizzling were not added, so neither isolation nor causal breakdown follows."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c010",
+      "claim": "Persistent kernels are most beneficial only above two-to-three tiles per SM, CLC chains grouped problems without launch gaps, and CLC naturally handles arbitrary variable-cost tiles such as triangular masks.",
+      "claim_type": "performance",
+      "covers": ["u022", "u023", "u024"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"motivation and dynamic scheduler limits","observation":"The documented motivation is uneven SM availability and redistribution of existing ClcIDs. It supplies no 2-3x threshold, multi-problem chaining, or cost-aware selection guarantee."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c011",
+      "claim": "CLC is a compute-capability-10.0 Blackwell feature unavailable on Hopper, where persistent work scheduling is software-managed.",
+      "claim_type": "compatibility",
+      "covers": ["u025"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#cluster-launch-control","revision":"CUDA 13.0.2 Programming Guide","locator":"availability","observation":"CLC is documented for compute capability 10.0; Hopper compute capability 9.0 does not expose it."}],
+      "challenge": {"alternative":"Hopper supports the same PTX operation under a different name.","check":"Inspect architecture requirements for the CLC API/PTX instruction.","outcome":"The feature is gated to CC 10.0, so Hopper requires a software schedule or another mechanism."}
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c012",
+      "claim": "A failed CLC request represents a race and the same thread must retry until another CTA generates work.",
+      "claim_type": "mechanism",
+      "covers": ["u026"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"failed-request restriction","observation":"After a thread observes a failed request, a subsequent request from that thread is undefined; other CTAs do not generate new ClcIDs."}]
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c013",
+      "claim": "When independent tile count is below available SM count, a scheduler cannot create enough extra parallel tiles to fill the idle SMs, so added dynamic scheduling may not repay its complexity.",
+      "claim_type": "performance",
+      "covers": ["u027"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"problem-sized grid and ClcID conservation","observation":"CLC only redistributes existing grid IDs, so fewer independent tiles than SMs remain fewer work items."}],
+      "challenge": {"alternative":"CLC synthesizes extra K-splits or duplicate tiles to fill all SMs.","check":"Trace whether try_cancel returns anything outside the launched grid.","outcome":"It can return only an existing unlaunched ClcID; decomposition is a separate scheduler policy."}
+    },
+    {
+      "claim_id": "technique-persistent-kernels-original-c014",
+      "claim": "The artifact directory contains declared upstream patch/source material, a labeled derived skeleton, matching recorded file hashes, and is retrievable with the shown get_page command.",
+      "claim_type": "code",
+      "covers": ["u028", "u029", "u030"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"sha256sum all artifact files; inspect provenance/header modes; byte-compare dense_gemm_persistent_prefetch.py to CUTLASS PR 2881 merge; run Conda-base get_page","environment":"current worktree/network, 2026-08-09","reference":"Hashes/modes and retrieval should agree with manifests and page.","result":"All declared hashes match; dense_gemm file byte-matches merge 3f4c086d09bd1dc55defb955862f333893bbb28b; variant is labeled derived/not upstream; retrieval exited zero.","negative_control":"A nonexistent page ID exits nonzero."}],
+      "challenge": {"alternative":"The derived skeleton is silently treated as upstream or the page command omits artifacts.","check":"Inspect first-line labels and captured retrieval output.","outcome":"Mode labeling is explicit and artifact content is included."}
+    }
+  ],
+  "commands": ["archived CLC/PTX and CUTLASS 4.5.0 documentation inspection", "exact author tutorial source comparison", "Conda-base static-stride enumeration", "artifact hash/provenance and retrieval controls"],
+  "scope": "All 30 baseline units for body hash 7d1d16d68cfae0d699d1b73b4d10ac71a12c878966081788134245f3861fc283 were reviewed, including all code, table, performance-attribution, and artifact claims.",
+  "residual_risk": "No CC10.0 GPU is available locally. No CLC performance claim is accepted without a controlled implementation-specific benchmark."
+}

@@ -1,0 +1,171 @@
+{
+  "path": "wiki/kernels/deepgemm.md",
+  "id": "kernel-deepgemm",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-deepgemm-original-c001",
+      "claim": "DeepGEMM is an open-source DeepSeek tensor-core kernel library with FP8 GEMMs, fine-grained scaling, grouped GEMM interfaces, and pinned SM90 and SM100 implementations.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"overview, requirements, and interfaces","observation":"The pinned project README identifies the library and its runtime-compiled tensor-core kernels, requires an SM90 or SM100 GPU, and documents dense and grouped FP8 interfaces."}],
+      "challenge": {"alternative":"DeepGEMM is one standalone Hopper teaching kernel rather than a two-architecture library.","check":"Inspect the pinned repository requirements, exported interfaces, and architecture dispatch.","outcome":"The repository exposes multiple kernel families and dispatches separate SM90 and SM100 implementations."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c002",
+      "claim": "DeepGEMM's core kernel is about 300 lines and achieves about 90% utilization on H800.",
+      "claim_type": "performance",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/deepgemm/full/","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"sm90_fp8_gemm_1d1d.cuh and sm100_fp8_gemm_1d1d.cuh","observation":"The two pinned FP8 kernel templates alone are 346 and 567 lines, while the pinned README reports only an up-to 1550 TFLOPS result and supplies no 90% utilization statement."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c003",
+      "claim": "DeepSeek-V3's fine-grained FP8 scheme scales activations per 1x128 tile and weights per 128x128 block to better accommodate outliers than coarser scaling.",
+      "claim_type": "code",
+      "covers": ["u002", "u003", "u015", "u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"section 3.3.2, Fine-Grained Quantization","observation":"The authors specify per-token 1x128 activation tiles and 128x128 weight blocks and say the smaller groups better accommodate outliers."}],
+      "challenge": {"alternative":"Both operands use one tensor-wide scale or the same 128x128 grouping.","check":"Compare the activation and weight granularity stated in section 3.3.2 and Appendix B.2.","outcome":"The paper deliberately uses asymmetric 1x128 activation and 128x128 weight groupings and reports instability for block-wise activation gradients."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c004",
+      "claim": "The 1x128/128x128 scheme prevents outliers from destroying precision and always stores one FP32 scale per tile or block across both architectures.",
+      "claim_type": "semantics",
+      "covers": ["u002", "u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"section 3.3.2, Fine-Grained Quantization","observation":"The paper makes the scoped claim that smaller groups better accommodate outliers, not an absolute guarantee that precision cannot be destroyed."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Interfaces notices, scaling-factor formats","observation":"The pinned library requires FP32 scaling factors on SM90 but packed UE8M0 scaling factors on SM100, contradicting the diagram's universal FP32 labels."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c005",
+      "claim": "Hopper's FP8 accumulator is approximately FP22 and DeepGEMM promotes it every Nc=128 columns, equivalent to four consecutive WGMMA operations.",
+      "claim_type": "numeric",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"section 3.3.2, Increasing Accumulation Precision; section 3.5.2","observation":"The authors report about 14 retained bits and define Nc=128 as 128 inner-dimension elements, equivalent to four WGMMAs; they do not characterize the accumulator as FP22 or as an output-column interval."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c006",
+      "claim": "The displayed SM90 CUDA fragment is a faithful or reproducible representation of DeepGEMM's Nc=128 promotion implementation.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/deepgemm/full/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f; SHA-256 4a3e39d4a1dd25c0be2bc2ff586c5f50192a91d5a0d1bcda5e03e20ef094e2db","locator":"math warp-group accumulation and Promote with scales loop","observation":"The real kernel uses float accum and final_accum register arrays, issues BLOCK_K/WGMMA::K operations for one K block, waits, and applies A/B scales into final_accum. The page instead invents undefined helpers and a half2 accumulator, and incorrectly relates Nc to WGMMA's N tile."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c007",
+      "claim": "The pinned SM100 DeepGEMM path uses block-scaled tcgen05/UMMA with packed UE8M0 scale factors moved into TMEM and does not use the SM90 CUDA-core final_accum promotion loop.",
+      "claim_type": "mechanism",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/deepgemm/full/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f; SHA-256 84ecd247b5fb6500fd31e464388b281b1425d105451dbf8dd3c189945dcf9384","locator":"make_instr_desc_block_scaled, UTCCP scale-factor copies, MMA issue loop, and TMEM epilogue","observation":"The instruction descriptor selects float_ue8m0_t scaling, scale-factor data is copied from shared memory to TMEM, and UMMA accumulates to TMEM without the SM90 final_accum loop."}],
+      "challenge": {"alternative":"SM100 simply reuses the SM90 WGMMA-plus-FP32-register promotion path.","check":"Trace the scale factors and accumulator destination in both pinned files.","outcome":"The SM100 file constructs a block-scaled UMMA descriptor and names TMEM columns for scales and accumulators; it has no SM90-style final_accum promotion loop."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c008",
+      "claim": "The displayed SM100 inline PTX correctly packs scale values in a general register, passes them directly to a short tcgen05.mma form, and establishes full-precision TMEM accumulation.",
+      "claim_type": "code",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/deepgemm/full/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"instruction descriptor, UTCCP copies, SM100_MMA_MXF8F6F4_SS::fma, and epilogue","observation":"The pinned implementation places packed scale-factor data in TMEM, supplies TMEM scale addresses and a runtime instruction descriptor through a CUTLASS UMMA wrapper, and does not make the page's blanket full-precision claim. The displayed hand-written assembly is not the implementation."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c009",
+      "claim": "All three illustrated grouped-GEMM modes vary only M with fixed N/K, masked mode uses a binary mask, and the displayed prefix-offset/binary-search CUDA function represents DeepGEMM's contiguous scheduler.",
+      "claim_type": "code",
+      "covers": ["u008", "u009", "u010", "u016"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_* and k_grouped_fp8_gemm_* APIs","observation":"M-grouped contiguous/masked interfaces keep N and K fixed, masked_m is an int vector of valid M lengths, and K-grouped interfaces instead keep M/N fixed with per-group K lengths. The real contiguous layout may be per-row group IDs or a prefix-sum layout and does not use the invented function."},{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs sections","observation":"The project distinguishes M-axis contiguous/masked APIs from a K-axis-grouped weight-backward API."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c010",
+      "claim": "DeepGEMM uses NVRTC JIT by default and the displayed jit_compile API faithfully shows per-shape compilation that guarantees optimal register allocation and unrolling.",
+      "claim_type": "code",
+      "covers": ["u011", "u012"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Compiler::build and compiler LazyInit","observation":"The JIT defaults to NVCC; NVRTC is selected only when DG_JIT_USE_NVRTC=1. Generated code is cached by a signature over name/compiler/flags/code. The page's jit_compile call is not a repository API and neither source guarantees an optimal result."},{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"News and DG_JIT_USE_NVRTC setting","observation":"The README explicitly describes the low-overhead JIT C++ module and documents NVRTC as optional, disabled by default, and potentially lower-performing for some cases."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c011",
+      "claim": "The pinned library supports only NT for SM90 FP8 operands and exposes NT, TN, NN, and TT dense layouts for SM100, implemented through SM100 operand-major choices and API wrappers.",
+      "claim_type": "compatibility",
+      "covers": ["u013", "u018"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Interfaces notices and dense GEMMs","observation":"The README explicitly scopes SM90 to NT and SM100 to all four layouts."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/csrc/apis/gemm.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"fp8_fp4_gemm_nt/nn/tn/tt wrappers and major dispatch","observation":"The API wrappers and SM100 major parameters realize the documented interface while the SM90 checks require K-major operands."}],
+      "challenge": {"alternative":"All four public names merely alias an NT kernel with no layout-specific operand handling on SM100.","check":"Trace the nn/tn/tt wrappers and major selection into the SM100 implementation.","outcome":"The wrappers transpose the relevant tensor views and the SM100 template receives corresponding operand-major values; SM90 rejects the non-K-major cases."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c012",
+      "claim": "DeepGEMM measured 1550 TFLOPS and about 90% utilization on H800 specifically for M=N=K=4096.",
+      "claim_type": "performance",
+      "covers": ["u014", "u026"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"2025-04-18 news item","observation":"The source reports only up to 1550 TFLOPS on H800; it does not attach M=N=K=4096 or a 90% utilization calculation."},{"url":"https://github.com/deepseek-ai/DeepGEMM/pull/86","revision":"merged 2025-04-14","locator":"performance report in PR description","observation":"The disclosed peak before later changes is associated with M=4096, N=7168, K=16384, while the listed shapes and values do not include a 1550-TFLOPS 4096-cubed result."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c013",
+      "claim": "The documented fine-grained scaled GEMMs are applicable to FP8 training/inference and M-grouped MoE computation with variable per-expert token counts.",
+      "claim_type": "compatibility",
+      "covers": ["u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"sections 3.3.2 and 3.4","observation":"The report describes the scheme in training and its deployment/inference context."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs, contiguous and masked layouts","observation":"The project explicitly targets varying token counts per expert for prefill/training and masked decoding."}],
+      "challenge": {"alternative":"The fine-grained format is only a paper training recipe and DeepGEMM cannot schedule variable expert token counts.","check":"Inspect the pinned grouped API documentation and implementation inputs.","outcome":"The pinned library exports contiguous and masked M-grouped paths whose layout/length tensors encode per-expert work."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c014",
+      "claim": "A JIT cache miss adds compilation/loading work to the first invocation for a generated kernel signature, while later matching calls may reuse the cached CUBIN/runtime.",
+      "claim_type": "mechanism",
+      "covers": ["u019"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Compiler::build cache lookup, compile, atomic rename, and runtime load","observation":"A signature-keyed cache is checked first; misses compile a CUBIN and create the cache entry, and hits return the existing runtime."}],
+      "challenge": {"alternative":"Every call recompiles, or installation precompiles every GEMM specialization.","check":"Follow Compiler::build on cache hit and miss and compare with the README installation statement.","outcome":"The hit path returns before compilation and the README says no CUDA compilation is required during installation."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c015",
+      "claim": "Fine-grained scaling necessarily adds overhead relative to per-tensor scaling and is beneficial only when outlier sensitivity matters.",
+      "claim_type": "performance",
+      "covers": ["u020"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"section 3.3.2, Increasing Accumulation Precision","observation":"The authors describe scale multiplication as having minimal additional computational cost when combined with CUDA-core promotion, but provide no universal per-tensor performance comparison or 'only beneficial' rule. Precision, representable range, native block-scaling support, and integration costs are separate considerations."}]
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c016",
+      "claim": "The two source links identify the DeepGEMM upstream repository and the DeepSeek-V3 technical report.",
+      "claim_type": "other",
+      "covers": ["u021", "u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM","revision":"repository observed 2026-08-08","locator":"repository identity","observation":"The link resolves to the official DeepGEMM repository."},{"url":"https://arxiv.org/abs/2412.19437","revision":"arXiv record observed 2026-08-08","locator":"title and authors","observation":"The link resolves to the DeepSeek-V3 Technical Report."}],
+      "challenge": {"alternative":"One link is a secondary repost or refers to a different project/paper.","check":"Compare repository owner/title and arXiv title/authors with the page labels.","outcome":"Both resolve to the named first-party project artifacts."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-original-c017",
+      "claim": "The local full bundle contains byte-verified verbatim pinned SM90/SM100 source, the variants bundle labels derived material, and the documented page query succeeds with code inclusion.",
+      "claim_type": "code",
+      "covers": ["u023", "u024", "u025"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"sha256sum artifacts/kernels/deepgemm/full/sm90_fp8_gemm_1d1d.cuh artifacts/kernels/deepgemm/full/sm100_fp8_gemm_1d1d.cuh; conda run -n base python scripts/get_page.py kernel-deepgemm --include-code","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"artifacts/kernels/deepgemm/full/PROVENANCE.yaml and variants/PROVENANCE.yaml","result":"Both hashes match the provenance manifest and get_page exits successfully with the page and bundled code.","negative_control":"Changing the page id to kernel-not-deepgemm is rejected rather than returning this page."}],
+      "challenge": {"alternative":"The full files are derived snippets or the include-code query does not resolve their bundle.","check":"Compare manifest modes and hashes, then execute the documented lookup through the repository tool.","outcome":"The full assets are marked verbatim and hash-match; variants are marked derived; the query returned 2477 lines including the linked code."}
+    }
+  ],
+  "commands": ["inspect DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f", "sha256sum pinned full assets", "conda run -n base python scripts/get_page.py kernel-deepgemm --include-code", "inspect DeepSeek-V3 Technical Report v2 and upstream performance history"],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is available locally, so no kernel was compiled and no H800/SM100 performance or numerical-accuracy result was reproduced. Functional code conclusions are tied to the pinned upstream commit; the 1550-TFLOPS statement remains source-reported without the page's former shape/utilization attribution.",
+  "scope": "All 26 baseline units for body hash 6ab7a73798de1e059f397018969dab63e94f888f714964e75ff05cd82a5ba7a3 were checked against DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f, its byte-verified local kernel files, DeepSeek-V3 Technical Report arXiv v2, and the repository query tool."
+}

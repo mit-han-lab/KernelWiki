@@ -1,0 +1,123 @@
+{
+  "path": "wiki/kernels/fp8-block-scale-gemm.md",
+  "id": "kernel-fp8-block-scale-gemm",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c001",
+      "claim": "DeepSeek-V3 FP8 training uses 1x128 activation scales and 128x128 weight scales to better accommodate outliers than coarser scaling.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"Section 3.3.2 Fine-Grained Quantization and Figure 7","observation":"The paper explicitly defines 1x128 activation tiles and 128x128 weight blocks and says smaller groups better accommodate feature outliers."}],
+      "challenge": {"alternative":"128 is only an illustrative diagram size or applies uniformly to all tensors/phases.","check":"Read the prose definitions and the appendix's forward/backward qualifications.","outcome":"The forward activation and weight groupings are explicit; the appendix separately notes 128x1 activation handling for backward, so the page's named forward pattern is real but not universal."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c002",
+      "claim": "DeepGEMM is a first-party implementation of these FP8 GEMM techniques, and CUTLASS supplies separate SM100 block-scaled schedules.",
+      "claim_type": "compatibility",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f; SHA-256 tied to local clone","locator":"Introduction, requirements, and interfaces","observation":"DeepGEMM identifies itself as a tensor-core kernel library for FP8/FP4/BF16 on SM90/SM100."},{"path":"sources/docs/cutlass-changelog-sm100.md","revision":"CUTLASS release entries through 4.5.0","locator":"3.8.0-4.1.0 blockscaled GEMM entries","observation":"CUTLASS records SM100 blockscaled formats and persistent dense blockscaled GEMM examples as a separate implementation family."}],
+      "challenge": {"alternative":"DeepGEMM is merely a wrapper over CUTLASS schedules.","check":"Inspect the first-party README's dependency statement and pinned kernel sources.","outcome":"The project says it borrows concepts but avoids heavy CUTLASS templates and contains its own SM90/SM100 implementations; CUTLASS is adjacent, not its backend."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c003",
+      "claim": "Both architectures use the displayed common structure: activation scales may be FP32 or E4M3, weight scales are one per 128x128 block, FP8 products accumulate in FP32, and scales are applied at the MMA boundary.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scaling-factor interface notice","observation":"SM90 requires FP32 scales; SM100 requires packed UE8M0, not E4M3."},{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"same commit","locator":"BLOCK_K assertion and promotion loop","observation":"SM90 WGMMA partials are held in float registers and only then multiplied by scale_a/scale_b into final_accum after each K block; scales are not applied at the WGMMA boundary."}]
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c004",
+      "claim": "Hopper has an approximately 22-bit accumulator and DeepGEMM promotes every 128 WGMMAs to FP32 on CUDA cores, as represented by the displayed kernel.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"Section 3.3.3 Increased Accumulation Precision and Figure 7(b)","observation":"The paper describes a 128-element K interval equivalent to four WGMMAs, not 128 WGMMA instructions; it describes 14-bit alignment/addition precision, not an FP22 accumulator."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"commit 891d57b4","locator":"math warp-group K-block loop","observation":"The real kernel fixes BLOCK_K=128, issues BLOCK_K/WGMMA::K instructions, then combines scaled partials into final_accum; the displayed function/signature is invented."}]
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c005",
+      "claim": "The displayed SM100 kernel and inline tcgen05.mma string faithfully express DeepGEMM's native UE8M0 block-scaling path, with no promotion and a final global scale.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4","locator":"scale TMA/UTCCP path, make_instr_desc_block_scaled, and MMA loop","observation":"The real source copies packed scale blocks into TMEM and constructs a block-scaled UMMA descriptor. It does not contain the displayed function, tmem_alloc helper, global_scale epilogue, or that inline instruction string."},{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/ptx/tcgen05.cuh","revision":"same commit","locator":"tcgen05.mma mxf8f6f4 wrappers","observation":"The actual wrapper syntax is kind::mxf8f6f4.block_scale with bracketed scale descriptors and predicate; the displayed .scale_vec::1X form and operands do not match."}]
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c006",
+      "claim": "The displayed tensor layouts and scale dtypes are an accurate cross-architecture ABI, including FP32-or-E4M3 scales and four UE8M0 scales per int32 on Blackwell.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scaling-factor interface notice","observation":"Four packed UE8M0 values per torch.int is correct for SM100, but the alternative architecture dtype is FP32 on SM90, not E4M3. The current API also supports multiple granularity recipes and layouts, so the fixed shapes are a DeepSeek-V3 pattern rather than a universal ABI."}]
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c007",
+      "claim": "The pinned DeepGEMM README reports up to 1550 TFLOPS on H800.",
+      "claim_type": "performance",
+      "covers": ["u007"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The source states exactly that DeepGEMM achieves up to 1550 TFLOPS on H800 and links the contributing changes."}],
+      "challenge": {"alternative":"1550 is tied to the page's 4096-cubed shape and ~90% utilization metadata.","check":"Read the news item and follow its explicit fields without importing nearby benchmark assumptions.","outcome":"Only GPU and up-to throughput are stated in the README sentence; shape, utilization, timing method, and variance are absent and must not be inferred."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c008",
+      "claim": "CUTLASS SM100 block-scaled schedules achieve a similar ratio to peak as the H800 DeepGEMM result.",
+      "claim_type": "performance",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"sources/docs/cutlass-changelog-sm100.md","revision":"captured changelog through CUTLASS 4.5.0","locator":"blockscaled GEMM release entries","observation":"The source establishes availability but contains no matched shape, GPU peak convention, or ratio comparable to DeepGEMM's H800 maximum."}]
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c009",
+      "claim": "This exact DeepGEMM-style block-scaled pattern should be used for FP8 inference in DeepSeek-V3, Qwen2-FP8, and similar models.",
+      "claim_type": "compatibility",
+      "covers": ["u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"Sections 3.3.1-3.3.2","observation":"The source establishes the exact format for DeepSeek-V3 training. It does not establish Qwen2-FP8 layout, scale dtype, kernel ABI, or compatibility; model-name transfer without a format contract is unsafe."}]
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c010",
+      "claim": "DeepSeek-V3 uses FP8 activations in its training framework.",
+      "claim_type": "compatibility",
+      "covers": ["u010"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"Section 3.3 FP8 Training","observation":"The paper documents FP8 activations, online tile-wise quantization, and phase-specific exceptions in the training framework."}],
+      "challenge": {"alternative":"FP8 applies only to stored weights or inference, not training activations.","check":"Inspect the mixed-precision framework and activation-quantization subsections.","outcome":"The source explicitly discusses forward and backward activation tiles and cached FP8 activations during training."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c011",
+      "claim": "Fine-grained scaling is a relevant option when per-tensor FP8 loses accuracy to outliers.",
+      "claim_type": "compatibility",
+      "covers": ["u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"Fine-Grained Quantization subsection","observation":"The authors motivate smaller scale groups specifically by activation/weight/gradient outliers and report that they better accommodate them."}],
+      "challenge": {"alternative":"Fine-grained scaling universally improves accuracy without cost and should always replace per-tensor scaling.","check":"Inspect the paper's overhead discussion and special-case policies.","outcome":"The paper documents scale-calculation/layout overhead and higher-precision exceptions, supporting conditional relevance rather than a universal rule."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-original-c012",
+      "claim": "A structured benchmark records 1550 TFLOPS for M=N=K=4096 on H800 at approximately 90% utilization via CUDA-core promotion.",
+      "claim_type": "performance",
+      "covers": ["u012"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The source reports only up to 1550 TFLOPS on H800. It does not attach M=N=K=4096, ~90%, timing details, samples, variance, or a single-kernel mechanism attribution to that maximum."}]
+    }
+  ],
+  "commands": ["inspect DeepGEMM commit 891d57b4 README and exact SM90/SM100 1D1D kernels", "inspect DeepSeek-V3 Technical Report v2 fine-grained quantization and accumulation sections", "inspect pinned CUTLASS SM100 changelog capture and DeepGEMM tcgen05 wrappers"],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is installed, so kernel numerics and the 1550-TFLOPS author report were not reproduced. CUTLASS availability is source-level; no matched cross-library performance comparison was retained.",
+  "scope": "All 12 baseline units for body hash 9fc01ec2833f70fa337f1ec2f149ac72e477d8465563010c15b1aa7c0c2bcc50 were checked against the DeepSeek paper, pinned DeepGEMM source, and CUTLASS release record."
+}

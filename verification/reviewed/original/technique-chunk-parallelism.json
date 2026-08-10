@@ -1,0 +1,124 @@
+{
+  "claims": [
+    {
+      "claim": "GatedDeltaNet, RetNet, and Mamba are all O(n) linear-attention variants whose naive implementations are sequential, and Blackwell TMEM permits larger chunks with better tensor-core utilization.",
+      "claim_id": "technique-chunk-parallelism-original-c001",
+      "claim_type": "semantics",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "locator": "Abstract",
+          "observation": "TFLA concerns linear RNNs and mLSTM, says practical benefits require optimized kernels, and introduces within-chunk sequence parallelization. It does not define Mamba as linear attention or connect chunk size to Blackwell TMEM.",
+          "revision": "arXiv:2503.14376v3",
+          "url": "https://arxiv.org/abs/2503.14376v3"
+        },
+        {
+          "locator": "training implementation",
+          "observation": "The pinned GatedDeltaNet training path uses chunkwise Triton kernels with a WY representation, not the page's generic additive state update; its architecture parameters do not imply a TMEM capacity rule.",
+          "revision": "NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921",
+          "url": "https://github.com/NVlabs/GatedDeltaNet/tree/b53d6d3a161267432a79c1c04af69fa52bddc921"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The displayed Triton kernel correctly implements chunk-parallel linear attention with sequential inter-chunk state propagation.",
+      "claim_id": "technique-chunk-parallelism-original-c002",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "evidence": [
+        {
+          "locator": "Triton programming model, program instances",
+          "observation": "Separate Triton program instances in one launch have no grid-wide execution order or synchronization. Every chunk here reads and writes the same State address, so the claimed previous-chunk dependency is a data race rather than a sequential propagation.",
+          "revision": "Triton language documentation, retrieved 2026-08-09",
+          "url": "https://triton-lang.org/main/programming-guide/chapter-01/introduction.html"
+        },
+        {
+          "locator": "chunkwise training implementation",
+          "observation": "The pinned GDN implementation uses a multi-stage WY/chunkwise algorithm; the snippet has undefined offsets, shapes, masking, update_state, head/batch addressing, and state ordering and is not an executable equivalent.",
+          "revision": "NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921",
+          "url": "https://github.com/NVlabs/GatedDeltaNet/tree/b53d6d3a161267432a79c1c04af69fa52bddc921"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Chunks of 32 are a low-latency decode choice, chunks of 256-512 improve prefill tensor-core throughput, and TFLA uses recursive two-level tiling to allow arbitrary chunk sizes.",
+      "claim_id": "technique-chunk-parallelism-original-c003",
+      "claim_type": "performance",
+      "covers": ["u003", "u004", "u005"],
+      "evidence": [
+        {
+          "locator": "Abstract and algorithm scope",
+          "observation": "TFLA introduces an additional level of sequence parallelization within each chunk and claims arbitrarily large chunks for its mLSTM algorithm. It does not prescribe 32 for decode, 256-512 for prefill, call the construction recursive, or establish Blackwell results.",
+          "revision": "arXiv:2503.14376v3",
+          "url": "https://arxiv.org/abs/2503.14376v3"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Chunk parallelism should be used for all linear attention and recurrent-state models including Mamba, GatedDeltaNet, and the Delta Rule.",
+      "claim_id": "technique-chunk-parallelism-original-c004",
+      "claim_type": "compatibility",
+      "covers": ["u006", "u007"],
+      "evidence": [
+        {
+          "locator": "Abstract and algorithm scope",
+          "observation": "TFLA establishes its two-level sequence-parallel construction for a specific linear-RNN/mLSTM formulation, not a universal rule for every recurrent model.",
+          "revision": "arXiv:2503.14376v3",
+          "url": "https://arxiv.org/abs/2503.14376v3"
+        },
+        {
+          "locator": "chunkwise training implementation",
+          "observation": "GatedDeltaNet uses a model-specific WY-form chunkwise algorithm and layouts rather than the page's universal generic update.",
+          "revision": "b53d6d3a161267432a79c1c04af69fa52bddc921",
+          "url": "https://github.com/NVlabs/GatedDeltaNet/tree/b53d6d3a161267432a79c1c04af69fa52bddc921"
+        },
+        {
+          "locator": "selective_scan interface and implementation",
+          "observation": "Mamba exposes a selective-scan recurrence and implementation, so transfer requires a model-specific equivalent transformation and profitability test.",
+          "revision": "retrieved 2026-08-09",
+          "url": "https://github.com/state-spaces/mamba"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "challenge": {
+        "alternative": "The 3:1 ratio is an informal description rather than an exact model configuration.",
+        "check": "Expand the pinned layer_types pattern over num_hidden_layers.",
+        "outcome": "The 48-layer configuration repeats three linear-attention entries and one full-attention entry twelve times, yielding 36 and 12 layers."
+      },
+      "claim": "Qwen3-Next uses a 3:1 hybrid ratio of Gated DeltaNet linear-attention layers to full-attention layers.",
+      "claim_id": "technique-chunk-parallelism-original-c005",
+      "claim_type": "compatibility",
+      "covers": ["u008"],
+      "evidence": [
+        {
+          "locator": "config.json layer_types and num_hidden_layers",
+          "observation": "The immutable 48-layer configuration repeats three linear_attention entries followed by one full_attention entry.",
+          "revision": "Qwen3-Next-80B-A3B-Instruct 9c7f2fbe84465e40164a94cc16cd30b6999b0cc7",
+          "url": "https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Instruct/blob/9c7f2fbe84465e40164a94cc16cd30b6999b0cc7/config.json"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": [
+    "Inspect TFLA v3 algorithm and scope",
+    "Inspect pinned GatedDeltaNet chunkwise implementation boundary",
+    "Discriminate the Triton snippet's inter-program state race",
+    "Expand the immutable Qwen3-Next layer pattern"
+  ],
+  "id": "technique-chunk-parallelism",
+  "page_verdict": "refuted",
+  "path": "wiki/techniques/chunk-parallelism.md",
+  "residual_risk": "No GPU execution was available. The universal prescription is refuted by the model-specific scope and distinct direct implementations; profitability for any concrete transformed model remains hardware- and workload-dependent.",
+  "scope": "All eight baseline body units and the frontmatter TMEM/chunk-size claim were checked against the cited papers, pinned repository, Triton execution model, and immutable model configuration."
+}

@@ -1,0 +1,176 @@
+{
+  "path": "wiki/kernels/nsa.md",
+  "id": "kernel-nsa",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-nsa-original-c001",
+      "claim": "Native Sparse Attention was published at ACL 2025 as a hardware-aligned, natively trainable long-context sparse-attention design with compression, selection, and sliding-window branches; the authors report quality comparable to or better than full attention in their evaluations.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"abstract, Sections 3 and 4","observation":"The paper describes NSA as hardware-aligned and natively trainable, defines the three branches, evaluates contexts through 64K, and reports accuracy comparable to or better than full attention on the studied tasks."}],
+      "challenge": {"alternative":"The three branches are a post-training pruning recipe, or the quality statement is a universal no-loss guarantee.","check":"Inspect the training formulation and the exact scope of the experimental results.","outcome":"The branches and gates are trained end-to-end; quality is an author-reported result on the paper's evaluations, not a universal guarantee."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c002",
+      "claim": "The NSA paper reports 9.0x forward and 6.0x backward speedups at 64K versus its Triton FlashAttention-2 baseline and gives 11.6x as the 64K decoding memory-access-volume ratio labeled expected speedup.",
+      "claim_type": "performance",
+      "covers": ["u002", "u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 4.2, Figure 5, and Table 4","observation":"Figure 5 reports 9.0x forward and 6.0x backward at 64K on an 8-GPU A100 system against a Triton FlashAttention-2 implementation. Table 4 labels 11.6x an expected speedup obtained from 65,536 versus 5,632 memory-access tokens."}],
+      "challenge": {"alternative":"All three values are matched wall-clock measurements from one benchmark record.","check":"Compare the Figure 5 experimental description with the Table 4 title and derivation.","outcome":"Forward/backward are reported benchmark speedups, while decoding is an expected memory-access ratio; they require separate labels."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c003",
+      "claim": "The three-branch NSA mechanism is deployed in DeepSeek-V3.2-Exp using FlashMLA sparse kernels.",
+      "claim_type": "compatibility",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepseek-v32/README.md","revision":"DeepSeek-V3.2-Exp 87e509a2e5a100d221c97df52c6e8be7835f0057","locator":"DeepSeek Sparse Attention announcement and high-performance CUDA kernels","observation":"The release names its mechanism DeepSeek Sparse Attention (DSA), links indexer logits to DeepGEMM and sparse kernels to FlashMLA, and does not identify it as the ACL paper's three-branch NSA."},{"path":"/tmp/kernelwiki-deepseek-v32/inference/model.py","revision":"same commit","locator":"Indexer.forward and MLA.forward","observation":"The model selects top-k token positions with a learned indexer and masks full attention to those positions; it does not implement the NSA compression/selection/window gated sum."},{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232","locator":"Sparse Attention Kernels","observation":"FlashMLA says these kernels power DSA in DeepSeek-V3.2-Exp, not NSA."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c004",
+      "claim": "The displayed three-path diagram is an exact NSA output equation in which the three branch attention outputs are combined without learned gates.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 3.1, Equations 5 and 6","observation":"NSA multiplies each branch output by an input-dependent sigmoid gate produced by a learned MLP before summing the branches. The displayed Combine expression omits those gates."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c005",
+      "claim": "The paper implements the selected-attention training/prefill kernel in Triton using hardware-aligned contiguous KV blocks, loading all query heads in a GQA group together so they share sparse KV indices, and placing nearly constant query/output loops in the Triton grid.",
+      "claim_type": "mechanism",
+      "covers": ["u004", "u007", "u008", "u009"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 3.3 Hardware-aligned Sparse Attention","observation":"The authors describe a Triton kernel that loads all query heads in one GQA group into SRAM, shares selected KV indices, loads continuous KV blocks, and parallelizes query/output loops through the Triton grid."}],
+      "challenge": {"alternative":"Group-centric loading is an editorial optimization not stated by the authors, or selected attention scatters individual tokens.","check":"Read the kernel-design paragraph and selection-block definition.","outcome":"Both group-level query loading and continuous block loading are explicit design choices in the paper."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c006",
+      "claim": "The displayed nsa_sparse_attention_fwd function is a valid Triton implementation of NSA selected attention and correct online softmax.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python -c '<evaluate the displayed first-block update for scores=[0,0], values=[1,3], then compare stable softmax>'","environment":"KernelWiki host; conda base standard-library Python","reference":"Displayed nsa_sparse_attention_fwd update and normalized softmax definition","result":"Exited 0: the displayed update produced 4.0 with lse=0.0; normalized softmax produced 2.0 with log-partition log(2). The listing also references undefined SEQ_LEN, ignores pid in query indexing, and loads one query head per program rather than the paper's group-centric query set.","negative_control":"The stable reference divided by the within-block partition sum and returned the expected average 2.0."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c007",
+      "claim": "The displayed nsa_sliding_window_fwd function is a valid Triton implementation of dense attention over every position in the local window.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python -c '<compare range(0,4,2) used by the displayed scalar-load loop with all window positions>'","environment":"KernelWiki host; conda base standard-library Python","reference":"Displayed sliding-window loop","result":"Exited 0: the candidate loop visited [0,2], while a four-position window is [0,1,2,3].","negative_control":"A unit-stride reference enumerated all four positions."}],
+      "challenge": {"alternative":"BLOCK_SIZE denotes a vectorized block load hidden by the loop body.","check":"Inspect the addresses used inside the loop.","outcome":"The body loads only K[pos] and V[pos], not a BLOCK_SIZE-wide tile, and BLOCK_SIZE is not declared in the signature."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c008",
+      "claim": "The paper specifies Triton grid dimensions exactly as (query_block, head, batch) and establishes that this mapping avoids dynamic scheduling overhead.",
+      "claim_type": "mechanism",
+      "covers": ["u010"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 3.3 kernel design","observation":"The paper says outer query/output loops are implemented in the Triton grid because their loop counts are nearly constant. It does not give the asserted three-dimensional grid mapping or claim that it eliminates dynamic scheduling overhead."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c009",
+      "claim": "The 9.0x, 6.0x, and 11.6x values were all measured on H100 with BF16, and the structured 9.0x record is reproducible as H100 BF16 at sequence length 65,536.",
+      "claim_type": "performance",
+      "covers": ["u012", "u022"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 4 experimental setup, Figure 5, and Table 4","observation":"The paper specifies an 8-GPU A100 system for efficiency experiments, not H100. It does not state BF16 for this benchmark, and 11.6x is labeled expected speedup from memory-access volume rather than a matched measurement. Batch, software versions, trials, and variance are also absent from the structured record."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c010",
+      "claim": "NSA should be used at 32K or longer because dense attention is categorically prohibitively expensive beyond that threshold.",
+      "claim_type": "compatibility",
+      "covers": ["u013"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Sections 1 and 4","observation":"The paper motivates long-context efficiency and evaluates several lengths through 64K, but defines no universal 32K applicability threshold or categorical prohibition; suitability depends on model, quality target, hardware, and workload."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c011",
+      "claim": "NSA is designed for grouped-query or multi-query attention and makes its sparse selection differentiable for end-to-end training.",
+      "claim_type": "compatibility",
+      "covers": ["u014", "u015"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Sections 3.2-3.3 and Appendix B","observation":"Selection scores are aggregated over query heads in a GQA/MQA group, and the design reuses differentiable compression-attention scores so sparse patterns can be learned during end-to-end training."}],
+      "challenge": {"alternative":"The top-n operation makes the entire selection mechanism non-trainable, or every query head selects independent blocks.","check":"Trace score construction, head aggregation, and gradient path in the paper.","outcome":"Block indices are shared at group level and importance comes from the trainable compression branch; the paper contrasts this with non-trainable post-hoc selection."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c012",
+      "claim": "The compression branch uses a learned MLP with intra-block position encoding, adding trainable parameters and computation, although the page provides no quantified cost.",
+      "claim_type": "mechanism",
+      "covers": ["u016"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 3.1 Compression of Coarse-grained Tokens","observation":"Compressed keys and values are produced by learned MLPs over token blocks with intra-block position encoding; this necessarily introduces parameters and operations, but the paper does not quantify a standalone overhead in the cited passage."}],
+      "challenge": {"alternative":"Compression is a fixed pooling transform with no learned parameters.","check":"Inspect the compression equations and parameter notation.","outcome":"The transformation is explicitly parameterized by learned MLP weights."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c013",
+      "claim": "NSA token selection performs a separate first pass that scores every fine-grained block before a second top-n pass.",
+      "claim_type": "mechanism",
+      "covers": ["u017"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 3.1 Selection of Important Tokens","observation":"NSA derives fine-grained block importance by reusing the compression-branch attention scores, aggregating them over related compressed blocks and query heads, then selecting top-n blocks. The paper does not define the claimed independent score-all-blocks pass."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c014",
+      "claim": "NSA's Triton implementation is established to be CPU-launch-bound for small-batch decode, so CUDA Graph mode is categorically recommended.",
+      "claim_type": "performance",
+      "covers": ["u018"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 4.2 and Limitations","observation":"The paper analyzes decoding through memory-access volume and notes generic Triton abstraction overhead versus native CUDA; it provides no CPU-launch profile or CUDA Graph recommendation for NSA."},{"url":"https://docs.nvidia.com/dl-cuda-graph/troubleshooting/performance-issues.html","revision":"NVIDIA CUDA Graphs troubleshooting guide fetched 2026-08-08","locator":"Performance Issues","observation":"NVIDIA says graphs primarily benefit CPU-bound workloads and can give minimal benefit or regress when the workload is GPU-bound, so profiling is required before applying the recommendation."}]
+    },
+    {
+      "claim_id": "kernel-nsa-original-c015",
+      "claim": "The paper's motivation and ablations support jointly training the sparse-selection mechanism with the model rather than applying a non-trainable post-hoc selector.",
+      "claim_type": "compatibility",
+      "covers": ["u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Appendix B, Natively Trainable Sparse Attention","observation":"The authors argue that post-hoc sparsity can degrade pretrained models, contrast non-trainable selection with NSA's gradient path, and report that native training learns effective sparse patterns."}],
+      "challenge": {"alternative":"Joint training is a universal theorem and no pretrained model can tolerate post-hoc sparsity.","check":"Scope the statement to the paper's mechanism, motivation, and experiments.","outcome":"The evidence supports NSA's design choice and reported studies, not a universal impossibility result."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c016",
+      "claim": "The ACL/arXiv paper link and the lucidrains repository link resolve to the intended NSA paper and a third-party PyTorch implementation, respectively.",
+      "claim_type": "other",
+      "covers": ["u020", "u021"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <ACL paper, PDF, and lucidrains repository URLs>","environment":"KernelWiki host, 2026-08-08","reference":"Source-link identities and HTTP resolution","result":"ACL landing page, proceedings PDF, and lucidrains repository each returned HTTP 200 and matched their stated identities.","negative_control":"A nonexistent sibling path under aclanthology.org returned HTTP 404."}],
+      "challenge": {"alternative":"The repository is the authors' official implementation or one link silently redirects to an unrelated resource.","check":"Inspect repository owner/readme and final target identity, then compare a same-host invalid path.","outcome":"The links are live; lucidrains is explicitly third-party rather than an official paper artifact, and the negative control fails distinctly."}
+    },
+    {
+      "claim_id": "kernel-nsa-original-c017",
+      "claim": "The NSA paper directly establishes SM90 and SM100 compatibility and that Blackwell's 126 MB L2 and bandwidth improve this Triton sparse-block implementation.",
+      "claim_type": "compatibility",
+      "covers": ["u004", "u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://aclanthology.org/2025.acl-long.1126.pdf","revision":"ACL 2025 proceedings PDF fetched 2026-08-08","locator":"Section 4 experimental setup and Section 3.3","observation":"The paper's efficiency evaluation uses A100 GPUs and does not report Hopper/Blackwell compatibility, a 126-MB L2 result, or a cross-architecture sparse-fetch benefit."},{"url":"https://github.com/deepseek-ai/FlashMLA/blob/71c737929f2567bd0a094ae140f8f60f390b1232/README.md","revision":"FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232","locator":"requirements and support matrix","observation":"SM90/SM100 support belongs to later FlashMLA DSA kernels, a different mechanism, and cannot be transferred to the ACL NSA implementation."}]
+    }
+  ],
+  "commands": [
+    "inspect the ACL 2025 proceedings paper's equations, implementation section, efficiency experiment, tables, and appendix",
+    "inspect DeepSeek-V3.2-Exp 87e509a2 and FlashMLA 71c7379 source for the later DSA mechanism",
+    "run host counterexamples for the sparse-forward normalization and sliding-window coverage under conda base",
+    "run primary-link positive controls and a same-host 404 negative control"
+  ],
+  "residual_risk": "No NVIDIA GPU, CUDA toolkit, or paper implementation is available locally. The paper's performance values were not reproduced and its benchmark record omits dtype, software versions, batch details, raw trials, and variance; retained values remain explicitly source-reported.",
+  "scope": "All 22 baseline units for body hash 002fbf6ef7dba7c6bd6bfec4cdeccf4104b100309e09eae082faaf0aeec0e4c3, plus semantic architecture and Blackwell metadata, were checked against the ACL paper, immutable first-party deployment source, version-pinned FlashMLA source, and discriminating host controls."
+}

@@ -1,0 +1,99 @@
+{
+  "path": "wiki/techniques/kernel-fusion.md",
+  "id": "technique-kernel-fusion",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-kernel-fusion-current-c001",
+      "claim": "The page correctly defines fusion as implementing dependent operations in one launch and makes saved launches/traffic conditional on a pinned fused/unfused pair and actual on-chip lifetime.",
+      "claim_type": "performance",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"CUTLASS v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"fusion operation expression types","observation":"The library composes operations in one kernel but makes no claim about a particular unfused launch count, global-memory baseline, or guaranteed speedup."}],
+      "challenge": {"alternative":"Any operation named fused necessarily removes every intermediate and is faster.","check":"Separate expression composition from storage/schedule choices and baseline behavior.","outcome":"A concrete kernel can stage, spill, or write values and incur added resources; the page requires those facts to be measured."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-current-c002",
+      "claim": "The gated dual-GEMM formula, shared-A/separate-B scale contract, and output semantics match the pinned GPU Mode reference, while launch/TMEM/TMA schedules remain unspecified alternatives.",
+      "claim_type": "code",
+      "covers": ["u003", "u004", "u005"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"correctness reference","observation":"It computes two scaled_mm calls sharing A/sfa with distinct B/sfb inputs and applies silu(gate)*up; no launch or TMEM decomposition is part of the contract."}],
+      "challenge": {"alternative":"The task requires two separately allocated TMEM accumulators because it names dual GEMM.","check":"Inspect observable reference semantics and task constraints for storage/instruction requirements.","outcome":"Only input/output math is fixed; a concatenated or separate internal representation can be compatible."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-current-c003",
+      "claim": "The FlashInfer Track A description accurately includes routing, grouped selection, W13/SwiGLU/W2 and weighted accumulation, uses one logical concatenated W13 projection, and does not infer launch topology from the Fused MoE label.",
+      "claim_type": "mechanism",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"DeepSeek routing reference and _fp8_moe_run_experts","observation":"The reference implements the listed stages, makes one W13 matmul then chunks it into two halves, and constrains results rather than GPU launch decomposition."}],
+      "challenge": {"alternative":"The benchmark title proves submissions use one launch and no global intermediates.","check":"Distinguish definition/reference semantics from implementation traces or source of a named submission.","outcome":"The pinned reference contains no launch-count or on-chip-lifetime requirement; the page states that boundary."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-current-c004",
+      "claim": "The implementation constraints correctly cover semantic preservation, scope-specific communication, resource accounting, SM100's 128x512-cell TMEM capacity and collective lifecycle, and capability-based fallbacks without imposing CTA-only fusion or a 256-column total.",
+      "claim_type": "mechanism",
+      "covers": ["u007", "u008", "u009", "u010", "u011", "u012", "u013", "u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM organization and access/lifetime model","observation":"TMEM is 128 lanes by 512 32-bit columns per SM and has collective, asynchronous access rules."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"same archive","locator":"alloc/dealloc semantics","observation":"Allocation uses legal column counts, collective participation/result sharing, and matching deallocation."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"resource-dependent occupancy","observation":"Registers, shared memory and launch dimensions affect residency; deleting a global intermediate does not guarantee reduced on-chip pressure."}
+      ],
+      "challenge": {"alternative":"Fusion is legal whenever the operation graph is acyclic and two 256-column TMEM halves fit.","check":"Check communication scope, asynchronous lifetimes, collective allocation/free and all non-TMEM resource constraints.","outcome":"Acyclicity and one capacity partition are insufficient; the page enumerates the independent obligations."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-current-c005",
+      "claim": "The correctness workflow covers exact semantic comparison and discriminating boundary, routing, scale/layout, completion, reuse and output-edge tests.",
+      "claim_type": "mechanism",
+      "covers": ["u017"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"routing and expert reference","observation":"Routing bias/ties, local filtering, scale dequantization, SwiGLU and weighted accumulation are independent semantic boundaries that a fused result must preserve."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"CUTLASS v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMEM completion, epilogue edges, store tail and free","observation":"The exact schedule contains the completion/lifetime/output boundaries named by the negative tests."}],
+      "challenge": {"alternative":"Matching a few random dense outputs is enough to validate fusion.","check":"Exercise cases that isolate routing ties, empty groups, partial tiles and premature asynchronous reuse.","outcome":"Those cases discriminate semantic/synchronization errors that ordinary dense inputs may not expose."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-current-c006",
+      "claim": "The performance protocol records the variables needed for a controlled fused/unfused comparison and correctly rejects guaranteed speedup from saved traffic alone.",
+      "claim_type": "performance",
+      "covers": ["u018"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy/resource inputs","observation":"Resource and launch configuration can change residency and performance, supporting the page's required accounting rather than a traffic-only prediction."}],
+      "challenge": {"alternative":"Removing one intermediate is sufficient for a source-independent positive result.","check":"Include preprocessing, resource changes, synchronization, repeated trials and variance for identical semantics.","outcome":"Those costs can offset saved bytes; the page predicts no direction and requires measurement."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-current-c007",
+      "claim": "The four primary-source links resolve to the pinned GPU Mode task, FlashInfer Track A definition, pinned FlashInfer reference, and archived PTX ISA 9.0 Tensor Memory section.",
+      "claim_type": "other",
+      "covers": ["u019", "u020", "u021", "u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://github.com/gpu-mode/reference-kernels/tree/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm","revision":"c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"task directory","observation":"The commit-pinned task resolves."},
+        {"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"checked 2026-08-08","locator":"exact definition","observation":"The exact Track A definition resolves."},
+        {"url":"https://github.com/flashinfer-ai/flashinfer/blob/7f614b86470180bab2d22e36fd1775791c6bf3e6/flashinfer/trace/templates/moe.py","revision":"7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"file","observation":"The pinned reference resolves."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"Tensor Memory","observation":"The archived section resolves."}
+      ],
+      "challenge": {"alternative":"A source is mutable or points to a similarly named but different benchmark.","check":"Inspect commit/archive segments and the full benchmark definition ID.","outcome":"Three are immutable revision/archive URLs and the definition URL contains the exact Track A identity."}
+    },
+    {
+      "claim_id": "technique-kernel-fusion-current-c008",
+      "claim": "The two related links resolve to the intended fused-MoE and epilogue-fusion pages.",
+      "claim_type": "other",
+      "covers": ["u023", "u024"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"test -f wiki/kernels/fused-moe.md && test -f wiki/techniques/epilogue-fusion.md","environment":"current worktree","reference":"Resolve links and compare frontmatter IDs.","result":"Targets exist with IDs kernel-fused-moe and technique-epilogue-fusion.","negative_control":"wiki/kernels/not-fused.md does not exist."}],
+      "challenge": {"alternative":"A relative target resolves to an unrelated page.","check":"Resolve from wiki/techniques and inspect IDs.","outcome":"Both labels and IDs agree."}
+    }
+  ],
+  "commands": ["inspect pinned task/reference sources", "resolve related links with broken-target negative control"],
+  "scope": "All 24 current units for body hash affee601d50f5bf6e00362f9728a695fb9a7a2806e5e295158ebf1ffe1d90954 were checked.",
+  "residual_risk": "No GPU profile was run. The page states correctness/resource protocols and source contracts, not a launch count, byte saving or speed result."
+}

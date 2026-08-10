@@ -1,0 +1,105 @@
+{
+  "path": "wiki/kernels/gated-dual-gemm.md",
+  "id": "kernel-gated-dual-gemm",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c001",
+      "claim": "Official NVIDIA rules identify NVFP4 Gated Dual GEMM as Blackwell Hackathon Kernel Challenge 3 for December 20, 2025 through January 16, 2026, and the challenge-opening GPU Mode task targets B200.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf","revision":"official rules fetched 2026-08-08","locator":"Section 3, Kernel #3","observation":"The sponsor's rules explicitly give the challenge number, name, and entry dates."},{"url":"https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description","observation":"The immutable public task says the block-scaled dual matrix multiplication is optimized for NVIDIA B200."}],
+      "challenge": {"alternative":"The numbering/dates are inferred from repository history, or the target is generic Blackwell including Hopper/desktop parts.","check":"Compare the sponsor's numbered rules and the immutable task description.","outcome":"Both scope fields are explicit: Kernel #3 at the stated dates and NVIDIA B200; the page does not extend compatibility beyond that record."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c002",
+      "claim": "The displayed result semantics match the pinned reference: two block-scaled products share A, SiLU applies only to the B1 branch, the result multiplies the B2 branch, and neither correctness interface nor reference mandates a single GPU launch or absence of intermediate storage.",
+      "claim_type": "code",
+      "covers": ["u002", "u003", "u004"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"ref_kernel","observation":"The reference invokes torch._scaled_mm twice with a_ref and separate B/scales, then computes silu(ref1)*ref2; it allocates ref1 and ref2 explicitly."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/template.py","revision":"same commit","locator":"custom_kernel","observation":"The submission interface is a Python function returning c and contains no launch-count or intermediate-storage restriction."}],
+      "challenge": {"alternative":"The two products are multiplied before activation, the second branch is gated, or 'kernel' normatively means one launch.","check":"Trace the reference expression and inspect every constraint on custom_kernel.","outcome":"The expression fixes first-branch SiLU, while the interface constrains only output; no launch topology is stated."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c003",
+      "claim": "The tensor table, reordered-scale inputs, divisibility requirements, 1e-3 tolerances, and disclosed E4M3FNUZ-versus-E4M3FN inconsistency accurately reproduce the challenge-opening task, template, and reference.",
+      "claim_type": "compatibility",
+      "covers": ["u005", "u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description and matrix constraints","observation":"The task publishes A/B1/B2 NVFP4 K-major shapes, logical FP8 scale shapes, FP16 C, K divisible by 256, and M/N tile divisibility; it labels scales e4m3fnuz."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/template.py","revision":"same commit","locator":"custom_kernel tuple documentation","observation":"The starter exposes raw and reordered copies of all three scale tensors plus preallocated C, and also labels scales float8_e4m3fnuz."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"create_scale_factor_tensors, return tuple, and check_implementation","observation":"The generator actually constructs torch.float8_e4m3fn scale tensors, returns raw/reordered copies, and configures rtol=atol=1e-3."}],
+      "challenge": {"alternative":"FNUZ and FN are interchangeable spelling here, reordered scales are internal-only, or K/16 is a physical flat layout guarantee.","check":"Compare dtype constructors and the complete returned/submission tuple rather than normalizing the prose description.","outcome":"The primary files genuinely disagree on dtype suffix and expose both logical and reordered scales, so the page preserves the inconsistency and avoids a stronger physical-layout claim."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c004",
+      "claim": "The four M/N/K/L workload rows, theoretical microsecond values, geometric-mean ranking, 1.5 GHz B200 model, and removal of the unmatched 18.5-us result exactly follow the official task's performance boundary.",
+      "claim_type": "performance",
+      "covers": ["u012", "u013", "u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"speed-of-light table, benchmarks, and ranking_by","observation":"The task lists exactly the four rows and 4.708/8.714/2.125/6.535 us values, calls them speed-of-light analysis from max math/DRAM time at 1.5 GHz, and ranks by geometric mean. It has no M=1024 workload or 18.5-us measurement."}],
+      "challenge": {"alternative":"The listed values are measured baseline or winner latencies, and 18.5 us may be a hidden fifth benchmark.","check":"Read the table label and compare every benchmark dictionary in the immutable task.","outcome":"The values are explicitly theoretical and all four benchmark dictionaries are enumerated; no fifth shape or measured result exists in the source."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c005",
+      "claim": "The page correctly treats shared-input reuse and fused epilogue traffic reduction as opportunities, not guarantees, rejects unsupported leaderboard/TMEM/TMA/CUTLASS/bottleneck details, and limits compatibility to the complete dual-NVFP4 contract rather than arbitrary dual-output or grouped-MoE operations.",
+      "claim_type": "compatibility",
+      "covers": ["u017", "u018", "u019"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"complete task description and benchmark contract","observation":"A/SFA are logically shared and the operation has two same-shaped NVFP4 branches, but the task contains none of the removed implementation, leaderboard, launch-count, grouping, or bottleneck assertions."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel and generate_input","observation":"The exact compatibility surface includes branch order, NVFP4 operands, distinct scale tensors/layouts, batch dimension, FP32 reference products, and FP16 output; the source is not grouped per expert."}],
+      "challenge": {"alternative":"Logical sharing forces one physical A load and dual TMEM accumulators, or any gated MLP can be adapted without additional evidence.","check":"Distinguish observable tensor semantics from internal scheduling and enumerate all dtype/layout/grouping preconditions.","outcome":"Several conforming decompositions remain possible and the ABI has material format/layout constraints; the page's scoped advice is the strongest supportable conclusion."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c006",
+      "claim": "The local full bundle contains a byte-identical official task.yml from the pinned challenge-opening commit, is labeled as a specification rather than an optimized submission, and no longer presents unrelated blog/vLLM material as the contest implementation.",
+      "claim_type": "code",
+      "covers": ["u020"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/gated-dual-gemm/full/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c; SHA-256 2bf4e5c04cc8a9c283e519437c8324ca9265d9c12d0dfe2b76dc9f0542ada051","locator":"entire file","observation":"The local specification is byte-identical to the upstream task.yml blob at the pinned commit."},{"path":"artifacts/kernels/gated-dual-gemm/full/PROVENANCE.yaml","revision":"current corrected provenance","locator":"origin, upstream_sha, asset_mode, and file role","observation":"Provenance pins the full commit and labels the sole file an official problem specification; the former unrelated files are absent from the bundle."}],
+      "challenge": {"alternative":"A task specification plus directory name can still be mistaken for a winning/full optimized kernel.","check":"Inspect the page disclosure, provenance role, and actual bundle contents.","outcome":"All three explicitly call it a problem specification, and no optimized-submission file is present."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c007",
+      "claim": "The derived standard-library variant performs both shared-A products, applies SiLU to the first branch, passes compact-versus-expanded equivalence, and rejects gating the second branch while making no NVFP4/GPU/performance claim.",
+      "claim_type": "code",
+      "covers": ["u021"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python artifacts/kernels/gated-dual-gemm/variants/01-gated-dual-gemm-semantics.py","environment":"KernelWiki worktree; conda base standard-library Python","reference":"gpu-mode/reference-kernels ref_kernel at c5b2f7c","result":"Exited 0 and printed 'gated dual GEMM semantic reference: PASS'; file SHA-256 ac13383732fc5c946ae1698cc0776131dd399c507736b28a1a7d4f45a976daeb.","negative_control":"The self-test computes SiLU(up)*gate and asserts that it differs from the required SiLU(gate)*up result."}],
+      "challenge": {"alternative":"The test duplicates the same branch-order mistake in both implementations or accidentally exercises symmetric data.","check":"Inspect the separately formed wrong_branch path and run it on asymmetric B1/B2 matrices.","outcome":"Compact and expanded correct forms match, while the explicit swapped-gate alternative differs, discriminating branch order."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c008",
+      "claim": "The four primary-source links resolve to the official rules and the exact pinned task, starter, and reference files.",
+      "claim_type": "other",
+      "covers": ["u022", "u023", "u024", "u025"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <each of four Primary sources URLs>","environment":"KernelWiki host, 2026-08-08","reference":"HTTP success and source identity/revision","result":"All four targets returned HTTP 200 and the three repository paths retain commit c5b2f7c062d5015f29c3a1043cfd04954397944c.","negative_control":"A nonexistent file under the same pinned GitHub problem path returned HTTP 404."}],
+      "challenge": {"alternative":"A source link is mutable, missing, or points to a neighboring problem/revision.","check":"Follow redirects and inspect problem path plus commit in every repository URL, with a same-path invalid control.","outcome":"Each link resolves to the intended record and all code links are immutable; the invalid control is rejected."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-current-c009",
+      "claim": "The documented get_page command returns the corrected page and both labeled artifact bundles, while an unknown page ID fails distinctly.",
+      "claim_type": "code",
+      "covers": ["u026", "u027"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py kernel-gated-dual-gemm --include-code","environment":"KernelWiki worktree; conda base","reference":"current page and corrected provenance","result":"Exited 0; output contains 'Verified scope', the official task.yml disclosure, and the derived semantic reference PASS marker.","negative_control":"kernel-gated-dual-gemm-broken exited nonzero with 'No page found'."}],
+      "challenge": {"alternative":"The query resolves prose but omits the corrected full or derived artifact.","check":"Search positive output for content unique to each bundle and compare an invalid ID.","outcome":"Both artifact types appear with corrected scope and the unknown ID is rejected."}
+    }
+  ],
+  "commands": [
+    "inspect official NVIDIA challenge rules and gpu-mode/reference-kernels commit c5b2f7c task/template/reference",
+    "compare the local task.yml byte-for-byte with its upstream blob",
+    "run the standard-library semantic reference and wrong-branch negative control under conda base",
+    "run four-link and get_page positive/negative controls"
+  ],
+  "residual_risk": "No B200, CUDA toolkit, or immutable public winning submission is available, so optimized numeric behavior, launch topology, and measured performance were not reproduced. The upstream FNUZ/FN scale-label inconsistency is disclosed rather than resolved editorially.",
+  "scope": "All 27 current coverage units for body hash 11f0038a8e9f681dac4ffd25654362cefa9f94a039e46745ac55f9488a405f80 were checked against official rules, immutable upstream source, byte comparison, and discriminating host tests."
+}

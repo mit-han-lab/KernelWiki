@@ -1,0 +1,106 @@
+{
+  "claims": [
+    {
+      "claim": "L1 eviction qualifiers control cache admission and are critical whenever a memory-bound kernel's L1 working set matters more than compute.",
+      "claim_id": "technique-cache-policy-original-c001",
+      "claim_type": "semantics",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "locator": "9.7.9.8 ld, eviction priorities",
+          "observation": "The ISA says eviction policies may be applied during access; it does not define these qualifiers as mandatory admission controls or prescribe them by bottleneck category.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The PTX pattern makes A bypass L1, keeps B resident, and evicts C immediately, thereby preventing cache pollution.",
+      "claim_id": "technique-cache-policy-original-c002",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "evidence": [
+        {
+          "locator": "9.7.9.8 ld and 9.7.9.12 st",
+          "observation": "The displayed vector load/store forms are legal on SM100 with natural alignment, but L1 qualifiers are eviction priorities that may apply. Their names do not guarantee bypass, residence, immediate eviction, or performance.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-st"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The rank-1 NVFP4 GEMV submission used an aggressive A no_allocate policy for K=16384 and a relaxed policy for K=2048.",
+      "claim_id": "technique-cache-policy-original-c003",
+      "claim_type": "performance",
+      "covers": ["u003", "u004", "u005"],
+      "evidence": [
+        {
+          "locator": "Post-event Observations",
+          "observation": "The cited retrospective reports A no_allocate, B evict_last, exact-K specializations, and caps among inspected solutions, but publishes no contestant code and does not assign the page's per-K qualifier policies to rank 1.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        },
+        {
+          "locator": "Public leaderboard and task directory",
+          "observation": "The public contest materials expose scores and a task contract, not contestant source or technique metadata.",
+          "revision": "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6",
+          "url": "https://github.com/gpu-mode/reference-kernels/tree/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemv"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Cache policy plus PTX byte unpacking partly caused a 16x 443-to-27 microsecond gain and cache policy can dominate memory-bound kernels.",
+      "claim_id": "technique-cache-policy-original-c004",
+      "claim_type": "performance",
+      "covers": ["u006", "u007"],
+      "evidence": [
+        {
+          "locator": "CUDA optimization 1 through 3",
+          "observation": "The 443-to-27 endpoints include coalescing, shared-memory changes, collaboration, reductions, per-thread tiles, vector width, hardware conversion, and PTX decode. No cache-policy-only run or dominant-lever result is reported.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Cache differentiation should be used for memory-bound kernels, clear streaming/reuse patterns, inputs larger than B200's 126 MB L2, and separate GEMM M/N loading patterns.",
+      "claim_id": "technique-cache-policy-original-c005",
+      "claim_type": "performance",
+      "covers": ["u008", "u009", "u010", "u011"],
+      "evidence": [
+        {
+          "locator": "9.7.9.8 ld",
+          "observation": "The ISA defines legal hints but no input-size, tensor-role, GEMM-axis, or bottleneck rule that predicts benefit. Cache behavior depends on the exact address stream, reuse distance, concurrency, and compiled access path.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld"
+        },
+        {
+          "locator": "Attempts 8-12 and Takeaways",
+          "observation": "The author's task-specific conclusion is to profile the actual bottleneck and run controlled variants; workload categories alone did not predict beneficial transformations.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    }
+  ],
+  "commands": [
+    "Inspect archived PTX 9.0 ld/st eviction-priority grammar and semantics",
+    "Compare the cited author reports with the page's contestant and causal attributions",
+    "Check the pinned public contest boundary for source and technique visibility"
+  ],
+  "id": "technique-cache-policy",
+  "page_verdict": "refuted",
+  "path": "wiki/techniques/cache-policy.md",
+  "residual_risk": "No B200 or released rank-1 source was available; unsupported contestant attribution was therefore removed rather than guessed.",
+  "scope": "All 11 baseline body units and the frontmatter performance claim were checked against archived PTX, the cited reports, and pinned public contest materials."
+}

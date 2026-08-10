@@ -1,0 +1,110 @@
+{
+  "claims": [
+    {
+      "challenge": {
+        "alternative": "The qualifier names define mandatory bypass, immediate eviction, persistent residence, and completed prefetch behavior.",
+        "check": "Trace the load/store forms through the PTX grammar, description, alignment rule, and performance-hint language.",
+        "outcome": "All displayed forms are legal 16-byte accesses, while the normative contract remains eviction priority that may apply or a performance-only prefetch hint; the page preserves that distinction."
+      },
+      "claim": "PTX 9.0 exposes load/store L1 eviction priorities and load-side L2 prefetch/cache-policy hints without guaranteeing placement, residence, eviction time, hit rate, or performance; the displayed v4.u32 fragments are legal and require 16-byte alignment.",
+      "claim_id": "technique-cache-policy-current-c001",
+      "claim_type": "code",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006", "u007", "u008", "u009"],
+      "evidence": [
+        {
+          "locator": "6.4.1.1 Addresses as Operands, 9.7.9.8 ld, and 9.7.9.12 st",
+          "observation": "The archived ISA grammar accepts the displayed vector and eviction forms, requires natural alignment to total access size, says eviction policies may be applied, and treats prefetch/cache policies as hints that do not alter consistency.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "A memory-bound label, tensor role, or working-set-size threshold is sufficient to choose the policy without an ablation.",
+        "check": "Compare the ISA's absence of selection rules with interference/reuse counterexamples and the page's controlled procedure.",
+        "outcome": "The ISA supplies no tensor-role prescription, and concurrency changes effective reuse; the procedure holds co-varying choices fixed and measures each production shape."
+      },
+      "claim": "The five-step policy-selection procedure validly starts from concrete warp addresses, reuse and interference, then controls correctness, generated code/resources, profiler evidence, and repeated timing; size or bottleneck labels alone do not predict a useful hint.",
+      "claim_id": "technique-cache-policy-current-c002",
+      "claim_type": "semantics",
+      "covers": ["u010", "u011", "u012", "u013", "u014", "u015", "u016"],
+      "evidence": [
+        {
+          "locator": "ld cache qualifiers and performance scope",
+          "observation": "The ISA specifies legal cache controls and hint semantics but no workload category, cache-capacity threshold, tensor name, or GEMM-axis rule that establishes benefit.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld"
+        },
+        {
+          "locator": "Attempts 8-12 and Takeaways",
+          "observation": "The author's same-task experiments show ineffective and regressing plausible transformations and recommend profiling the concrete bottleneck before choosing one.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The post-event observations reveal rank-1 code and exact per-K policy choices.",
+        "check": "Separate what the author directly reports from missing contestant implementation and ablation evidence.",
+        "outcome": "The report names common techniques and co-varying differences but publishes neither the inspected contestant code nor rank-1 per-K qualifier mapping; the page states only that boundary."
+      },
+      "claim": "Amandeep Singh reports A no_allocate and B evict_last among several co-varying techniques in three inspected solutions but provides no released contestant code, cache-only ablation, or evidence for the former rank-1 per-K attribution.",
+      "claim_id": "technique-cache-policy-current-c003",
+      "claim_type": "performance",
+      "covers": ["u017"],
+      "evidence": [
+        {
+          "locator": "Post-event Observations",
+          "observation": "The cited report lists cache policies together with PTX decode, wide loads, specialization, register caps, and reuse; it supplies no source or isolated timings for the inspected contestants.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        },
+        {
+          "locator": "public task and leaderboard boundary",
+          "observation": "The public materials expose the task and scores rather than contestant source or technique metadata.",
+          "revision": "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6",
+          "url": "https://github.com/gpu-mode/reference-kernels/tree/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemv"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The 39-to-27 microsecond endpoints are a cache-policy ablation or show that cache policy dominated.",
+        "check": "Compare both endpoint stage descriptions and enumerate every changed mechanism.",
+        "outcome": "The first stage already combines staging, tiling, float4, and conversion changes, while the second switches the vectorized PTX load/decode path; the page denies cache-only attribution."
+      },
+      "claim": "Yue Zhang's approximately 39-to-27 microsecond endpoints change multiple load, staging, tiling, conversion, and PTX-decode mechanisms and therefore do not measure a cache-hint-only speedup or dominant cache-policy effect.",
+      "claim_id": "technique-cache-policy-current-c004",
+      "claim_type": "performance",
+      "covers": ["u018"],
+      "evidence": [
+        {
+          "locator": "CUDA optimization 2 and 3",
+          "observation": "The author gives the same endpoints and full combined changes, with no cache-policy-only variant or causal decomposition.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": [
+    "Inspect archived PTX 9.0 load/store eviction, prefetch, cache-policy, vector, and alignment contracts",
+    "Challenge workload-selection rules against the ISA scope and same-task negative controls",
+    "Separate direct author reports from unsupported contestant and causal attribution"
+  ],
+  "id": "technique-cache-policy",
+  "page_verdict": "verified",
+  "path": "wiki/techniques/cache-policy.md",
+  "residual_risk": "The PTX fragments were checked against archived syntax but not assembled or profiled because this environment has no CUDA toolkit or GPU. Performance claims remain explicitly scoped to author reports and missing ablations.",
+  "scope": "All 18 current body units, the frontmatter hint claim, code fragments, procedure, and report-provenance boundaries were checked against direct versioned evidence."
+}

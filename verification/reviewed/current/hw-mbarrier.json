@@ -1,0 +1,188 @@
+{
+  "path": "wiki/hardware/mbarrier.md",
+  "id": "hw-mbarrier",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "hw-mbarrier-current-c001",
+      "claim": "mbarrier is a naturally aligned opaque 64-bit shared-memory object introduced in PTX 7.0 for sm_80; sm_90 added tx-count and cluster-scope support, and Blackwell uses it for TMA and tcgen05 completion without requiring it in every warp-specialized kernel.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "object size/alignment, PTX 7.0 target notes, PTX 8.0 change log, TMA and tcgen05 completion sections",
+          "observation": "The vendor history and operation definitions match each scoped generation claim; the page frames usage as optional design choice."
+        }
+      ],
+      "challenge": {
+        "alternative": "The sm_80 form is a different primitive and modern mbarrier began with Hopper.",
+        "check": "Compare base init/arrive/test_wait ISA notes with the later expect_tx/complete_tx notes.",
+        "outcome": "The same mbarrier object and base instructions require sm_80; only tx-count and cluster extensions begin with sm_90."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-current-c002",
+      "claim": "An mbarrier tracks pending arrivals, next-phase expected arrivals, and tx-count; a phase completes only when arrivals and tx-count are both zero, then advances atomically, and the displayed initialization/lifecycle rules and PTX form are exact.",
+      "claim_type": "code",
+      "covers": ["u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#contents-of-the-mbarrier-object",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "object contents, lifecycle, phase completion, and mbarrier.init syntax",
+          "observation": "All three fields, conjunctive completion, automatic next-phase initialization, wait-before-next-arrive rule, invalidation rule, and the exact CTA-shared init form are normative."
+        }
+      ],
+      "challenge": {
+        "alternative": "Either zero arrivals or zero tx-count independently completes the phase, or reinitialization may replace invalidation.",
+        "check": "Inspect the completion bullet conjunction and the undefined-behavior clause for init on a valid object.",
+        "outcome": "Both counters must be zero and a valid object must be invalidated before reinitialization."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-current-c003",
+      "claim": "The operation table and representative PTX correctly distinguish arrive, arrive.expect_tx, expect_tx, complete_tx, state/parity waits, retry behavior, and acquire/release versus relaxed semantics.",
+      "claim_type": "code",
+      "covers": ["u011", "u012", "u013", "u014", "u015", "u016", "u017", "u018", "u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-arrive",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "arrive/expect_tx/complete_tx and wait grammars and descriptions",
+          "observation": "The effects and exact CTA-shared forms match the ISA; try_wait may resume before completion and relaxed lacks ordering guarantees."
+        }
+      ],
+      "challenge": {
+        "alternative": "arrive.expect_tx only changes tx-count, while complete_tx also decrements arrivals.",
+        "check": "Trace each instruction to the separately defined arrive-on, expect-tx, and complete-tx operations.",
+        "outcome": "arrive.expect_tx composes arrive-on with expect-tx; complete_tx changes only tx-count, exactly as the table states."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-current-c004",
+      "claim": "Parity is each object's phase low bit, parity waits require lifetime tracking of that object, a stage ring therefore needs per-stage phase/state, and an opaque arrival token can identify the phase instead.",
+      "claim_type": "semantics",
+      "covers": ["u020", "u021", "u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "state and phaseParity operand semantics; parity tracking note",
+          "observation": "Waits accept either a returned state for the current/immediately preceding phase or that phase's even/odd parity, and the ISA requires parity tracking throughout object lifetime."
+        }
+      ],
+      "challenge": {
+        "alternative": "A global iteration parity works for any number of independently reused stage objects.",
+        "check": "Apply the per-object phase definition to a two-stage ring and compare a stage's first and second use.",
+        "outcome": "The global bit toggles twice before the same stage is reused and returns to its old value, while that stage advances once; per-object state is necessary."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-current-c005",
+      "claim": "The TMA sequence correctly uses arrive.expect_tx for one software arrival and the total expected bytes, TMA complete-tx for copied bytes, a consumer wait, and forbids unmatched extra arrival or complete_tx operations.",
+      "claim_type": "semantics",
+      "covers": ["u023", "u024", "u025", "u026", "u027", "u028", "u029"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "mbarrier::complete_tx::bytes mechanism and TMA operand conditions",
+          "observation": "Each TMA copy decrements tx-count by bytes copied and the mbarrier is the only guaranteed completion observation mechanism."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-arrive",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "arrive.expect_tx composed semantics",
+          "observation": "The instruction performs one arrive-on and increases tx-count, matching the accounting sequence and excluding a second unplanned arrival."
+        }
+      ],
+      "challenge": {
+        "alternative": "TMA completion performs an arrive-on, so pending-arrival count should include one hardware arrival per copy.",
+        "check": "Compare the TMA completion qualifier with the definitions of complete-tx and arrive-on.",
+        "outcome": "The qualifier explicitly requests complete-tx::bytes, which decrements tx-count and not pending arrivals."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-current-c006",
+      "claim": "tcgen05.commit tracks prior MMA/cp/shift operations with one completion arrive-on, distinct from TMA byte tx-count, and an applicable cross-thread consumer handoff combines the wait with after_thread_sync ordering rather than substituting the fence for completion.",
+      "claim_type": "semantics",
+      "covers": ["u030", "u031"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "mbarrier::arrive::one description and cross-thread synchronization examples",
+          "observation": "Commit signals one arrive-on after prior MMA/cp/shift completion, and the consumer example waits then executes after_thread_sync before issuing dependent tcgen05 work."
+        }
+      ],
+      "challenge": {
+        "alternative": "tcgen05.commit contributes a byte tx-count just like TMA, or the after fence itself waits.",
+        "check": "Inspect the completion_mechanism token and sequence in the different-thread example.",
+        "outcome": "The token is arrive::one and the example has a separate mbarrier wait before the fence."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-current-c007",
+      "claim": "The page correctly separates CTA/cluster shared address state space from synchronization scope, limits cluster-shared-object operations to arrive/expect_tx/complete_tx, and derives the eight-item correctness checklist from those lifecycle and ordering rules.",
+      "claim_type": "semantics",
+      "covers": ["u032", "u033", "u034", "u035", "u036", "u037", "u038", "u039", "u040", "u041", "u042", "u043", "u044"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#mbarrier-support-with-shared-memory",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "shared-location support table, wait scope description, and cluster Example 4",
+          "observation": "The table permits only the three stated operations on cluster-shared addresses; scope is a separate qualifier, and the example initializes an owner's CTA-shared object, maps it for remote arrival, and waits at the owner."
+        }
+      ],
+      "challenge": {
+        "alternative": ".shared::cluster implicitly supplies cluster scope and supports init/wait on the remote object.",
+        "check": "Compare grammar qualifiers with the operation-by-location support table.",
+        "outcome": "The grammar separates scope from state space and the table marks all other operations unsupported for .shared::cluster."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-current-c008",
+      "claim": "The three external references are pinned to the relevant PTX 9.0 sections and the two internal links resolve to the TMA and warp-specialization pages.",
+      "claim_type": "other",
+      "covers": ["u045", "u046", "u047", "u048", "u049"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "test -f wiki/hardware/tma.md && test -f wiki/techniques/warp-specialization.md; inspect three CUDA archive URLs",
+          "environment": "KernelWiki worktree; web retrieval on 2026-08-08",
+          "reference": "Internal targets exist and external anchors identify mbarrier lifecycle, waits, and TMA tensor-copy sections in CUDA 13.0.2.",
+          "result": "Both internal files resolve and all external links use the CUDA 13.0.2 archive with the intended anchors.",
+          "negative_control": "wiki/hardware/not-a-page.md does not exist, showing the file check rejects a broken relative target."
+        }
+      ],
+      "challenge": {
+        "alternative": "One link tracks rolling docs or resolves relative to the wrong directory.",
+        "check": "Inspect the archive segment and resolve relative paths from wiki/hardware.",
+        "outcome": "The three external URLs are archive-pinned, and both relative paths resolve to existing intended files."
+      }
+    }
+  ],
+  "commands": [
+    "test -f wiki/hardware/tma.md && test -f wiki/techniques/warp-specialization.md",
+    "structural validation after remediation"
+  ],
+  "residual_risk": "No CUDA toolkit is installed locally, so the three short PTX forms were not assembled. Their qualifier ordering and operands match PTX ISA 9.0 grammar and examples exactly.",
+  "scope": "All 49 current units for body hash 4215a80fde138535a1d096475ad4d1b76c905d6cd8c3ab2b6198eae4c78180e3 were verified against CUDA 13.0.2 PTX ISA 9.0 and local link resolution."
+}

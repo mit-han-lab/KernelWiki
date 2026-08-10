@@ -1,0 +1,209 @@
+{
+  "path": "wiki/techniques/external-source-map-research.md",
+  "id": "technique-external-source-map-research",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-external-source-map-research-current-c001",
+      "claim": "The page correctly treats profiler results as search keys rather than root-cause proof and scopes the pinned modern source maps to Hopper SM90a, requiring separate evidence for Blackwell transfer.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "modern example Makefiles and SM90 source symbols",
+          "observation": "Relevant examples target SM90a and use SM90 facilities, while no profiler-causality or SM100 compatibility guarantee is stated."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-colfax-cutlass",
+          "revision": "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a",
+          "locator": "FMHA READMEs and compile scripts",
+          "observation": "The source explicitly identifies Hopper SM90/SM90a and CUDA 12.2/12.3 rather than Blackwell."
+        }
+      ],
+      "challenge": {
+        "alternative": "A post-Blackwell commit or a shared TMA concept makes these repositories direct SM100 evidence.",
+        "check": "Search pinned build targets and architecture-specific source symbols for SM100/tcgen05 versus SM90a/SM90.",
+        "outcome": "The implementations are explicitly SM90a/SM90; conceptual transfer does not establish SM100 compatibility or performance."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-current-c002",
+      "claim": "The displayed shell procedure obtains the exact cfx commit, verifies HEAD, and locates the stated TMA/barrier and persistent/Stream-K symbols.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "Run the displayed init/remote/fetch/checkout/test/rg sequence in a fresh mktemp directory",
+          "environment": "2026-08-09 host with git network access",
+          "reference": "HEAD must equal fbecfed88de2e4246f104a023188ba722937c5fc and both mechanism searches must return pinned source lines.",
+          "result": "The fetch and detached checkout succeeded, HEAD matched exactly, and rg found SM90_TMA/mbarrier and PersistentTileScheduler/StreamK symbols.",
+          "negative_control": "Fetching the all-zero nonexistent revision failed with remote 'not our ref'."
+        }
+      ],
+      "challenge": {
+        "alternative": "The procedure still silently uses the moving default branch or accepts a wrong commit.",
+        "check": "Execute it from an empty repository and repeat fetch with a nonexistent SHA.",
+        "outcome": "The explicit object fetch/check pins the requested commit, and the invalid-SHA negative control is rejected."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-current-c003",
+      "claim": "The page's pinned repository inventory accurately distinguishes cfx SM90 mechanisms, simveit TMA transpose, simveit ldmatrix/stmatrix-only examples, Colfax Hopper GEMM/FMHA, and the cross-generation NVIDIA sample paths.",
+      "claim_type": "compatibility",
+      "covers": ["u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "tma/tma_copy.h, pipeline-gemm/, streamk/tile_scheduler.hpp",
+          "observation": "The exact TMA, pipeline, and three scheduler families listed by the page are present."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-transpose",
+          "revision": "simveit/effective_transpose 994b2b5acaa67f80e411df3e8274b6ae13fd1949",
+          "locator": "Makefile and transpose_swizzle_batched.cu tensor-map encoder",
+          "observation": "The build target is sm_90a and the tensor map uses CU_TENSOR_MAP_SWIZZLE_128B."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-load-store",
+          "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
+          "locator": "README.md, Makefile and complete tracked file list",
+          "observation": "The six kernels are ldmatrix/stmatrix x1/x2/x4 and compile for sm_90a; the excluded broader mechanisms are absent."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-colfax-cutlass",
+          "revision": "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a",
+          "locator": "src/fmha*/README.md, compile scripts, source tree search",
+          "observation": "The repository contains SM90a GEMM/FMHA TMA/WGMMA pipelines and optional warp specialization, with no persistent/tile scheduler or SM100 implementation."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-nvidia-samples",
+          "revision": "NVIDIA-developer-blog/code-samples 3350d216083a902ccbf5b31665e3b82096a75b55",
+          "locator": "complete file tree and the two page-listed CUDA paths",
+          "observation": "Both exact coalescing and transpose paths exist in a broad historical sample collection."
+        }
+      ],
+      "challenge": {
+        "alternative": "The exclusions are artifacts of shallow clones or case-sensitive searches rather than real scope limits.",
+        "check": "Inspect complete tracked file lists plus READMEs, build targets, and case-insensitive architecture/mechanism searches at each exact revision.",
+        "outcome": "The positive mechanisms have exact files/symbols, while the excluded scope has no target, implementation, or repository claim."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-current-c004",
+      "claim": "Coalescing, transpose, and matrix load/store examples are valid candidate sources for long-scoreboard or poor-sector investigations, but those metrics alone do not establish vector width or layout as the cause.",
+      "claim_type": "mechanism",
+      "covers": ["u012", "u013"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-nvidia-samples",
+          "revision": "NVIDIA-developer-blog/code-samples 3350d216083a902ccbf5b31665e3b82096a75b55",
+          "locator": "coalescing-global/coalescing.cu and transpose/transpose.cu",
+          "observation": "The files isolate stride/offset coalescing and shared-memory transpose/padding mechanisms but do not define a unique mapping from profiler symptoms to cause."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-load-store",
+          "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
+          "locator": "ldmatrix/stmatrix examples",
+          "observation": "These are concrete matrix movement candidates, not evidence that a particular target kernel uses them or should change vector width."
+        }
+      ],
+      "challenge": {
+        "alternative": "Long scoreboard or poor sectors uniquely imply one of the listed memory-layout defects.",
+        "check": "Look for such causal semantics in the pinned sources and compare with their actual experimental variables.",
+        "outcome": "The sources demonstrate mechanisms only, matching the page's explicit non-causal wording."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-current-c005",
+      "claim": "Pinned SM90 TMA and pipelined GEMM paths are appropriate candidate implementations to inspect for barrier/TMA-wait stalls, without guaranteeing that stage or role changes improve another kernel.",
+      "claim_type": "mechanism",
+      "covers": ["u014", "u015"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "tma/tma_copy.h and pipeline-gemm/sm90_gemm_multistage.cu",
+          "observation": "The sources explicitly implement TMA transaction-barrier handling and staged producer/consumer GEMM flow."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-colfax-cutlass/src/fmha-pipeline",
+          "revision": "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a",
+          "locator": "README.md and fmha_pipe_ws.h",
+          "observation": "Stage count and optional warp-specialized execution are explicit configuration dimensions, not universal performance prescriptions."
+        }
+      ],
+      "challenge": {
+        "alternative": "Because the mechanisms match the stall labels, copying their stage count or role split must help.",
+        "check": "Inspect whether the pinned source results cover a different target kernel's shapes, resources, and timing.",
+        "outcome": "They do not; the page limits the action to inspection and explicitly withholds a transfer guarantee."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-current-c006",
+      "claim": "The cfx source contains non-persistent, data-parallel persistent, and Stream-K schedulers suitable for controlled tail-wave comparison, while persistence is not stated as a universal remedy.",
+      "claim_type": "mechanism",
+      "covers": ["u016", "u017"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-ext-cfx/streamk",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "tile_scheduler.hpp classes and cli_options.h scheduler enumeration",
+          "observation": "All three named scheduler families and shape/scheduler command-line controls are present."
+        }
+      ],
+      "challenge": {
+        "alternative": "The Stream-K tutorial proves persistent scheduling should replace shape dispatch for every tail wave.",
+        "check": "Inspect the alternative schedulers and configurable problem shapes exposed by the source.",
+        "outcome": "The repository makes the alternatives comparable rather than declaring one universally optimal; the page requires target-shape profiling."
+      }
+    },
+    {
+      "claim_id": "technique-external-source-map-research-current-c007",
+      "claim": "The provenance rule correctly treats local source pages as discovery leads and requires a full immutable upstream revision plus exact file/symbol locator, with separate SM100 evidence for Blackwell transfer.",
+      "claim_type": "other",
+      "covers": ["u018"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "plan.md",
+          "revision": "repository remediation contract",
+          "locator": "sections 5 and 8",
+          "observation": "The contract requires revision and exact locator, rejects summaries as primary evidence, and requires version-matched compatibility evidence."
+        },
+        {
+          "path": "/tmp/kernelwiki-ext-cfx",
+          "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
+          "locator": "architecture-specific build/source files",
+          "observation": "Pinned Hopper source proves only its recorded scope and does not itself establish SM100 transfer."
+        }
+      ],
+      "challenge": {
+        "alternative": "A source-card URL or unversioned upstream path is enough because readers can inspect the latest version.",
+        "check": "Compare that alternative with repository drift and the overbroad baseline source-card metadata.",
+        "outcome": "Latest contents and local summaries can change or misstate scope; revision plus exact locator preserves the evidence actually reviewed."
+      }
+    }
+  ],
+  "commands": [
+    "execute the displayed pinned git fetch/checkout/search procedure with an invalid-revision negative control",
+    "inspect exact revisions and complete tracked trees for all five linked repositories"
+  ],
+  "scope": "All 18 current semantic units for body hash e518329cc4548741f8dede0d4a60f5d493cc932595124606962a0e23358c5080 and the corrected linked source scopes were checked.",
+  "residual_risk": "No GPU benchmark was run. This page verifies source discovery, pinned scope, and evidence discipline; it makes no transferred correctness or performance claim."
+}

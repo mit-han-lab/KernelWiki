@@ -1,0 +1,186 @@
+{
+  "path": "wiki/hardware/pdl-gdc.md",
+  "id": "hw-pdl-gdc",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "hw-pdl-gdc-current-c001",
+      "claim": "PDL on compute capability 9.0 or later makes a same-stream secondary grid eligible for opportunistic early execution only after every primary CTA triggers or exits; dependent secondary work still waits for prerequisite completion and visibility, while omitted explicit triggers occur at CTA exit.",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006", "u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#programmatic-dependent-launch-and-synchronization",
+          "revision": "CUDA 13.0.2",
+          "locator": "6.2.8.6 overview and API Description",
+          "observation": "The guide gives the compute-capability floor, same-stream requirement, all-CTA trigger/exit rule, implicit exit trigger, extensible launch attribute, mandatory dependency wait, and explicit warning that concurrency is opportunistic."
+        }
+      ],
+      "challenge": {
+        "alternative": "A single CTA trigger releases the secondary's dependent reads immediately and guarantees overlap.",
+        "check": "Separate grid scheduling eligibility from dependency completion and inspect the all-CTA and wait clauses.",
+        "outcome": "All CTAs must trigger or exit before early scheduling, and the secondary wait still blocks dependent work until prerequisites complete; overlap is not guaranteed."
+      }
+    },
+    {
+      "claim_id": "hw-pdl-gdc-current-c002",
+      "claim": "The CUDA skeleton places a one-per-primary-CTA trigger, secondary-side dependency wait, and programmaticStreamSerializationAllowed launch attribute in their correct roles and same stream.",
+      "claim_type": "code",
+      "covers": ["u008", "u009", "u010"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#programmatic-dependent-launch-and-synchronization",
+          "revision": "CUDA 13.0.2",
+          "locator": "6.2.8.6.2 official CUDA example",
+          "observation": "The official example uses the same primary function, secondary function, launch attribute ID/value, config attrs, and cudaLaunchKernelEx role mapping. The page adds one-thread-per-CTA issue, which is sufficient because repeated same-CTA triggers have no additional effect."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-griddepcontrol",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "launch_dependents repeated-invocation rule",
+          "observation": "The ISA states that invocations after the first within a CTA have no extra side effect, supporting the single issuing thread per CTA."
+        }
+      ],
+      "challenge": {
+        "alternative": "cudaGridDependencySynchronize belongs in the primary or a normal secondary launch receives the dependency implicitly.",
+        "check": "Trace the two device functions and the host attribute in NVIDIA's official example.",
+        "outcome": "The trigger is primary-side, the wait is secondary-side, and the secondary is launched through the extensible API with explicit opt-in."
+      }
+    },
+    {
+      "claim_id": "hw-pdl-gdc-current-c003",
+      "claim": "The exact PTX forms griddepcontrol.launch_dependents and griddepcontrol.wait, their per-CTA and visibility semantics, PTX 7.8 introduction, sm_90 floor, and mandatory wait pairing are correct.",
+      "claim_type": "code",
+      "covers": ["u011", "u012", "u013"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-griddepcontrol",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "syntax, description, note, ISA notes, and target notes",
+          "observation": "Every instruction spelling, behavioral qualification, history statement, and target requirement on the page matches the normative section."
+        }
+      ],
+      "challenge": {
+        "alternative": "launch_dependents itself makes prerequisite writes visible or the dependent may omit wait after early launch.",
+        "check": "Compare the two action descriptions and the explicit correctness note.",
+        "outcome": "Only wait provides prerequisite completion/visibility, and the note requires a wait when the prerequisite launches dependents."
+      }
+    },
+    {
+      "claim_id": "hw-pdl-gdc-current-c004",
+      "claim": "Blackwell retains explicit CUDA PDL opt-in, while CUTLASS 4.5.0 separately defaults CUTLASS_ENABLE_GDC_FOR_SM100 ON and leaves its SM90 counterpart opt-in; this build setting is overridable and not device-wide behavior.",
+      "claim_type": "compatibility",
+      "covers": ["u014", "u015"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/CMakeLists.txt",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "lines 458-474",
+          "observation": "SM90 GDC is appended only if an externally set option is true; SM100 receives an overridable default variable set to ON and, when enabled, adds CUTLASS_ENABLE_GDC_FOR_SM100=1."
+        },
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cutlass/arch/grid_dependency_control.h",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "compile guards and launch/wait wrappers",
+          "observation": "The macro gates instruction-emitting wrapper code for eligible architectures, demonstrating library compilation rather than a device-global launch mode."
+        }
+      ],
+      "challenge": {
+        "alternative": "The default-ON CMake option means every SM100 CUDA launch automatically participates in PDL.",
+        "check": "Follow the option into the guarded header and compare it with CUDA's host launch attribute contract.",
+        "outcome": "The option controls CUTLASS compilation only; ordinary kernels and launches do not acquire a dependency or host attribute."
+      }
+    },
+    {
+      "claim_id": "hw-pdl-gdc-current-c005",
+      "claim": "The usage guidance correctly treats independent secondary preamble, post-trigger primary tail, co-residency headroom, and net saved time as benefit preconditions, lists candidate rather than guaranteed workloads, requires a scoped baseline, and forbids reliance on overlap for progress.",
+      "claim_type": "performance",
+      "covers": ["u016", "u017", "u018", "u019", "u020", "u021"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#programmatic-dependent-launch-and-synchronization",
+          "revision": "CUDA 13.0.2",
+          "locator": "background overlap diagram and opportunistic-concurrency warning",
+          "observation": "NVIDIA identifies primary tail and secondary preamble as the overlap opportunity, conditions execution on available hardware resources, declines to guarantee overlap, and warns that relying on it can deadlock. The page adds the necessary measurement controls rather than claiming a result."
+        }
+      ],
+      "challenge": {
+        "alternative": "PDL always shortens a chain because early scheduling has no resource or protocol cost.",
+        "check": "Apply the vendor's resource/opportunism caveats to a pair with no independent secondary preamble or no co-residency capacity.",
+        "outcome": "Such a pair has nothing useful to overlap or cannot co-reside, so only an experiment against the explicit baseline can establish benefit."
+      }
+    },
+    {
+      "claim_id": "hw-pdl-gdc-current-c006",
+      "claim": "The external references are pinned to CUDA 13.0.2 PDL/PTX sections and the exact CUTLASS 4.5.0 commit document for dependent launch.",
+      "claim_type": "other",
+      "covers": ["u022", "u023", "u024"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#programmatic-dependent-launch-and-synchronization",
+          "revision": "CUDA 13.0.2",
+          "locator": "PDL section",
+          "observation": "The archive and anchor resolve to the cited API contract."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-griddepcontrol",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "griddepcontrol section",
+          "observation": "The archive and anchor resolve to the cited instruction contract."
+        },
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/dependent_kernel_launch.md",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "dependent kernel launch document",
+          "observation": "The immutable blob URL resolves to CUTLASS's GDC enablement and use documentation."
+        }
+      ],
+      "challenge": {
+        "alternative": "One link follows rolling documentation or a mutable branch.",
+        "check": "Inspect CUDA archive segments and the Git blob commit identifier.",
+        "outcome": "CUDA links include 13.0.2, and the CUTLASS link names the exact 40-character commit."
+      }
+    },
+    {
+      "claim_id": "hw-pdl-gdc-current-c007",
+      "claim": "The internal references resolve to the persistent-kernel and Cluster Launch Control pages, whose scopes are distinct from PDL.",
+      "claim_type": "other",
+      "covers": ["u025", "u026"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "test -f wiki/techniques/persistent-kernels.md && test -f wiki/hardware/clc.md",
+          "environment": "current KernelWiki worktree after PDL remediation",
+          "reference": "Resolve both links from wiki/hardware and inspect page IDs and scopes.",
+          "result": "Both files exist; one covers grid-resident persistent scheduling and the other in-grid cancellation/work stealing.",
+          "negative_control": "wiki/hardware/not-clc.md does not exist, so the check rejects a broken target."
+        }
+      ],
+      "challenge": {
+        "alternative": "CLC is another name for PDL or one relative link is broken.",
+        "check": "Resolve both paths and inspect their frontmatter IDs and operation boundaries.",
+        "outcome": "Both links resolve, and CLC operates on not-yet-started blocks within a launch whereas PDL coordinates separate launches."
+      }
+    }
+  ],
+  "commands": [
+    "test -f wiki/techniques/persistent-kernels.md && test -f wiki/hardware/clc.md",
+    "inspect CUTLASS 4.5.0 CMakeLists.txt and grid_dependency_control.h",
+    "structural validation after remediation"
+  ],
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed locally, so the CUDA skeleton was not compiled and an overlap timeline was not measured. Its roles mirror the CUDA 13.0.2 example and exact PTX forms; the page makes no quantitative benefit claim.",
+  "scope": "All 26 current units for body hash 4c2bc154856d1dcfd15bb4f6a12ae30d4dadc52ead1d4e5994b4da45e031cd98 were checked against CUDA 13.0.2, PTX ISA 9.0, CUTLASS 4.5.0 source, and current link resolution."
+}

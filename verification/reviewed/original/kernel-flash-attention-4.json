@@ -1,0 +1,206 @@
+{
+  "path": "wiki/kernels/flash-attention-4.md",
+  "id": "kernel-flash-attention-4",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-flash-attention-4-original-c001",
+      "claim": "FlashAttention-4 targets Blackwell's asymmetric scaling with ping-pong forward scheduling, partial software exponential evaluation, conditional rescaling, and two-CTA backward cooperation.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1, 2026-03-05","locator":"abstract; sections 2-4","observation":"The authors motivate FA4 from Blackwell's tensor-core versus non-matmul scaling and identify ping-pong scheduling, partial software exponential evaluation, conditional rescaling, and two-CTA backward GEMMs as its main techniques."}],
+      "challenge": {"alternative":"These are general Blackwell ideas assembled by the wiki rather than techniques implemented and evaluated as FA4.","check":"Compare the paper abstract, forward algorithm sections, and backward section with the page's technique list.","outcome":"The first-party paper names and analyzes each technique as part of FA4; the page overview does not attach an unsupported quantitative result to them."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c002",
+      "claim": "FA4 universally matches or exceeds cuDNN while compiling 20-30x faster than equivalent CUTLASS C++ code.",
+      "claim_type": "performance",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"abstract; section 5.1 compilation; section 5.3 performance","observation":"The 20-30x summary comes from two single-kernel comparisons with FA3 (22x forward and 32x backward). Performance is benchmark-scoped and stated as up to 1.3x over cuDNN 9.13, not a universal match-or-exceed result over every configuration."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c003",
+      "claim": "The paper implementation is written in CuTe DSL and its measured single-kernel compile times are approximately 20-30x faster than the compared FA3 CUTLASS implementation.",
+      "claim_type": "performance",
+      "covers": ["u014", "u015"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"abstract and section 5.1","observation":"The paper says FA4 is entirely in CuTe DSL and gives 55 s versus 2.5 s for forward and 45 s versus 1.4 s for backward, summarized as 20-30x faster compilation."}],
+      "challenge": {"alternative":"The speedup is end-to-end package installation time or runtime kernel speed rather than compilation of corresponding kernels.","check":"Inspect the labels and units in the paper's compilation section.","outcome":"The comparison explicitly measures seconds to compile one forward or backward kernel and separately discusses runtime performance."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c004",
+      "claim": "FA4 forward interleaves two 128-row output tiles so tensor-core work for one tile overlaps softmax work for the other using distinct warp groups and TMEM-resident intermediates.",
+      "claim_type": "mechanism",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 3.1, Ping-pong Scheduling","observation":"The paper assigns two M=128 output tiles to one CTA, uses two softmax warpgroups plus a correction warpgroup, and pipelines their work around the MMA warp and TMEM accumulators."}],
+      "challenge": {"alternative":"Ping-pong refers only to double-buffered K/V stages for one output tile.","check":"Trace the two output tiles and their named softmax warpgroups in the forward-pipeline description.","outcome":"The paper explicitly describes two output tiles, each of 128 rows, alternating through the pipeline."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c005",
+      "claim": "The displayed Python kernel is faithful CuTe DSL pseudocode for FA4's ping-pong forward implementation.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"warp-role setup, TMA/MMA/softmax pipelines, kernel dispatch, and softmax_loop","observation":"The real CuTe DSL kernel uses explicit TMA/UMMA pipelines, fixed warp-role sets, TMEM allocation, barriers, and scheduler state. The page invents undefined warpgroup, Q_tile, S1, V_prev, and rescale_and_accumulate constructs and reverses data dependencies on the first iteration."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c006",
+      "claim": "FA4 replaces the hardware ex2 path with a Cody-Waite/Horner software exponential distributed over FMA units.",
+      "claim_type": "mechanism",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 3.2, Partial Emulation of Exponential","observation":"FA4 deliberately emulates only about 10-25% of exponential entries and sends the remainder to hardware MUFU ex2; it does not replace the hardware path wholesale."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c007",
+      "claim": "The displayed software_exp2 implements FA4's Cody-Waite reduction and polynomial.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 3.2, equations and coefficient table","observation":"The paper reduces with floor(x), yielding a fraction in [0,1), evaluates a degree-3 polynomial, clamps the low exponent range, and mixes software and hardware entries. The snippet instead rounds into [-0.5,0.5], uses an undefined five-coefficient expression, omits range handling, and presents a full replacement."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c008",
+      "claim": "FA4's software exponential gives roughly four times the throughput of the hardware SFU path.",
+      "claim_type": "performance",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 3.2 and forward ablations","observation":"The paper motivates extra aggregate exponential issue capacity and reports end-to-end ablations, but does not report a four-times software-versus-hardware exponential throughput measurement."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c009",
+      "claim": "FA4 conditionally rescales online-softmax state only when the running maximum increases beyond a chosen threshold.",
+      "claim_type": "mechanism",
+      "covers": ["u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 3.3, Conditional Rescaling","observation":"The algorithm skips accumulator rescaling while the new block maximum is within tau of the retained maximum and resynchronizes when the difference exceeds tau."}],
+      "challenge": {"alternative":"The optimization merely skips rescaling when the maximum is exactly unchanged, as ordinary online softmax already can.","check":"Inspect the threshold condition and delayed-max state in the paper's algorithm.","outcome":"The paper permits a nonzero lag and gives a typical tau of log2(256)=8, so the mechanism is stronger than equality-only skipping."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c010",
+      "claim": "The displayed conditional_rescale function correctly implements FA4 using LSE differences, an absolute threshold of 2.0, and otherwise normal accumulation under the new maximum.",
+      "claim_type": "code",
+      "covers": ["u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 3.3, equations 7-10","observation":"The algorithm compares consecutive running maxima in one direction with typical tau=8.0 in log2 units. On a skip it continues exponentiation relative to the retained old maximum and performs final renormalization; it does not compare absolute LSE differences or accumulate normally under an untracked new maximum."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c011",
+      "claim": "Two-CTA backward shares TMEM across paired SMs and halves shared-memory traffic for the entire dQ/dK/dV computation.",
+      "claim_type": "performance",
+      "covers": ["u010"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 4, Two-CTA MMA for Backward Pass","observation":"The paper scopes the approximate shared-memory reduction to operand B of five GEMMs. It separately describes a DSMEM exchange for dS in dQ and a halving of global atomic reductions for dQ; it does not claim all dQ/dK/dV shared-memory traffic is halved."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c012",
+      "claim": "The displayed backward kernel represents FA4 by assigning dK to CTA 0 and dV to CTA 1 around one shared TMEM accumulator.",
+      "claim_type": "code",
+      "covers": ["u011"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_bwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"_setup_tiled_mma, two-CTA dS exchange, dV/dK/dQ MMA loops and epilogues","observation":"The implementation creates two-CTA MMA atoms for all five GEMMs and coordinates both CTAs through shared pipelines and DSMEM exchange; it does not branch cluster rank into CTA-0-only dK and CTA-1-only dV roles. The page code also uses undefined placeholders and a non-source instruction shape."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c013",
+      "claim": "FA4 measured 1605 TFLOPS at 71% utilization specifically for B200 BF16 seqlen=8192 and headdim=128, with 1.1-1.3x cuDNN and 2.1-2.7x Triton speedups for that row.",
+      "claim_type": "performance",
+      "covers": ["u012", "u030"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"abstract and section 5 benchmark methodology/results","observation":"The paper reports an up-to 1613 TFLOPS/s, 71% result and up-to speedups over a suite spanning sequence lengths and head dimensions; it does not attach the page's entire tuple to seqlen 8192/head dimension 128."},{"url":"https://tridao.me/blog/2026/flash4/","revision":"Tri Dao FA4 blog, 2026-03-05","locator":"headline performance summary","observation":"The blog separately reports up to 1605 TFLOPS/s and the up-to comparison factors, but likewise does not establish the page's exact shape-scoped row. The metadata incorrectly cites the paper for the blog's 1605 number."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c014",
+      "claim": "The 71% result is the state of the art for Blackwell attention and the remaining 29% is exactly consumed by softmax, rescaling, and memory transfers.",
+      "claim_type": "performance",
+      "covers": ["u013"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"abstract and section 5","observation":"The source calls the reported throughput state of the art in its evaluated setting but gives no exhaustive Blackwell-attention ordering and no accounting that partitions the numerical complement of peak MMA throughput into those three categories."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c015",
+      "claim": "The implementation uses a symbol named SM100_MMA_SS, expresses TMEM locality through a TMEM locale in CuTe layouts, and always TMA-loads Q, K, and V into shared memory.",
+      "claim_type": "code",
+      "covers": ["u016", "u017", "u018"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"_setup_tiled_mma, tmem offsets/allocation, and Q/K/V copy-atom construction","observation":"The pinned code builds tcgen05 operations through make_trivial_tiled_mma and OperandSource, manages TMEM with TmemAllocator and explicit offsets, and conditionally uses non-TMA copies for Q or paged K/V. Repository search finds no SM100_MMA_SS or TMEM-locale API."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c016",
+      "claim": "Sequence length at least 1024 is a generally established threshold for choosing FA4 standard multi-head attention.",
+      "claim_type": "performance",
+      "covers": ["u019"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper, arXiv v1","locator":"section 5 benchmark setup and figures","observation":"The evaluation includes sequence length 1024 but does not define it as a universal selection threshold; relative behavior varies with forward/backward, causal mode, head dimensions, token budget, and baseline."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c017",
+      "claim": "The released CuTe DSL package exposes forward and backward paths, supports BF16, and still treats FP8 as bring-up work at the inspected revision.",
+      "claim_type": "compatibility",
+      "covers": ["u020", "u021"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"README.md, interface.py, flash_fwd*.py, flash_bwd*.py, benchmark_flash_attention_fp8.py","observation":"The package exports forward/backward functions and accepts BF16. Its FP8 benchmark says the kernel call will raise until FP8 is implemented, discriminating planned scaffolding from supported execution."}],
+      "challenge": {"alternative":"An FP8 benchmark file proves usable FP8 support, or the package contains only forward inference.","check":"Trace public forward/backward dispatch and inspect the FP8 benchmark's actual kernel-call expectations.","outcome":"Both directions are dispatched; the FP8 script explicitly catches the not-yet-implemented call as a failure."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c018",
+      "claim": "FA4 is SM100-only with no SM90 implementation, requires CUTLASS/CuTe DSL 4.5.0, and has a generally established head-dimension-128 ping-pong optimum.",
+      "claim_type": "compatibility",
+      "covers": ["u022", "u023", "u024"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"README.md, pyproject.toml, flash_fwd.py, flash_bwd.py, and architecture-specific modules","observation":"The package README identifies Hopper and Blackwell support, dispatches SM90/SM100/SM120 modules, and pins nvidia-cutlass-dsl==4.6.0.dev0 at this revision. Neither source establishes head dimension 128 as a universal ping-pong optimum; the implementation tunes multiple dimensions and modes."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c019",
+      "claim": "The two external links resolve to the FA4 paper and the author's first-party blog post.",
+      "claim_type": "other",
+      "covers": ["u025", "u026"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2603.05451v1","revision":"arXiv v1 record","locator":"title and authors","observation":"The record is FlashAttention-4: Algorithm and Kernel Co-design for Blackwell GPUs by the FA4 authors."},{"url":"https://tridao.me/blog/2026/flash4/","revision":"post observed 2026-08-08","locator":"title and byline","observation":"The page is Tri Dao's FlashAttention-4 post."}],
+      "challenge": {"alternative":"One link is a secondary summary or a different FlashAttention release.","check":"Compare titles, author identity, version number, and publication date.","outcome":"Both are first-party FA4 materials and explicitly identify version 4."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c020",
+      "claim": "The local full bundle is verbatim upstream FA4 implementation code and the derived variant accurately identifies that full implementation.",
+      "claim_type": "code",
+      "covers": ["u027"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/flash-attention-4/full/PROVENANCE.yaml","revision":"recorded CUTLASS commit 0e026982","locator":"origin_url, upstream_repo, upstream_path, and file role","observation":"The only full file is NVIDIA CUTLASS example 77's SM100 FMHA backward MLA kernel from CUTLASS PR 2466, not Dao-AILab's FA4 implementation. The derived exponential variant also incorrectly calls that file the upstream FA4-MLA kernel."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-4-original-c021",
+      "claim": "The documented get_page command resolves the FA4 page and includes its attached artifact bundle.",
+      "claim_type": "code",
+      "covers": ["u028", "u029"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py kernel-flash-attention-4 --include-code","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"page id and artifact_dir frontmatter","result":"The command exits successfully and returns the page plus the declared kernel artifact bundle.","negative_control":"Replacing the id with kernel-not-flash-attention-4 is rejected rather than returning this page."}],
+      "challenge": {"alternative":"The command merely prints an arbitrary file or omits code because the artifact relationship is broken.","check":"Run the exact id and a non-existent id and inspect whether artifact paths appear only for the real page.","outcome":"The real lookup resolves the page and bundle; the negative id fails."}
+    }
+  ],
+  "commands": ["inspect FlashAttention-4 paper arXiv v1 and Tri Dao's first-party blog", "inspect Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f", "inspect local FA4-labeled artifact provenance", "conda run -n base python scripts/get_page.py kernel-flash-attention-4 --include-code"],
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed, so FA4 was not compiled or executed and none of the B200 performance results were reproduced. Mechanism and compatibility conclusions are source-level and pinned to the cited paper/repository revisions; numerical performance is retained only as explicitly source-reported, differently scoped maxima.",
+  "scope": "All 30 baseline units for body hash 77d451b38127be1f61669e4237971c0e4da24687371dfdf76f65ec1cafc8ce16 were checked against the FA4 paper v1, Tri Dao's first-party post, Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f, local provenance, and the repository query tool."
+}

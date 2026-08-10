@@ -1,0 +1,156 @@
+{
+  "path": "wiki/kernels/fused-moe.md",
+  "id": "kernel-fused-moe",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-fused-moe-current-c001",
+      "claim": "MLSys 2026 FlashInfer Track A targets B200, names Fused MoE with FP8 support, and links the exact DeepSeek-style definition whose scope is routing plus two grouped GEMMs rather than a guaranteed launch count.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u056", "u057"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://mlsys26.flashinfer.ai/","revision":"fetched 2026-08-08","locator":"Challenge and Track A","observation":"The organizer specifies NVIDIA Blackwell B200, calls Track A Fused MoE with FP8 support, and links the exact benchmark."},{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"fetched 2026-08-08","locator":"description and tags","observation":"The definition says routing and two grouped GEMMs are included and is tagged deepseek-v3/deepseek-r1, FP8 E4M3FN, API trtllm_fp8_block_scale_moe, and EP=8."}],
+      "challenge": {"alternative":"The single public entry point proves that the whole operation is one GPU launch or that Hopper is an equal contest target.","check":"Separate organizer hardware scope and operation description from implementation internals.","outcome":"The primary pages specify B200 and an operation contract only; neither supplies a launch decomposition or Hopper target, matching the page's explicit boundary."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c002",
+      "claim": "The fixed definition varies seq_len and uses 256 global experts, 32 local experts under EP=8, top-k 8, eight groups, four retained groups, H=7168, I=2048, W13 output 4096, and 128-element scale blocks; e32 denotes local experts.",
+      "claim_type": "compatibility",
+      "covers": ["u002", "u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011", "u012", "u013"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://bench.flashinfer.ai/kernels/moe_fp8_block_scale_ds_routing_topk8_ng8_kg4_e32_h7168_i2048","revision":"fetched 2026-08-08","locator":"definition name, Axes, and Reference Implementation constants","observation":"The primary definition exposes seq_len variable; axes 256 total/32 local/H7168/I2048/W13=4096 and block counts 56/16/32; its exact name/reference fix topk8/ng8/kg4 and block 128."}],
+      "challenge": {"alternative":"The slug's e32 is the total expert count and EP=8 merely replicates those weights.","check":"Compare routing_logits width, num_experts axis, num_local_experts axis, and local_expert_offset semantics.","outcome":"Routing logits have width 256 while local weight tensors have leading dimension 32 and a global offset; therefore 32 is local, not total."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c003",
+      "claim": "The displayed FP8/FP32/BF16 tensor table, output, scale-storage boundary, and complete argument summary match the benchmark and pinned FlashInfer API.",
+      "claim_type": "code",
+      "covers": ["u014", "u015", "u016", "u017", "u018", "u019", "u020", "u021", "u022", "u023", "u024", "u025", "u028", "u059", "u060"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe_ds_routing_trace inputs/outputs and initializer","observation":"The source defines every tensor name, shape role, FP8/FP32 data construction, top-k/group scalars, local offset, routed factor, and BF16 output exactly as summarized."},{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"same commit","locator":"trtllm_fp8_block_scale_moe signature and docstring","observation":"The public API accepts the eight tensors and explicit expert/routing/intermediate/local parameters named on the page."}],
+      "challenge": {"alternative":"The table accidentally applies the current API's MXFP8 32-element UE8M0 variant or global-expert weight layout to the contest trace.","check":"Follow the trace's DeepSeekFp8 initializer and compare runner validation branches.","outcome":"This trace uses FP8 E4M3 tensors with FP32 128-block scales and 32 local weight rows; the separate MXFP8 branch uses different scale dtype/layout and is not imported into the table."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c004",
+      "claim": "The official reference uses sigmoid+bias grouped selection, unbiased normalized combine weights, local expert filtering, one logical W13 projection split for SwiGLU, W2, and weighted accumulation; it mandates neither dual TMEM allocations nor a tcgen05 sequence.",
+      "claim_type": "code",
+      "covers": ["u029", "u030", "u031", "u032", "u033", "u034", "u035", "u036"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_trtllm_fp8_block_scale_moe_ds_routing_reference and _fp8_moe_run_experts","observation":"The reference implements the six listed stages, applies bias only to selection, derives weights from unbiased sigmoid values, filters the global/local interval, and uses a single concatenated W13 matmul followed by a split."}],
+      "challenge": {"alternative":"The optimized runner may internally allocate separate accumulators and emit tcgen05, so the page should present those as contract requirements.","check":"Distinguish observable reference semantics from one possible optimized implementation.","outcome":"The source-level contract constrains inputs/results but not the internal TMEM or instruction schedule; the page makes exactly that distinction."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c005",
+      "claim": "The derived standard-library reference implements the stated grouped selection and local W13/SwiGLU/W2 accumulation, passes its deterministic self-test, and rejects the biased-combine-weight alternative.",
+      "claim_type": "code",
+      "covers": ["u037"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python artifacts/kernels/fused-moe/variants/01-routing-plus-fusion-skeleton.py","environment":"KernelWiki worktree; conda base Python without third-party tensor libraries","reference":"official FlashInfer reference semantics at commit 7f614b8","result":"Exited 0 and printed 'fused-moe derived reference: PASS'; checks exact selected IDs, per-token weight sum 2.5, output shape, and finite output.","negative_control":"The self-test forms combine weights from biased selection scores and asserts they differ from the correct unbiased weights."}],
+      "challenge": {"alternative":"The variant repeats one vectorized implementation and therefore cannot discriminate selection bias from combine-weight semantics.","check":"Inspect and run the explicit wrong-weight negative control with nonzero routing bias.","outcome":"The control would fail if biased scores were reused for combination, while the correct implementation passes."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c006",
+      "claim": "Starter-kit commit 75ccd05 records the stated B200 clocks/container/software stack, MoE correctness gates, and arithmetic-mean speedup scoring, while the current sources do not establish the removed TFLOPS/launch table or prefill/decode relabeling.",
+      "claim_type": "performance",
+      "covers": ["u038", "u039", "u040", "u041", "u042", "u043", "u044", "u058"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md","revision":"flashinfer-bench-starter-kit 75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"Environment, Run Evaluation, FlashInfer Baselines, and Scoring","observation":"The file gives B200 sm_100a, clocks 3996/1965, the exact image and tool versions, MoE tolerance command, baseline name, and mean per-workload speedup formula."},{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trace axes","observation":"The variable axis is named seq_len and described as number of tokens, with no prefill/decode or request-batch label."}],
+      "challenge": {"alternative":"A former official table or common serving interpretation can restore 1262 TFLOPS and map seq_len endpoints to prefill/decode.","check":"Require an exact archived source cell and inspect the immutable trace axis description.","outcome":"No archived cell/revision is attached and the trace says number of tokens; the page correctly retains only the evaluation method, not a result or serving-phase inference."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c007",
+      "claim": "Per-expert token counts create varying grouped-GEMM M dimensions, and pinned FlashInfer selects separate GEMM1/GEMM2 tactics over token buckets rather than establishing one universal bottleneck.",
+      "claim_type": "performance",
+      "covers": ["u045", "u047"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout)","observation":"The documentation says experts may process varying token counts and represents them as different M segments."},{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoERunner valid tactics, token bucketing, and choose_one calls","observation":"The runtime enumerates shape-valid tactics and tunes GEMM1/GEMM2 separately over token buckets."}],
+      "challenge": {"alternative":"Load imbalance is always the primary bottleneck and one fixed tactic is sufficient.","check":"Inspect the implementation's problem-dependent tactic enumeration and separate-stage selections.","outcome":"The runtime explicitly varies selection by shape/token bucket and stage; the page retains imbalance as a risk but rejects a universal ranking."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c008",
+      "claim": "Small M or partially filled GEMM tiles can reduce utilization, as stated by NVIDIA's GEMM implementation guidance.",
+      "claim_type": "performance",
+      "covers": ["u046", "u062"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/efficient_gemm.md","revision":"CUTLASS documentation fetched 2026-08-08","locator":"Threadblock-level GEMM","observation":"NVIDIA explains that small M/N can leave threads outside the problem and that small M/N with large K may launch too few threadblocks to use all SMs."}],
+      "challenge": {"alternative":"Combining experts into a grouped GEMM guarantees full tiles and full-GPU occupancy.","check":"Apply the document's partial-tile and insufficient-grid alternatives to each variable-M group.","outcome":"Grouping adds independent problems but does not eliminate partial boundary tiles or guarantee enough total tiles; 'can reduce' is the supported scope."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c009",
+      "claim": "Compatibility requires the complete routing/quantization/layout contract, and CUDA-graph layouts are backend-specific; DeepGEMM documents masked layout for one CPU-unknown decode case rather than as a universal requirement.",
+      "claim_type": "compatibility",
+      "covers": ["u048", "u049", "u063"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/runners.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"TrtllmFp8BlockRunner validation","observation":"The runner checks activation dtype, scale dtype/shape, local weight shapes, routing input mode, local expert interval, layout, and static options separately."},{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (masked layout)","observation":"Masked grouped GEMM is scoped to decoding with CUDA graph enabled when the CPU does not know expert token counts."}],
+      "challenge": {"alternative":"Matching FP8 E4M3 element type is sufficient, and masked layout is inherent to any graph capture.","check":"Compare the runner's independent ABI validations and the explicit conditional scope in DeepGEMM.","outcome":"Many fields beyond element type are enforced, and masked layout is presented as one backend scenario, matching the page."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c010",
+      "claim": "CUDA 13.2.1 tensor-map alignment is configuration-specific: the object requires 64-byte alignment, ordinary globalAddress 16 bytes, and selected interleave/dtype cases 32 bytes, so 128 bytes is not universal.",
+      "claim_type": "compatibility",
+      "covers": ["u050", "u061"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.2.1","locator":"cuTensorMapEncodeTiled parameter requirements","observation":"The API states tensorMap address alignment 64 bytes, globalAddress 16 bytes normally, and 32-byte requirements for interleave-32B and selected packed data types."}],
+      "challenge": {"alternative":"The CUDA programming guide's 128-byte TMA-swizzle example makes every tensor base and descriptor require 128 bytes.","check":"Read the encoder's normative per-parameter requirements and distinguish a selected swizzle's shared/global layout guidance.","outcome":"The requirements vary by object, base, interleave, dtype, and swizzle; the page accurately rejects the blanket rule."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c011",
+      "claim": "The local full bundle is accurately disclosed as adjacent MXFP4 vLLM, FP4 SGLang, and local pseudocode rather than the Track A implementation, with byte-pinned file scopes and corrected provenance.",
+      "claim_type": "code",
+      "covers": ["u051", "u052", "u053", "u054", "u055"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/fused-moe/full/vllm-PR-23696-dual-gemm.patch","revision":"vLLM merge 074854b24f6e0b1e237a004283e1f46d98c0d73c; SHA-256 033d30b15af4f2050189c2e76ba61959e1e5d4bd049dc901fd56f68890b891a0","locator":"five diff headers and MXFP4 backend code","observation":"The aggregate patch covers five vLLM files and implements MXFP4-weight expert compute."},{"path":"artifacts/kernels/fused-moe/full/flashinfer_cutedsl.py","revision":"SGLang c554dc5c64b661f2c53225b03a76359eaddc39e4; SHA-256 de6bd663382b5bf34dba077d90febc9cc80d9dda908d9947966a3cadbc21bf33","locator":"module and registered function","observation":"The byte-verified upstream file calls fp4_quantize and CuteDslMoEWrapper for the FP4 standard path."},{"path":"artifacts/kernels/fused-moe/full/moe-grouped-gemm-launch.cpp","revision":"SHA-256 1368d01910bce19816daf9af6963a24de3809a0b12162fce1e5dd9d79064e884","locator":"file header","observation":"The header explicitly labels the incomplete file as local illustrative pseudocode, not upstream or timed code."}],
+      "challenge": {"alternative":"Because two files originate upstream, the directory can still be called the full reference implementation of Track A.","check":"Compare each file's quantization/routing scope with the exact Track A signature.","outcome":"The upstream files use MXFP4/FP4 adjacent contracts and the third is pseudocode; the corrected page/provenance disclose this without overstating them."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c012",
+      "claim": "The page's cited revisions and direct URLs resolve to the exact starter-kit evaluation, FlashInfer reference/API, CUDA tensor-map requirements, CUTLASS small-GEMM guidance, and DeepGEMM grouped-layout record used by its claims.",
+      "claim_type": "other",
+      "covers": ["u059", "u060", "u061", "u062", "u063"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/flashinfer-ai/flashinfer-bench-starter-kit/blob/75ccd05cafceb0fd1f86be4cd0f2117249463c66/EVALUATION.md","revision":"75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"document","observation":"The pinned path resolves to the evaluation contract."},{"url":"https://github.com/flashinfer-ai/flashinfer/blob/7f614b86470180bab2d22e36fd1775791c6bf3e6/flashinfer/trace/templates/moe.py","revision":"7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"file","observation":"The pinned trace reference resolves."},{"url":"https://github.com/flashinfer-ai/flashinfer/blob/7f614b86470180bab2d22e36fd1775791c6bf3e6/flashinfer/fused_moe/core.py","revision":"7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"file","observation":"The pinned API implementation resolves."},{"url":"https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA 13.2.1","locator":"tensor-memory API","observation":"The archived official requirements resolve."},{"url":"https://github.com/NVIDIA/cutlass/blob/main/media/docs/cpp/efficient_gemm.md","revision":"fetched 2026-08-08","locator":"file","observation":"The cited NVIDIA small-dimension discussion resolves."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"README","observation":"The pinned grouped-layout record resolves."}],
+      "challenge": {"alternative":"The prose may cite correct facts but the source links are mutable or point to neighboring revisions.","check":"Open each exact URL and verify commit/archive identifiers in the path.","outcome":"Implementation/evaluation links are commit-pinned and CUDA is archive-pinned; the two mutable documentation links are used only for current general guidance and were freshly checked."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c013",
+      "claim": "The documented get_page command returns this page with labeled artifact content, while an unknown page ID fails distinctly.",
+      "claim_type": "code",
+      "covers": ["u064", "u065"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py kernel-fused-moe --include-code","environment":"KernelWiki worktree; conda base","reference":"current wiki/kernels/fused-moe.md and artifact manifests","result":"Exited 0; output contains the corrected page, mixed-adjacent disclosure, MXFP4 labels, and derived reference.","negative_control":"kernel-fused-moe-broken exited 1 with 'No page found'."}],
+      "challenge": {"alternative":"The command resolves the page but omits or mislabels artifact content.","check":"Search the output for the corrected adjacent/derived scope and compare an unknown-ID control.","outcome":"The labeled artifacts appear in the positive output and the invalid ID is rejected."}
+    },
+    {
+      "claim_id": "kernel-fused-moe-current-c014",
+      "claim": "The displayed derived helper computes all fixed Track A tensor shapes for a positive token count and rejects a zero-token negative control.",
+      "claim_type": "code",
+      "covers": ["u026", "u027"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python -c <displayed track_a_shapes function and assertion>","environment":"KernelWiki worktree; conda base Python","reference":"official definition axes and signature","result":"For tokens=7, returned routing [7,256], activations [7,7168], activation scales [56,7], W13 [32,4096,7168], W13 scales [32,32,56], W2 [32,7168,2048], and W2 scales [32,56,16].","negative_control":"Calling the same helper with tokens=0 triggers its assertion and exits nonzero."}],
+      "challenge": {"alternative":"The arithmetic accidentally treats 32 as global experts or transposes the published activation-scale layout.","check":"Compare every returned rank/order with the benchmark signature and exercise a non-default token count.","outcome":"The helper keeps routing width 256, local weight count 32, and activation scales [56,T], matching the primary contract."}
+    }
+  ],
+  "commands": [
+    "inspect official contest and benchmark pages fetched 2026-08-08",
+    "inspect FlashInfer commit 7f614b8 trace template, API, validation, and autotuning",
+    "inspect starter-kit commit 75ccd05 evaluation contract and DeepGEMM commit 891d57b4 grouped layouts",
+    "run the standard-library derived reference self-test and biased-weight negative control under conda base",
+    "run get_page positive and unknown-ID negative controls under conda base"
+  ],
+  "residual_risk": "No B200 or CUDA toolkit is installed, so the optimized implementation, numeric tolerance on contest tensors, launch topology, and performance were not reproduced. The page therefore retains no result-level performance claim and labels local upstream files as adjacent rather than as the contest implementation.",
+  "scope": "All 65 current units for body hash 5b18f9bb5eb643757003bd25f3822609266ef79d9151f3fd7623e798928547ed were checked against primary web records, exact upstream revisions, and discriminating host tests."
+}

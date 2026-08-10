@@ -1,0 +1,110 @@
+{
+  "path": "wiki/languages/cute-dsl.md",
+  "id": "lang-cute-dsl",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "lang-cute-dsl-current-c001",
+      "claim": "The page accurately scopes CuTe DSL as a Python-native interface shipped alongside CUTLASS C++ in exact release v4.5.0 at commit e406c186, and warns that rolling documentation can contain later names.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"DSL overview plus checked-out exact tag","observation":"The tag identifies both C++ and Python DSL interfaces, contains the CuTe DSL packages/examples, and resolves to the stated commit."}],
+      "challenge": {"alternative":"The page silently describes the later 4.5.2 API or treats CuTe DSL as the only Blackwell interface.","check":"Resolve the tag commit and compare the page's interface wording with the tagged README/source tree.","outcome":"The commit is exact and the page explicitly places the DSL alongside C++ rather than assigning exclusivity or primacy."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c002",
+      "claim": "The FA4 paragraph faithfully reports that FA4 is entirely CuTe DSL, that its author reports about 20-30x shorter compile times than C++ templates and up to 1605 TFLOP/s on B200 BF16, and that 1605 is not a matched handwritten-C++ comparison.",
+      "claim_type": "performance",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://tridao.me/blog/2026/flash4/","revision":"Tri Dao first-party FA4 post, fetched 2026-08-08","locator":"Language and framework plus attention benchmark sections","observation":"The post gives the all-CuTe implementation, approximately 20-30x compile claim, and up-to-1605 B200 BF16 result; runtime comparators are FA2, Triton, Gluon, and cuDNN rather than a handwritten-C++ FA4 row."}],
+      "challenge": {"alternative":"1605 establishes general CuTe-versus-C++ parity or is a fully specified reproducible shape result.","check":"Inspect the benchmark comparator labels and scope of the maximum.","outcome":"The author supplies neither a handwritten-C++ comparator nor one fully specified row for the maximum, matching the page's limitation."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c003",
+      "claim": "The F16/BF16 excerpt uses valid v4.5.0 Python API names and arguments for a one-CTA 128x256x16 SMEM-input operation; the two-CTA tutorial uses 256x256x16/CtaGroup.TWO and a TMEM-backed accumulator fragment.",
+      "claim_type": "code",
+      "covers": ["u003", "u004", "u005"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"imports, MmaF16BF16Op construction, make_tiled_mma, make_fragment_C, and TMEM rebind","observation":"The exact one-CTA operation shape, types, source, major modes, tiled-MMA construction, and accumulator rebind match."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"MmaF16BF16Op construction","observation":"The two-CTA tutorial passes (256,256,16) and CtaGroup.TWO."}],
+      "challenge": {"alternative":"The old nonexistent SM100_MMA aliases are still required, the major-mode namespace is invalid, or the dimensions are CTA tile shapes.","check":"Trace the exact symbols exported by nvgpu and the tuple passed to MmaF16BF16Op.","outcome":"nvgpu exports OperandMajorMode, the operation is constructed exactly with the displayed symbols, and the source separately names its larger MMA tiler."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c004",
+      "claim": "The TMEM section accurately excerpts the tagged TmemAllocator allocation/wait/retrieve/rebind and typed ld-copy construction lifecycle, while explicitly retaining partitioning, synchronization, collective, two-CTA, and free preconditions.",
+      "claim_type": "code",
+      "covers": ["u006", "u007", "u008"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TmemAllocator around lines 97-106, pointer retrieval around 174-177, copy setup around 190-200, and free around 269-270","observation":"Every displayed operation and the stated omitted partition/copy/sync steps correspond to the complete official example."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py","revision":"same tag","locator":"alloc_tmem and dealloc_tmem contracts","observation":"The underlying helper validates column counts and emits architecture TMEM allocation/deallocation operations."}],
+      "challenge": {"alternative":"The excerpt can be copied as a standalone lane-local allocator or frees before epilogue readers complete.","check":"Follow the full official control flow from collective allocation through pipeline sync and free.","outcome":"The page marks missing context as required and places synchronization before free, rejecting standalone/lane-local interpretation."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c005",
+      "claim": "The TMA section uses the exact one-CTA CopyBulkTensorTileG2SOp and make_tiled_tma_atom_A construction and correctly identifies the two-CTA multicast operation plus matching cluster/participant requirement.",
+      "claim_type": "code",
+      "covers": ["u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA construction and tma_partition/cute.copy paths","observation":"The one-CTA names, arguments, partition, copy, and pipeline use match."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"CopyBulkTensorTileG2SMulticastOp and cluster launch","observation":"The two-CTA example uses the multicast operation with CtaGroup.TWO and derives TMA atoms from the cluster layout."}],
+      "challenge": {"alternative":"The invented SM100_TMA_LOAD_2D alias is needed or the multicast form can be used independently of launch topology.","check":"Search exact tag symbols and trace the cluster layout into atom construction/launch.","outcome":"The displayed typed operations are the actual API, and the multicast topology is constructed consistently rather than inferred automatically."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c006",
+      "claim": "The warp-specialization paragraph correctly characterizes fp16_gemm_2.py's TMA/MMA/epilogue roles and its explicit PipelineTmaUmma, PipelineUmmaAsync, TMEM, TMA-store, tail, and teardown requirements.",
+      "claim_type": "mechanism",
+      "covers": ["u012"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"role dispatch, pipeline creation/states, TMEM epilogue, and final tails/free","observation":"The complete source contains every named role and lifecycle edge and cannot be reduced to an if-warp sketch safely."}],
+      "challenge": {"alternative":"A barrier arrive/wait around TMA is enough and the listed tails/empty states are optional optimization details.","check":"Trace stage ownership and termination in the official kernel.","outcome":"The full/empty pipelines protect reuse and tails drain outstanding work; omission changes lifetimes rather than only performance."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c007",
+      "claim": "The layout paragraph accurately distinguishes helper-assisted construction from automatic policy: v4.5.0 supplies typed algebra and make_smem_layout_a/b while callers explicitly select tilers, types, major modes, alignments, cluster shape, and pipeline policy.",
+      "claim_type": "code",
+      "covers": ["u013"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MMA construction, make_smem_layout_a/b, allocate_tensor, and pipeline creation","observation":"Helpers derive layouts from explicit inputs while the kernel author supplies all policy items named by the page."}],
+      "challenge": {"alternative":"The helpers autonomously select the full layout/swizzle and pipeline for arbitrary inputs.","check":"Enumerate parameters and subsequent explicit allocation/pipeline calls in the example.","outcome":"Substantial policy remains explicit, so helper-assisted is the evidence-supported scope."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c008",
+      "claim": "The nine table links are untruncated verbatim upstream captures matching provenance SHA-256 records and purposes; the seven numeric line counts are exact.",
+      "claim_type": "other",
+      "covers": ["u014", "u015", "u016", "u017", "u018", "u019", "u020", "u021", "u022", "u023"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"parse all three PROVENANCE.yaml files; hash every upstream-file; count fp16_gemm_0..6 lines; compare representative files with raw merge-SHA content; alter one expected hash","environment":"current KernelWiki worktree, conda base Python, and network, 2026-08-09","reference":"Provenance requires mode=verbatim and size_cap_truncated=false; table supplies seven exact counts and nine purposes.","result":"All 11 captured upstream files matched provenance, all seven displayed counts matched [447,535,679,769,1065,919,1002], and representative remote bytes matched full PR merge SHAs.","negative_control":"Changing one expected SHA-256 to 64 zeros caused the check to reject the set."}],
+      "challenge": {"alternative":"The links are partial excerpts, descriptions are guessed, or short merge IDs point at mutable heads.","check":"Combine provenance fields/hashes with full merge SHAs from the GitHub PR API and file docstrings.","outcome":"The captures are complete and immutable, and the descriptions follow the upstream file text/PR summary."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c009",
+      "claim": "PR 3106 and the v4.5.0 tag establish the stated progressive tutorial sequence and the tag's renamed cute/blackwell/tutorial/tutorial_gemm location.",
+      "claim_type": "code",
+      "covers": ["u024"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/cutlass/PR-3106/diff.patch","revision":"NVIDIA/cutlass PR 3106 merge 772fbb264e0fe823d62dec10a44a67e1503afdfc","locator":"fp16_gemm_0.py through fp16_gemm_6.py docstrings and implementations","observation":"The merged source spells out and implements each progression step."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/README.md","revision":"NVIDIA/cutlass v4.5.0 e406c186","locator":"directory and tutorial README","observation":"The tagged official tutorial occupies the page's stated renamed path and contains the same numbered series."}],
+      "challenge": {"alternative":"The page conflates the older PR paths with current rolling locations or infers features from filenames.","check":"Compare PR merge paths/docstrings with the exact tag tree.","outcome":"The page labels both locations and derives steps from upstream descriptions/implementation, not filenames alone."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-current-c010",
+      "claim": "The three primary URLs, nine artifact links, and three related links resolve to the intended release/source/post or local file IDs, while fabricated external and local controls fail.",
+      "claim_type": "other",
+      "covers": ["u025", "u026", "u027", "u028", "u029", "u030"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"HTTP-check the tag, tutorial, and FA4 URLs; resolve all artifact/related links from wiki/languages/cute-dsl.md; repeat with fabricated HTTP and local targets","environment":"current KernelWiki worktree and network, 2026-08-09","reference":"Links should land on exact NVIDIA tag/tutorial, first-party FA4 post, nine artifacts, and three named local IDs.","result":"All intended external URLs returned HTTP 200; every artifact existed; related IDs matched hw-tcgen05-mma, kernel-flash-attention-4, and doc-cutlass-blackwell.","negative_control":"A fabricated CUTLASS commit path returned non-200 and wiki/languages/not-cute-dsl.md was absent."}],
+      "challenge": {"alternative":"GitHub redirects a missing tree to a generic page or relative artifact paths escape incorrectly.","check":"Require 200 for exact URLs and filesystem existence/ID matches, then compare broken controls.","outcome":"Every intended target resolved specifically and both broken controls failed."}
+    }
+  ],
+  "commands": ["NVIDIA/cutlass v4.5.0 sparse checkout at e406c186", "GitHub PR API full merge-SHA checks", "artifact hash/line-count verification with corrupted-hash control", "external and local link checks with negative controls"],
+  "scope": "All 30 current units for body hash 90ca9df7c219547d83ab1a5609935cb5d4b5fe4ebd1dee959da0fadaf0c0c5a9 were checked against CUTLASS v4.5.0, PR merge artifacts, first-party FA4 reporting, and host controls.",
+  "residual_risk": "No Blackwell GPU or installed CuTe DSL/CUDA toolchain is available locally. API and lifecycle claims are exact-source verified, artifacts are byte-verified, and FA4 numbers remain author-reported rather than independently reproduced."
+}

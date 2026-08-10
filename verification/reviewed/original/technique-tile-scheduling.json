@@ -1,0 +1,152 @@
+{
+  "path": "wiki/techniques/tile-scheduling.md",
+  "id": "technique-tile-scheduling",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-tile-scheduling-original-c001",
+      "claim": "Tile order can affect locality and utilization, and Blackwell CLC itself supplies dynamic policies including a swizzled raster while Hopper uses only launch-time static mappings.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"Dynamic Scheduler and software swizzle rules","observation":"CLC redistributes already-launched ClcIDs; CUTLASS applies raster order and swizzle as software coordinate transforms, not as a CLC hardware scheduling policy. The broad locality/utilization premise is plausible, but the architecture contrast is false."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c002",
+      "claim": "The displayed linear-raster code maps flat indices row-major, and consecutive tiles have categorically poor L2 locality because B column zero is evicted before tile four.",
+      "claim_type": "code",
+      "covers": ["u002", "u003"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python enumerate quotient/remainder coordinates and reuse sets","environment":"Conda base, host CPU; no GPU","reference":"The code's tile_m=i//tiles_n and tile_n=i%tiles_n mapping, with cache behavior left unmodeled","result":"The mapping is row-major, but adjacent tiles reuse the same A tile row; eviction of B column zero cannot be inferred from four coordinate assignments without cache capacity, residency and interleaving information.","negative_control":"Treating every distinct B column as an eviction event reproduces the page's unsupported conclusion and ignores simultaneous residency."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c003",
+      "claim": "The displayed blocked-raster function is a valid all-shape swizzle that iterates column-major within groups and maximizes both A and B L2 reuse.",
+      "claim_type": "code",
+      "covers": ["u004", "u005"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python enumerate the displayed swizzled_raster for 4x4 and nondivisible 3x5 grids","environment":"Conda base, host CPU","reference":"Every input index must map bijectively into [0,tiles_m) x [0,tiles_n), and comments must match quotient/remainder order","result":"4x4 happens to cover exactly, but 3x5 with swizzle 2 returns (0,5), an out-of-range coordinate, and the within-group order is row-major rather than the claimed column-major traversal.","negative_control":"Testing only grids whose N dimension is divisible by swizzle_size hides the final-group bug."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c004",
+      "claim": "For positive total_ctas, the static-stride snippet assigns CTA i the flat indices i + iteration*total_ctas and converts each valid index to row-major coordinates.",
+      "claim_type": "code",
+      "covers": ["u006", "u007"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python enumerate static-stride assignments for divisible and nondivisible tile counts","environment":"Conda base, host CPU","reference":"The sorted union should equal range(total_tiles) exactly once","result":"For positive grid sizes, all valid flat indices were covered once and quotient/remainder produced the stated row-major coordinates.","negative_control":"Using total_ctas-1 as the stride produced duplicate assignments."}],
+      "challenge": {"alternative":"A nondivisible final iteration skips or duplicates a tile.","check":"Enumerate remainders one and total_ctas-1 and count every flat index.","outcome":"Only CTA loop lengths differ; the assignment remains exact."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c005",
+      "claim": "CLC exposes an initialization-time hardware schedule policy with LinearRaster, SwizzledRaster, ColumnFirst and Hilbert choices through the displayed enum and helper functions.",
+      "claim_type": "code",
+      "covers": ["u008", "u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"clusterlaunchcontrol.try_cancel and query instruction syntax","observation":"The raw interface submits a cancel request to a response buffer/mbarrier and queries the response; it has no policy operand or scheduler initialization API. The enum and helper calls are invented."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c006",
+      "claim": "CUTLASS 4.5.0 provides persistent, Stream-K and grouped scheduler abstractions for SM100.",
+      "claim_type": "compatibility",
+      "covers": ["u010"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"scheduler tags and SM100 TileSchedulerSelector specializations","observation":"PersistentScheduler, DynamicPersistentScheduler, StreamKScheduler and GroupScheduler tags map to SM100 scheduler implementations."}],
+      "challenge": {"alternative":"The named categories exist only for SM90 and have no SM100 selection route.","check":"Inspect the arch::Sm100 selector specializations and included implementation headers.","outcome":"The tag-to-class mappings explicitly instantiate SM100 persistent, Stream-K and group implementations."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c007",
+      "claim": "All SM100 persistent schedulers inherit PersistentTileSchedulerSm100, the public types are StreamKSchedulerSm100 and GroupedTileSchedulerSm100, default scheduling is a hardware swizzled raster, and the displayed GemmUniversal signature is valid CUTLASS 4.5.0.",
+      "claim_type": "code",
+      "covers": ["u011"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"public scheduler tags and SM100 selector mappings","observation":"The public tags are DynamicPersistentScheduler, StreamKScheduler and GroupScheduler; implementation classes are detail types. The group wrapper reuses an SM90 static grouped scheduler rather than inheriting the SM100 CLC class, and modern GemmUniversal composition does not use the shown legacy argument list."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c008",
+      "claim": "The displayed B200 cache calculation correctly counts the first linear wave's A/B working set and proves that swizzling halves L2 misses for the stated GEMM.",
+      "claim_type": "code",
+      "covers": ["u012", "u013"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python enumerate the first 142 row-major coordinates in a 64x32 tile grid and count unique M and N coordinates","environment":"Conda base, host CPU; no cache simulator or GPU","reference":"Unique operand panels follow directly from the coordinate set; miss rates require measurement or a validated cache model","result":"The first 142 indices span 5 M rows and all 32 N columns, not approximately 20 A rows or 5 B groups. The arithmetic therefore cannot establish the claimed 2x miss reduction.","negative_control":"Multiplying two unrelated 4.4 ratios recreates the page's approximately-20 value but does not count coordinate reuse."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c009",
+      "claim": "A tail wave is the final scheduling wave when fewer independent work units remain than available workers.",
+      "claim_type": "mechanism",
+      "covers": ["u014"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python compute quotient/remainder wave occupancy for total work and worker counts","environment":"Conda base, host CPU","reference":"For equal-duration independent tiles and one resident CTA per worker, total=q*workers+r","result":"When 0<r<workers, the final partial wave has r active workers; when r=0 the final wave is full.","negative_control":"Always treating remainder zero as an empty last wave incorrectly reports zero utilization for exactly divisible work."}],
+      "challenge": {"alternative":"Tail effect is defined only by wall-clock imbalance inside tiles, not a partial final wave.","check":"Separate equal-duration discrete-wave occupancy from variable-duration load imbalance.","outcome":"The scoped definition describes the standard discrete final-wave case and does not claim to cover every imbalance source."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c010",
+      "claim": "The table gives universally correct last-wave utilization: remainder/workers for linear and static scheduling, automatic fast-CTA stealing for CLC, and near-100-percent utilization for Stream-K.",
+      "claim_type": "mechanism",
+      "covers": ["u015", "u016", "u017", "u018"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"SM100 Stream-K scheduler arguments and decomposition modes","observation":"Stream-K decomposition is parameterized and may fall back to data-parallel work; the implementation offers no universal near-100-percent guarantee. CLC redistributes unlaunched IDs but does not increase the count of independent remainder tiles, and remainder zero requires a full-wave special case."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c011",
+      "claim": "With 150 equal-duration independent tiles, 142 workers and one tile per worker, an ordinary data-parallel second wave has 8 active workers, 134 idle workers and 8/142 = 5.6-percent occupancy.",
+      "claim_type": "numeric",
+      "covers": ["u019", "u020"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python -c 'q,r=divmod(150,142); print(q,r,r/142,142-r)'","environment":"Conda base, host CPU","reference":"Euclidean division of independent work by available workers","result":"q=1, r=8, r/142=0.056338..., and 134 idle workers in the partial second wave.","negative_control":"Using 150/142 as last-wave occupancy exceeds one and conflates total work with remainder work."}],
+      "challenge": {"alternative":"The second wave has 150 active tiles because the first wave remains resident.","check":"Track completion of the first 142 equal-duration assignments before dispatching the remainder.","outcome":"Only eight unassigned independent tiles remain; the statement is explicitly scoped to that wave model."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c012",
+      "claim": "CLC makes the eight-tile last wave fully occupied by absorption, and Stream-K necessarily splits those exact eight tiles over all 142 SMs.",
+      "claim_type": "mechanism",
+      "covers": ["u021", "u022"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"ClcID conservation and dynamic scheduler rules","observation":"CLC can change which running worker handles each of eight unlaunched IDs, but it neither creates more IDs nor splits their K dimension. Stream-K is a separate scheduler decomposition whose split choice depends on arguments and problem shape."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c013",
+      "claim": "Swizzled raster is always better for large GEMMs, CLC is recommended for every Blackwell persistent kernel, Stream-K is categorically best for small-to-medium problems, and a grouped scheduler is essential for every MoE or batched GEMM.",
+      "claim_type": "performance",
+      "covers": ["u023", "u024", "u025", "u026"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"multiple scheduler tags and architecture selectors","observation":"CUTLASS exposes alternative persistent, dynamic, static, Stream-K and grouped routes rather than encoding the page's universal rankings. Profitability depends on shape, decomposition, resource use and workload; the tagged source supplies no always/best/essential theorem."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c014",
+      "claim": "Swizzle size must be tuned per problem, every too-large group exceeds L2 capacity, and every too-small group loses locality benefit.",
+      "claim_type": "performance",
+      "covers": ["u027"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_params.h","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"max_swizzle_size and raster_order scheduler arguments","observation":"Swizzle is configurable and therefore a legitimate tuning dimension, but the source provides no categorical cache-capacity failure for every larger value or benefit loss for every smaller value."}]
+    },
+    {
+      "claim_id": "technique-tile-scheduling-original-c015",
+      "claim": "CLC tile acquisition costs approximately tens of cycles, and Stream-K universally requires atomic accumulation where K splits meet.",
+      "claim_type": "performance",
+      "covers": ["u028", "u029"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"reduction_mode argument and SM100/underlying Stream-K integration","observation":"The scheduler supports configurable reduction/decomposition modes rather than one universal atomic path. Neither this implementation nor the pinned CLC documentation establishes a fixed tens-of-cycles acquisition cost."}]
+    }
+  ],
+  "commands": [
+    "conda run -n base python enumerate displayed raster mappings and wave arithmetic",
+    "rg exact scheduler tags/classes in CUTLASS v4.5.0 e406c186"
+  ],
+  "scope": "All 29 baseline semantic units were checked against CUTLASS 4.5.0, CUDA 13.0.2 PTX semantics, and discriminating host enumeration.",
+  "residual_risk": "No SM100 GPU or CUDA toolkit is available, so no scheduler performance ranking or CLC latency was measured. Lack of such evidence is treated as absence of support, not proof of a contrary ranking."
+}

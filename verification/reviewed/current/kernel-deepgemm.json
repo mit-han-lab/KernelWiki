@@ -1,0 +1,110 @@
+{
+  "path": "wiki/kernels/deepgemm.md",
+  "id": "kernel-deepgemm",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-deepgemm-current-c001",
+      "claim": "The page is scoped to DeepGEMM commit 891d57b, accurately identifies the project and its SM90/SM100 requirements, and distinguishes two representative local FP8 1D1D files from the full multi-kernel library.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"overview, requirements, and interfaces","observation":"The README identifies the library, SM90/SM100 requirements, runtime-compiled design, and multiple dense/grouped/attention/MoE interfaces."},{"path":"artifacts/kernels/deepgemm/full/PROVENANCE.yaml","revision":"local byte-verified manifest","locator":"upstream_sha and file records","observation":"The two representative files are pinned to the same commit and carry matching SHA-256 values."}],
+      "challenge": {"alternative":"The commit link is only decorative and the local files come from a different revision or represent the whole repository.","check":"Compare the frontmatter, README tree, provenance upstream SHA, and exact file hashes.","outcome":"The revision matches across the page and manifest, hashes match, and the pinned tree visibly contains many other kernel/API files."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c002",
+      "claim": "The DeepSeek-V3 1x128 activation and 128x128 weight scaling geometry, scoped outlier motivation, architecture-specific FP32 versus packed-UE8M0 representations, four-value packing, and pinned K-granularity statements are accurate.",
+      "claim_type": "semantics",
+      "covers": ["u003", "u004", "u005", "u006", "u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"section 3.3.2 and Appendix B.2","observation":"The paper specifies the two granularities and says smaller groups better accommodate outliers; it does not promise elimination of quantization error."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"interface notices","observation":"SM90 uses FP32 factors and SM100 uses packed UE8M0 with four values per torch.int."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"BLOCK_K and kGranKA/kGranKB static assertions","observation":"The SM100 template fixes BLOCK_K to 128 and permits scale K granularities 32 or 128; the corresponding SM90 file fixes BLOCK_K to 128."}],
+      "challenge": {"alternative":"Both operands use 128x128 blocks and every architecture consumes FP32 scales.","check":"Compare the paper's separate operand rules and the pinned README/kernel types.","outcome":"Activation grouping is per row, while the SM100 representation and accepted granularities differ explicitly from SM90."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c003",
+      "claim": "The H800 retained-bit description, Nc=128 K-element/four-WGMMA interval, four-step walkthrough, and verbatim six-line excerpt of the pinned SM90 accum/final_accum promotion path match the paper and source.",
+      "claim_type": "code",
+      "covers": ["u008", "u009", "u010", "u011", "u012", "u013", "u014", "u041", "u042"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"sections 3.3.2 and 3.5.2","observation":"The report states about 14 retained bits, promotion every 128 inner-dimension elements, equivalence to four WGMMAs, and FP32 CUDA-core accumulation."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"math warp-group loop from accum declarations through Promote with scales and store","observation":"The code declares float accum/final_accum, loads FP32 A/B factors, issues and waits for WGMMA for one BLOCK_K=128 stage, scales into final_accum, and stages final values for store."}],
+      "challenge": {"alternative":"Nc=128 describes 128 output columns and the real accumulator is half precision as in the deleted sketch.","check":"Trace the k_block loop and declared C++ types and compare Nc's definition in the paper.","outcome":"The interval advances K, WGMMA output registers are declared float, and promotion targets a separate float array."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c004",
+      "claim": "The SM100 walkthrough accurately describes the float/UE8M0 block-scaled instruction descriptor, TMA-to-shared and UTCCP-to-TMEM scale path, elected UMMA issue operands, TMEM accumulator lifecycle, absence of SM90 final_accum promotion, and precision qualification.",
+      "claim_type": "mechanism",
+      "covers": ["u015", "u016", "u017", "u018", "u019", "u020"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"TMA scale loads, make_instr_desc_block_scaled, UTCCP copies, mma_t::fma, tmem barriers, and epilogue","observation":"Each stated data-movement, descriptor, issue, and lifecycle element appears in the pinned source. The template selects accumulator and scale types rather than asserting a universal tcgen05 precision mode."}],
+      "challenge": {"alternative":"Packed scales remain in general registers and are immediate MMA operands, while TMEM holds only output.","check":"Follow smem_sfa/sfb through the UTCCP copy destinations and the final fma arguments.","outcome":"The copies target dedicated TMEM scale columns and fma receives their TMEM addresses separately from the TMEM accumulator column."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c005",
+      "claim": "The grouped-interface table and surrounding text correctly distinguish M-grouped contiguous, M-grouped masked, and K-grouped contiguous shapes, metadata, purposes, alignment, and pinned SM90-NT/SM100-TN K-grouped variants.",
+      "claim_type": "semantics",
+      "covers": ["u021", "u022", "u023", "u024", "u025", "u031"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs contiguous and masked sections","observation":"The README gives the M-grouped fixed-axis/use-case rules, segment alignment, masked decode role, and separate K-axis weight-backward API."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/csrc/apis/gemm.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_* and k_grouped_fp8_gemm_* shape/layout checks","observation":"The API checks establish each tensor shape and metadata type; contiguous supports M-length or group-count metadata forms, masked_m is an int valid-length vector, and K-grouped dispatches TN only to SM100 and NT only to SM90."}],
+      "challenge": {"alternative":"Masked mode uses a Boolean element mask and K-grouped is merely a third M-grouped storage layout.","check":"Inspect masked_m dtype/shape and the K-grouped shape equations.","outcome":"masked_m has one int per group, while K-grouped sums per-group K lengths and fixes the output's M/N."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c006",
+      "claim": "The pinned JIT defaults to NVCC, optionally selects NVRTC through DG_JIT_USE_NVRTC=1 with a performance caveat, keys the cache by kernel/compiler/flags/code, compiles and publishes misses, reuses hits, and makes no optimality guarantee.",
+      "claim_type": "mechanism",
+      "covers": ["u026", "u027", "u032"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"DG_JIT_USE_NVRTC environment variable","observation":"NVRTC is optional, defaults off, and may perform worse in some cases."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/csrc/jit/compiler.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Compiler::build and compiler LazyInit","observation":"The code constructs the stated signature, returns cache hits, compiles/publishes misses atomically, and selects NVCC unless the environment opt-in is nonzero."}],
+      "challenge": {"alternative":"NVRTC is the mandatory/default JIT and every invocation recompiles the specialization.","check":"Evaluate the compiler selection default and the early cache-hit return.","outcome":"The default expression is zero, selecting NVCC, and a valid cached runtime returns before compilation."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c007",
+      "claim": "The pinned FP8 interface supports NT only on SM90 and NT/TN/NN/TT on SM100, with public wrappers and SM100 operand-major parameters implementing the additional layouts.",
+      "claim_type": "compatibility",
+      "covers": ["u028"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Interfaces notices and normal dense GEMMs","observation":"The README states the exact architecture/layout support and naming convention."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/csrc/apis/gemm.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"fp8_fp4_gemm_nt/nn/tn/tt and major checks","observation":"The wrappers transpose relevant views and pass major modes; the SM90 path asserts K-major inputs."}],
+      "challenge": {"alternative":"The four SM100 names all demand physically NT inputs and do not alter descriptors.","check":"Trace tensor-view transformations and kMajorA/kMajorB into the SM100 template.","outcome":"Different wrappers transform A and/or B and the selected major values reach descriptor construction."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c008",
+      "claim": "The only retained numeric performance statement is the pinned project's source-reported up-to 1550 TFLOPS on H800, explicitly qualified as lacking the former 4096-cubed shape, 90% utilization, and a complete reproducibility envelope.",
+      "claim_type": "performance",
+      "covers": ["u029"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"2025-04-18 news item","observation":"The README says up to 1550 TFLOPS on H800 and supplies none of the deleted shape/utilization conditions."},{"url":"https://github.com/deepseek-ai/DeepGEMM/pull/86","revision":"merged 2025-04-14","locator":"performance report","observation":"A nearby disclosed peak result uses M=4096, N=7168, K=16384, helping discriminate it from the page's former unsupported 4096-cubed attribution."}],
+      "challenge": {"alternative":"The up-to result proves the former 4096-cubed and 90% row by implication.","check":"Search the pinned README and linked performance history for that condition tuple.","outcome":"The README supplies neither field, and the available shape-scoped peak evidence names a different tuple; the page now says exactly that."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c009",
+      "claim": "The practical boundaries accurately separate input preparation from GEMM, state project warnings and grouped/JIT constraints, and avoid claiming a universal fine-grained-scaling cost or decision rule.",
+      "claim_type": "performance",
+      "covers": ["u030", "u033"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"interface notices","observation":"The project says transposition and FP8 casting are user-side operations and that its utility implementations may be slower than fusing them into prior kernels."},{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report, arXiv v2","locator":"section 3.3.2","observation":"The paper describes the precision motivation and says the scale multiplication has minimal extra computational cost in its Hopper promotion strategy; it does not establish a universal cost ordering."}],
+      "challenge": {"alternative":"Every extra scale necessarily makes the end-to-end kernel slower than per-tensor scaling, so target/workload qualifications are evasive.","check":"Separate arithmetic count from native instruction support, scale preparation/fusion, and the measured scope in the primary sources.","outcome":"The sources establish architecture-dependent mechanisms and no controlled universal comparison; conditional wording is the strongest supported conclusion."}
+    },
+    {
+      "claim_id": "kernel-deepgemm-current-c010",
+      "claim": "The four pinned external links, local provenance/hash statements, upstream-versus-derived labels, and page query command are correct and resolvable.",
+      "claim_type": "code",
+      "covers": ["u034", "u035", "u036", "u037", "u038", "u039", "u040"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"git -C /tmp/kernelwiki-deepgemm-pinned rev-parse HEAD; sha256sum artifacts/kernels/deepgemm/full/sm90_fp8_gemm_1d1d.cuh artifacts/kernels/deepgemm/full/sm100_fp8_gemm_1d1d.cuh; conda run -n base python scripts/get_page.py kernel-deepgemm --include-code","environment":"KernelWiki worktree; exact upstream clone; conda base Python 3.13.14","reference":"page links and artifacts/kernels/deepgemm/{full,variants}/PROVENANCE.yaml","result":"The clone is at 891d57b4db1071624b5c8fa0d1e51cb317fa709f, both hashes equal their manifest entries, modes are verbatim for full and derived for variants, and the query succeeds with attached code.","negative_control":"The non-existent id kernel-not-deepgemm is rejected, discriminating actual index resolution from unconditional output."}],
+      "challenge": {"alternative":"The links are rolling branches, the local files are untracked adaptations, or the query omits the assets.","check":"Inspect each URL for a full commit/version token, verify bytes/modes, and execute the lookup.","outcome":"All external references are immutable, local bytes and provenance agree, and the query returns the page plus its code bundle."}
+    }
+  ],
+  "commands": ["inspect DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f", "sha256sum pinned full assets", "conda run -n base python scripts/get_page.py kernel-deepgemm --include-code", "inspect DeepSeek-V3 Technical Report v2 and DeepGEMM performance history"],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is installed locally, so the kernels were not compiled or executed and the source-reported H800 peak was not reproduced. The implementation statements are source-level conclusions tied to commit 891d57b; no performance portability beyond the explicit scope is asserted.",
+  "scope": "All 42 current units for body hash 5e2f98b996033253da1252cec281af40f1f858fa39675a8296b17564863d76fe were checked against the pinned DeepGEMM tree and local byte-verified assets, DeepSeek-V3 Technical Report v2, upstream performance history, and repository query behavior."
+}

@@ -1,0 +1,137 @@
+{
+  "path": "wiki/hardware/2sm-cooperative.md",
+  "id": "hw-2sm-cooperative",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "hw-2sm-cooperative-current-c001",
+      "claim": "A cta_group::2 MMA is initiated by one thread from a valid CTA pair, requires the peer to remain active, and accesses current and peer CTA TMEM; pair allocation management instead requires one warp per CTA.",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-issue-granularity",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.5 Table 46, CTA Pair, and tcgen05.mma description",
+          "observation": "The table distinguishes one-thread pair-level MMA/commit issue from two-warp pair allocation management, defines the active peer condition, and the MMA description assigns both CTAs' TMEM to group 2."
+        }
+      ],
+      "challenge": {
+        "alternative": "Both CTAs must issue MMA collectively, while only one CTA allocates pair-level TMEM.",
+        "check": "Read the separate mma and alloc/dealloc rows of Table 46.",
+        "outcome": "The current page matches the rows; the alternative reverses their issue granularities."
+      }
+    },
+    {
+      "claim_id": "hw-2sm-cooperative-current-c002",
+      "claim": "cta_group::2 selects pair-level resources while idesc and the instruction configuration select legal shape; m256xn256xk16 is an F16/BF16 maximum example, not the only group-2 shape.",
+      "claim_type": "semantics",
+      "covers": ["u003", "u004"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-data-path-layout-organization",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "instruction descriptor and Layout A-F, including M=128 + cta_group::2",
+          "observation": "idesc encodes M/N and other operation details, and the group-2 data-path layouts include values other than M=256."
+        }
+      ],
+      "challenge": {
+        "alternative": "The descriptor contains types only and cta_group alone fixes M=256.",
+        "check": "Inspect the idesc description and the explicitly titled M=128 + cta_group::2 layout.",
+        "outcome": "The primary source assigns shapes to idesc and directly falsifies a fixed-M alternative."
+      }
+    },
+    {
+      "claim_id": "hw-2sm-cooperative-current-c003",
+      "claim": "The current page correctly points readers to the verified tcgen05 page for the cta_group::2 grammar and states that its lane-disable vector contains eight registers.",
+      "claim_type": "semantics",
+      "covers": ["u005"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10.9.1 disable-output-lane operand description",
+          "observation": "The specification assigns four b32 elements for group 1 and eight for group 2; the local target exists and reproduces the normative grammar."
+        }
+      ],
+      "challenge": {
+        "alternative": "The eight-element count belongs to a different kind or sparse form.",
+        "check": "Inspect the operand-size rule immediately under the dense tcgen05.mma grammar.",
+        "outcome": "The size is selected by cta_group and applies to the dense grammar linked by the page."
+      }
+    },
+    {
+      "claim_id": "hw-2sm-cooperative-current-c004",
+      "claim": "The correctness checklist contains the direct CTA-pair, allocation, descriptor, operand-lifetime, completion, and inter-thread ordering invariants required by PTX without asserting one universal data partition.",
+      "claim_type": "semantics",
+      "covers": ["u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-issue-granularity",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "issue granularity, MMA source lifetime, fence, and commit sections",
+          "observation": "The source defines pair lifetime and issue rules, prohibits modifying A/B source storage before MMA completion, assigns completion to commit/mbarrier, and assigns cross-thread ordering to tcgen05 fences composed with execution-ordering operations."
+        }
+      ],
+      "challenge": {
+        "alternative": "A CTA cluster barrier alone satisfies completion and lets the next TMA overwrite operands immediately.",
+        "check": "Compare the explicit async source-lifetime rule with fence and commit guarantees.",
+        "outcome": "The alternative lacks completion tracking; the current checklist keeps the mechanisms distinct."
+      }
+    },
+    {
+      "claim_id": "hw-2sm-cooperative-current-c005",
+      "claim": "The page accurately scopes the tutorial's v4-to-v5 2-SM result to its B200 M=N=K=4096 environment and recommends benchmarking rather than a universal M threshold or persistence guarantee.",
+      "claim_type": "performance",
+      "covers": ["u012", "u013"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "conda run -n base python -c 'v4=1208.83; v5=1302.29; c=1506.74; print(100*v4/c,100*v5/c,100*(v5/v4-1),100*(v4/v4-1))'",
+          "environment": "Conda base, Python 3.13.14; source inputs from the article's B200 M=N=K=4096 table, PyTorch 2.9.1 + CUDA 13",
+          "reference": "https://gau-nernst.github.io/tcgen05/ final performance table",
+          "result": "80.228%, 86.431%, and 7.731% relative uplift, matching the current page's precise rounded values.",
+          "negative_control": "v4 compared with itself yields 0% uplift."
+        }
+      ],
+      "challenge": {
+        "alternative": "The percentages are portable peak-efficiency guarantees or prove that persistence is necessary for group 2.",
+        "check": "Trace the values and scheduling stages to the exact article setup and verify the current page's scope language.",
+        "outcome": "The page reports one experiment and explicitly withholds a universal rule."
+      }
+    },
+    {
+      "claim_id": "hw-2sm-cooperative-current-c006",
+      "claim": "Both Related links resolve to the intended hardware pages.",
+      "claim_type": "other",
+      "covers": ["u014", "u015"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "for p in wiki/hardware/tcgen05-mma.md wiki/hardware/tmem.md wiki/hardware/does-not-exist.md; do test -f \"$p\" && echo \"$p present\" || echo \"$p missing\"; done",
+          "environment": "Current repository workspace on 2026-08-08",
+          "reference": "Targets resolved relative to wiki/hardware/",
+          "result": "tcgen05-mma.md and tmem.md are present.",
+          "negative_control": "does-not-exist.md reports missing."
+        }
+      ],
+      "challenge": {
+        "alternative": "One relative target has a case or directory mismatch.",
+        "check": "Resolve the exact case-sensitive paths and compare a broken control.",
+        "outcome": "Both intended paths resolve."
+      }
+    }
+  ],
+  "scope": "All 15 freshly rescanned current units were checked against CUDA 13.0.2 PTX ISA 9.0, the tutorial's exact source-reported setup, and local link resolution.",
+  "residual_risk": "No B200 or CUDA toolkit is present locally, so the reported performance was not reproduced; it remains explicitly source-reported and non-generalized."
+}

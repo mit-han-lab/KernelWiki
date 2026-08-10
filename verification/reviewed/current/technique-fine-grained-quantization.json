@@ -1,0 +1,109 @@
+{
+  "path": "wiki/techniques/fine-grained-quantization.md",
+  "id": "technique-fine-grained-quantization",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c001",
+      "claim": "The overview accurately separates payload, scale type, geometry and layout, and correctly states the DeepSeek FP8, NVFP4 1D/2D, and MXFP4 recipe geometries without promising universal accuracy or speed.",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006", "u007", "u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"section 3.3.2 and Appendix B.2","observation":"The report assigns 1x128 groups to activations and 128x128 groups to weights and scopes the outlier motivation."},
+        {"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"two-level scaling, 1D/2D scaling, comparison with MXFP4","observation":"The vendor defines NVFP4's E2M1/block16 E4M3/global-FP32 recipe, 16x16 weight mode, and MXFP4's block32 UE8M0 distinction."}
+      ],
+      "challenge": {"alternative":"All three are interchangeable block-scaled FP4/FP8 encodings and differ only in group size.","check":"Compare payload, local/global scale types and operand-specific geometry in both primary sources.","outcome":"The sources define independent recipe dimensions exactly matching the page's separation."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c002",
+      "claim": "The page correctly distinguishes one-factor-per-16384 count ratio (0.0061%) from the 0.0244% byte ratio for one FP32 factor and 16384 one-byte payloads.",
+      "claim_type": "semantics",
+      "covers": ["u009"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"awk arithmetic for 100/16384 and 100*4/16384","environment":"deterministic host arithmetic","reference":"One factor; FP32 factor is four bytes; FP8 payload is one byte.","result":"0.0061035% factor-count ratio and 0.0244141% byte ratio.","negative_control":"Replacing FP32 with a one-byte factor makes the byte ratio 0.0061035%, discriminating the missing-width error."}],
+      "challenge": {"alternative":"Both percentages describe the same overhead measure.","check":"Carry units through numerator and denominator.","outcome":"One divides object counts while the other divides bytes; they coincide only for a one-byte scale."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c003",
+      "claim": "The pinned DeepGEMM SM90 description and four-line fragment correctly give FP32 factors, BLOCK_K=128, about 14 retained bits/four-WGMMA source scope, and accum-to-final_accum scale promotion without universalizing Nc.",
+      "claim_type": "code",
+      "covers": ["u010", "u011", "u012", "u013"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","path":"artifacts/kernels/deepgemm/full/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f, byte-verified","locator":"BLOCK_K assertion and lines 250-323","observation":"The file fixes K=128, uses FP32 factor storage, declares float accum/final_accum, issues the K-block WGMMAs and contains the exact displayed four promotion lines."},
+        {"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"sections 3.3.2 and 3.5.2","observation":"The report states about 14 retained bits, Nc=128 inner-dimension elements, and equivalence to four WGMMAs in the described configuration."}
+      ],
+      "challenge": {"alternative":"Nc=128 is a general Hopper hardware rule or the excerpt uses a half-precision promotion target.","check":"Inspect declared C++ types and the source paper's scoped wording.","outcome":"Both arrays are float, and the report describes a specific H800 FP8 strategy rather than a hardware mandate."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c004",
+      "claim": "The pinned DeepGEMM SM100 description correctly gives K factor granularities 32/128, four-UE8M0 packing, TMA-to-SMEM and UTCCP-to-TMEM movement, TMEM scale operands, and absence of the SM90 final_accum loop; 0xff UE8M0 is NaN.",
+      "claim_type": "mechanism",
+      "covers": ["u014"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","path":"artifacts/kernels/deepgemm/full/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f, byte-verified","locator":"kGran assertions, factor sizes/TMA loads, UTCCP copies, block-scaled descriptor and mma_t::fma","observation":"Every stated representation and movement stage appears, and no final_accum symbol exists."},
+        {"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM 891d57b","locator":"interface notices","observation":"SM100 factors are packed four UE8M0 values per torch.int."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#alternate-floating-point-data-formats","revision":"PTX ISA 9.0","locator":"ue8m0 definition","observation":"The type is power-of-two for finite encodings and reserves 0xff for NaN."}
+      ],
+      "challenge": {"alternative":"Packed factors stay in ordinary registers or shared memory and tcgen05 reads them there directly.","check":"Trace factor buffers from TMA destination through UTCCP destination and final fma arguments.","outcome":"UTCCP targets dedicated TMEM columns and the fma wrapper receives those TMEM addresses."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c005",
+      "claim": "The displayed tcgen05 block-scale line matches PTX ISA 9.0 grammar for mxf8f6f4 scale_vec::1X, including idesc, TMEM scale operands and enable-input-d, and is accurately limited to an instruction-shape reference.",
+      "claim_type": "code",
+      "covers": ["u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"floating-point type with block scaling grammar and valid combination table","observation":"The exact qualifier/operand sequence is legal for mxf8f6f4 with UE8M0 scale_vec::1X, and the ISA separately defines descriptors, targets and asynchronous lifecycle requirements."}],
+      "challenge": {"alternative":"Scale operands are SMEM pointers or scale_d belongs before them as in unscaled tcgen05 forms.","check":"Compare block-scaled grammar with the unscaled floating-point grammar.","outcome":"Block-scaled syntax names TMEM SFA/SFB operands after idesc and does not use scale_d in that position."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c006",
+      "claim": "The Blackwell table exactly maps mxf4 block32 to E2M1/UE8M0/2X and mxf4nvf4 block16 to E2M1/UE4M3/4X, while correctly noting additional mxf4nvf4 UE8M0 modes and native UE4M3 support.",
+      "claim_type": "compatibility",
+      "covers": ["u018", "u019", "u020", "u021"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"valid scale_vectorsize/type/MMA-kind combinations","observation":"The table lists both displayed rows and the additional mxf4nvf4 UE8M0 block16/block32 possibilities."}],
+      "challenge": {"alternative":"The mxf4nvf4 kind alone uniquely means NVFP4 UE4M3 block16.","check":"Enumerate every mxf4nvf4 row in the valid-combination table.","outcome":"UE8M0 rows also exist, so full qualifiers and types are selection-critical."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c007",
+      "claim": "The transfer checklist and evidence boundaries correctly require exact recipe/ABI/instruction matching, include preprocessing in timing unless already produced, demand controlled accuracy/performance evaluation, and avoid universal block-size or Nc conclusions.",
+      "claim_type": "performance",
+      "covers": ["u022", "u023", "u024", "u025", "u026", "u027", "u028", "u029", "u030", "u031", "u032", "u033", "u034", "u035", "u036", "u037", "u038", "u039"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"recipe, 1D/2D grouping and MXFP4 comparison","observation":"Payload, local/global scaling and geometry are independent contract dimensions, and documented accuracy advantages are recipe-scoped rather than universal."},
+        {"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM 891d57b","locator":"interface notices","observation":"The project explicitly warns that transpose/cast preparation is separate and utility implementations may be slower, and it distinguishes SM90/SM100 factor formats."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"PTX ISA 9.0","locator":"block-scale grammar, combinations and target notes","observation":"Legality depends on kind, scale-vector, type and target; the ISA supplies no universal performance/accuracy ordering."}
+      ],
+      "challenge": {"alternative":"Native instruction support and smaller groups alone are enough to choose the fastest and most accurate recipe.","check":"Check whether the sources hold preparation/layout/workload constant or define an input-independent ordering.","outcome":"They do not; the checklist explicitly identifies those uncontrolled variables and requests measurement rather than predicting results."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-current-c008",
+      "claim": "The four primary-reference links resolve to the exact DeepSeek-V3 v2 paper, pinned DeepGEMM commit, Transformer Engine 2.13 page, and archived PTX ISA 9.0 tcgen05 section.",
+      "claim_type": "other",
+      "covers": ["u040", "u041", "u042", "u043"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://arxiv.org/abs/2412.19437v2","revision":"v2","locator":"document landing/PDF","observation":"The URL is revision-pinned to v2."},
+        {"url":"https://github.com/deepseek-ai/DeepGEMM/tree/891d57b4db1071624b5c8fa0d1e51cb317fa709f","revision":"891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"repository tree","observation":"The URL embeds the full commit."},
+        {"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4 page","observation":"The version path and topic match."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma section","observation":"The archive and anchor match the label."}
+      ],
+      "challenge": {"alternative":"At least one link is rolling or points to a summary rather than the asserted primary source.","check":"Inspect URL version/commit segments and resolved section titles.","outcome":"All four are direct primary, revision-specific targets."}
+    }
+  ],
+  "commands": ["inspect byte-verified DeepGEMM SM90/SM100 sources", "compute scale count/byte ratios with a one-byte negative control", "resolve version-pinned primary references"],
+  "scope": "All 43 current semantic units for body hash af3e67a9f9a356ddf6111b4a87ae2ba28554f5f096b0b5a9e18e0749b82f6cf8 were checked.",
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed, so the grammar-level PTX was not assembled and no accuracy/performance benchmark was run. The page makes no new numeric speed or error claim."
+}

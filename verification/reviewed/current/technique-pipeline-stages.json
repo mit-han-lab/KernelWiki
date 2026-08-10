@@ -1,0 +1,110 @@
+{
+  "path": "wiki/techniques/pipeline-stages.md",
+  "id": "technique-pipeline-stages",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-pipeline-stages-current-c001",
+      "claim": "The definition correctly makes stages disjoint SMEM buffers with independently transferred ownership and explicitly declines to guarantee full latency hiding or speedup.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"state[numStages] and stage-specific full/empty barriers","observation":"The implementation allocates disjoint stages and transfers them between producer/consumer roles; source structure alone does not claim a universal performance result."}],
+      "challenge": {"alternative":"Modulo indices alias one buffer or stage count itself proves complete hiding.","check":"Trace storage dimensions and distinguish correctness structure from timing evidence.","outcome":"Storage is disjoint but no source-level invariant establishes hidden latency, exactly as the page states."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c002",
+      "claim": "The five-state table and lifecycle paragraphs correctly require prior-read completion, expected TMA transaction accounting, ready-phase observation, exclusive consumer ownership, tcgen05 completion before release, and explicit prologue/phase/tail handling.",
+      "claim_type": "mechanism",
+      "covers": ["u002", "u003", "u004", "u005", "u006", "u007", "u008", "u009"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"expected arrivals/transactions, phases and waits","observation":"Full/empty ownership and reusable phase obligations match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"MMA completion and operand lifetimes","observation":"SMEM operands cannot be released for overwrite merely after asynchronous MMA issue; completion must be established."}],
+      "challenge": {"alternative":"Modulo indexing and __syncthreads after issue are sufficient.","check":"Follow first use, first wraparound and asynchronous MMA operand lifetime.","outcome":"Modulo has no readiness state and CTA synchronization does not complete the async proxy; all extra edges named by the page are required."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c003",
+      "claim": "The TMA section correctly states expected-byte registration, autonomous mbarrier transaction completion and consumer wait, while narrowing the benefit and rejecting incomplete illustrative PTX as safe code.",
+      "claim_type": "mechanism",
+      "covers": ["u010", "u011", "u012"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"bulk tensor copy mbarrier complete_tx semantics","observation":"The hardware transaction completes on the supplied mbarrier after expected-byte accounting; full descriptors/grammar and proxy ordering are required."}],
+      "challenge": {"alternative":"TMA completion needs a manual producer arrival after transfer or proves the producer cannot be critical.","check":"Separate hardware complete_tx behavior from performance scheduling.","outcome":"Completion is autonomous, while issue work and load latency may still be exposed; the page states both precisely."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c004",
+      "claim": "The binary16 payload block and linear-growth statement compute 16/32/48/144/240 KiB exactly while distinguishing payload from complete allocation.",
+      "claim_type": "code",
+      "covers": ["u013", "u014", "u016"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python exact integer byte arithmetic and stage-count sweep","environment":"Conda base, host CPU","reference":"binary16=2 bytes and disjoint fixed-size operand stage payload","result":"A=16384 B, B=32768 B, stage=49152 B; 3=144 KiB, 5=240 KiB; stage payload is linear.","negative_control":"Four-byte elements or aliased stages fail the stated byte totals/simultaneous-ownership condition."}],
+      "challenge": {"alternative":"The calculation includes barriers/padding or total allocation is purely linear.","check":"Read the labels/disclaimer and add a fixed metadata term.","outcome":"The page explicitly says unpadded operand payload and notes fixed/stage-dependent metadata separately."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c005",
+      "claim": "The 228-KiB capacity and derived 63.2-percent/over-capacity statements are correctly scoped to CC10.0 per-SM capacity and preserve per-block/occupancy caveats.",
+      "claim_type": "compatibility",
+      "covers": ["u015"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"CC10.0 shared-memory capacity and occupancy","observation":"The guide reports 228 KiB/SM and resource-dependent residency; 144/228=63.16% and 240>228."}],
+      "challenge": {"alternative":"228 KiB is a universal Blackwell per-CTA allocation guarantee.","check":"Distinguish compute capability and per-SM versus per-block opt-in limits.","outcome":"The page states CC10.0 per SM and explicitly retains other limits."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c006",
+      "claim": "The stage-selection section correctly rejects universal depth labels and enumerates the concrete resource, transfer, compute, role, and loop-length variables that must be compiled and measured, including short/equal/long boundary cases.",
+      "claim_type": "performance",
+      "covers": ["u017", "u018", "u019", "u020", "u021", "u022", "u023"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"three-stage and min(totalStages,4) dispatch policies","observation":"One exact kernel uses different stage policies by path/geometry, validating that depth depends on concrete constraints."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"pipeline stage parameters and resource construction","observation":"Stage choices interact with tile/storage/pipeline configuration rather than an architecture-only table."}],
+      "challenge": {"alternative":"Three stages is always standard/full and no compilation or short-K test is needed.","check":"Compare exact code paths and execute the state machine when K tiles are below stage count.","outcome":"Source policies differ and some stages are never produced in short loops, requiring the specified boundary tests."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c007",
+      "claim": "The Gau Nernst paragraph accurately reports/scopes v2b/v3 and later variant values, including the approximately 35.1-percent adjacent pipeline increase without attributing the v6 endpoint to warp specialization alone.",
+      "claim_type": "performance",
+      "covers": ["u024"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"sources/blogs/tcgen05-tutorial.md","revision":"article/source commit 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"source-reported progression","observation":"All four numbers and variant labels match; 939.61/695.43-1 is about 35.1%."}],
+      "challenge": {"alternative":"1475.93 is the warp-specialization result or the 35.1% is portable.","check":"Inspect each intermediate version and benchmark scope.","outcome":"v4 is 1208.83, v6 adds two more changes, and the page limits the delta to the disclosed source progression."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c008",
+      "claim": "The Modular paragraph accurately scopes five input stages and the 85-percent endpoint to the full multi-step Part 3 design and correctly states that the source lacks the previously attributed fixed 400-cycle premise.",
+      "claim_type": "performance",
+      "covers": ["u025"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://www.modular.com/blog/matrix-multiplication-on-nvidias-blackwell-part-3-the-optimizations-behind-85-of-sota-performance","revision":"fetched 2026-08-09","locator":"five-stage input pipeline, warp specialization, output double buffering and 85% endpoint","observation":"The sequence and source-scoped endpoint match, and no fixed 400-cycle HBM statement appears."}],
+      "challenge": {"alternative":"Five stages alone produced 85% or the page omits a source-defined latency.","check":"Trace the article's kernel sequence and search its content for 400/cycles.","outcome":"Several changes precede the endpoint and the latency phrase is absent; the current wording is properly scoped."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c009",
+      "claim": "All eight validation steps follow from disjoint storage, initialization/publication, transaction, async MMA, phase, tail and boundary requirements and specify discriminating fault tests.",
+      "claim_type": "mechanism",
+      "covers": ["u026", "u027", "u028", "u029", "u030", "u031", "u032", "u033"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"init, expected transaction, phase and wait rules","observation":"Steps 1-4 and 6 directly exercise mandatory state/phase behavior."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"MMA completion/lifetimes","observation":"Step 5 and early-release fault test follow from asynchronous operand lifetime; tail/boundary tests ensure no unproduced stage is waited upon."}],
+      "challenge": {"alternative":"Only steady-state happy-path output is needed.","check":"Inject wrong phase, early release and short-K states.","outcome":"Each targets a distinct normative edge and can expose deadlock or corruption hidden by steady state."}
+    },
+    {
+      "claim_id": "technique-pipeline-stages-current-c010",
+      "claim": "All six primary URLs and three related local links resolve exactly, while fabricated external/local controls fail.",
+      "claim_type": "other",
+      "covers": ["u034", "u035", "u036", "u037", "u038", "u039", "u040", "u041", "u042"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"HTTP-check six exact references; resolve three relative links; repeat with fabricated targets","environment":"current worktree/network, 2026-08-09","reference":"Exact primary and related targets should resolve.","result":"All six URLs returned HTTP 200 and all three local files existed.","negative_control":"A fabricated CUDA page returned HTTP 404 and wiki/techniques/nope.md was absent."}],
+      "challenge": {"alternative":"Redirects or similar names mask missing exact targets.","check":"Require exact archived/immutable URLs and exact relative paths.","outcome":"Every intended target resolved and both controls failed."}
+    }
+  ],
+  "commands": ["archived PTX/tuning-guide inspection", "exact-revision CUTLASS/FlashInfer/tutorial inspection", "Conda-base byte/stage arithmetic", "primary article and link controls"],
+  "scope": "All 42 current units for body hash 7df323122ab18859d04251398e4b248898e5bca6a3c58fba24d67e3ba0fd70d2 were verified against pinned primary evidence and discriminating host checks.",
+  "residual_risk": "No CUDA compiler or SM100 GPU is available. The page intentionally leaves stage profitability, barrier overhead and exposed latency to target compilation/profiling."
+}

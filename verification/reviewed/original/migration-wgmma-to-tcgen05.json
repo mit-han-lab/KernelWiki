@@ -1,0 +1,369 @@
+{
+  "path": "wiki/migration/wgmma-to-tcgen05.md",
+  "id": "migration-wgmma-to-tcgen05",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c001",
+      "claim": "Porting an SM90 WGMMA kernel to SM100 tcgen05 changes MMA issue from a warpgroup to one thread and moves the D accumulator from per-thread registers to TMEM.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002", "u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-matrix-multiply-and-accumulate-operations",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA execution model; tcgen05 issue granularity and MMA overview",
+          "observation": "WGMMA is a warpgroup collective with register D; tcgen05 MMA has single-thread issue and TMEM D."
+        }
+      ],
+      "challenge": {
+        "alternative": "tcgen05 is only a renamed WGMMA encoding and retains warpgroup-issued register fragments.",
+        "check": "Compare issue granularity and D operand locations in the two pinned ISA sections.",
+        "outcome": "Both properties change explicitly, discriminating the programming models."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c002",
+      "claim": "The migration universally changes ldmatrix-plus-register A into direct-SMEM A and replaces WGMMA synchronization with async fences.",
+      "claim_type": "semantics",
+      "covers": ["u004", "u005"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA A operand forms; tcgen05 A grammar; fence and commit sections",
+          "observation": "WGMMA has both descriptor-A and register-A forms; tcgen05 A can be SMEM or TMEM. tcgen05 fences order cross-thread operations, while commit plus mbarrier provides MMA completion."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c003",
+      "claim": "Compared with Hopper WGMMA FP8 support, the tcgen05 family adds native FP6/FP4 and block-scaled MX/NVFP4 kinds.",
+      "claim_type": "compatibility",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-matrix-multiply-and-accumulate-operations",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA alternate floating formats and tcgen05 kind inventory",
+          "observation": "The WGMMA section includes FP8 formats, while tcgen05 adds f8f6f4 and the block-scaled mxf8f6f4, mxf4, and mxf4nvf4 kinds."
+        }
+      ],
+      "challenge": {
+        "alternative": "FP4/FP6 appear only in software conversion and not in tcgen05 MMA grammar.",
+        "check": "Inspect the exact tcgen05 kind and block-scale grammar tokens.",
+        "outcome": "The native grammar directly names the narrow-precision kinds."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c004",
+      "claim": "The migration checklist is correct as written, including mandatory ldmatrix removal, 64B-to-128B swizzle conversion, and replacing commit/wait with fences.",
+      "claim_type": "code",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "Table 40, MMA operand grammar, and completion mechanism",
+          "observation": "tcgen05 supports several valid swizzles and SMEM/TMEM A; MMA completion requires commit/mbarrier. The checklist's categorical substitutions are false."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c005",
+      "claim": "The Hopper kernel block is valid or structurally faithful WGMMA CUDA for the migration baseline.",
+      "claim_type": "code",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "MMA_64x256x16 WGMMA wrapper signatures",
+          "observation": "The wiki block contains literal ellipses and undefined names and combines an ldmatrix fragment with a made-up WGMMA operand list. The pinned wrappers show exact descriptor-A or register-A signatures instead."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c006",
+      "claim": "The Blackwell kernel block correctly demonstrates TMEM allocation, tcgen05 MMA, completion, TMEM load, and deallocation.",
+      "claim_type": "code",
+      "covers": ["u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "alloc/dealloc issue semantics, mma grammar, commit, and ld access restrictions",
+          "observation": "alloc/dealloc are warp-collective rather than lane-0 operations; the MMA omits its lane mask; fence/syncthreads is not completion; tcgen05.ld is warp-collective. Multiple undefined helpers further prevent execution."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c007",
+      "claim": "The accumulator examples correctly contrast a 128-register per-thread Hopper m64n256 FP32 fragment with a TMEM-addressed Blackwell accumulator allocation concept.",
+      "claim_type": "code",
+      "covers": ["u010", "u011", "u012", "u013"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "MMA_64x256x16_F32F16F16_SS CRegisters; PTX tcgen05.alloc semantics",
+          "observation": "The wrapper declares float CRegisters[128]; PTX alloc returns a 32-bit TMEM address via shared memory and uses it for TMEM-backed D. The tmem_alloc name is plainly pseudocode, consistent with page metadata."
+        }
+      ],
+      "challenge": {
+        "alternative": "128 is a tile-wide count or TMEM allocation returns a pointer-sized generic address.",
+        "check": "Inspect the per-thread wrapper typedef and PTX's b32 taddr allocation result.",
+        "outcome": "The original contrast is correct at the stated conceptual level."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c008",
+      "claim": "A WGMMA port should always remove ldmatrix because Hopper necessarily register-stages A while tcgen05 necessarily uses an SMEM A descriptor.",
+      "claim_type": "code",
+      "covers": ["u014", "u015", "u016", "u017"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions-wgmma-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA SS/RS forms and tcgen05 SMEM-A/TMEM-A grammar",
+          "observation": "Some WGMMA forms already source A through an SMEM descriptor, and tcgen05 can source A from TMEM. Migration depends on the exact source instruction, not a universal ldmatrix step."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c009",
+      "claim": "The Hopper swizzle example accurately notes that both 64B and 128B swizzled shared-memory layouts are supported WGMMA/TMA choices.",
+      "claim_type": "code",
+      "covers": ["u018", "u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-shared-memory-layout-matrix-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA shared-memory layouts and descriptor swizzle modes",
+          "observation": "The WGMMA layout section documents both 64-byte and 128-byte swizzle modes."
+        }
+      ],
+      "challenge": {
+        "alternative": "64B swizzle is only a tcgen05 descriptor value and is invalid for WGMMA.",
+        "check": "Use the WGMMA-specific layout section rather than the adjacent tcgen05 table.",
+        "outcome": "The Hopper section directly documents 64B layouts."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c010",
+      "claim": "Blackwell tcgen05 correctness requires converting every operand layout to 128-byte swizzling.",
+      "claim_type": "code",
+      "covers": ["u020", "u021"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "Table 40 and tcgen05 shared-memory layout sections",
+          "observation": "tcgen05 defines valid no-swizzle, 128B, 64B, and 32B modes subject to their layout constraints."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c011",
+      "claim": "The WGMMA-to-tcgen05 issue snippets are valid pseudocode and tcgen05 needs no commit because it is fully asynchronous.",
+      "claim_type": "code",
+      "covers": ["u022", "u023", "u024", "u025"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "MMA grammar and mbarrier-based completion mechanism",
+          "observation": "Both snippets contain literal ellipses or omit required operands; tcgen05 MMA completion is explicitly observed by tcgen05.commit plus mbarrier wait."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c012",
+      "claim": "wgmma.wait_group.sync.aligned 0 waits until all committed WGMMA groups are complete before their accumulator registers are consumed.",
+      "claim_type": "code",
+      "covers": ["u026", "u027"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions-wgmma-wait-group",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "wgmma.wait_group syntax and description",
+          "observation": "The immediate 0 form waits for completion of all prior committed WGMMA groups."
+        }
+      ],
+      "challenge": {
+        "alternative": "Immediate 0 allows one group to remain outstanding.",
+        "check": "Compare the immediate-count definition and the adjacent example values.",
+        "outcome": "The zero value leaves no committed groups pending before use."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c013",
+      "claim": "A tcgen05.fence before __syncthreads replaces wgmma.wait_group and makes the TMEM accumulator ready.",
+      "claim_type": "code",
+      "covers": ["u028", "u029"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "mbarrier completion and tcgen05.fence descriptions",
+          "observation": "commit/mbarrier observes MMA completion; fence only orders operations around execution-ordering handoffs and constrains code motion."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c014",
+      "claim": "A Hopper epilogue can consume its register accumulator directly, whereas a tcgen05 epilogue first transfers TMEM values into registers before scalar post-ops and stores.",
+      "claim_type": "code",
+      "covers": ["u030", "u031", "u032", "u033"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA D fragments and 9.7.16.8.3 tcgen05.ld",
+          "observation": "WGMMA returns D in per-thread registers; tcgen05.ld collectively transfers TMEM data into a register vector for further computation."
+        }
+      ],
+      "challenge": {
+        "alternative": "CUDA scalar arithmetic can address TMEM directly without tcgen05.ld.",
+        "check": "Inspect the TMEM access-instruction model and destination of tcgen05.ld.",
+        "outcome": "TMEM-to-GPR transfer is the documented path before ordinary register computation."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c015",
+      "claim": "The two warp-specialization diagrams describe typical required Hopper and Blackwell allocations of 13+ and 5 warps, including a dedicated CLC warp on Blackwell.",
+      "claim_type": "code",
+      "covers": ["u034", "u035"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "thread-role partition and pipeline definitions; Hopper warp-specialized examples",
+          "observation": "Vendor examples choose workload-specific role counts and do not impose the diagrams' totals or a mandatory CLC scheduler warp."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c016",
+      "claim": "Single-thread MMA issue permits other threads or warps to specialize in prefetch, epilogue, or reduction work, but the profitable role partition is kernel-dependent.",
+      "claim_type": "mechanism",
+      "covers": ["u036", "u037", "u038", "u039"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "warp-specialized producer/consumer pipeline",
+          "observation": "The pinned example assigns distinct data movement, MMA, and accumulator-consumer roles around a single-thread-issued MMA."
+        }
+      ],
+      "challenge": {
+        "alternative": "The rest of the issuing warp is forced idle and cannot perform any other pipeline role.",
+        "check": "Inspect the vendor example's role branching and pipelines.",
+        "outcome": "The implementation uses non-issuing execution resources for other work, while leaving the exact partition configurable."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c017",
+      "claim": "Blackwell's base MMA tile universally doubles Hopper M from 64 to 128, and migration should mechanically double CTA M or choose the two fixed table shapes.",
+      "claim_type": "semantics",
+      "covers": ["u040", "u041", "u042", "u043", "u044", "u045"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-data-path-layout-organization",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "WGMMA shape inventory; tcgen05 idesc and data-path layouts",
+          "observation": "Both instruction families expose multiple legal shapes. tcgen05 M/N are descriptor- and configuration-selected, so tile migration is not a fixed two-row lookup or mandatory doubling rule."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c018",
+      "claim": "The pitfall list correctly says missing 128B swizzle silently corrupts tcgen05, fence-plus-syncthreads is the required completion path, and retaining Hopper thread counts necessarily wastes resources.",
+      "claim_type": "semantics",
+      "covers": ["u046", "u048", "u049"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "descriptor modes, issue granularity, commit, and fence",
+          "observation": "Several swizzles are valid, completion uses commit/mbarrier, and one-thread MMA issue does not determine the thread requirements of loads, epilogue, scheduling, or other kernel work."
+        }
+      ]
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c019",
+      "claim": "All dynamically allocated TMEM must be explicitly deallocated before kernel exit, and removing register-resident accumulators warrants retuning rather than assuming Hopper's register budget remains optimal.",
+      "claim_type": "semantics",
+      "covers": ["u047", "u050"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.7.1 allocation lifecycle; WGMMA and tcgen05 D locations",
+          "observation": "PTX requires every allocation to be deallocated before exit. Moving D from GPRs to TMEM changes one resource constraint, supporting a retuning recommendation without guaranteeing a particular optimum."
+        }
+      ],
+      "challenge": {
+        "alternative": "CTA teardown implicitly releases TMEM, or identical register limits dominate both kernels.",
+        "check": "Inspect the explicit before-exit mandate and compare accumulator storage locations.",
+        "outcome": "The ISA requires deallocation and the accumulator resource changes, so both scoped statements hold."
+      }
+    },
+    {
+      "claim_id": "migration-wgmma-to-tcgen05-original-c020",
+      "claim": "CUTLASS migration is largely an arch-tag and schedule-token substitution using the shown device::GemmUniversal and KernelScheduleSm100CpAsyncWarpSpecialized types, after which MMA_Atom/MMA_Traits automatically handle all differences.",
+      "claim_type": "code",
+      "covers": ["u051", "u052", "u053"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/70_blackwell_gemm/70_blackwell_fp16_gemm.cu",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "SM100 CollectiveBuilder and GemmUniversal construction; gemm/dispatch_policy.hpp",
+          "observation": "The displayed schedule type does not exist in pinned CUTLASS. SM100 examples configure collective builders, tile/cluster shapes, stages, and supported schedule tags such as KernelTmaWarpSpecialized1SmSm100 before instantiating kernel::GemmUniversal and a device adapter."
+        }
+      ]
+    }
+  ],
+  "scope": "All 53 immutable baseline units were checked against CUDA 13.0.2 PTX ISA 9.0 and pinned CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5. Code was assessed according to the page's pseudocode reproducibility label while executable-looking PTX was still required to preserve real operand and ordering semantics.",
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed locally, so no migrated kernel was compiled or run. The discriminating ISA and pinned-library checks are sufficient to refute syntax, lifecycle, and API claims but do not predict performance for a specific port."
+}

@@ -1,0 +1,402 @@
+{
+  "path": "wiki/hardware/tcgen05-mma.md",
+  "id": "hw-tcgen05-mma",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "hw-tcgen05-mma-original-c001",
+      "claim": "tcgen05.mma is NVIDIA's fifth-generation TensorCore MMA family for Blackwell-class sm_100a targets, and CUTLASS uses an UMMA namespace for its SM100 wrappers.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10.9.1, description and Target ISA Notes",
+          "observation": "The specification calls tcgen05.mma the fifth generation MMA operation and lists sm_100a among its targets."
+        },
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/arch/mma_sm100_umma.hpp",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "cute::UMMA definitions and tcgen05 wrappers",
+          "observation": "Pinned CUTLASS code uses the UMMA namespace for SM100 tcgen05 wrapper types."
+        }
+      ],
+      "challenge": {
+        "alternative": "tcgen05 is a community nickname or a Hopper WGMMA spelling rather than a defined Blackwell instruction family.",
+        "check": "Inspect the pinned PTX instruction heading, description, and target notes, then compare the pinned CUTLASS wrapper namespace.",
+        "outcome": "The vendor ISA defines tcgen05 directly and the vendor library maps its SM100 wrappers to UMMA."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c002",
+      "claim": "NVIDIA defines UMMA as the expansion 'Unified Matrix Multiply-Accumulate.'",
+      "claim_type": "semantics",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "repository-wide case-insensitive search for 'Unified Matrix', 'Unified MMA', and UMMA",
+          "observation": "The pinned NVIDIA repository uses UMMA extensively but contains no definition of it as 'Unified Matrix Multiply-Accumulate'; the pinned PTX ISA names the instruction family tcgen05 and likewise does not make that expansion."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c003",
+      "claim": "A tcgen05.mma operation is issued by one thread, whereas wgmma.mma_async is a warpgroup operation.",
+      "claim_type": "semantics",
+      "covers": ["u003", "u028"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.2 instruction issue granularity and 9.7.16.10.9.1",
+          "observation": "mma with cta_group::1 or ::2 is issued by a single thread; the WGMMA section defines warpgroup-wide execution."
+        }
+      ],
+      "challenge": {
+        "alternative": "Every warp lane must execute the same tcgen05.mma instruction, as with warp-level mma.",
+        "check": "Compare the instruction issue granularity table for mma with the separate warp/warpgroup operations.",
+        "outcome": "The tcgen05 mma row explicitly assigns single-thread issue granularity."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c004",
+      "claim": "Single-thread issue removes synchronization overhead, so an elected lane can issue tcgen05.mma without a completion or ordering protocol.",
+      "claim_type": "semantics",
+      "covers": ["u029"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.12.1 tcgen05.commit",
+          "observation": "The issuer must use tcgen05.commit with an mbarrier to make completion observable; cross-thread use also requires the documented fence ordering."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c005",
+      "claim": "tcgen05 writes D in Tensor Memory, while a large Hopper m64n256 FP32-accumulating WGMMA exposes 128 accumulator registers per participating thread.",
+      "claim_type": "mechanism",
+      "covers": ["u004", "u043", "u044"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "MMA_64x256x16_F32F16F16_SS CRegisters",
+          "observation": "The pinned wrapper declares float CRegisters[128] for that WGMMA shape; PTX ISA 9.0 places tcgen05 D in TMEM, avoiding that accumulator allocation in the GPR file."
+        }
+      ],
+      "challenge": {
+        "alternative": "The 128 value is a tile-wide count or tcgen05 silently mirrors its accumulator in registers.",
+        "check": "Inspect the per-thread CUTLASS wrapper typedef and the PTX operand-location definition for D.",
+        "outcome": "The wrapper declares 128 C registers per participating thread and tcgen05 D is explicitly a TMEM operand."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c006",
+      "claim": "tcgen05.mma accepts operand A only from shared memory, while WGMMA necessarily obtains A through ldmatrix registers.",
+      "claim_type": "semantics",
+      "covers": ["u005", "u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10 overview and 9.7.16.10.9.1 syntax",
+          "observation": "tcgen05 A may be a shared-memory descriptor or a TMEM address. The WGMMA ISA supports both register-sourced and descriptor-sourced A forms, so ldmatrix is not universally required."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c007",
+      "claim": "Dense tcgen05.mma obtains B from shared memory and writes D to Tensor Memory.",
+      "claim_type": "mechanism",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-matrix-multiply-and-accumulate-operations",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10 overview",
+          "observation": "The overview locates B in current/peer CTA shared memory and D in TMEM."
+        }
+      ],
+      "challenge": {
+        "alternative": "B can be supplied from registers or TMEM in the same dense mma forms.",
+        "check": "Inspect both shared-A and TMEM-A grammar alternatives.",
+        "outcome": "Both alternatives retain b-desc; no B-register or B-TMEM operand form is listed."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c008",
+      "claim": "tcgen05 completion is fence-based: a fence plus CTA synchronization is sufficient before reading the MMA result from TMEM.",
+      "claim_type": "code",
+      "covers": ["u008", "u031", "u037", "u038", "u039", "u040"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.11.1 tcgen05.fence",
+          "observation": "The fence orders tcgen05 operations around execution-ordering operations and constrains code motion; it is not a completion wait."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.12.1 tcgen05.commit",
+          "observation": "tcgen05.commit attaches prior async operations to an mbarrier, whose wait makes completion observable."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c009",
+      "claim": "PTX ISA 9.0 defines seven dense tcgen05.mma kind qualifiers: f16, tf32, f8f6f4, i8, mxf8f6f4, mxf4, and mxf4nvf4.",
+      "claim_type": "semantics",
+      "covers": ["u009"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10.9.1 syntax groups 1, 2, and 5",
+          "observation": "The grammar enumerates three unscaled floating kinds, three block-scaled kinds, and i8."
+        }
+      ],
+      "challenge": {
+        "alternative": "f8f6f4 and mxf8f6f4 are aliases, leaving only six kinds.",
+        "check": "Compare the unscaled and block-scaled grammar sets.",
+        "outcome": "They are distinct qualifiers in distinct syntax groups, producing seven total kinds."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c010",
+      "claim": "The variant table accurately assigns scaling modes, accumulator types, and one fixed 1-SM shape to all seven kinds.",
+      "claim_type": "semantics",
+      "covers": ["u010", "u012", "u014", "u015", "u016"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10.9.1 syntax and instruction descriptor semantics",
+          "observation": "f8f6f4 is in the no-block-scaling grammar; the block-scaled MX kind is mxf8f6f4, not mxf8. M and N are encoded by idesc and are not fixed by the kind qualifier, and f16-family output typing is configuration-dependent."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c011",
+      "claim": "tf32 uses K=8 with FP32 D, and i8 uses K=32 with signed 32-bit D for the listed dense configurations.",
+      "claim_type": "semantics",
+      "covers": ["u011", "u013"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instruction-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "instruction descriptor type tables for tf32 and i8",
+          "observation": "The descriptor tables assign tf32 K=8 and FP32 D, and i8 K=32 and signed 32-bit D."
+        }
+      ],
+      "challenge": {
+        "alternative": "Those K depths are inferred from a tutorial's chosen tile rather than encoded ISA semantics.",
+        "check": "Inspect the PTX instruction-descriptor kind/type tables rather than example kernels.",
+        "outcome": "The pinned ISA tables assign the K depths to the corresponding kind configurations."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c012",
+      "claim": "Each precision has only the listed maximum MxN shape in 1-CTA and 2-CTA modes, and cta_group::2 always doubles M because each SM contributes exactly 128 rows.",
+      "claim_type": "semantics",
+      "covers": ["u018", "u019", "u020", "u021", "u023", "u024", "u025", "u026", "u027"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instruction-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "instruction descriptor and data-path layout organizations",
+          "observation": "M and N are descriptor-selected with multiple legal layouts; cta_group::2 accesses current and peer CTA TMEM and supports more than a single forced M relationship. The listed values are valid maxima/examples, not exhaustive shapes."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c013",
+      "claim": "cta_group::1 operates for the current CTA and cta_group::2 cooperates across the current and peer CTA, while tcgen05.mma itself is asynchronous.",
+      "claim_type": "semantics",
+      "covers": ["u017", "u022", "u030"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10 overview and 9.7.16.10.9.1 description",
+          "observation": "The operand-access model distinguishes current versus peer CTA resources and the mma description explicitly calls the instruction asynchronous."
+        }
+      ],
+      "challenge": {
+        "alternative": "cta_group controls only instruction encoding while both forms use resources from one CTA synchronously.",
+        "check": "Inspect the operand access model and async operation description.",
+        "outcome": "The model assigns peer-CTA resource access to group 2 and calls execution asynchronous."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c014",
+      "claim": "The four MMA PTX/inline-PTX examples have valid PTX 8.7-or-newer operand grammar and demonstrate unscaled and block-scaled accumulation correctly.",
+      "claim_type": "code",
+      "covers": ["u032", "u033", "u034", "u035", "u036"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.10.9.1 syntax and examples",
+          "observation": "Unscaled forms require a 4- or 8-element disable-output-lane vector before enable-input-d. Block-scaled forms require block_scale qualifiers and two TMEM scale operands. The wiki examples provide neither grammar."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c015",
+      "claim": "The shown mainloop safely reuses shared-memory stages and reads TMEM after only a final fence and __syncthreads.",
+      "claim_type": "code",
+      "covers": ["u041"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.16.12.1 completion mechanism",
+          "observation": "The loop lacks tcgen05.commit plus mbarrier wait before result consumption and does not establish safe operand-stage release relative to asynchronous MMA consumption."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c016",
+      "claim": "The Hopper/Blackwell comparison block is valid illustrative CUDA/PTX for both paths.",
+      "claim_type": "code",
+      "covers": ["u042"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "tcgen05.mma grammar and WGMMA operand forms",
+          "observation": "The block contains literal ellipses and undeclared operands, forces Hopper A through ldmatrix despite descriptor-sourced A forms, omits tcgen05's mask vector, and substitutes a fence for completion."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c017",
+      "claim": "TMEM accumulator storage can reduce GPR pressure and supports warp-specialized designs in which different warps handle TMA, MMA control, and epilogue work.",
+      "claim_type": "mechanism",
+      "covers": ["u045"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+          "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "warp-specialized TMA/UMMA pipeline and accumulator lifecycle",
+          "observation": "The pinned NVIDIA tutorial implements distinct pipeline roles around TMEM-backed UMMA, demonstrating the design pattern without making it universal."
+        }
+      ],
+      "challenge": {
+        "alternative": "Single-thread issue requires the rest of its warp to remain idle and prevents role specialization.",
+        "check": "Inspect a pinned vendor tutorial kernel's role partition and pipeline types.",
+        "outcome": "The implementation assigns distinct loading, MMA, and consumer work around the single issuer."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c018",
+      "claim": "Both operands require 128-byte-swizzled shared-memory layouts; no-swizzle and 64-byte modes silently produce incorrect results.",
+      "claim_type": "semantics",
+      "covers": ["u046"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "Table 40 shared-memory descriptor layout",
+          "observation": "The descriptor explicitly defines no-swizzle, 128B, 64B, and 32B modes; validity depends on satisfying the selected layout's constraints, not on always selecting 128B."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c019",
+      "claim": "The shown make_smem_desc function constructs a valid mandatory-128B tcgen05 shared-memory descriptor.",
+      "claim_type": "code",
+      "covers": ["u047"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "Table 40 shared-memory descriptor layout",
+          "observation": "The function omits the stride field and required fixed fields, and encodes swizzle value 3 in bits 61-63; PTX declares value 3 invalid and assigns value 2 to 128B swizzle."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c020",
+      "claim": "The linked tutorial reports approximately 255, 695, 940, and 1507 TFLOP/s for its basic, 3D-128B, pipelined, and cuBLAS cases on its B200 M=N=K=4096 setup.",
+      "claim_type": "performance",
+      "covers": ["u048", "u049", "u050", "u052"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://gau-nernst.github.io/tcgen05/",
+          "revision": "Article dated 2025-12-21; linked code commit 3b90ac9b",
+          "locator": "Closing remarks performance table and experiment setup",
+          "observation": "The author reports 254.62, 695.43, 939.61, and 1506.74 TFLOP/s for those stages on a Modal B200 using PyTorch 2.9.1 with CUDA 13 and M=N=K=4096."
+        }
+      ],
+      "challenge": {
+        "alternative": "The rounded values combine results from different matrix sizes or devices.",
+        "check": "Trace each row to the article's final consolidated table and stated setup.",
+        "outcome": "The rows occur in one progression under the same disclosed B200 GEMM setup."
+      }
+    },
+    {
+      "claim_id": "hw-tcgen05-mma-original-c021",
+      "claim": "The tutorial's 1476-TFLOP/s final kernel combines persistence with Cluster Launch Control.",
+      "claim_type": "performance",
+      "covers": ["u051"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://gau-nernst.github.io/tcgen05/",
+          "revision": "Article dated 2025-12-21; linked code commit 3b90ac9b",
+          "locator": "Persistent kernel heading and closing remarks",
+          "observation": "The 1475.93-TFLOP/s v6 row is explicitly 'persistent w/ static scheduling'; the author says CLC was not added."
+        }
+      ]
+    }
+  ],
+  "scope": "All 52 immutable baseline claim units were checked against CUDA 13.0.2 PTX ISA 9.0, pinned NVIDIA CUTLASS source, and the tutorial's disclosed source-reported benchmark scope. No GPU compilation or execution was available locally.",
+  "residual_risk": "Exact hardware performance and ptxas acceptance were not rerun because the host has no CUDA toolkit or NVIDIA GPU. ISA grammar, ordering, descriptor fields, and pinned source types provide discriminating non-runtime evidence."
+}

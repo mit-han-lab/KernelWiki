@@ -1,0 +1,173 @@
+{
+  "path": "wiki/languages/cute-dsl.md",
+  "id": "lang-cute-dsl",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "lang-cute-dsl-original-c001",
+      "claim": "CUTLASS 4.5.0 includes the Python-native CuTe DSL and Blackwell support.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/CHANGELOG.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"4.5.0 CuTe DSL section and repository tree","observation":"The exact release contains CuTe DSL Python packages plus SM100/Blackwell operations and examples."}],
+      "challenge": {"alternative":"CuTe DSL arrived after 4.5.0 or only targets pre-Blackwell architectures.","check":"Inspect the v4.5.0 tag rather than rolling documentation.","outcome":"The tagged Python package implements tcgen05/TMEM and the tag contains Blackwell CuTe DSL examples."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c002",
+      "claim": "CuTe DSL is the primary abstraction layer in CUTLASS 4.5.0 for Blackwell kernels.",
+      "claim_type": "other",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"Overview and repository organization","observation":"CUTLASS describes C++ template abstractions and Python DSLs as parallel interfaces; the release also ships extensive SM100 C++ kernels. It does not designate CuTe DSL as the primary Blackwell layer."}]
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c003",
+      "claim": "FlashAttention-4 is implemented entirely in CuTe DSL, and its author reports approximately 20-30 times shorter compile times than C++ templates.",
+      "claim_type": "performance",
+      "covers": ["u001", "u006"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://tridao.me/blog/2026/flash4/","revision":"Tri Dao first-party FA4 post, fetched 2026-08-08","locator":"Language and framework: CuTe-DSL","observation":"The author says FA4 is entirely CuTe DSL and reports about 20-30x lower compile time than C++ templates."}],
+      "challenge": {"alternative":"The factor is an execution-speed result or applies to all CuTe DSL programs.","check":"Read the metric and subject in the first-party language/framework section.","outcome":"It is explicitly compile time for FA4's development comparison, not kernel runtime or a universal bound."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c004",
+      "claim": "The displayed SM100_MMA_F16BF16_SS and SM100_MMA_F16BF16_SS_2SM symbols are usable CUTLASS 4.5.0 CuTe DSL Python MMA atoms.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MmaF16BF16Op and CtaGroup definitions","observation":"The Python API constructs tcgen05.MmaF16BF16Op with datatypes, instruction shape, CTA group, operand source, and major modes; neither displayed SM100_MMA symbol exists in the tag."}]
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c005",
+      "claim": "CUTLASS 4.5.0's F16/BF16 CuTe DSL operation represents one-CTA 128x256x16 and two-CTA 256x256x16 tcgen05 MMA shapes with TMEM accumulator fragments.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"mma_inst_shape_mnk, MmaF16BF16Op, make_fragment_C, and TMEM pointer replacement","observation":"The 1-CTA example uses (128,256,16), CtaGroup.ONE, and replaces the C fragment pointer with allocated TMEM."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"mma_inst_shape_mnk and CtaGroup.TWO","observation":"The 2-CTA example uses (256,256,16) and CtaGroup.TWO."}],
+      "challenge": {"alternative":"Those are CTA tile shapes rather than instruction shapes, or the accumulator remains in registers.","check":"Trace mma_inst_shape_mnk into MmaF16BF16Op and make_fragment_C into the retrieved TMEM pointer.","outcome":"The source names and passes them as instruction shapes and explicitly swaps the accumulator tensor to TMEM."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c006",
+      "claim": "The displayed make_tmem_ptr/make_tensor/copy fragment is a usable CUTLASS 4.5.0 CuTe DSL TMEM allocation and epilogue example.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TmemAllocator, retrieve_ptr, tmem copy atom/partition, and free","observation":"The release uses a shared holding buffer, TmemAllocator allocation/wait/retrieve/free lifecycle, Ld32x32bOp copy atom, make_tmem_copy, per-thread partitions, and a register tensor. make_tmem_ptr is absent."}]
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c007",
+      "claim": "The displayed SM100_TMA_LOAD_2D and make_tma_copy call form are usable CUTLASS 4.5.0 CuTe DSL Python APIs for global-to-shared TMA.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"host_function TMA atom construction and kernel TMA partition/copy","observation":"The tag uses CopyBulkTensorTileG2SOp and make_tiled_tma_atom_A/B, then tma_partition and cute.copy; neither displayed symbol/call signature occurs."}]
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c008",
+      "claim": "The displayed @cute_kernel warp-role skeleton is a safe usable CuTe DSL kernel skeleton with correct TMEM and pipeline ownership.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"kernel decorator, role dispatch, PipelineTmaUmma/PipelineUmmaAsync, TmemAllocator, and teardown","observation":"The real warp-specialized kernel uses @cute.kernel, explicit participant groups and states, collective TMEM allocation/free, tiled-copy partitioning, and pipeline tails. The displayed decorator/helpers are absent and deallocation from every epilogue warp is not the source lifecycle."}]
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c009",
+      "claim": "CuTe DSL is Python-native and CUTLASS presents its development model as easier to learn, iterate, debug, and integrate than template-heavy C++.",
+      "claim_type": "other",
+      "covers": ["u007"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"CUTLASS DSL overview","observation":"NVIDIA describes Python-native interfaces, faster compile times, framework integration without glue code, and more intuitive metaprogramming than deep C++ expertise."}],
+      "challenge": {"alternative":"Python is only a host-side generator and users still author the kernel in C++ templates.","check":"Inspect the tagged CuTe DSL examples and decorators.","outcome":"Kernel bodies are authored in Python with @cute.kernel and lowered by the DSL."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c010",
+      "claim": "The FlashAttention-4 post reports a peak 1605 TFLOP/s B200 BF16 result.",
+      "claim_type": "performance",
+      "covers": ["u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://tridao.me/blog/2026/flash4/","revision":"Tri Dao first-party FA4 post, fetched 2026-08-08","locator":"performance summary and attention benchmarks","observation":"The post reports up to 1605 TFLOP/s on B200 BF16 and labels it 71 percent; it is a maximum over evaluated configurations."}],
+      "challenge": {"alternative":"1605 is a single named shape or an independently reproduced median.","check":"Inspect how the post scopes the number and benchmark plots.","outcome":"It is an author-reported maximum, so only that scope is verified."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c011",
+      "claim": "FlashAttention-4's 1605-TFLOP/s number establishes that CuTe DSL has the same performance as handwritten C++.",
+      "claim_type": "performance",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://tridao.me/blog/2026/flash4/","revision":"Tri Dao first-party FA4 post, fetched 2026-08-08","locator":"Language/framework and benchmark comparators","observation":"The post's runtime comparisons are with FA2, Triton, Gluon, and cuDNN; it gives no matched handwritten-C++ FA4 comparator. The 1605 number is FA4's own peak, not an equality measurement."}]
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c012",
+      "claim": "CUTLASS 4.5.0 has first-class tcgen05 and TMEM Python APIs, including typed MMA/copy operations and allocation management.",
+      "claim_type": "compatibility",
+      "covers": ["u009"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MMA operation/trait implementations","observation":"The tag provides typed tcgen05 operations and traits."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py","revision":"same tag","locator":"retrieve_tmem_ptr, alloc_tmem, and dealloc_tmem","observation":"The tag exposes TMEM allocation, pointer retrieval, and deallocation APIs."}],
+      "challenge": {"alternative":"Blackwell Python support is only an example-layer inline-PTX escape hatch.","check":"Inspect the installed package tree rather than examples alone.","outcome":"The architecture and nvgpu packages contain public typed operations and allocation helpers."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c013",
+      "claim": "CuTe DSL automatically computes layouts and handles swizzles without explicit user configuration.",
+      "claim_type": "code",
+      "covers": ["u010"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"make_smem_layout_a/b and allocate_tensor","observation":"The example uses layout algebra and Blackwell helper functions but explicitly supplies MMA tilers, datatypes, major modes, layouts, alignment, and swizzle objects. Handling is typed/composable, not universally automatic."}]
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c014",
+      "claim": "The nine linked local artifact files exist, match their provenance-recorded SHA-256 values, and are untruncated verbatim captures of the stated PR merge revisions; the seven tutorial files have the displayed line counts.",
+      "claim_type": "other",
+      "covers": ["u011", "u012", "u013", "u014", "u015", "u016", "u017", "u018", "u019", "u020"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"verify each local file against PROVENANCE.yaml SHA-256 and line count, compare representative files to raw.githubusercontent.com at full merge SHAs, then corrupt one expected hash in memory","environment":"current KernelWiki worktree and network, 2026-08-09","reference":"All nine file records declare mode=verbatim and size_cap_truncated=false; tutorial rows state exact line counts.","result":"All local hashes and seven numeric line counts matched; representative remote hashes at PR 3106/2881/3021 merge commits matched byte-for-byte.","negative_control":"The deliberately altered expected hash was rejected."}],
+      "challenge": {"alternative":"The files are reconstructed snippets, truncated captures, or point to mutable PR heads.","check":"Use provenance mode/truncation fields, content hashes, full merge SHAs from GitHub's PR API, and remote raw bytes.","outcome":"All recorded properties and sampled remote bytes agree; a mismatched hash fails."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c015",
+      "claim": "The seven PR-3106 tutorial files form the stated progression from FP16 software-pipelined baseline through 2-CTA multicast, warp specialization, static persistence, preferred/dynamic clusters, TMA prefetch, and PDL.",
+      "claim_type": "code",
+      "covers": ["u012", "u013", "u014", "u015", "u016", "u017", "u018", "u021"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/cutlass/PR-3106/diff.patch","revision":"NVIDIA/cutlass PR 3106 merge 772fbb264e0fe823d62dec10a44a67e1503afdfc","locator":"file docstrings and implementations for fp16_gemm_0.py through fp16_gemm_6.py","observation":"The upstream patch explicitly labels and implements the listed progression; the 4.5.0 official tree retains it under the renamed cute/blackwell/tutorial path."}],
+      "challenge": {"alternative":"The row labels were inferred from filenames and step 4/6 do not implement dynamic clusters or PDL.","check":"Inspect each file's upstream docstring and the corresponding launch/scheduler code.","outcome":"The descriptions and mechanisms occur in their named files, including preferred/fallback cluster launch and grid dependency control."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c016",
+      "claim": "PR-2881's captured dense_gemm_persistent_prefetch.py is a full persistent GEMM with TMA prefetch, and PR-3021's captured clc.py is a full CLC Python binding revision.",
+      "claim_type": "code",
+      "covers": ["u019", "u020"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/cutlass/PR-2881/key-files/examples/python/CuTeDSL/blackwell/dense_gemm_persistent_prefetch.py","revision":"NVIDIA/cutlass PR 2881 merge 3f4c086d09bd1dc55defb955862f333893bbb28b","locator":"full file and provenance","observation":"The complete 2147-line captured file implements persistent scheduling and TMA prefetch."},{"path":"artifacts/prs/cutlass/PR-3021/key-files/python/CuTeDSL/cutlass/cute/arch/clc.py","revision":"NVIDIA/cutlass PR 3021 merge 5c42d0f28c9dc728d874fd552492a355036a53e1","locator":"full file and provenance","observation":"The complete 124-line captured module defines the CLC issue/query binding API."}],
+      "challenge": {"alternative":"The files are merely diffs or excerpts whose omitted context changes their purpose.","check":"Check provenance mode and truncation, then inspect file entry points/imports.","outcome":"Both are recorded as full verbatim upstream files and contain the stated implementations."}
+    },
+    {
+      "claim_id": "lang-cute-dsl-original-c017",
+      "claim": "The three related links resolve to the intended local tcgen05 hardware page, verified FlashAttention-4 page, and CUTLASS source card.",
+      "claim_type": "other",
+      "covers": ["u022", "u023", "u024"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"resolve the three relative links from wiki/languages/cute-dsl.md and inspect target IDs; test a missing neighbor","environment":"current KernelWiki worktree","reference":"Targets should identify hw-tcgen05-mma, kernel-flash-attention-4, and doc-cutlass-blackwell.","result":"All three files existed with the expected IDs.","negative_control":"wiki/languages/not-cute-dsl.md was absent."}],
+      "challenge": {"alternative":"A relative path lands on a similarly named but unrelated page.","check":"Resolve paths and inspect frontmatter IDs.","outcome":"Every ID matches the link label and the missing control fails."}
+    }
+  ],
+  "commands": ["git clone --depth 1 --branch v4.5.0 NVIDIA/cutlass and inspect tag e406c186", "GitHub PR API merge-SHA checks", "artifact SHA-256/line-count verification with corrupted-hash control", "local related-link checks with missing-target control"],
+  "scope": "All 24 baseline units for body hash 4e09e1f2220eed702b5a7c8e6d7318de541e65faf5660835318c6916f5f1625b were checked against NVIDIA/cutlass v4.5.0, first-party FA4 reporting, full PR merge revisions, provenance hashes, and host controls.",
+  "residual_risk": "No Blackwell GPU or installed CuTe DSL toolchain is available locally. Exact APIs and artifact contents are source-verified; FA4 compile/runtime numbers remain author-reported rather than independently reproduced."
+}

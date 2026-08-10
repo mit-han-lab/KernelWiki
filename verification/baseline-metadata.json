@@ -1,0 +1,39 @@
+{
+  "recorded_at": "2026-08-08",
+  "repository_commit": "2777d18ffb3a3d682d8f25a3e3b8864d925a5ff1",
+  "preexisting_dirty_files": [
+    "plan.md"
+  ],
+  "python_environment": {
+    "command_prefix": "conda run -n base python",
+    "conda_version": "26.5.3",
+    "python_version": "3.13.14"
+  },
+  "validator": {
+    "files": 2787,
+    "asset_bundles": 94,
+    "candidate_ledgers": 14,
+    "result": "pass"
+  },
+  "baseline_queue": {
+    "schema_version": "kernel-wiki-verifier-queue/v2",
+    "pages": 52,
+    "coverage_units": 1177,
+    "page_types": {
+      "hardware": 8,
+      "kernel": 14,
+      "language": 4,
+      "migration": 2,
+      "pattern": 7,
+      "technique": 17
+    },
+    "risk_pages": {
+      "code": 51,
+      "ordering": 24,
+      "performance": 13,
+      "table": 36,
+      "version": 1
+    },
+    "unresolved_source_ids": 0
+  }
+}

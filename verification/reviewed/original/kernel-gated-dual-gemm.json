@@ -1,0 +1,117 @@
+{
+  "path": "wiki/kernels/gated-dual-gemm.md",
+  "id": "kernel-gated-dual-gemm",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c001",
+      "claim": "The contest operation is necessarily a single fused GPU launch that eliminates exactly two global-memory roundtrips and is the canonical gate-up pattern for LLaMA, Qwen, DeepSeek, and most modern LLMs.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description and submission interface","observation":"The official task fixes the tensor contract and target operation but does not require a particular launch count, memory-traffic implementation, or model list. The custom Python entry point can launch any conforming implementation."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel","observation":"The reference materializes two FP32 GEMM outputs before SiLU/multiply, demonstrating that observable correctness does not itself prove an in-kernel fusion or exact traffic reduction."}]
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c002",
+      "claim": "NVFP4 Gated Dual GEMM was Kernel Challenge 3 of the NVIDIA/GPU Mode Blackwell NVFP4 Hackathon.",
+      "claim_type": "compatibility",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf","revision":"official rules fetched 2026-08-08","locator":"Section 3, Kernel #3","observation":"The official rules name Kernel #3 NVFP4 Gated Dual GEMM and give its December 20, 2025 through January 16, 2026 challenge window."}],
+      "challenge": {"alternative":"The numbering is an editorial inference from repository folder order.","check":"Read the sponsor's official numbered challenge list.","outcome":"The rules explicitly label it Kernel #3, independently of repository order."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c003",
+      "claim": "The mathematical operation is two matrix products sharing the same left operand, followed by SiLU on the first result and elementwise multiplication with the second.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"ref_kernel","observation":"The official reference computes two torch._scaled_mm calls from a_ref with b1_ref and b2_ref, then returns silu(ref1) * ref2 as FP16."}],
+      "challenge": {"alternative":"SiLU applies after multiplying the two projections, or the second projection is the gated branch.","check":"Trace the exact reference expression and operand order.","outcome":"The reference applies SiLU only to ref1 before multiplying by ref2, matching the displayed algebra."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c004",
+      "claim": "The displayed fused pseudocode proves that conforming submissions use one GPU kernel and never materialize intermediate gate/up tensors in global memory.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"files, description, and config","observation":"The benchmark calls a Python submission entry point and constrains result correctness/performance; it does not expose or require a one-launch decomposition."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel allocations","observation":"The correctness reference explicitly creates ref1 and ref2 tensors, so the operation contract cannot serve as evidence that intermediates are universally absent."}]
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c005",
+      "claim": "The displayed gated_dual_gemm_nvfp4 CUDA template is a valid Blackwell NVFP4 kernel implementing the contest contract.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"PTX ISA 9.0 / CUDA 13.0.2","locator":"tcgen05.mma syntax for block-scaled floating-point types","observation":"NVFP4 MMA requires a qualified tcgen05.mma form with D TMEM address, A/B descriptors, instruction descriptor, SFA/SFB TMEM addresses, and enable-input-D. The sketch uses undefined helper calls with only two source placeholders and a destination."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"PTX ISA 9.0 / CUDA 13.0.2","locator":"allocation syntax and lifecycle","observation":"Allocation writes its base address into shared memory and must be issued/deallocated collectively with exact qualifiers; the sketch's scalar tmem_alloc/tmem_dealloc helpers and unqualified loads are not defined interfaces."}]
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c006",
+      "claim": "The official contest/reference establishes one physical X load reused by both MMAs, two adjacent 256-column TMEM accumulators, an epilogue with no intermediate shared memory, and shared SFA as the winning Blackwell structure.",
+      "claim_type": "mechanism",
+      "covers": ["u005", "u006", "u007", "u008"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description, inputs, and benchmarks","observation":"The task makes A and SFA logical shared inputs and supplies separate B1/B2 scales, but specifies no global-load count, TMEM partition, shared-memory policy, winning kernel, or required internal schedule."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel","observation":"The primary reference defines results, not an optimized Blackwell launch topology; it uses framework scaled GEMMs and separate intermediate tensors."}]
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c007",
+      "claim": "The exact contest kernel can be used for any dual-output operation sharing one input and expands directly to per-expert MoE kernels across the named model families.",
+      "claim_type": "compatibility",
+      "covers": ["u009", "u010", "u011"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"input dtypes, shapes, divisibility rules, and operation","observation":"The contract is narrow: two same-shaped NVFP4 block-scaled products, FP8 per-16 scales, fixed operand layouts, SiLU on the first branch, FP16 output, and shape divisibility. Arbitrary dual outputs or grouped per-expert execution do not satisfy it automatically."}]
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c008",
+      "claim": "The local full bundle is a reference implementation of the contest kernel and its derived CUDA file is a faithful executable NVFP4 variant with complete provenance.",
+      "claim_type": "code",
+      "covers": ["u012"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/gated-dual-gemm/full/vllm-PR-23696-gated-dual-gemm.patch","revision":"SHA-256 033d30b15af4f2050189c2e76ba61959e1e5d4bd049dc901fd56f68890b891a0","locator":"patch subjects and backend code","observation":"The patch implements vLLM MXFP4 fused-MoE backend changes, not the GPU Mode NVFP4 dual-GEMM task."},{"path":"artifacts/kernels/gated-dual-gemm/full/blackwell-cutlass-schedules-and-tma.cu","revision":"SHA-256 e720037bbdb5ee5054259a331cdaf489e7135a44038d66d1fd9d9e5998b75255","locator":"entire extracted fragment","observation":"The fragment is commentary plus one offset-padding assignment extracted from a third-party MoE blog, not a dual GEMM implementation."},{"path":"artifacts/kernels/gated-dual-gemm/variants/01-fused-epilogue-swiglu-skeleton.cu","revision":"SHA-256 85e158c184546912579ac5270451471a96f135efa3584bafbf45064e5fb7e223","locator":"gated_dual_gemm_epilogue","observation":"The derived file computes only an epilogue over already-produced float arrays; it has no NVFP4 inputs, scales, matrix multiplication, launch, bounds, or self-test."}]
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c009",
+      "claim": "The documented page query resolves the page and all listed artifacts, while an unknown page ID fails distinctly.",
+      "claim_type": "code",
+      "covers": ["u013", "u014"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py kernel-gated-dual-gemm --include-code","environment":"KernelWiki worktree; conda base","reference":"original page and artifact manifests","result":"Exited 0 and returned the page, vLLM patch, extracted schedule fragment, and derived epilogue file.","negative_control":"kernel-gated-dual-gemm-broken exited nonzero with 'No page found'."}],
+      "challenge": {"alternative":"The query resolves only prose and silently omits artifact content.","check":"Search positive output for each named full/variant file and compare an unknown ID.","outcome":"All named artifacts appear and the invalid ID is rejected."}
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c010",
+      "claim": "A B200 NVFP4 measurement of 18.5 microseconds for M=1024, N=4096, K=7168 establishes a compute-bound contest result.",
+      "claim_type": "performance",
+      "covers": ["u015"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"benchmarks and speed-of-light table","observation":"The official benchmark M values are 256 or 512, not 1024. It publishes theoretical speed-of-light times 2.125-8.714 us at a stated 1.5 GHz model, not a measured 18.5 us result or compute-bound classification."}]
+    },
+    {
+      "claim_id": "kernel-gated-dual-gemm-original-c011",
+      "claim": "The page's SM90 compatibility and claim that Blackwell TMEM necessarily holds two accumulators for a fusion Hopper registers could not handle efficiently are established for this kernel.",
+      "claim_type": "compatibility",
+      "covers": ["u004", "u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf","revision":"official rules fetched 2026-08-08","locator":"challenge title and Kernel #3","observation":"The challenge is explicitly the Blackwell NVFP4 hackathon and its task targets B200; the record does not establish a Hopper target."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"PTX ISA 9.0 / CUDA 13.0.2","locator":"Tensor Memory organization and allocation","observation":"PTX documents 512 columns by 128 lanes/cells and legal allocation rules, but does not require this dual-GEMM implementation to partition two 256-column accumulators or compare its efficiency with a Hopper register design."}]
+    }
+  ],
+  "commands": [
+    "inspect gpu-mode/reference-kernels commit c5b2f7c task.yml, reference.py, task.py, and repository license",
+    "inspect official NVIDIA hackathon rules and PTX ISA 9.0 Tensor Memory/tcgen05 instruction forms",
+    "inspect every local full and derived artifact with SHA-256",
+    "run get_page positive and unknown-ID negative controls under conda base"
+  ],
+  "residual_risk": "No B200, CUDA toolkit, or public immutable winning submission is available locally, so no optimized submission or measured contest result was reproduced. Unsupported implementation and performance claims are refuted rather than inferred.",
+  "scope": "All 15 original coverage units for immutable body hash 4aa8460e6ef7388eb59cdd6643cc8a05fecb149f9148104b8eec852b369e7373, including structured performance and semantic architecture metadata, were adjudicated atomically."
+}

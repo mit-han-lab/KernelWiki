@@ -1,0 +1,213 @@
+{
+  "path": "wiki/kernels/grouped-gemm.md",
+  "id": "kernel-grouped-gemm",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-grouped-gemm-original-c001",
+      "claim": "Grouped GEMM necessarily means variable M with shared N and K, batches MoE experts in one kernel launch, and is the most practically important MoE-serving kernel pattern.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description, tests, and benchmarks","observation":"The official grouped-GEMM task supplies an independent M, N, and K for each group; its tests vary all three. Its Python submission interface does not constrain launch count, and it contains no ranking of MoE kernel importance."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c002",
+      "claim": "NVFP4 Grouped GEMM was Hackathon Problem 4 with a 40% grand-prize weight, and DeepGEMM provides grouped GEMM interfaces tailored to MoE phases.",
+      "claim_type": "compatibility",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf","revision":"official NVIDIA rules fetched 2026-08-08","locator":"Section 3 Kernel #4 and Grand Prize Judging Criteria","observation":"The rules name Kernel #4 NVFP4 Grouped GEMM and weight kernels 1/2/3/4 at 10/20/30/40 percent."},{"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout) and Grouped GEMMs (masked layout)","observation":"The project documents M-grouped contiguous, M-grouped masked, and K-grouped interfaces for MoE forward/prefill, decode, and weight backward."}],
+      "challenge": {"alternative":"Problem numbering/weight is inferred from repository order, or DeepGEMM only has ordinary dense GEMMs.","check":"Compare the sponsor's numbered rules with DeepGEMM's pinned grouped-GEMM sections.","outcome":"Both facts are explicit in independent primary sources."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c003",
+      "claim": "The contest problem fixes N and K across groups so that only M varies, and the displayed DeepSeek-V3 256-expert token counts describe its input contract.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"ten tests and four benchmarks","observation":"Correctness tests include per-group changes to M, N, and K; benchmark group counts are 8, 8, 2, and 2. The task has no 256-expert DeepSeek token example."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c004",
+      "claim": "DeepGEMM provides M-grouped contiguous, M-grouped masked, and K-grouped layouts for different MoE phases.",
+      "claim_type": "compatibility",
+      "covers": ["u004"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout) and Grouped GEMMs (masked layout)","observation":"The README assigns contiguous M-grouping to training forward/prefill, masked M-grouping to graph-compatible decode, and K-grouping to MoE weight backward."}],
+      "challenge": {"alternative":"K-grouped is merely another alias for the M-grouped forward interface, or masked mode is not phase-specific.","check":"Read the three API roles in the pinned README and compare their fixed dimensions.","outcome":"The source distinguishes their axes, fixed dimensions, and MoE phases."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c005",
+      "claim": "The three displayed C++ structs accurately model DeepGEMM's contiguous, masked, and K-grouped tensor layouts.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_nt_contiguous, m_grouped_fp8_fp4_gemm_nt_masked, and k_grouped_fp8_gemm_*_contiguous","observation":"Contiguous mode consumes a tensor-valued grouped_layout, masked mode consumes one integer valid-M count per group rather than a boolean matrix, and K-grouped produces one M-by-N result per group from packed K segments. These interfaces contradict the displayed offsets, mask, and single-output structs."},{"path":"/tmp/kernelwiki-deepgemm-pinned/tests/generators.py","revision":"same commit","locator":"generate_m_grouped_contiguous, generate_m_grouped_masked, and generate_k_grouped_contiguous","observation":"The generators construct per-row IDs or prefix-sum ends, an int32 masked_m vector, and grouped K result tensors, respectively."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c006",
+      "claim": "The displayed CUTLASS GemmGrouped instantiation and Arguments initializer are a valid SM100 NVFP4 grouped-GEMM API using the named pointer-array schedule and CLC.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/cutlass-audit.8aj07j/repo/include/cutlass/gemm/kernel/gemm_grouped.h","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"kernel::GemmGrouped template declaration","observation":"The actual kernel::GemmGrouped takes Mma, Epilogue, ThreadblockSwizzle, GroupScheduleMode, and optional Transposed template parameters, not tile shape, architecture, element types, and layouts as shown."},{"path":"/tmp/cutlass-audit.8aj07j/repo/include/cutlass/gemm/dispatch_policy.hpp","revision":"same commit","locator":"SM100 BlockScaled Ptr Array Dense GEMM Dispatch Policies","observation":"The named schedule tag exists, but that does not make the unrelated seven-argument GemmGrouped sketch or its invented runtime initializer valid, nor does the tag itself establish CLC use."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c007",
+      "claim": "The static scheduling snippet is a complete schedule for the page's official grouped-GEMM contract.",
+      "claim_type": "code",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"tests and problem_sizes contract","observation":"The official contract permits a different N and K per group, while the snippet accepts one global N and no per-group K. It also depends on undefined BLOCK_M and BLOCK_N constants and supplies no executable launch or correctness check."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c008",
+      "claim": "The displayed global-atomic persistent CUDA loop is a valid CLC grouped-GEMM kernel implementing TMA and tcgen05 MMA.",
+      "claim_type": "code",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2 / PTX ISA 9.0","locator":"clusterlaunchcontrol.try_cancel and query_cancel syntax","observation":"CLC uses an asynchronous try_cancel request, shared opaque response, mbarrier completion, and query_cancel decoding. The snippet uses only atomicAdd and none of the CLC protocol; its TMA/MMA calls are undefined placeholders."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c009",
+      "claim": "A reward-hacking submission reached the number-one Problem 4 leaderboard position before it was scrubbed.",
+      "claim_type": "other",
+      "covers": ["u009"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://www.gpumode.com/news/reward-hacking-nvfp4","revision":"GPU Mode post dated 2026-03-09, fetched 2026-08-08","locator":"opening account and leaderboard figure caption","observation":"The official post says the 11.191-us submission surged to number one shortly before the deadline and was scrubbed minutes after the competition."}],
+      "challenge": {"alternative":"The entry was merely hypothetical or never appeared at the top of the live leaderboard.","check":"Inspect the official incident account and its contemporaneous leaderboard figure caption.","outcome":"Both explicitly record the temporary number-one position and later removal; the page must not call it a final winner."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c010",
+      "claim": "During correctness the exploit ran an honest padded 8-group kernel on cloned objects; during timing it launched one merged 120-group kernel for 15 objects and returned cached pointers on calls 2 through 15.",
+      "claim_type": "code",
+      "covers": ["u010"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://www.gpumode.com/news/reward-hacking-nvfp4","revision":"GPU Mode post dated 2026-03-09, fetched 2026-08-08","locator":"TL;DR, Correctness Check, and Gaming the Timing Loop","observation":"The post documents cloned correctness objects, real padded 8-group calls, 15 reused timing objects, one 120-group launch, and 14 pointer-only returns."}],
+      "challenge": {"alternative":"The exploit skipped arithmetic, corrupted numerics, or launched 15 merged kernels.","check":"Trace the official call-by-call account and post-timing correctness description.","outcome":"The merged kernel computes all results once; the exploit is amortized timing/state reuse, not skipped math or 15 launches."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c011",
+      "claim": "The exploit reported 11.191 microseconds, roughly 2 microseconds ahead of the next leaderboard entry.",
+      "claim_type": "performance",
+      "covers": ["u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://www.gpumode.com/news/reward-hacking-nvfp4","revision":"GPU Mode post dated 2026-03-09, fetched 2026-08-08","locator":"leaderboard figure caption","observation":"The official caption labels 11.191 us as the exploit's reported result and says it was roughly 2 us ahead."}],
+      "challenge": {"alternative":"11.191 us is an honest per-call kernel measurement or a final valid record.","check":"Read the result together with the scrub notice and timing-loop explanation.","outcome":"The number is verified only as an exploit-reported leaderboard value; the source explicitly invalidates its interpretation as honest per-call performance."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c012",
+      "claim": "The reward-hacking incident led to FlashInfer-Bench evaluation-methodology improvements for the MLSys 2026 contest.",
+      "claim_type": "mechanism",
+      "covers": ["u011"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://www.gpumode.com/news/reward-hacking-nvfp4","revision":"GPU Mode post dated 2026-03-09, fetched 2026-08-08","locator":"What Can We Learn From This? and closing references","observation":"The official incident post says gpu-mode/reference-kernels PR #104 addressed the harness issue. It contains no FlashInfer-Bench or MLSys causation claim."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c013",
+      "claim": "DeepGEMM uses contiguous M-grouping for training forward or prefill, masked M-grouping for CUDA-graph decode, and grouped computation for MoE expert projections.",
+      "claim_type": "compatibility",
+      "covers": ["u012", "u014"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout) and Grouped GEMMs (masked layout)","observation":"The project explicitly maps variable expert-token M grouping to MoE forward/prefill and its masked interface to decode when CUDA graphs hide valid counts from the CPU."}],
+      "challenge": {"alternative":"Contiguous and masked are interchangeable storage names with no phase or graph distinction.","check":"Compare their stated scenarios and API inputs in the README and gemm.hpp.","outcome":"The contiguous API consumes a packed/group map, while masked mode consumes per-group valid-M counts under fixed graph shapes."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c014",
+      "claim": "Grouped GEMM is directly usable for any workload whose GEMMs share N and K while M varies.",
+      "claim_type": "compatibility",
+      "covers": ["u013"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_nt_contiguous type, shape, layout, architecture, and scale checks","observation":"The concrete interface additionally constrains architecture, FP8/FP4 or BF16 formats, operand major modes, scale representations, aligned segment layout, output dtype, and positive dimensions. Shared N/K and variable M alone are insufficient compatibility conditions."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c015",
+      "claim": "Expert load imbalance is universally the primary practical grouped-GEMM bottleneck.",
+      "claim_type": "performance",
+      "covers": ["u015"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://www.gpumode.com/news/reward-hacking-nvfp4","revision":"GPU Mode post dated 2026-03-09, fetched 2026-08-08","locator":"NCU Analysis: Direct Measurement of Fixed Kernel Startup Cost","observation":"For the studied B200 implementation, the post measures about 19.5 us of fixed kernel startup and attributes about 80% of a 148-tile runtime to setup, directly supplying a materially different dominant bottleneck. Primary bottlenecks are implementation- and workload-specific."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c016",
+      "claim": "Small GEMM M dimensions can leave threads outside the problem bounds or launch too few threadblocks to use all GPU multiprocessors.",
+      "claim_type": "performance",
+      "covers": ["u016"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/cutlass-audit.8aj07j/repo/media/docs/cpp/efficient_gemm.md","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"Threadblock-level GEMM","observation":"NVIDIA documents that small M or N can leave some threadblock threads without meaningful work, and small M and N with large K can produce too few threadblocks to use all multiprocessors."}],
+      "challenge": {"alternative":"Tensor-core tiling always maintains full utilization regardless of M.","check":"Inspect NVIDIA's documented boundary behavior for threadblock tiles and grid size.","outcome":"The primary documentation explicitly identifies partial tiles and insufficient grid parallelism; the claim is retained only as a possibility, not a universal measured outcome."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c017",
+      "claim": "DeepGEMM's masked grouped layout necessarily wastes computation on padded rows when valid M counts are skewed.",
+      "claim_type": "mechanism",
+      "covers": ["u017"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (masked layout)","observation":"DeepGEMM states that the mask tensor makes the kernel compute only valid portions."},{"path":"/tmp/kernelwiki-deepgemm-pinned/tests/test_fp8_fp4.py","revision":"same commit","locator":"test_m_grouped_gemm_masked output checks","observation":"Correctness checks slice each group to masked_m[j] valid rows rather than asserting computation across every max-M row."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c018",
+      "claim": "CLC scheduling requires request/response and synchronization work that a precomputed static schedule does not perform.",
+      "claim_type": "mechanism",
+      "covers": ["u018"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html","revision":"CUDA Programming Guide 13.2","locator":"4.12.1.1 API Details, steps 1-6","observation":"The documented CLC path initializes an mbarrier, submits an asynchronous cancellation request, waits for completion, decodes success and coordinates, and performs proxy ordering; those operations are specific to the dynamic request path."}],
+      "challenge": {"alternative":"CLC tile acquisition is implicit and incurs no request or synchronization machinery beyond a static tile map.","check":"Enumerate the normative API sequence in the official guide.","outcome":"The sequence contains explicit request, transaction, wait, decode, and fence operations; end-to-end performance impact remains workload-specific."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c019",
+      "claim": "TMA universally requires 128-byte alignment and therefore constrains grouped-GEMM minimum tile dimensions.",
+      "claim_type": "compatibility",
+      "covers": ["u019"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.2.1","locator":"cuTensorMapEncodeTiled parameter constraints","observation":"The API documents a 64-byte-aligned descriptor and generally 16-byte-aligned global address/strides, with feature-specific 32-byte constraints. It does not impose one universal 128-byte alignment or derive minimum tile dimensions from it."}]
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c020",
+      "claim": "The four source links resolve to the intended official GPU Mode repository, DeepGEMM repository, GPU Mode incident post, and NVIDIA CUTLASS documentation.",
+      "claim_type": "other",
+      "covers": ["u020", "u021", "u022", "u023"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <each original source URL>","environment":"KernelWiki host, 2026-08-08","reference":"HTTP resolution plus inspection of repository/site identity","result":"The repository, DeepGEMM, reward-hack, and CUTLASS targets resolved successfully; exact replacement links to pinned task/template/reference and DeepGEMM sources also returned HTTP 200.","negative_control":"A nonexistent file under the pinned GPU Mode grouped-GEMM directory returned HTTP 404."}],
+      "challenge": {"alternative":"A link is dead or resolves to an unrelated host/project.","check":"Follow redirects, inspect target identities, and compare a same-path nonexistent control.","outcome":"All positive targets resolved to the intended primary projects while the invalid target failed distinctly."}
+    },
+    {
+      "claim_id": "kernel-grouped-gemm-original-c021",
+      "claim": "A valid B200 NVFP4 result is 11.2 microseconds for 15 groups with shared N=K, and the workload is compute-bound.",
+      "claim_type": "performance",
+      "covers": ["u024"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"four benchmark rows and speed-of-light table","observation":"The official benchmarks contain 8, 8, 2, and 2 groups, with N and K distinct. Published 18.833/10.667/2.406/1.525-us values are theoretical speed-of-light estimates, not a measured 11.2-us result or compute-bound classification."},{"url":"https://www.gpumode.com/news/reward-hacking-nvfp4","revision":"GPU Mode post dated 2026-03-09, fetched 2026-08-08","locator":"leaderboard figure caption and Gaming the Timing Loop","observation":"11.191 us was an exploit-reported amortized value and the submission was scrubbed; it is not a valid performance record."}]
+    }
+  ],
+  "commands": [
+    "inspect official NVIDIA rules and gpu-mode/reference-kernels grouped-GEMM task/template/reference at ae67948685dfccf54ae8374dc9402addb7aae4f6",
+    "inspect DeepGEMM grouped README, generators, tests, and API checks at 891d57b4db1071624b5c8fa0d1e51cb317fa709f",
+    "inspect NVIDIA CUTLASS grouped API and efficient-GEMM guide at e05f953a5b3d38adc240df2ff928e0421c2abba3",
+    "run primary-link positive/negative controls and get_page positive/negative controls"
+  ],
+  "residual_risk": "No B200 or CUDA toolkit is available, so no optimized kernel or performance result was reproduced. The public official task, exact library APIs, vendor semantics, and official incident account are sufficient to adjudicate the original interface, code, and record claims.",
+  "scope": "All 24 original coverage units for body hash 216f09e31b3f73503470760148850014df1540ad380997383317930a7b459e9e were checked against official rules, immutable upstream source, vendor documentation, and discriminating link/query controls."
+}

@@ -1,0 +1,150 @@
+{
+  "claims": [
+    {
+      "claim": "FlashAttention-4 introduced a two-query-tile single-CTA ping-pong schedule that ensures its softmax warpgroup never waits for MMA.",
+      "claim_id": "technique-ping-pong-scheduling-original-c001",
+      "claim_type": "semantics",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "locator": "section 3.1.2",
+          "observation": "The paper says FA4 follows a ping-pong schedule similar to FA3. It maximizes overlap between one tile's MMA and the other's softmax but does not claim a no-stall guarantee.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        },
+        {
+          "locator": "warp IDs, q_stage, TMEM offsets, and pipeline construction",
+          "observation": "The pinned implementation defaults to q_stage=2, assigns separate four-warp softmax groups plus correction/MMA roles, and uses explicit multi-stage barriers; it does not expose the page's one-barrier loop.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/flash_fwd_sm100.py"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The displayed CUDA kernel is a valid two-tile FA4 ping-pong implementation with correct TMEM allocation, warpgroup roles, asynchronous MMA completion, and synchronization.",
+      "claim_id": "technique-ping-pong-scheduling-original-c002",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "evidence": [
+        {
+          "locator": "flash_fwd_sm100.py setup, kernel roles, and pipeline loops",
+          "observation": "The real CuTe DSL kernel uses one MMA warp, two four-warp softmax groups, a correction warpgroup, load/epilogue roles, one TMEM allocation with disjoint offsets, and multiple producer/consumer barriers. The snippet's helpers are undefined and its generic arrive/wait is not tied to tcgen05 completion or safe buffer ownership.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/flash_fwd_sm100.py"
+        },
+        {
+          "locator": "tcgen05 allocation, MMA, commit, fence, and mbarrier contracts",
+          "observation": "TMEM lifecycle is collective and asynchronous MMA requires its documented completion/order protocol; an unrelated mbarrier arrive/wait pair does not establish completion.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "challenge": {
+        "alternative": "The doubled tensor-core and unchanged exponential-throughput comparison is only qualitative marketing.",
+        "check": "Compare the paper's per-SM throughput figures for B200 and Hopper.",
+        "outcome": "The paper gives 8192 versus 4096 BF16 MMA ops/clock/SM and 16 exponential ops/clock/SM on both B200 and Hopper."
+      },
+      "claim": "The FA4 paper models B200 BF16 tensor-core throughput as double Hopper while B200 exponential-unit throughput remains the same as Hopper.",
+      "claim_id": "technique-ping-pong-scheduling-original-c003",
+      "claim_type": "performance",
+      "covers": ["u003"],
+      "evidence": [
+        {
+          "locator": "section 2.2 Shifting bottlenecks",
+          "observation": "The paper lists 8192 versus 4096 BF16 MMA operations per clock per SM and 16 exponential operations per clock per SM on B200, the same exponential rate as Hopper.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "claim": "A single-tile schedule alternately leaves SFU and tensor cores idle, whereas ping-pong keeps both units 100% busy.",
+      "claim_id": "technique-ping-pong-scheduling-original-c004",
+      "claim_type": "performance",
+      "covers": ["u004", "u005"],
+      "evidence": [
+        {
+          "locator": "sections 3.1.1-3.1.2",
+          "observation": "The paper gives a simplified roofline and says the schedule maximizes overlap; it explicitly notes the analysis omits resources and never claims universal exclusive idleness or measured 100% utilization of both units.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The ping-pong pattern itself accounts for FA4's 1605 TFLOPS/s and 71% BF16 result.",
+      "claim_id": "technique-ping-pong-scheduling-original-c005",
+      "claim_type": "performance",
+      "covers": ["u006"],
+      "evidence": [
+        {
+          "locator": "Performance and Key Techniques",
+          "observation": "The blog reports up to 1605 TFLOPS/s and 71% for the complete FA4 forward design, which also uses partial software exponentials, conditional rescaling, TMEM partitioning, register tuning, and other pipeline choices; it provides no ping-pong-only attribution for the peak.",
+          "revision": "Tri Dao FA4 blog, 2026",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Ping-pong should be used for compute-bound or SFU-heavy Blackwell attention kernels and is not useful on Hopper.",
+      "claim_id": "technique-ping-pong-scheduling-original-c006",
+      "claim_type": "compatibility",
+      "covers": ["u007", "u008", "u009"],
+      "evidence": [
+        {
+          "locator": "section 3.1.2",
+          "observation": "The paper explicitly says FA4 follows a schedule similar to FA3, a Hopper kernel, refuting 'not useful on Hopper.' It motivates FA4 from a concrete balance but does not prescribe the technique solely from compute-bound or SFU-heavy labels.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The local full bundle is a verbatim full reference implementation of FA4 ping-pong scheduling and the derived variant faithfully demonstrates the overlap; the displayed query retrieves it.",
+      "claim_id": "technique-ping-pong-scheduling-original-c007",
+      "claim_type": "code",
+      "covers": ["u010", "u011", "u012"],
+      "evidence": [
+        {
+          "path": "artifacts/kernels/ping-pong-scheduling/full/PROVENANCE.yaml",
+          "revision": "local provenance",
+          "locator": "origin_url, upstream_repo, source_pr_id, files",
+          "observation": "The full file comes from NVIDIA CUTLASS PR 2466 at merge 0e026982 and is a Blackwell FMHA backward kernel, not Dao-AILab FA4 forward source or a full implementation of its two-output-tile schedule."
+        },
+        {
+          "path": "artifacts/kernels/ping-pong-scheduling/variants/01-two-tile-ping-pong-skeleton.cu",
+          "revision": "derived local variant",
+          "locator": "entire function",
+          "observation": "The skeleton calls wait_mma, then completes softmax A, and only afterward issues MMA B; its visible single-thread order does not implement the claimed overlap and all helpers are undefined."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "refuted"
+    }
+  ],
+  "commands": [
+    "Inspect FA4 paper v1 pipeline and hardware model",
+    "Inspect pinned Dao-AILab SM100 forward q_stage, warp roles, TMEM offsets, and barriers",
+    "Inspect local full/variant provenance and visible execution order",
+    "Run the repository page query through conda base Python"
+  ],
+  "id": "technique-ping-pong-scheduling",
+  "page_verdict": "refuted",
+  "path": "wiki/techniques/ping-pong-scheduling.md",
+  "residual_risk": "The pinned FA4 implementation was source-inspected but not compiled or profiled because no CUDA toolkit or GPU is available. The paper/blog performance remains author-reported.",
+  "scope": "All 12 baseline body units, artifact references, code claims, hardware motivation, performance attribution, and architecture prescription were checked against direct paper, source, ISA, and provenance evidence."
+}

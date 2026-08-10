@@ -1,0 +1,100 @@
+{
+  "path": "wiki/languages/ptx-sm100.md",
+  "id": "lang-ptx",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "lang-ptx-current-c001",
+      "claim": "The page is explicitly scoped to archived CUDA 13.0.2 PTX ISA 9.0 and correctly warns that representative forms still require typed operands, valid descriptors, collective participation, lifetimes, completion, and target/toolchain support.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"instruction grammar, target ISA notes, and tcgen05 memory-consistency model","observation":"The archive versions grammar/targets and places the listed operand, participation, lifetime, and completion conditions on these instruction families."}],
+      "challenge": {"alternative":"The snippets are complete inline-assembly functions or rolling PTX semantics can be substituted without a version check.","check":"Inspect operand declarations and target/version notes required by the archived grammar.","outcome":"The forms omit surrounding declarations by design, and support is explicitly versioned; the scope warning is necessary and accurate."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c002",
+      "claim": "The representative alloc/load-address/MMA/commit/dealloc forms and prose accurately describe a cta_group::1 unscaled F16 path: alloc writes a 32-bit taddr to shared memory and counts columns, allocation/deallocation are warp-collective, MMA D is in TMEM, commit attaches prior completion to an mbarrier, every allocation is freed, and one kernel uses one CTA-group mode.",
+      "claim_type": "code",
+      "covers": ["u002", "u003", "u004"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"alloc/dealloc grammar, issue granularity, and lifecycle","observation":"The exact forms, shared result, column unit, warp collectivity, and required deallocation match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"same archive","locator":"unscaled floating-point grammar, CTA-group rule, and D semantics","observation":"The five-operand f16 form, TMEM D, group modes, and same-group-per-kernel restriction match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"mbarrier::arrive::one grammar","observation":"Commit tracks completion of prior asynchronous tcgen05 work with the displayed barrier form."}],
+      "challenge": {"alternative":"Alloc returns a column index directly in a register, ncols counts rows, MMA requires a lane-disable vector, or commit waits synchronously.","check":"Compare the exact unscaled grammar and optional operands with the alloc destination and commit description.","outcome":"Alloc stores a b32 taddr in shared memory and counts columns; the five-operand MMA is valid without the optional lane-disable vector; commit signals completion asynchronously."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c003",
+      "claim": "The displayed 32x32b.x1 ld/st and 128x256b cp forms are legal; ld/st are asynchronous warp-collective TMEM-register transfers with their matching waits, cp moves SMEM to TMEM, and cp/MMA source/destination lifetimes extend through their documented completion.",
+      "claim_type": "code",
+      "covers": ["u005", "u006", "u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ld/st grammar, repetition table, collectivity, and wait","observation":"32x32b.x1 uses one register per thread, ld/st are warp-collective and asynchronous, and wait::ld/st provide completion."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-cp","revision":"same archive","locator":"cp grammar, 128x256b example, and asynchronous semantics","observation":"The exact cta_group::1 copy is shared-memory descriptor to TMEM and participates in tcgen05 completion/lifetime rules."}],
+      "challenge": {"alternative":"x1 is invalid, the waits are generic barriers, or cp copies TMEM to shared memory.","check":"Use the shape/repetition table, wait grammar, and cp operand direction.","outcome":"x1 is listed, waits target prior ld/st from the executing thread, and cp's destination is taddr while its source is sdesc."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c004",
+      "claim": "The four completion/ordering bullets correctly distinguish TMA mbarrier byte completion, tcgen05 commit completion, ld/st waits, and before/after_thread_sync cross-thread tcgen ordering; the fences are not completion substitutes.",
+      "claim_type": "mechanism",
+      "covers": ["u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mbarrier complete_tx semantics","observation":"TMA load completion decrements byte transaction count on its barrier."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"commit and cross-thread synchronization examples","observation":"Commit attaches prior MMA/cp/shift completion to an mbarrier."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"same archive","locator":"before/after_thread_sync semantics","observation":"The fences constrain tcgen05 issue around execution ordering and do not wait for async completion."}],
+      "challenge": {"alternative":"One CTA barrier or after_thread_sync can replace every listed mechanism.","check":"Match each producer/consumer edge to the normative instruction that completes or orders it.","outcome":"The ISA assigns distinct state and scope to each edge, so none is a universal substitute."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c005",
+      "claim": "The packed conversion and typed move forms have the stated one-byte E2M1x2 source, 32-bit F16x2 result, and b32-to-four-b8 decomposition semantics, while PTX makes no universal speed promise.",
+      "claim_type": "code",
+      "covers": ["u012", "u013", "u014"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cvt","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"packed alternate-format cvt","observation":"The E2M1x2/F16x2 types and widths match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-mov","revision":"same archive","locator":"scalar-to-vector move type-size rule","observation":"Four byte destinations can receive a b32 source when declarations match; no performance comparison is specified."}],
+      "challenge": {"alternative":"The input is a 32-bit scalar FP4, mov changes numeric representation, or the ISA guarantees lower latency.","check":"Apply packed type widths and mov's bitwise typed-copy semantics.","outcome":"The input is one packed byte, mov preserves bits across equal total width, and the documentation contains no timing theorem."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c006",
+      "claim": "The three ld.global forms are legal 16/32-byte vector loads; no_allocate and evict_last are nonbinding L1 eviction-priority hints, so the page correctly rejects guaranteed bypass/residency and scopes performance to the exact access pattern.",
+      "claim_type": "code",
+      "covers": ["u015", "u016"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ld grammar, vector examples, and cache operators","observation":"The forms and widths match; eviction-priority qualifiers are performance hints that may not be respected."}],
+      "challenge": {"alternative":"The qualifier names prescribe deterministic cache behavior or v4.u64 is four bytes.","check":"Read the cache-hint caveat and multiply vector arity by the 64-bit element width.","outcome":"The behavior is advisory, and v4.u64 is 256 bits (32 bytes)."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c007",
+      "claim": "The CLC fragment and prose accurately show an asynchronous 16-byte shared response completed on an mbarrier, followed by success and first-CTA-coordinate queries; the request cancels a not-yet-launched unit and takes no desired tile ID.",
+      "claim_type": "code",
+      "covers": ["u017", "u018", "u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel grammar, response, completion, and query_cancel sections","observation":"The displayed request/query forms, 16-byte response, wait-before-query requirement, cancellation target, and no-coordinate request semantics match."}],
+      "challenge": {"alternative":"try_cancel returns coordinates directly or accepts the work ID to steal.","check":"Inspect request operands separately from query_cancel output operands.","outcome":"The request has only response and barrier addresses; coordinates are decoded from a completed successful response."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c008",
+      "claim": "The two TMA forms are valid 2D global-to-cluster-shared tile loads; multicast uses .multicast::cluster plus a 16-bit mask and sends data and barrier completion to corresponding offsets in selected live destination CTAs.",
+      "claim_type": "code",
+      "covers": ["u020", "u021", "u022", "u023", "u024"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"cluster destination and multicast grammar/semantics","observation":"Both exact forms, tensor-map coordinates, mbarrier, qualifier, mask width, corresponding offsets, and destination lifetime requirements match."}],
+      "challenge": {"alternative":"The shorter .multicast spelling is legal, the barrier is signaled only in the issuer, or destination CTAs need not be resident.","check":"Inspect the qualifier set and multicast destination/completion description.","outcome":"Only .multicast::cluster is legal, completion is multicast to matching offsets, and remote shared memory must remain live."}
+    },
+    {
+      "claim_id": "lang-ptx-current-c009",
+      "claim": "The six internal links and archived PTX reference resolve to the intended pages, and a missing same-site/local control is rejected.",
+      "claim_type": "other",
+      "covers": ["u025", "u026", "u027", "u028", "u029", "u030", "u031"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"test six relative wiki targets; curl archived PTX URL; test missing local target and archived URL","environment":"current KernelWiki worktree and network, 2026-08-08","reference":"Each label should resolve to its named page/reference.","result":"All six files existed with matching IDs and the archived PTX URL returned HTTP 200.","negative_control":"A nonexistent local language page was absent and a fabricated archived PTX path returned HTTP 404."}],
+      "challenge": {"alternative":"A relative path escapes to an adjacent page or NVIDIA returns success for missing archive paths.","check":"Resolve exact files/IDs and compare the fabricated archive path.","outcome":"All intended targets matched and both broken controls failed."}
+    }
+  ],
+  "commands": ["local internal-link checks with missing-target control", "curl archived PTX URL with 404 control"],
+  "scope": "All 31 current units for body hash 4bbed1d5aa5094a031fdbe1e8349f5079263caf9887a77721a5ace82c565fad5 were checked against CUDA 13.0.2 PTX ISA 9.0 and host link controls.",
+  "residual_risk": "No CUDA assembler or Blackwell GPU is installed locally. The page makes no numeric performance claim; representative syntax and semantics come directly from the archived ISA, while full inline-assembly integration remains caller-specific."
+}

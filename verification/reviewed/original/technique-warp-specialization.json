@@ -1,0 +1,163 @@
+{
+  "path": "wiki/techniques/warp-specialization.md",
+  "id": "technique-warp-specialization",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-warp-specialization-original-c001",
+      "claim": "SM100 replaces Hopper's four-warp model with a fixed 16-warp CTA in which one warp issues tcgen05 MMA and all remaining warps are freed for producer/consumer roles.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v4.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_WARPS, role branches and epilogue","observation":"The source-reported SM100 warp-specialization example launches four warps: elected lanes from warps 0 and 1 issue TMA/MMA, and all four warps later load/store the output. Sixteen warps is not an architectural replacement rule."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c002",
+      "claim": "The canonical SM100 GEMM role assignment is exactly warp 0 for TMA, warp 1 for MMA, and warps 2-15 for epilogue work.",
+      "claim_type": "mechanism",
+      "covers": ["u002", "u003", "u004", "u005"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"thread counts and WarpCategory","observation":"The generic SM100 kernel assigns warp categories MMA=0, Sched=1, MainloopLoad=2, EpilogueLoad=3, then a configuration-derived number of epilogue warps. It is neither the stated IDs nor a fixed 14-warp epilogue."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c003",
+      "claim": "Hopper WGMMA is a warpgroup operation whereas SM100 tcgen05.mma can be issued by one thread, but the page also implies that this issuing thread removes explicit operand movement and makes a whole MMA warp the architectural unit.",
+      "claim_type": "mechanism",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma description, operands and thread semantics","observation":"tcgen05.mma has one-thread issue and TMEM D, but it still consumes explicit A/B SMEM descriptors or TMEM addresses with lifecycle/ordering requirements. PTX defines the issuing thread, not a mandatory dedicated warp role."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c004",
+      "claim": "The Hopper/Blackwell table gives universal producer, epilogue, synchronization and register-pressure arrangements, including a fixed 14-warp SM100 epilogue and uniformly low register pressure.",
+      "claim_type": "mechanism",
+      "covers": ["u007", "u008", "u009", "u010", "u011", "u012"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"NumEpilogueThreads, WarpCategory and pipeline construction","observation":"Role count and pipeline participation are collective/epilogue dependent. SM100 has scheduler, mainloop-load and optional epilogue-load roles in addition to MMA/epilogue, invalidating the fixed comparison. TMEM changes accumulator placement but does not guarantee low GPR pressure for every role."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c005",
+      "claim": "The displayed 512-thread CUDA skeleton is a safe implementation of a three-role SM100 GEMM with reusable TMA stages and a correct MMA-to-epilogue handoff.",
+      "claim_type": "code",
+      "covers": ["u013", "u014"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.commit completion semantics","observation":"tcgen05 MMA is asynchronous. The skeleton releases each SMEM stage after issue using syncwarp and signals accumulator completion with ordinary mbarrier.arrive, never committing the MMA sequence to an mbarrier and waiting for completion."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-load","revision":"same archive","locator":"tcgen05.ld grammar and completion","observation":"tmem_load is not a CUDA/PTX API and the snippet omits legal TMEM addressing, load instruction shape, wait and output tile offsets."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c006",
+      "claim": "A reusable async producer/consumer stage needs a full/data-ready handoff after transfer completion and an empty/buffer-free handoff only after the consumer has finished using the stage.",
+      "claim_type": "mechanism",
+      "covers": ["u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mbarrier phases, expected transactions, waits and reuse","observation":"Phase-aware full/empty handoffs protect async transaction completion and prevent stage overwrite before consumer completion."}],
+      "challenge": {"alternative":"One data-ready barrier is sufficient because TMA and tcgen05 consume SMEM immediately at issue.","check":"Inspect asynchronous completion and operand-lifetime requirements for both operations.","outcome":"The producer must not overwrite operands while MMA can still consume them, so a reverse release/completion path is required for reuse."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c007",
+      "claim": "The displayed PTX accurately maps a TMA data-ready and tcgen05 buffer-release protocol using only ordinary mbarrier.arrive and one try_wait.parity instruction per handoff.",
+      "claim_type": "code",
+      "covers": ["u018", "u019"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMA complete_tx and expected transaction protocol","observation":"TMA completion decrements expected transaction bytes; a manual generic arrival does not represent the full copy/expect-tx protocol."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"commit mbarrier arrival","observation":"Safe release after MMA requires completion tracking, which the PTX block omits. try_wait also returns a predicate and is not an unconditional blocking wait by itself."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c008",
+      "claim": "CUTLASS 4.5.0 implements the page's exact 1/1/14 partition in a type named CollectiveMma_1SM with WarpCount Shape<1,1,14> and the displayed producer/math/epilogue methods.",
+      "claim_type": "code",
+      "covers": ["u020", "u021"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"SM100 GemmUniversal kernel role dispatch","observation":"The alleged type/methods/shape are absent. Real kernel dispatch uses WarpCategory with four control roles plus collective-derived epilogue threads; CollectiveMma is a templated collective specialization, not CollectiveMma_1SM."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c009",
+      "claim": "Warp specialization is always required for Blackwell GEMMs because the tcgen05 model assumes that scheduling structure.",
+      "claim_type": "performance",
+      "covers": ["u022"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v3.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"pre-specialization pipelined tcgen05 kernel","observation":"The tutorial has a functioning tcgen05 GEMM before its v4 warp-specialization optimization. PTX constrains issue/operands, not a universal software role partition."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c010",
+      "claim": "The pinned FlashAttention-4 SM100 forward implementation uses a 16-warp partition with two groups of four softmax warps and dedicated MMA/load/correction/epilogue roles.",
+      "claim_type": "mechanism",
+      "covers": ["u023"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f","locator":"softmax0_warp_ids, softmax1_warp_ids and role IDs","observation":"The source assigns warps 0-3 and 4-7 to two softmax groups, 8-11 correction, 12 MMA, 13 epilogue, 14 load and 15 initially empty, with configuration-dependent adjustments."}],
+      "challenge": {"alternative":"The two groups are conceptual query tiles but not distinct warp-role groups.","check":"Trace the explicit warp ID tuples and stage-specific softmax dispatch.","outcome":"Separate ID sets execute stage 0/1 softmax work, so the scoped implementation claim holds."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c011",
+      "claim": "Warp specialization is the cleanest decomposition for every producer-consumer kernel whenever TMA and MMA can overlap.",
+      "claim_type": "performance",
+      "covers": ["u024"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v3.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"pipelined non-specialized implementation","observation":"A valid temporal producer/consumer pipeline can overlap work before static role specialization. Profit depends on loop balance, register allocation, participant counts and workload; no primary source defines a universal cleanest choice."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c012",
+      "claim": "Fourteen epilogue warps are generally underutilized for simple stores and become more beneficial as epilogue complexity increases.",
+      "claim_type": "performance",
+      "covers": ["u025"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"CollectiveEpilogue::ThreadCount-derived role sizing","observation":"The implementation does not prescribe 14 epilogue warps; the count is collective-dependent. The source supplies no monotonic performance result relating epilogue complexity to a fixed count."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c013",
+      "claim": "A single MMA-control warp prevents overlap of independent MMA streams in one CTA, and 2-SM cooperative mode should therefore be used for larger tiles.",
+      "claim_type": "mechanism",
+      "covers": ["u026"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v4.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"elected MMA lane nested issue loops","observation":"One elected issuing lane submits many asynchronous tcgen05 MMA operations before a commit; one control warp does not imply only one outstanding stream. The later 2-SM variant is a separate source-specific tile choice, not a consequence of that alleged prohibition."}]
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c014",
+      "claim": "mbarrier objects must be initialized and made visible before any participant or async mechanism uses or waits on them; CTA synchronization can be part of that publication protocol.",
+      "claim_type": "semantics",
+      "covers": ["u027"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-init","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"initialization and visibility requirements","observation":"Use before initialization or required visibility ordering is invalid; appropriate synchronization/fences must publish the object before participants proceed."}],
+      "challenge": {"alternative":"mbarrier.init alone is immediately visible to all threads and async proxies without synchronization.","check":"Inspect memory/proxy visibility requirements and the tutorial's release fence plus syncthreads sequence.","outcome":"Initialization must be ordered before use; the page's conditional synchronization advice is directionally correct, though exact fences depend on scope and proxy."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c015",
+      "claim": "The full and variants artifact directories declare respectively a verbatim PR-1039 file and a derived teaching skeleton, and their files match the SHA-256 values recorded in provenance.",
+      "claim_type": "code",
+      "covers": ["u028"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"sha256sum artifact files; compare the full file with PR-1039 key-file and its new-file diff content; inspect both PROVENANCE.yaml modes; conda run -n base python scripts/verify_verbatim.py --strict","environment":"Host shell and Conda base, no GPU","reference":"Recorded hashes 792ac63e... and 2c2ac9a2..., verbatim/derived labels, and exact upstream merged-PR content","result":"Both local hashes match their manifests, the full file byte-matches the captured key-file/new-file patch content, and the strict verifier validates the upstream PR merge and verbatim bundle.","negative_control":"Comparing the derived skeleton with the full file fails, preserving the provenance-mode distinction."}],
+      "challenge": {"alternative":"Matching local duplicate files proves only internal consistency, not the declared upstream verbatim lineage.","check":"Run the strict verifier against the public PR merge metadata/content and separately compare the derived variant with the verbatim file.","outcome":"The strict upstream check passes for the verbatim bundle, while the derived skeleton intentionally differs and remains labeled derived."}
+    },
+    {
+      "claim_id": "technique-warp-specialization-original-c016",
+      "claim": "scripts/get_page.py can retrieve the warp-specialization page and include its linked artifact bundle.",
+      "claim_type": "code",
+      "covers": ["u029", "u030"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py technique-warp-specialization --include-code","environment":"Conda base, repository root","reference":"Output should contain the page, full artifact/provenance and derived variant","result":"Command exited zero and produced 1,443 lines containing both artifact modes and the full SM100 FMHA source.","negative_control":"A nonexistent page ID exits nonzero."}],
+      "challenge": {"alternative":"--include-code is ignored and only emits Markdown.","check":"Search output after the Artifact Bundle heading for provenance and source filenames.","outcome":"Both full and variant file contents are present after the page body."}
+    }
+  ],
+  "commands": [
+    "conda run -n base python scripts/get_page.py technique-warp-specialization --include-code",
+    "rg exact role dispatch and thread counts in CUTLASS v4.5.0 and pinned tutorial/FA4 source",
+    "sha256sum and cmp local artifact files"
+  ],
+  "scope": "All 30 baseline units were checked against CUDA 13.0.2 PTX, CUTLASS 4.5.0, the pinned tutorial and FA4 implementations, plus local artifact/CLI checks.",
+  "residual_risk": "No CUDA compiler or SM100 GPU is available. Artifact hashes, captured patch content, provenance modes, and the public merged-PR lineage pass strict verification."
+}

@@ -1,0 +1,236 @@
+{
+  "claims": [
+    {
+      "claim": "Wide loads, differentiated cache policy, and register caps are complementary techniques that together caused an 89x NVFP4 GEMV improvement from about 2000 to 22.4 microseconds.",
+      "claim_id": "technique-vectorized-loads-original-c001",
+      "claim_type": "performance",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "locator": "Reported Progression",
+          "observation": "The author's CUDA progression contains several combined stages: coalescing, shared-memory staging, collaboration, reductions, load/decode changes, parameter tuning, ILP, and PTX fusion. It provides no three-factor ablation attributing the endpoint to load width, cache policy, and a register cap.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Scalar 32-bit loads waste memory-bus bandwidth, while 128- and 256-bit per-thread loads inherently saturate B200 HBM; the displayed snippets safely demonstrate all four widths.",
+      "claim_id": "technique-vectorized-loads-original-c002",
+      "claim_type": "code",
+      "covers": ["u002", "u003"],
+      "evidence": [
+        {
+          "locator": "6.4.3 Vectors as Operands and 9.7.9.8 ld",
+          "observation": "PTX says vector loads may improve memory performance; it does not guarantee saturation. Warp address coalescing and the generated machine code remain separate questions. Every memory address must also be naturally aligned to the total access size, a precondition omitted by the snippets.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "128- or 256-bit loads are essential for NVFP4 GEMV, and the complete helper safely loads, byte-unpacks, and decodes 64 E2M1 values while avoiding bitwise overhead.",
+      "claim_id": "technique-vectorized-loads-original-c003",
+      "claim_type": "code",
+      "covers": ["u004", "u005"],
+      "evidence": [
+        {
+          "locator": "9.7.9.4 mov packing/unpacking and 9.7.9.8 ld",
+          "observation": "PTX permits v4.u64 loads and mov bit-field unpacking but requires natural alignment and matching packed element widths. Legality does not establish necessity or a performance ranking. The helper omits alignment/tail contracts and leaves decode_fp4 undefined, so it is not a complete executable implementation.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-mov"
+        },
+        {
+          "locator": "Attempt 9",
+          "observation": "Replacing two uchar4 loads with a wider uint2 load made the author's NVFP4 kernel 16-25% slower, directly refuting necessity and monotonic benefit.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The displayed no-allocate and evict-last loads make streamed A bypass L1 and keep reused B in L1 as long as possible, thereby avoiding pollution.",
+      "claim_id": "technique-vectorized-loads-original-c004",
+      "claim_type": "code",
+      "covers": ["u006", "u007"],
+      "evidence": [
+        {
+          "locator": "9.7.9.8 ld, eviction-priority qualifiers",
+          "observation": "The ISA calls these eviction policies that may be applied during access. They are not residency guarantees and do not establish that the shown A/B mapping is optimal for every launch or working set.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The hackathon measured cache-policy differentiation alone improving the same kernel from 39 to 27 microseconds, a 1.44x speedup.",
+      "claim_id": "technique-vectorized-loads-original-c005",
+      "claim_type": "code",
+      "covers": ["u008", "u009"],
+      "evidence": [
+        {
+          "locator": "CUDA optimization 2 and CUDA optimization 3",
+          "observation": "The 39-microsecond stage combines per-thread tiles, float4 loads, hardware conversion, and removal of B staging; the 27-microsecond stage changes to vectorized PTX load and decode. The post does not report a cache-policy-only comparison.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The code lists the full PTX load-cache qualifier set and precisely describes no_allocate, evict_last, L2::256B, and ld.global.nc as bypass, persistence, promotion, and coherence-traffic controls.",
+      "claim_id": "technique-vectorized-loads-original-c006",
+      "claim_type": "code",
+      "covers": ["u010", "u011"],
+      "evidence": [
+        {
+          "locator": "9.7.9.8 ld and 9.7.9.9 ld.global.nc",
+          "observation": "The grammar includes more cache operators and eviction priorities than shown. L2::256B is a prefetch-size hint; eviction priorities may be applied; and ld.global.nc accesses a non-coherent read-only cache with architecture-dependent performance. These qualifiers do not provide the page's absolute residency or performance semantics.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld-global-nc"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "For memory-bound kernels occupancy matters more than registers; caps of 32 and 45 imply exactly 64 and 44 resident warps on SM100, and the shown maxrregcount and launch-bounds recipes provide the stated residency/performance tradeoff.",
+      "claim_id": "technique-vectorized-loads-original-c007",
+      "claim_type": "code",
+      "covers": ["u012", "u013", "u014", "u015"],
+      "evidence": [
+        {
+          "locator": "Launch Bounds and occupancy calculator",
+          "observation": "Residency depends on the compiled function, block size, shared memory, register allocation granularity, and architectural limits. launch_bounds supplies compiler constraints and does not guarantee the requested block count or a fixed register allocation.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        },
+        {
+          "locator": "Attempt 11 and Post-event Observations",
+          "observation": "The author reports caps observed in different solutions but no occupancy measurement or cap-only ablation; reducing the author's own cap from 80 to 64 had no effect.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The complete displayed CUDA kernel correctly implements the contest's NVFP4 batched GEMV ABI while combining wide loads, cache policy, and register budgeting.",
+      "claim_id": "technique-vectorized-loads-original-c008",
+      "claim_type": "code",
+      "covers": ["u016", "u017"],
+      "evidence": [
+        {
+          "locator": "Pinned task callable and tensor contract",
+          "observation": "The task receives seven physical tensors, reordered scale layouts, an L dimension, and no FP32 global-scale arguments. The displayed signature instead assumes flat four-tensor scale/data layouts plus two global scales.",
+          "revision": "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6",
+          "url": "https://github.com/gpu-mode/reference-kernels/tree/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemv"
+        },
+        {
+          "locator": "CUDA Programming Guide, __syncthreads",
+          "observation": "The block barrier is only valid when all non-exited block threads participate. Here threads with row >= M return before __syncthreads, so a partial final block can deadlock or exhibit undefined synchronization behavior; several helper types/functions are also undefined.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The optimization table isolates coalescing, FP4 intrinsics, vector loads plus cache policy, ILP plus maxrregcount, and an 8.6-microsecond speed-of-light into a single 2000-to-22.4-microsecond progression.",
+      "claim_id": "technique-vectorized-loads-original-c009",
+      "claim_type": "performance",
+      "covers": ["u018", "u019", "u020", "u021", "u022", "u023"],
+      "evidence": [
+        {
+          "locator": "Reported Progression",
+          "observation": "Every author stage has more changes than the wiki's label, and the final 22.392 value is a three-case geometric-mean score. The 8.622 theoretical value belongs only to the first benchmark shape, not to the aggregate endpoint.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html"
+        },
+        {
+          "locator": "Pinned task benchmark table",
+          "observation": "The official model gives 8.622, 17.275, and 4.317 microseconds for the three different shapes and ranks submissions by their geometric mean.",
+          "revision": "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6",
+          "url": "https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemv/task.yml"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Wide loads and cache policies are essential for all GEMV/memory-bound or sub-byte kernels, and single-token decode GEMV is always bandwidth-bound.",
+      "claim_id": "technique-vectorized-loads-original-c010",
+      "claim_type": "performance",
+      "covers": ["u024", "u025", "u026"],
+      "evidence": [
+        {
+          "locator": "Attempt 9 and Takeaways",
+          "observation": "A wider load regressed this sub-byte GEMV by 16-25%, and the author recommends diagnosing the concrete bottleneck rather than choosing a transformation from a workload label.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        },
+        {
+          "locator": "Roofline Analysis",
+          "observation": "The official method determines memory- versus compute-boundedness from measured arithmetic intensity and achieved ceilings, not solely from an algorithm or decode label.",
+          "revision": "Nsight Compute 13.3",
+          "url": "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#roofline"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "A misaligned 256-bit PTX load safely falls back to narrower transactions, while no_allocate is necessarily harmful for reused data.",
+      "claim_id": "technique-vectorized-loads-original-c011",
+      "claim_type": "semantics",
+      "covers": ["u027", "u028"],
+      "evidence": [
+        {
+          "locator": "6.4.1.1 Addresses as Operands and 9.7.9.8 ld",
+          "observation": "An address must be naturally aligned to the access size; misalignment is undefined and may mask low bits or fault. L1::no_allocate is an eviction-priority hint whose performance effect must be measured, not a universal harm rule.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#addresses-as-operands"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "A cap that is too low necessarily spills and loses more than occupancy gains, while inline PTX bypasses the compiler register allocator.",
+      "claim_id": "technique-vectorized-loads-original-c012",
+      "claim_type": "semantics",
+      "covers": ["u029", "u030"],
+      "evidence": [
+        {
+          "locator": "--maxrregcount and inline PTX constraints",
+          "observation": "A cap is a requested maximum subject to ABI/compiler constraints and can add spills or instructions, but the performance balance is empirical. Inline-assembly operands are represented by compiler-selected registers through constraints, so the construct does not bypass register allocation.",
+          "revision": "CUDA 13.0.2",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/inline-ptx-assembly/index.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    }
+  ],
+  "commands": [
+    "Inspect archived PTX 9.0 vector-load, alignment, cache-hint, and mov contracts",
+    "Compare the cited NVFP4 author reports, including negative controls and co-varying stages",
+    "Compare the example ABI and theoretical times with the pinned contest task"
+  ],
+  "id": "technique-vectorized-loads",
+  "page_verdict": "refuted",
+  "path": "wiki/techniques/vectorized-loads.md",
+  "residual_risk": "No CUDA toolkit or B200 was available. Author-reported performance was therefore checked for attribution and scope but not independently reproduced.",
+  "scope": "All 30 baseline body units and the frontmatter performance claim were checked against archived NVIDIA documentation, the pinned task, and the cited authors' reports."
+}

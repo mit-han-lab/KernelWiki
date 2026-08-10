@@ -1,0 +1,83 @@
+{
+  "path": "wiki/techniques/tile-scheduling.md",
+  "id": "technique-tile-scheduling",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-tile-scheduling-current-c001",
+      "claim": "The page correctly separates software coordinate order, resident-worker iteration, CLC reassignment of unlaunched IDs, and Stream-K/Split-K decomposition, and states that raw CLC has no raster/swizzle policy operand.",
+      "claim_type": "mechanism",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"sources/docs/cutlass-clc-documentation.md","revision":"CUTLASS 4.5.0 e406c186; checked against pinned documentation/source","locator":"Verified scope and CUTLASS integration","observation":"The source card distinguishes launched ClcIDs, software coordinate transforms and higher-level Stream-K decomposition exactly as the page does."}],
+      "challenge": {"alternative":"CUTLASS software integration makes raster/swizzle part of CLC itself, so the layer distinction is artificial.","check":"Compare raw PTX operands with CUTLASS scheduler transforms and Stream-K parameter state.","outcome":"Only response and mbarrier state reach the CLC instruction; raster and decomposition occur in software, making the distinction operationally necessary."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-current-c002",
+      "claim": "The row-major and positive-grid static-stride snippets map quotient/remainder coordinates and cover every flat tile once, while the page correctly requires edge bijection and measurements before making cache claims.",
+      "claim_type": "code",
+      "covers": ["u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python enumerate quotient/remainder and CTA-stride mappings for divisible and nondivisible tile counts","environment":"Conda base, host CPU","reference":"All valid indices must occur once; coordinate order alone is not a cache simulation","result":"The displayed formulas produced exact unique coverage for positive grid sizes and correct row-major coordinates across tested edge cases.","negative_control":"Using gridDim.x-1 duplicated work, while the deleted baseline swizzle emitted out-of-range N on a 3x5 grid."}],
+      "challenge": {"alternative":"A nondivisible last iteration causes duplication, or the code silently assumes tiles_n divides total_tiles.","check":"Enumerate total_tiles/grid sizes with remainders one and grid-1 and use a partial final M row.","outcome":"The upper-bound check excludes invalid tail coordinates and every valid flat index still appears exactly once."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-current-c003",
+      "claim": "The SM100 CLC lifecycle accurately states full-grid launch, initial blockIdx work, asynchronous 16-byte try_cancel response on mbarrier, success-only decode, cluster-rank coordinate derivation, terminal observed failure, and conservation of grid IDs.",
+      "claim_type": "mechanism",
+      "covers": ["u012", "u013", "u014", "u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel/query semantics, completion, restrictions and cluster behavior","observation":"The normative rules match each stated request, response, failure and coordinate condition."},{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"Dynamic Scheduler rules","observation":"The full grid and two ClcID paths establish the page's conservation and uneven-availability scope."}],
+      "challenge": {"alternative":"CLC produces new queue work or assigns the initial tile through try_cancel.","check":"Trace every documented ClcID from grid launch through initial or canceled handling.","outcome":"Every ID exists in the launched grid and is handled on exactly one of the two paths; initial blockIdx precedes requests."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-current-c004",
+      "claim": "The CUTLASS 4.5.0 table gives the exact SM100 public scheduler tags and selected implementation classes, identifies the group wrapper as SM90-style static scheduling, and accurately distinguishes deterministic turnstile from nondeterministic atomic-workspace Stream-K reduction.",
+      "claim_type": "compatibility",
+      "covers": ["u018", "u019", "u020", "u021", "u022", "u023", "u024"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TileSchedulerSelector specializations for arch::Sm100","observation":"Each public tag maps to the implementation shown in the table, including default void, dynamic, static, Stream-K and group routes."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_group.hpp","revision":"same tag","locator":"class preamble and UnderlyingScheduler alias","observation":"The SM100 group class explicitly wraps PersistentTileSchedulerSm90Group and describes a static grouped scheduler."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_detail.hpp","revision":"same tag","locator":"ReductionMode enum","observation":"Deterministic uses lock/turnstile ordering; Nondeterministic uses mostly atomic workspace accumulation."}],
+      "challenge": {"alternative":"The tags are mere declarations with different effective mappings, or all Stream-K reductions are atomic.","check":"Follow every arch::Sm100 selector and inspect the reduction enum implementation comments.","outcome":"The specializations resolve to the listed classes and expose two materially different reduction modes."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-current-c005",
+      "claim": "The tail model's Euclidean-division code and 150/142 example correctly handle both partial and exactly divisible final waves under the stated equal-duration, independent-tile, one-worker assumptions.",
+      "claim_type": "code",
+      "covers": ["u025", "u026", "u027", "u028"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python evaluate divmod for (150,142), (142,142), (284,142), and (143,142)","environment":"Conda base, host CPU","reference":"T=qW+r with 0<=r<W; a positive exactly divisible workload ends in a full wave","result":"150/142 gives q=1,r=8, 134 idle and 5.6338%; divisible cases correctly require W active rather than zero in their final wave.","negative_control":"Using r/W without the r=0 special case reports zero last-wave occupancy for 142 and 284 tiles."}],
+      "challenge": {"alternative":"The example implicitly counts multiple resident CTAs or unequal tile duration, invalidating the arithmetic.","check":"Read the declared model assumptions before evaluating the formula.","outcome":"The page explicitly limits the arithmetic to equal-duration independent tiles and available one-tile workers; broader runtime behavior is not claimed."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-current-c006",
+      "claim": "The example correctly limits CLC to reassignment of the eight remaining IDs and treats Stream-K as optional, parameterized K decomposition with reduction overhead rather than guaranteeing full occupancy.",
+      "claim_type": "mechanism",
+      "covers": ["u028"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"sources/docs/cutlass-clc-documentation.md","revision":"CUTLASS 4.5.0 e406c186; checked against pinned documentation/source","locator":"Verified scope and CUTLASS integration","observation":"CLC conserves launched IDs and Stream-K is an explicitly separate higher-level decision."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"to_underlying_arguments decomposition, split and reduction parameters","observation":"The route supports configurable decomposition and reduction rather than a fixed split or occupancy outcome."}],
+      "challenge": {"alternative":"Dynamic reassignment alone can turn eight tiles into 142 independently schedulable tasks.","check":"Count ClcIDs before/after successful cancellation and inspect where K work-unit state is introduced.","outcome":"CLC preserves ID count; only the separate Stream-K layer can introduce partitions, with no universal profitability guarantee."}
+    },
+    {
+      "claim_id": "technique-tile-scheduling-current-c007",
+      "claim": "The verification workflow tests correctness before locality, controls scheduler variables, evaluates explicit Stream-K modes and determinism, spans representative distributions, and withholds fixed latency/cache/speedup claims without target measurements.",
+      "claim_type": "performance",
+      "covers": ["u029", "u030", "u031", "u032", "u033", "u034"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_params.h","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"raster, max_swizzle_size, splits, decomposition_mode and reduction_mode parameters","observation":"The exposed independent controls justify the page's controlled-sweep design; source code supplies mechanisms but no universal speed ranking."},{"path":"sources/docs/cutlass-clc-documentation.md","revision":"same pinned CUTLASS tag","locator":"CUTLASS integration","observation":"Exact pipeline depth and scheduling policy are configuration-dependent, consistent with measuring rather than assigning a fixed CLC overhead."}],
+      "challenge": {"alternative":"One scheduler is an architecture-defined optimum, so the multi-variable benchmark workflow is unnecessary.","check":"Inspect configurable scheduler arguments and search the tagged sources for an all-shape ranking or fixed acquisition cost.","outcome":"Multiple independent policies are exposed and no universal performance theorem or cycle constant is provided; the scoped workflow is the defensible conclusion."}
+    }
+  ],
+  "commands": [
+    "conda run -n base python enumerate exact static mappings and tail arithmetic",
+    "rg scheduler tags, selectors, decomposition and reduction modes in CUTLASS v4.5.0"
+  ],
+  "scope": "All 34 current semantic units for body hash ddee79f7472a6c3a775767f5f72596fd42a2d47df2856c53f96609d5e55ce71c were checked against pinned CUTLASS 4.5.0, CUDA 13.0.2 PTX, and host enumeration.",
+  "residual_risk": "No CUDA compiler or SM100 GPU is available. The page intentionally leaves concrete locality, latency and speed rankings to target-GPU profiling."
+}

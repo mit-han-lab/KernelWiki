@@ -1,0 +1,68 @@
+{
+  "path": "wiki/kernels/flash-attention-sm100-mla-topk.md",
+  "id": "kernel-flash-attention-sm100-mla-topk",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-original-c001",
+      "claim": "FlashAttention PR 2441 adds an SM100 CuTe DSL MLA forward path that combines page-table/KV layout handling, top-k sparsity, and tiled scheduling.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flash-attention/PR-2441/key-files/flash_attn/cute/flash_fwd_mla_sm100.py","revision":"PR 2441 merge f219c89c886c6ccbf9d3dbd9fe41b11ac64e9df8; SHA-256 f6512b25d901463cf62433b745e87ead30443f295ce313c03e363c886ece296e","locator":"FlashAttentionMLAForwardSm100.__call__ feature assertions and top-k setup","observation":"The merge does add the SM100 CuTe DSL MLA/top-k/scheduler path, but it asserts mPageTable is None with 'page table tbd for MLA'; the PR description likewise lists page table as not planned in this PR."}]
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-original-c002",
+      "claim": "The displayed Python query reads the PR-2441 source page and confirms that its captured text names flash_fwd_mla_sm100.py and topk_gather_kv.py.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python <the displayed pathlib/assert snippet>","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"sources/prs/flash-attention/PR-2441.md","result":"The script exits 0 and both asserted file names are present in the local source page.","negative_control":"Changing topk_gather_kv.py to nonexistent_topk_gather.py raises AssertionError."}],
+      "challenge": {"alternative":"One filename appears only in an unrelated page or the code cannot resolve the relative path.","check":"Execute from repository root and replace one token with a known-absent name.","outcome":"The real page passes and the altered assertion fails, discriminating actual source-page content."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-original-c003",
+      "claim": "Top-k gather and tiled scheduling are separate implementation/evidence paths in PR 2441.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flash-attention/PR-2441/PROVENANCE.yaml","revision":"PR 2441 merge f219c89c886c6ccbf9d3dbd9fe41b11ac64e9df8","locator":"key-file manifest","observation":"The byte-verified bundle separately captures topk_gather_kv.py, tile_scheduler.py, and the integrating flash_fwd_mla_sm100.py implementation."}],
+      "challenge": {"alternative":"Top-k selection is merely a scheduler flag with no distinct gather implementation.","check":"Inspect the separate files and imports in the pinned bundle.","outcome":"flash_fwd_mla_sm100 imports CpasyncGatherKVManager from a dedicated gather module while independently selecting tile-scheduler classes."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-original-c004",
+      "claim": "Top-k reduces the attention key extent used for arithmetic while indexed K/V gathering has a distinct memory-access path, so memory traffic/locality and tensor arithmetic should be evaluated separately.",
+      "claim_type": "performance",
+      "covers": ["u004", "u005"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flash-attention/PR-2441/diff.patch","revision":"PR 2441 merge f219c89c886c6ccbf9d3dbd9fe41b11ac64e9df8; SHA-256 4525d7f9af76740692474ffc0266fe9cf72f894ce753fd9d18b70771c96b6810","locator":"benchmark effective seqlen/FLOP accounting and topk_gather_kv.py addition","observation":"Benchmark arithmetic uses gather_kv_length as effective KV length, while the gather manager loads K/V through user-provided indices and optional bounds bitmasks rather than the contiguous path. These are separable arithmetic and memory mechanisms; no numeric locality gain is asserted."}],
+      "challenge": {"alternative":"Reducing effective KV length necessarily improves both compute and locality by the same factor.","check":"Compare FLOP accounting with the indexed gather address construction.","outcome":"Arithmetic count follows top-k length, but addresses follow arbitrary indices and require a separate gather/bitmask path, so locality does not follow algebraically."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-original-c005",
+      "claim": "The useful PR-2441 path is shape- and feature-specific and therefore warrants full-workload validation before transfer.",
+      "claim_type": "compatibility",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flash-attention/PR-2441/key-files/flash_attn/cute/flash_fwd_mla_sm100.py","revision":"PR 2441 merge f219c89c886c6ccbf9d3dbd9fe41b11ac64e9df8","locator":"constructor and __call__ assertions","observation":"The top-k path requires packed GQA/MQA with qhead_per_kvhead=128, cp.async K/V gather, hdim defaults 64/512, constrained top-k length, and no page table; other options dispatch differently or are rejected."}],
+      "challenge": {"alternative":"The merge is a generic sparse-attention primitive transferable unchanged to arbitrary MHA shapes and paging modes.","check":"Enumerate the constructor/interface assertions and unimplemented-feature checks.","outcome":"The source encodes exact MQA/head-dimension/gather/page-table constraints, rejecting generic compatibility."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-original-c006",
+      "claim": "PR 2441 reports exactly 0.3 ms on B200 BF16 for batch 512, seqlen_q 1, seqlen_k 16384, 128 heads, and top-k 2048.",
+      "claim_type": "performance",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://api.github.com/repos/Dao-AILab/flash-attention/pulls/2441","revision":"GitHub PR record observed 2026-08-08; merge f219c89c886c6ccbf9d3dbd9fe41b11ac64e9df8","locator":"PR body, initial saturating decode performance block","observation":"The author reports 0.31 ms and 955.47 TFLOPS for DSA without bitmask at the stated batch/sequence/head settings and top-k length 2048, plus 0.33 ms with bitmask. The PR body does not state B200 or BF16 for this row, so the structured record changes the value and supplies unsupported environment fields."}]
+    }
+  ],
+  "commands": ["inspect PR 2441 GitHub API record and merge f219c89c", "inspect byte-verified PR-2441 diff and key files", "execute the displayed source-page query with conda base Python and a failing negative control"],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is installed, so the sparse MLA kernel and the author-reported decode timings were not reproduced. Code conclusions are tied to merge f219c89c; the PR performance block omits enough environment details that it cannot support a structured B200/BF16 benchmark record.",
+  "scope": "All 7 baseline units for body hash 260bbec945acf25551df5b9232d692574dbde84aca2aa0e9b3b73972a38e7239 were checked against the GitHub PR record, byte-verified merge artifacts, and a discriminating host execution of the page query."
+}

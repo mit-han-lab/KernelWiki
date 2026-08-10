@@ -1,0 +1,187 @@
+{
+  "claims": [
+    {
+      "challenge": {
+        "alternative": "The PR only changes configuration or Python dispatch and does not provide the stated CUDA data path.",
+        "check": "Inspect the pinned PR artifact for the CUDA kernels, their Torch operators, and the DSA call sites.",
+        "outcome": "The artifact contains fusedCatFp4.cu plus indexerKCacheGather.cu and indexerKCacheScatter.cu, and dsa.py calls the corresponding operators in the FP4 indexer path."
+      },
+      "claim": "TensorRT-LLM PR 13340 adds an SM100 FP4 DSA indexer path with native CUDA fused FP4 concatenation/quantization and K-cache gather/scatter operators.",
+      "claim_id": "kernel-tensorrt-llm-blackwell-indexer-original-c001",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/fusedCatFp4.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "fusedCatFp4Kernel and invokeFusedCatFp4",
+          "observation": "The CUDA implementation concatenates BF16 PE/NoPE inputs, quantizes 128 values to packed FP4 E2M1, and emits packed UE8M0 scales."
+        },
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/indexerKCacheGather.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "indexerKCacheGatherUnifiedKernel",
+          "observation": "The CUDA gather copies 64-byte FP4 or 128-byte FP8 payloads and a four-byte scale word from the paged cache."
+        },
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/indexerKCacheScatter.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "indexerKCacheScatterUnifiedKernel",
+          "observation": "The CUDA scatter copies the payload and scale word into the paged cache."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The PR establishes a generic sparse-indexer ABI or a reusable FlashInfer-Bench implementation.",
+        "check": "Compare the operator assertions and TensorRT-LLM-specific cache/dispatch contracts with that broader interpretation.",
+        "outcome": "The path is tied to TensorRT-LLM's DSA metadata, cache manager, SM100 dispatch, 128-element index head, and DeepGEMM calls, so it is evidence to adapt rather than a drop-in external kernel."
+      },
+      "claim": "The PR is implementation evidence for quantized indexer cache movement and layout, but it is not a drop-in FlashInfer-Bench solution.",
+      "claim_id": "kernel-tensorrt-llm-blackwell-indexer-original-c002",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/tensorrt_llm/_torch/attention_backend/sparse/dsa.py",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "Indexer._prep_q_or_k, sparse_attn_indexer, and DSACacheManager",
+          "observation": "The operators are embedded in TensorRT-LLM's DSA projection, cache-management, DeepGEMM-logit, and top-k pipeline rather than exposing a generic benchmark contract."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "verified"
+    },
+    {
+      "claim": "The displayed candidate_indexer_probe is a meaningful implementation probe for the PR's sparse indexer path.",
+      "claim_id": "kernel-tensorrt-llm-blackwell-indexer-original-c003",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "evidence": [
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/indexerKCacheGather.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "indexerKCacheGatherUnifiedKernel",
+          "observation": "The real gather consumes separate int64 payload and scale slot mappings, handles a strided four-dimensional cache, copies vectorized payload and scale bytes, and skips negative mappings; the sketch does none of these and also lacks a bounds guard."
+        },
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/tensorrt_llm/_torch/attention_backend/sparse/dsa.py",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "sparse_attn_indexer",
+          "observation": "The actual indexer performs quantized Q/K preparation, cache scatter/gather, MQA logit computation, and a separate top-k selection; assigning one cache byte to an index represents none of this behavior."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "refuted"
+    },
+    {
+      "challenge": {
+        "alternative": "Packed data alone is sufficient for a correctness reference and negative slot mappings produce initialized sentinel outputs.",
+        "check": "Trace scale packing and the early-return behavior in both copy kernels and their allocating wrapper.",
+        "outcome": "FP4 requires four per-32-value UE8M0 exponents packed into one int32, and a negative payload or scale mapping makes the whole token return; the gather wrapper allocates empty output, so a skipped row is not initialized by the kernel."
+      },
+      "claim": "A correctness reference must explicitly model FP4 packing, scale placement, and invalid-token behavior.",
+      "claim_id": "kernel-tensorrt-llm-blackwell-indexer-original-c004",
+      "claim_type": "semantics",
+      "covers": ["u003", "u004"],
+      "evidence": [
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/fusedCatFp4.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "FP4 block constants and stages 5-7",
+          "observation": "Each 128-value row becomes 64 packed bytes and four UE8M0 exponent bytes packed little-endian into one int32."
+        },
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/indexerKCacheGather.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "negative slot check in indexerKCacheGatherUnifiedKernel",
+          "observation": "If either slot mapping is negative, the token returns before writing its allocated output row."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The PR only exposes the complete indexer, making gather/scatter traffic impossible to isolate.",
+        "check": "Inspect the registered Torch operators and DSA call graph for independent gather and scatter launches.",
+        "outcome": "Gather and scatter are separately registered operators and are launched independently of MQA logits and top-k, so their traffic can be profiled separately with valid inputs."
+      },
+      "claim": "Gather/scatter traffic is a valid separate profiling target.",
+      "claim_id": "kernel-tensorrt-llm-blackwell-indexer-original-c005",
+      "claim_type": "performance",
+      "covers": ["u005"],
+      "evidence": [
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/tensorrt_llm/_torch/attention_backend/sparse/dsa.py",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "cache scatter/gather calls and subsequent MQA-logit/top-k calls",
+          "observation": "The pinned path invokes cache movement, logit calculation, and top-k as distinct operations, permitting stage-specific profiling."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The PR fuses gather/scatter with top-k, so separating them would misrepresent the implementation.",
+        "check": "Follow data from cache gather or paged-cache input through logits to top-k dispatch.",
+        "outcome": "The copy kernels do not calculate scores or select indices; dsa.py calls DeepGEMM MQA logits and then a distinct prefill/decode top-k operator."
+      },
+      "claim": "Top-k selection should remain separate from the gather/scatter memory path while evaluating this pinned implementation.",
+      "claim_id": "kernel-tensorrt-llm-blackwell-indexer-original-c006",
+      "claim_type": "mechanism",
+      "covers": ["u006"],
+      "evidence": [
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/tensorrt_llm/_torch/attention_backend/sparse/dsa.py",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "_call_mqa_logits, _call_paged_mqa_logits, indexer_topk_prefill, and indexer_topk_decode",
+          "observation": "Logit generation and top-k selection occur after and outside cache copy operations in the pinned pipeline."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "verified"
+    },
+    {
+      "claim": "The PR provides fused quantized gather/scatter kernels for the Blackwell FP4/FP8 indexer cache paths.",
+      "claim_id": "kernel-tensorrt-llm-blackwell-indexer-original-c007",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/fusedCatFp4.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "fusedCatFp4Kernel stages 1-7",
+          "observation": "Quantization is fused with PE/NoPE concatenation in fusedCatFp4, before cache movement."
+        },
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/indexerKCacheGather.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "indexerKCacheGatherUnifiedKernel",
+          "observation": "Gather only copies already-quantized payload and scale bytes; it performs no quantization."
+        },
+        {
+          "path": "artifacts/prs/tensorrt-llm/PR-13340/key-files/cpp/tensorrt_llm/kernels/indexerKCacheScatter.cu",
+          "revision": "TensorRT-LLM PR 13340 merge 897c4bff",
+          "locator": "indexerKCacheScatterUnifiedKernel",
+          "observation": "Scatter only copies already-quantized payload and scale bytes; it performs no quantization."
+        }
+      ],
+      "oracle": "local-primary-source",
+      "verdict": "refuted"
+    }
+  ],
+  "commands": [
+    "Inspect pinned fusedCatFp4 CUDA kernel and Torch wrapper",
+    "Inspect pinned K-cache gather/scatter CUDA kernels and Torch wrappers",
+    "Trace the pinned TensorRT-LLM DSA FP4 call path through logits and top-k"
+  ],
+  "id": "kernel-tensorrt-llm-blackwell-indexer",
+  "page_verdict": "refuted",
+  "path": "wiki/kernels/tensorrt-llm-blackwell-indexer.md",
+  "residual_risk": "No CUDA toolkit or GPU is present, so the pinned source was not built or executed and the page's profiling recommendations have no measured result.",
+  "scope": "All six baseline units for hash c6277510118240c58c46ecfd1a84c7978461c9a65c84b4f74cbd679662dae2d1 and the material Blackwell frontmatter claim were audited against the PR's pinned verbatim CUDA, wrapper, and DSA sources."
+}

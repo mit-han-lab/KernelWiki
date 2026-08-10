@@ -1,0 +1,245 @@
+{
+  "path": "wiki/hardware/tma.md",
+  "id": "hw-tma",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "hw-tma-original-c001",
+      "claim": "TMA provides non-blocking bulk tensor copies between global and shared memory, was introduced for sm_90, and remains available on Blackwell.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"description, PTX ISA notes, and target notes","observation":"cp.async.bulk.tensor is a non-blocking tensor copy introduced in PTX 8.0 for sm_90 and supported by later targets."}],
+      "challenge": {"alternative":"TMA is a Blackwell-only replacement for Hopper TMA.","check":"Inspect the instruction's target floor and introduction history.","outcome":"The normative floor is sm_90, so Blackwell inherits rather than introduces it."}
+    },
+    {
+      "claim_id": "hw-tma-original-c002",
+      "claim": "Blackwell tcgen05 operands universally require 128-byte TMA swizzling; any non-128B layout silently produces wrong results, so every Blackwell TMA load must use 128B swizzle.",
+      "claim_type": "code",
+      "covers": ["u001", "u006", "u013", "u014", "u025", "u032"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-layout","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 shared-memory descriptor swizzling modes and kind-specific constraints","observation":"PTX defines no-, 32B-, 64B-, and 128B-swizzled descriptors and constrains valid choices by MMA kind, datatype, shape, leading dimension, and layout. It does not impose one universal 128B mode or define 'silent garbage' for every mismatch."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c003",
+      "claim": "A single issuing thread can initiate a descriptor-driven multidimensional TMA copy while the asynchronous engine performs address generation and destination filling.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#asynchronous-data-copies-using-the-tensor-memory-accelerator-tma","revision":"CUDA 13.0.2","locator":"one-thread issue, tensor coordinates, and out-of-bounds handling","observation":"The programming model permits one thread to issue the operation; the tensor map supplies layout/coordinate metadata and out-of-bounds loads fill destination elements according to the supported fill behavior."}],
+      "challenge": {"alternative":"Every thread must compute and issue its portion of a TMA tile.","check":"Compare TMA's one-thread bulk-copy example with ordinary per-thread global loads.","outcome":"One elected thread issues the bulk operation; the engine performs the described tensor traversal."}
+    },
+    {
+      "claim_id": "hw-tma-original-c004",
+      "claim": "TMA clamps out-of-bounds coordinates and performs general FP32-to/from-FP16 or BF16 format conversion during ordinary tensor copies.",
+      "claim_type": "semantics",
+      "covers": ["u002", "u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"cuTensorMapEncodeTiled datatype and oobFill parameters","observation":"The tensor map describes a stored datatype; ordinary cp.async.bulk.tensor copies that representation rather than providing general FP32/FP16/BF16 conversion. Out-of-bounds tensor loads use fill behavior (normally zero, optionally the documented NaN mode), not edge-coordinate clamping."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c005",
+      "claim": "TMA tensor copies support global-to-shared and shared-to-global directions, ranks 1 through 5, cluster multicast for global loads, and one-thread issue.",
+      "claim_type": "mechanism",
+      "covers": ["u003", "u004", "u008", "u010"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"three direction grammars, dim set, multicast modifier, and execution semantics","observation":"The grammar enumerates .1d through .5d, global/shared directions, and multicast::cluster for global-to-cluster-shared loads; issue is performed by an executing thread rather than a cooperative instruction."}],
+      "challenge": {"alternative":"Tensor maps are load-only and multicast requires separate global transactions issued by every destination CTA.","check":"Inspect the shared-to-global grammar and the global-to-shared::cluster multicast form.","outcome":"Both a bulk-group store direction and one masked cluster-multicast load form are normative."}
+    },
+    {
+      "claim_id": "hw-tma-original-c006",
+      "claim": "A universal TMA limit is 256 bytes per element with tiles up to 128x256, and all TMA synchronization is mbarrier arrive/wait based.",
+      "claim_type": "numeric",
+      "covers": ["u005", "u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"cuTensorMapEncodeTiled boxDim and datatype constraints","observation":"Each tiled box dimension is 1 through 256 elements subject to inner-byte and datatype constraints; there is no '256 bytes per element' or universal 128x256 tile limit."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"completion mechanisms by direction","observation":"Global-to-shared tensor loads use mbarrier complete_tx, while shared-to-global stores use bulk_group plus commit/wait, not mbarrier arrival/wait."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c007",
+      "claim": "The basic tiled tensor-map API exposes no swizzle plus 32B, 64B, and 128B swizzle modes.",
+      "claim_type": "semantics",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"CUtensorMapSwizzle enumeration","observation":"The enum contains NONE, 32B, 64B, and 128B, plus additional Blackwell 128B atomic variants."}],
+      "challenge": {"alternative":"Only 128B swizzling is representable in a tensor map.","check":"Enumerate CUtensorMapSwizzle values.","outcome":"The driver API lists all four basic modes separately."}
+    },
+    {
+      "claim_id": "hw-tma-original-c008",
+      "claim": "A tensor map is an opaque descriptor encoding datatype, global dimensions/strides/address, traversal box and strides, interleave, swizzle, L2 promotion, and OOB-fill policy.",
+      "claim_type": "semantics",
+      "covers": ["u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"CUtensorMap and cuTensorMapEncodeTiled parameters","observation":"The object is documented as opaque and the encoder parameters cover each field summarized by the page."}],
+      "challenge": {"alternative":"The descriptor contains only a global base pointer and all layout arithmetic remains in issuing threads.","check":"Inspect the encoder's dimension, stride, box, swizzle, and fill inputs and the tensor-coordinate instruction operand.","outcome":"Those layout and traversal properties are encoded once and consumed through the tensor-map operand."}
+    },
+    {
+      "claim_id": "hw-tma-original-c009",
+      "claim": "A TMA descriptor must be created on the host and merely passed into every Blackwell kernel.",
+      "claim_type": "compatibility",
+      "covers": ["u011"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#encoding-a-tensor-map-on-device","revision":"CUDA 13.0.2","locator":"device-side tensor-map encoding and modification","observation":"Blackwell supports device-side tensor-map construction/modification with documented proxy-fence requirements, so host encoding is a common path rather than a universal requirement."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c010",
+      "claim": "The displayed create_tma_descriptor_2d function is a generally valid and safe CUDA Driver API encoder for its advertised arguments.",
+      "claim_type": "code",
+      "covers": ["u012"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"cuTensorMapEncodeTiled requirements and return value","observation":"The function accepts arbitrary sizes/pointers but checks none of the 16-byte global-address/stride/inner-box rules, 1..256 box bounds, element-stride bounds, or swizzle-span constraints; it ignores CUresult and leaves swizzle uninitialized for unsupported integers. It also omits the header defining half."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c011",
+      "claim": "The displayed tma_load_tile helper and its two-call use correctly account one barrier phase for A and B and form a reproducible TMA load pipeline.",
+      "claim_type": "code",
+      "covers": ["u015"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#phase-completion-of-the-mbarrier-object","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"arrive.expect_tx and phase-completion accounting","observation":"arrive.expect_tx performs an arrival as well as adding tx bytes. Calling the helper twice on one stage barrier performs two arrivals in addition to two expected-byte updates, but the page never initializes an arrival count that matches or protects the phase transition; it also relies on undefined TILE_* and descriptor helpers."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c012",
+      "claim": "The displayed TMA store helper has valid PTX and completes a shared-to-global tile store after commit_group.",
+      "claim_type": "code",
+      "covers": ["u016"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"shared::cta-to-global grammar and bulk-group completion","observation":"The store form requires the .bulk_group completion qualifier, which the snippet omits. commit_group only groups prior valid operations; completion and safe source reuse require cp.async.bulk.wait_group or an equivalent wait."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c013",
+      "claim": "TMA completion arrives at an mbarrier and decrements its expected transaction count, after which consumers wait.",
+      "claim_type": "semantics",
+      "covers": ["u017", "u018", "u019"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mbarrier::complete_tx::bytes completion mechanism","observation":"TMA performs complete-tx for bytes, decreasing tx-count; it does not perform arrive-on or change expected-arrival count. A producer separately performs arrive.expect_tx or expect_tx, and consumers wait for both pending arrivals and tx-count to reach zero."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c014",
+      "claim": "A consumer must observe completion of a global-to-shared TMA load before reading its shared-memory destination.",
+      "claim_type": "semantics",
+      "covers": ["u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"completion mechanism and memory visibility","observation":"The load is non-blocking and its mbarrier completion is the mechanism by which the destination becomes safe for dependent consumption."}],
+      "challenge": {"alternative":"Issuing the instruction makes destination bytes immediately visible to every warp.","check":"Inspect the non-blocking definition and mbarrier completion contract.","outcome":"The operation completes later; dependent reads must follow the completion synchronization."}
+    },
+    {
+      "claim_id": "hw-tma-original-c015",
+      "claim": "The displayed multistage mainloop is a correct and reproducible TMA/tcgen05 pipeline with safe stage reuse.",
+      "claim_type": "code",
+      "covers": ["u020"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"PipelineTmaUmma producer/consumer acquire/commit/wait/release loops","observation":"A real pipeline maintains full and empty state per stage, accounts all transaction bytes once, waits for load completion, and releases a stage only after asynchronous MMA has stopped reading it. The page has no empty/consumer-release barrier, mismatches mbarrier_wait's signature, double-arrives via two load helpers, and uses incomplete tcgen05 syntax and undefined helpers."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c016",
+      "claim": "The displayed mbarrier_init and mbarrier_wait helpers provide a complete, safely reusable phase-based barrier abstraction.",
+      "claim_type": "code",
+      "covers": ["u021"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"phaseParity lifetime rule, retry semantics, and ordering qualifiers","observation":"Each object requires lifetime phase tracking, initialization publication, correct acquire/release semantics, and invalidation before repurposing. The helper neither manages/toggles phase nor synchronizes initialization, and its fixed inline-assembly label can collide when inlined multiple times."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c017",
+      "claim": "TMA multicast can copy one tensor tile from global memory into corresponding shared-memory destinations for multiple CTAs selected within a cluster.",
+      "claim_type": "mechanism",
+      "covers": ["u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"global-to-shared::cluster multicast grammar","observation":"The instruction accepts a 16-bit CTA mask and performs the tensor load to selected cluster CTA destinations with corresponding mbarrier completion."}],
+      "challenge": {"alternative":"Multicast is a software loop that requires one separate TMA instruction per destination CTA.","check":"Inspect the multicast::cluster grammar and ctaMask operand.","outcome":"One instruction contains the destination-CTA mask, discriminating the hardware multicast form from a software loop."}
+    },
+    {
+      "claim_id": "hw-tma-original-c018",
+      "claim": "Multicast is universally critical for GEMM and the displayed helper correctly issues exactly one multicast with valid per-destination barrier accounting.",
+      "claim_type": "code",
+      "covers": ["u022", "u023"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"multicast destination/mbarrier/ctaMask semantics","observation":"The code's threadIdx==0 guard runs once in every cluster CTA, so every CTA can issue the same multicast rather than electing one issuer. It updates only the issuing CTA's barrier explicitly and does not establish initialized corresponding barriers for all masked destinations. GEMMs without cross-CTA operand reuse need no multicast."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c019",
+      "claim": "The two-CTA GEMM sketch correctly identifies that two M tiles sharing one N tile can reuse the same B tile through multicast.",
+      "claim_type": "code",
+      "covers": ["u024"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"verify matrix index sets in the displayed two-CTA sketch","environment":"symbolic host-side index analysis","reference":"C[M0:M1,N0:N1] consumes A[M0:M1,K] and B[K,N0:N1].","result":"The two CTAs have disjoint M ranges and the same N range, so their A tiles differ and their B index set is identical.","negative_control":"Changing CTA1 to C[128:256,256:512] changes its B range and eliminates the claimed B-tile identity."}],
+      "challenge": {"alternative":"Different output M tiles necessarily require different B tiles.","check":"Expand GEMM index dependencies for both output rectangles.","outcome":"B depends on K and N but not M, so equal N ranges share B."}
+    },
+    {
+      "claim_id": "hw-tma-original-c020",
+      "claim": "One two-CTA multicast exactly halves global-memory bandwidth because one GMEM read serves two CTAs.",
+      "claim_type": "performance",
+      "covers": ["u024"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"multicast functional semantics","observation":"The ISA establishes one multicast operation but does not promise an exact factor-two reduction in measured DRAM or global-memory bandwidth; caches, transactions, other operands, masks, and baseline reuse determine observed traffic."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c021",
+      "claim": "The informal 128B-swizzle diagram is an exact layout mapping and such swizzling eliminates tensor-core shared-memory bank conflicts.",
+      "claim_type": "code",
+      "covers": ["u026", "u027"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#the-swizzle-modes","revision":"CUDA 13.0.2","locator":"128B swizzle mapping, base-offset requirement, and access-index transformation","observation":"The mapping is defined on 16-byte chunks with an address-dependent base offset and exact index transformation, not merely unspecified per-row XOR. A swizzle can avoid conflicts only when the consumer indexes the matching swizzled layout; it is not a universal conflict eliminator."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c022",
+      "claim": "A common Blackwell GEMM path loads operands GMEM-to-SMEM by TMA, accumulates tcgen05 MMA results in TMEM, loads them to registers, and stores the epilogue result to global memory.",
+      "claim_type": "code",
+      "covers": ["u028", "u029"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA load atoms, UMMA mainloop, TMEM accumulator retrieve, and TMA/store epilogue","observation":"The version-pinned Blackwell tutorial implements the page's core GMEM-SMEM-TMEM-register-output flow, with full pipeline synchronization omitted by the sketch."}],
+      "challenge": {"alternative":"tcgen05 accumulates directly into per-thread registers and bypasses TMEM.","check":"Inspect the MMA D operand and epilogue accumulator retrieval in the tutorial.","outcome":"The MMA D address is TMEM and the epilogue explicitly loads the accumulator from TMEM before output."}
+    },
+    {
+      "claim_id": "hw-tma-original-c023",
+      "claim": "The five performance tips are universally valid: back-to-back loads maximize TMA, multicast saves exactly cluster_size times bandwidth, all Blackwell loads require 128B swizzle, 2D TMA should always beat manual addressing while clamping/padding, and 3-5 stages are typically optimal.",
+      "claim_type": "performance",
+      "covers": ["u030", "u031", "u032", "u033", "u034"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#asynchronous-data-copies-using-the-tensor-memory-accelerator-tma","revision":"CUDA 13.0.2","locator":"TMA use, OOB fill, and swizzle sections","observation":"The guide defines mechanisms but no universal 3-5-stage optimum, 2D preference, exact multicast bandwidth factor, or always-128B rule. Pipeline depth and issue cadence trade shared memory/resources against latency; OOB is fill rather than coordinate clamping."}]
+    },
+    {
+      "claim_id": "hw-tma-original-c024",
+      "claim": "Adding more full-size pipeline stages consumes more shared memory when each stage owns separate shared-memory operand buffers.",
+      "claim_type": "numeric",
+      "covers": ["u034"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"derive shared-memory bytes as stages * bytes_per_stage plus fixed storage","environment":"symbolic resource accounting","reference":"Distinct arrays smem_a_stages[NUM_STAGES] and smem_b_stages[NUM_STAGES] allocate one A and B buffer per stage.","result":"With positive fixed tile sizes, increasing NUM_STAGES by one adds one A tile, one B tile, and associated state, so shared-memory use increases.","negative_control":"A single reused buffer with no overlap has no per-stage multiplication and therefore does not satisfy the page's staged-buffer premise."}],
+      "challenge": {"alternative":"Pipeline stages are only logical counters and never change allocated storage.","check":"Expand the displayed per-stage A/B arrays as a function of NUM_STAGES.","outcome":"Each additional array element is a physical tile buffer, so the resource grows linearly under this design."}
+    },
+    {
+      "claim_id": "hw-tma-original-c025",
+      "claim": "The displayed Python is valid CUTLASS 4.5.0 CuTe DSL for creating SM100 TMA and multicast copy atoms.",
+      "claim_type": "code",
+      "covers": ["u035"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_tma/tma_v0.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"imports and TMA atom construction","observation":"The public API uses cutlass.cute, cute.nvgpu.cpasync.CopyBulkTensorTileG2SOp, and cpasync.make_tiled_tma_atom (or the nvgpu A/B helpers). Repository-wide searches find no make_tma_copy, SM100_TMA_LOAD_2D, SM100_TMA_LOAD_2D_MULTICAST, or the shown keyword signature."}]
+    }
+  ],
+  "commands": ["symbolically verify the two-CTA GEMM index sets", "inspect CUTLASS 4.5.0 TMA and GEMM tutorials", "repository-wide exact-token search for displayed CuTe DSL APIs"],
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed locally, so original inline PTX was not assembled and no TMA performance measurements were attempted. Code defects are discriminated by exact PTX 9.0 grammar, CUDA Driver API constraints, and CUTLASS 4.5.0 source.",
+  "scope": "All 35 immutable baseline units were decomposed and checked against CUDA 13.0.2 PTX ISA 9.0, CUDA Driver API 13.0.97, CUDA Programming Guide 13.0.2, CUTLASS 4.5.0, and symbolic index/resource checks."
+}

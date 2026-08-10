@@ -1,0 +1,110 @@
+{
+  "path": "wiki/kernels/flashmla.md",
+  "id": "kernel-flashmla",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-flashmla-current-c001",
+      "claim": "At commit 71c7379, FlashMLA powers DeepSeek-V3/V3.2-Exp and packages MLA-mode decode/sparse-prefill plus a distinct dense MHA prefill operator; the repository distinguishes MQA 576/512 from MHA 192/128 or 128/128 modes.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c737929f2567bd0a094ae140f8f60f390b1232; SHA-256 46c001c53800f47148918f4fc2969102492dd5164f710fc015db1622f6f9929a","locator":"Introduction, support matrix, and MLA Mode footnote","observation":"The first-party snapshot names both model families, separates dense prefill as MHA, and defines the exact MQA/MHA dimension pairs transcribed on the page."}],
+      "challenge": {"alternative":"The package name makes dense prefill an MLA operator despite the table label.","check":"Compare the support-matrix mode column, dimension footnote, public API section, and test names.","outcome":"All four independently call the dense path MHA and reserve MQA dimensions for MLA calculation, so the page's distinction is deliberate and source-exact."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c002",
+      "claim": "DeepSeek-V2 specifies per-layer/token cache sizes of 2*n_h*d_h elements for MHA and d_c+d_h^R for MLA, approximately 4.5*d_h with d_c=4*d_h and d_h^R=d_h/2; byte totals require additional dtype/layer assumptions.",
+      "claim_type": "compatibility",
+      "covers": ["u002", "u003", "u004", "u005"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2405.04434v5","revision":"DeepSeek-V2 paper v5","locator":"Section 2.1.1, equations 8-12, hyperparameters, and Table 1","observation":"The paper defines the low-rank cache, gives d_c=4d_h and d_h^R=d_h/2, and lists the exact element-count formulas. Because Table 1 counts elements rather than bytes, dtype and layer multiplication are necessary for whole-model byte totals."}],
+      "challenge": {"alternative":"Table 1 already defines an implementation byte count, so storage precision can be inferred.","check":"Inspect the table heading/units and whether a cache dtype or layer aggregation appears in the formula.","outcome":"The cells are symbolic numbers of cached elements and include an explicit layer factor only at model-total scope; no byte width is specified, preventing an unqualified KB conversion."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c003",
+      "claim": "The 656-byte ABI is limited to V3-family FP8 sparse decode and consists of 512 E4M3 NoPE bytes, four FP32 per-128-value scales, and 64 BF16 RoPE values; dense decode is BF16, another sparse layout exists, and page size is an input rather than a fixed 64.",
+      "claim_type": "code",
+      "covers": ["u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"flash_mla_with_kvcache docstring, scheduler config, and dense/sparse dispatch","observation":"The source gives the exact V3 FP8+sparse byte fields, derives page_block_size from k_cache.shape[1], sends FP8 only to sparse dispatch, and sends dense calls to the BF16 path."},{"path":"/tmp/kernelwiki-flashmla-pinned/tests/quant.py","revision":"same commit","locator":"FP8KVCacheLayout.get_meta and quantize_k_cache","observation":"V32 uses (576,512,64,128,4) and 656 bytes, while MODEL1 uses (512,448,64,64,7) and a different E8M0 scale packing."}],
+      "challenge": {"alternative":"656 and page size 64 are compile-time invariants hidden below the Python interface.","check":"Trace interface assertions, quantizer arithmetic, SM90 656 assertion scope, and tests with multiple block sizes.","outcome":"The 656 assertion is inside the V32 sparse-FP8 specialization, while page_block_size is passed through metadata and sparse tests exercise values other than 64; the narrow scope survives both layers."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c004",
+      "claim": "The support table and requirements exactly distinguish dense decode SM90/BF16, sparse decode SM90+SM100/FP8-KV-to-BF16-MMA, dense MHA prefill SM100/BF16, sparse MLA prefill SM90+SM100/BF16, with CUDA 12.8+, CUDA 12.9+ for SM100, and PyTorch 2.0+.",
+      "claim_type": "compatibility",
+      "covers": ["u012", "u013", "u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Requirements, support matrix, FP8 decode note, sparse-prefill equivalence, and Dense MHA Prefill","observation":"Every architecture/mode/format and version floor on the page is an exact transcription; the FP8 decode paragraph explicitly says dequantize/MMA/output bfloat16."}],
+      "challenge": {"alternative":"Global SM90/SM100 support means every operator supports both generations and FP8 is the arithmetic dtype throughout.","check":"Read each support-matrix row and the mode-specific dtype paragraphs rather than the global requirement line.","outcome":"Rows differ by architecture and cache format, and the source explicitly separates FP8 storage from BF16 compute, refuting a uniform interpretation."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c005",
+      "claim": "Sparse decode consumes page-encoded [batch,s_q,topk] indices with -1 invalid and no block table; sparse prefill consumes unbatched BF16 tensors and [s_q,h_kv,topk] indices, documents h_kv=1, accepts negative/out-of-range invalid indices, returns out/max_logits/lse, and neither attention interface produces top-k indices.",
+      "claim_type": "code",
+      "covers": ["u017", "u018", "u019", "u020"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"flash_mla_with_kvcache indices documentation/dispatch and flash_mla_sparse_fwd signature","observation":"The exact tensor ranks, dtypes, physical page+offset formula, invalid values, absent block-table rule, and return tuple are encoded in the public interface; indices are caller inputs to both extension calls."},{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"same commit","locator":"Sparse Attention and Sparse MLA Prefill usage","observation":"The README independently states the index encoding, no-batch limitation, h_kv=1 equivalence, invalid-index rules, and return values."}],
+      "challenge": {"alternative":"The extension internally runs a selector before using optional indices, or sparse prefill shares decode paging semantics.","check":"Trace the Python dispatch arguments and compare the two documented equivalence calculations.","outcome":"Sparse extension calls receive indices directly, no selector output is returned or created, and prefill gathers flat kv[indices] without a page table, establishing two distinct caller contracts."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c006",
+      "claim": "The performance table precisely preserves the pinned README's author-reported maxima, operator identities, stated environments, and precision scopes while noting missing benchmark cells, non-reproduction, and the invalidity of cross-regime comparisons.",
+      "claim_type": "performance",
+      "covers": ["u021", "u022", "u023", "u024", "u025", "u026", "u027", "u028"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"three Performance subsections and support matrix","observation":"The page exactly transcribes dense-decode 3000 GB/s/660 TFLOPS H800 CUDA 12.8, sparse-decode 410 H800 and up to 350 B200, dense MHA prefill 1460/1000 B200 attributed to NVIDIA, and sparse-prefill 640 H800 CUDA 12.8/1450 B200 CUDA 12.9. Its precision labels follow the API/support text."}],
+      "challenge": {"alternative":"All TFLOPS rows can be ranked directly, and absent details can be inferred from nearby tests or GPU peaks.","check":"Compare headings, memory/compute-bound qualifications, phases, attribution, dtype contracts, and fields actually stated in the source.","outcome":"The observations cover decode versus prefill, MLA versus MHA, storage versus MMA precision, and different GPUs/software; the source omits complete shapes/timing statistics, so the page correctly keeps them out of structured records and warns against ranking."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c007",
+      "claim": "Pinned SM100 DeepSeek sources contain TMA, tcgen05, and TMEM paths, while local full artifacts are accurately labeled as separate CUTLASS 9baa06dd and FlashInfer 9a05c92a implementations and the derived helper is limited to verified layout/index arithmetic.",
+      "claim_type": "code",
+      "covers": ["u029", "u030", "u031", "u032", "u033"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/csrc/sm100","revision":"DeepSeek FlashMLA commit 71c7379","locator":"decode/head64/kernel.cuh, prefill/sparse phase1 files, and prefill/dense kernel files","observation":"The pinned code includes TMEM allocators, tcgen05 synchronization/MMA helpers, and TMA-specialized paths across the named operator families."},{"path":"artifacts/kernels/flashmla/full/PROVENANCE.yaml","revision":"SHA-256 844d2083c1fc3098981334111fe48e41316a9c9b2b4abb448070379b8e0244f5","locator":"bundle_scope and per-file provenance","observation":"The manifest explicitly marks adjacency and records CUTLASS 9baa06dd for 77_blackwell_mla_fwd.cu and FlashInfer 9a05c92a for the header; file hashes match."},{"path":"artifacts/kernels/flashmla/variants/01-mla-layout-and-index-contract.cu","revision":"SHA-256 aa886373129daedc09b9dae7a23960b021256647e1002399db0dca82053c6f96","locator":"entire derived helper","observation":"The header says non-upstream and the file contains only compile-time 656-byte arithmetic plus physical-page index encode/decode, not a fabricated attention kernel."}],
+      "challenge": {"alternative":"Matching MLA names make the CUTLASS/FlashInfer files part of DeepSeek FlashMLA, or the derived helper still implies a portable kernel ABI.","check":"Compare repository/commit provenance and compile the helper independently of CUDA.","outcome":"Origins are disjoint and explicit; g++ C++17 syntax checking passes because the helper claims only arithmetic contracts and contains no GPU-kernel body."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c008",
+      "claim": "The selection checklist follows the verified compatibility boundaries: exact operator/dimensions/version/dtype/index matching, narrow 656-byte scope, external index generation, per-regime benchmarking, and reference output/LSE validation.",
+      "claim_type": "compatibility",
+      "covers": ["u034", "u035", "u036", "u037", "u038"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"support matrix, usage contracts, tests, and performance sections","observation":"The source exposes each listed compatibility field, requires caller indices, supplies reference/test paths, and reports performance only in distinct qualified regimes."}],
+      "challenge": {"alternative":"The library's compatibility wrapper makes exact dimensions/cache/index rules and numerical reference checks unnecessary.","check":"Inspect hard assertions and dispatch conditions in flash_mla_interface.py and compare the separate tests/reference implementations.","outcome":"Mode mismatches are asserted or route to different kernels, indices determine addresses, and performance maxima do not establish correctness; the checklist targets actual failure boundaries."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c009",
+      "claim": "The four source links resolve to the audited DeepSeek commit, DeepSeek-V2 v5 paper, and pinned CUTLASS forward/backward MLA-shape PRs, each used only for its stated subject.",
+      "claim_type": "other",
+      "covers": ["u039", "u040", "u041", "u042"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://github.com/deepseek-ai/FlashMLA/tree/71c737929f2567bd0a094ae140f8f60f390b1232","revision":"commit 71c7379","locator":"repository tree and README","observation":"Exact first-party FlashMLA snapshot."},{"url":"https://arxiv.org/html/2405.04434v5","revision":"DeepSeek-V2 v5","locator":"Section 2.1.1","observation":"First-party MLA mechanism and cache formula."},{"url":"https://github.com/NVIDIA/cutlass/pull/2466","revision":"merge 0e026982","locator":"PR title and changed paths","observation":"CUTLASS SM100 MLA-shape backward and reduction path."},{"url":"https://github.com/NVIDIA/cutlass/pull/2472","revision":"merge 9baa06dd","locator":"PR title and changed paths","observation":"CUTLASS SM100 MLA-shape forward path."}],
+      "challenge": {"alternative":"The CUTLASS PRs can substantiate DeepSeek FlashMLA performance/mechanisms directly, or the paper specifies the 656-byte ABI.","check":"Compare repositories, revision identities, claimed layers, and page wording around each citation.","outcome":"The page confines DeepSeek facts to its repository/paper and calls CUTLASS adjacent; it does not transfer CUTLASS numbers or conflate the model formula with the implementation ABI."}
+    },
+    {
+      "claim_id": "kernel-flashmla-current-c010",
+      "claim": "The displayed conda-base get_page query resolves the corrected FlashMLA page and labeled artifacts, and the displayed mode-specific byte check evaluates to 656 without a GPU.",
+      "claim_type": "code",
+      "covers": ["u043", "u044", "u045", "u046"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py kernel-flashmla --include-code; conda run -n base python -c '<displayed byte arithmetic and assertion>'","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"wiki/kernels/flashmla.md and artifacts/kernels/flashmla","result":"The query exits 0 and contains the audited commit, 'adjacent implementations', both full files, and variants/01-mla-layout-and-index-contract.cu; the byte assertion also exits 0 with value 656.","negative_control":"kernel-flashmla-does-not-exist exits 1 with 'Page not found'; changing expected bytes from 656 to 655 raises AssertionError."}],
+      "challenge": {"alternative":"The command prints only page Markdown or silently resolves a fuzzy unrelated ID, and the byte total depends on unavailable GPU behavior.","check":"Assert corrected artifact tokens in real output, repeat with a near-name known to be absent, execute the arithmetic, and alter its expected result.","outcome":"The exact page includes both artifact classes, the near-name fails, real arithmetic passes, and the altered result fails; the 656 total is a storage-layout identity rather than a GPU measurement."}
+    }
+  ],
+  "commands": ["inspect DeepSeek FlashMLA commit 71c737929f2567bd0a094ae140f8f60f390b1232 README, public interfaces, tests, quantizer, and SM100 code", "inspect DeepSeek-V2 paper v5 formulas", "execute both extracted Python contract checks", "compile the derived C++17 contract helper with g++ -fsyntax-only", "execute get_page with the real ID and a failing near-name", "conda run -n base python scripts/validate.py"],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is installed, so attention kernels, numerical output, bandwidth, and throughput were not reproduced. The performance table is deliberately limited to qualified author reports and performance_claims is empty; implementation conclusions are source-level and tied to commit 71c7379.",
+  "scope": "All 46 current units for body hash 3c4ba2ede0a25c46871912580475e2e71786d53c38b8dea8330b7b017e42d0ae were checked against version-pinned primary sources, exact local provenance, executable contract checks, a compiled derived helper, and a discriminating repository query."
+}

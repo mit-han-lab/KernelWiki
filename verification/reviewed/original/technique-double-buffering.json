@@ -1,0 +1,188 @@
+{
+  "path": "wiki/techniques/double-buffering.md",
+  "id": "technique-double-buffering",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-double-buffering-original-c001",
+      "claim": "Double- or multi-buffering uses disjoint copies so a producer can fill one stage while a consumer reads another; a Blackwell kernel can combine SMEM operand staging with separate TMEM accumulator regions.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_STAGES SMEM arrays, BLOCK_N*2 TMEM allocation, mainloop/epilogue barriers","observation":"The pinned kernel has multiple SMEM stages and two disjoint BLOCK_N-wide TMEM accumulator regions with producer, MMA, and epilogue handoffs."}],
+      "challenge": {"alternative":"The two mechanisms cannot coexist because both consume the same storage or synchronization object.","check":"Trace the address spaces and barrier arrays in the pinned implementation.","outcome":"SMEM operand stages and TMEM accumulator regions are separately allocated and coordinated by distinct pipeline/barrier state."}
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c002",
+      "claim": "The CTA-visible TMEM address structure has 128 lanes by 512 columns of 32-bit cells; a symmetric 512-column allocation can place two 256-column accumulator regions at offsets 0 and 256.",
+      "claim_type": "mechanism",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"Tensor Memory organization and allocation","observation":"TMEM is organized as 128 lanes by 512 columns of 32-bit cells, and allocations reserve columns across all lanes; offsets 0 and 256 therefore name disjoint halves of a 512-column allocation."}],
+      "challenge": {"alternative":"The 256 KiB figure means one independently private physical array per CTA or mandates two equal buffers.","check":"Separate the ISA-visible structure from allocation policy and inspect the example's chosen offsets.","outcome":"The dimensions are architectural, but equal 256-column partitioning is an implementation choice; the claim is scoped accordingly."}
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c003",
+      "claim": "The displayed tmem_double_buffer_mainloop is a safe CUDA implementation of two-buffer TMEM accumulation and epilogue reuse.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"collective allocation/deallocation and lifetime rules","observation":"The block contains no TMEM allocation or mandatory deallocation and does not establish publication of a returned address."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"tcgen05.ld collective execution, completion, and address mapping","observation":"TMEM readback is a warp-collective asynchronous instruction followed by wait::ld, not a per-row scalar load callable independently by lanes."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"mbarrier phase and initialization semantics","observation":"Reusable barriers require correct expected-arrival counts and phase/parity tracking; the block initializes drained barriers to one despite claiming fourteen arrivals and reuses waits without tokens/phases."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c004",
+      "claim": "Multiple SMEM copies of A/B tiles can overlap asynchronous TMA production with MMA consumption when each stage has a correct full/empty ownership protocol.",
+      "claim_type": "mechanism",
+      "covers": ["u004"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"SharedStorageHorizontal and producer/consumer stage loops","observation":"The merged code uses numStages SMEM arrays with per-stage bar_empty/bar_full handoffs around TMA copies and consumption."}],
+      "challenge": {"alternative":"Multiple arrays alone guarantee overlap without a stage-state protocol.","check":"Remove or invert a full/empty handoff in the source control-flow graph.","outcome":"The producer would overwrite unread data or the consumer would read incomplete data; synchronization and ownership are essential parts of the verified claim."}
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c005",
+      "claim": "For TILE_M=128, TILE_N=256, TILE_K=64 and binary16 operands, one conceptual A/B stage occupies 16 KiB plus 32 KiB, so three stages occupy 144 KiB before barriers, padding, alignment, and other shared storage.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python integer arithmetic for 128*64*2, 64*256*2, and three-stage total","environment":"Conda base, host CPU","reference":"binary16 is two bytes; compare exact byte totals","result":"16384 + 32768 = 49152 bytes per stage and 147456 bytes = 144 KiB for three stages.","negative_control":"Treating binary16 as four bytes doubles all totals and fails the stated example."}],
+      "challenge": {"alternative":"The struct is a complete drop-in shared-memory layout and its payload total is the allocation total.","check":"Account for barriers, padding, descriptor alignment, swizzled layouts, and placement in dynamic/static shared memory.","outcome":"Only the payload arithmetic and conceptual staging are established; the displayed type is not sufficient production code."}
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c006",
+      "claim": "Every fully optimized Blackwell GEMM uses simultaneous three-stage SMEM and two-buffer TMEM.",
+      "claim_type": "performance",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"first Blackwell GEMM tutorial stage","observation":"The official tutorial progression includes valid Blackwell GEMMs before the later pipelined variants; neither exact stage count nor double-buffer policy is a universal optimization requirement."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c007",
+      "claim": "The displayed combined CUDA block and timeline form a complete safe implementation in which the previous tile's epilogue overlaps the next tile's MMA.",
+      "claim_type": "code",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"full kernel role loops, ready/empty barriers, parity, prologue and tail","observation":"The real implementation requires independent persistent role loops, phase-aware ready/empty handoffs, prologue seeding, read completion, final drain, and TMEM cleanup; the block leaves these as opaque helpers/comments and its per-warp common outer loop does not prove overlap."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c008",
+      "claim": "SM90 has no TMEM, and WGMMA's D accumulator is a per-thread register fragment, so keeping two simultaneous live D fragments increases register demand.",
+      "claim_type": "mechanism",
+      "covers": ["u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA D fragment tables","observation":"WGMMA D is explicitly distributed as register vectors among warpgroup threads; two simultaneously live vectors require twice that D-fragment storage."}],
+      "challenge": {"alternative":"Double buffering merely renames one register fragment and therefore has no live-range cost.","check":"Require simultaneous producer and consumer ownership of different output tiles.","outcome":"Overlap requires two disjoint live results; reuse of the same fragment would overwrite the result still being drained."}
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c009",
+      "claim": "For a Hopper m64n256 FP32 accumulator, two buffers consume only 64 registers (256 bytes) per thread, whereas two Blackwell TMEM buffers have zero register cost and dedicate all 256 KiB to accumulator space.",
+      "claim_type": "code",
+      "covers": ["u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"m64nNk16 f32 D fragment","observation":"Each thread holds N/2 f32 registers: 128 registers for N=256, hence 256 registers (1024 bytes) for two simultaneous fragments, not 64 (256 bytes)."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"register and TMEM resource limits","observation":"TMEM removes resident D from registers but addresses, descriptors, synchronization state, readback batches, and epilogue values still consume registers; TMEM can also serve non-accumulator uses."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c010",
+      "claim": "The storage and access rows correctly contrast WGMMA register-resident D with tcgen05 TMEM-resident D that must be transferred to registers for an epilogue.",
+      "claim_type": "mechanism",
+      "covers": ["u010", "u013"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA D operand and fragments","observation":"D is a register operand distributed among threads."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"TMEM-to-register load","observation":"tcgen05.ld transfers a TMEM region into per-thread registers before ordinary scalar processing."}],
+      "challenge": {"alternative":"Both architectures expose D as an ordinary pointer-addressable buffer.","check":"Compare the operand classes and legal load operations.","outcome":"WGMMA names register fragments, while tcgen05 names a TMEM address and uses dedicated collective movement instructions."}
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c011",
+      "claim": "Doubling an accumulator costs exactly twice the Hopper registers but zero Blackwell registers.",
+      "claim_type": "performance",
+      "covers": ["u011"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.ld destination operands","observation":"TMEM readback places values in register vectors, so the resident D vector is absent but total register cost is not zero."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c012",
+      "claim": "Accumulator double-buffering typically changes Hopper occupancy from two to one CTA per SM and has no Blackwell occupancy impact.",
+      "claim_type": "performance",
+      "covers": ["u012"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy calculation","observation":"Resident CTAs depend on block size, compiled registers, shared memory, barriers, clusters, and allocation granularities; neither architecture implies the displayed transition."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c013",
+      "claim": "The maximum practical accumulator is about 16K elements on Hopper and exactly 128 by 512 elements on Blackwell.",
+      "claim_type": "performance",
+      "covers": ["u014"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA instruction shapes","observation":"An instruction fragment is not a universal kernel accumulator maximum; kernels may compose instructions and distribute output ownership."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"same archive","locator":"TMEM structure and packing","observation":"128 by 512 is the cell-address structure, not a universal count of logical accumulator elements; packing and descriptor shape depend on dtype/instruction kind."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c014",
+      "claim": "TMEM double-buffering should always be used for any nontrivial Blackwell epilogue and its only cost is plentiful TMEM capacity.",
+      "claim_type": "performance",
+      "covers": ["u015"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"resource-dependent occupancy and TMEM","observation":"TMEM allocation can constrain residency and buffering also adds synchronization, address/lifetime complexity, and readback; profitability is kernel- and workload-dependent."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c015",
+      "claim": "Every GEMM or attention mainloop should use SMEM multi-staging, with three stages as the universal default and four or five only for long high-latency K loops.",
+      "claim_type": "performance",
+      "covers": ["u016"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"numStages selections near kernel dispatch","observation":"One merged kernel selects three stages in one path and min(totalStages,4) in another, demonstrating shape/path-specific policy rather than the page's universal rule."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"tutorial progression and stage construction","observation":"Official examples derive or configure stages from tile and resource policy rather than declaring three universal."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c016",
+      "claim": "Simultaneous SMEM and TMEM buffering is the standard production Blackwell GEMM approach used by all CUTLASS and CuTe DSL kernels.",
+      "claim_type": "compatibility",
+      "covers": ["u017"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"multiple tutorial GEMM variants","observation":"CUTLASS supplies multiple Blackwell schedules and incremental examples; the sources establish concrete combined implementations, not universality across all kernels."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c017",
+      "claim": "TMEM double-buffering always requires every accumulator to fit in exactly half of the 512 columns, and every FP32 tile wider than N=256 must be split.",
+      "claim_type": "compatibility",
+      "covers": ["u018"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory-allocation","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"column allocation and addressing","observation":"The ISA specifies allocation units and address structure, not symmetric two-way partitioning; implementations may use unequal regions, more/fewer buffers, packed formats, or decomposed ownership."}]
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c018",
+      "claim": "Compute capability 10.0 supports up to 228 KiB of shared memory per SM, so operand stages and epilogue scratch can compete for the shared-memory budget.",
+      "claim_type": "compatibility",
+      "covers": ["u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"SM shared-memory capacity","observation":"The guide reports up to 228 KiB per SM for compute capability 10.0; all dynamic/static shared objects contribute to the relevant allocation constraints."}],
+      "challenge": {"alternative":"The 228 KiB figure applies equally to every Blackwell compute capability or is all available to one CTA without reservation/configuration limits.","check":"Read the architecture scope and distinguish per-SM capacity from per-block opt-in limits.","outcome":"The claim is valid only when scoped to compute capability 10.0 and as a shared budget, not a universal Blackwell per-block guarantee."}
+    },
+    {
+      "claim_id": "technique-double-buffering-original-c019",
+      "claim": "The mbarrier handoff between TMEM buffers costs a universal few cycles per tile, making it proportionally worse for tiles with few K iterations.",
+      "claim_type": "performance",
+      "covers": ["u020"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mbarrier semantics","observation":"The ISA specifies ordering, arrivals, phases, and waits but no fixed cycle latency; exposed cost depends on contention, polling, dependencies, schedule, and target."}]
+    }
+  ],
+  "commands": ["archived CUDA 13.0.2 PTX/tuning-guide inspection", "exact-revision author and CUTLASS source inspection", "FlashInfer PR artifact hash comparison against the full merge SHA", "conda-base byte arithmetic and negative control"],
+  "scope": "All 20 baseline units for body hash 787b870b0080a00805a0601a72d16367df1fd5ff21f1043c92acaf6e2d91a387 were reviewed; code blocks were judged both for their scoped arithmetic/concepts and for whether they establish a safe runnable lifecycle.",
+  "residual_risk": "No CUDA toolkit or SM90/SM100 GPU is installed locally. No throughput or instruction-latency claim is accepted without a pinned benchmark, and illustrative layouts are not treated as compiled kernels."
+}

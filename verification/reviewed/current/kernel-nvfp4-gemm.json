@@ -1,0 +1,150 @@
+{
+  "path": "wiki/kernels/nvfp4-gemm.md",
+  "id": "kernel-nvfp4-gemm",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c001",
+      "claim": "Official records identify this as B200-targeted Kernel Challenge 2, open November 29 through December 19, 2025 and worth 20 percent; the public task defines interface, correctness, cases, and ranking but no canonical implementation, mandatory CUTLASS schedule, contestant technique, or shape-independent bottleneck.",
+      "claim_type": "other",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf","revision":"official terms fetched 2026-08-08","locator":"contest period, Kernel 2, B200 evaluation, and grand-prize weighting","observation":"The rules establish the stated identity, dates, device, and 20 percent weight."},
+        {"url":"https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"complete task definition","observation":"The file contains tensor prose, tests, benchmark rows, and geometric-mean ranking; it mandates no implementation. Its speed-of-light text takes the maximum of math and DRAM time per shape rather than declaring one universal bottleneck."}
+      ],
+      "challenge": {"alternative":"The task implicitly standardizes the former CUTLASS/TMA/TMEM kernel and declares GEMM compute-bound by category.","check":"Enumerate normative inputs, outputs, checks, cases, and scoring, and search the pinned task for implementation requirements.","outcome":"Only observable task behavior is normative; implementation choice and achieved bottleneck are absent and the model includes both math and memory."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c002",
+      "claim": "The generic one-dimensional NVFP4 recipe uses signed E2M1 payloads, block-of-16 E4M3 local scales, and a per-tensor FP32 global scale, whereas MXFP4 uses block-of-32 UE8M0 local scaling; the contest ABI exposes no FP32 global-scale tensors.",
+      "claim_type": "semantics",
+      "covers": ["u003", "u004"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"E2M1 format, NVFP4 two-level scaling, and MXFP4 comparison","observation":"The vendor documentation establishes the payload values, two-level recipe, 16-value groups, and MXFP4 contrast."},
+        {"url":"https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/template.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"custom_kernel input tuple","observation":"The task interface lists packed A/B, logical and reordered SFA/SFB, and C, with no global FP32 scale arguments."}
+      ],
+      "challenge": {"alternative":"The contest's scale tensors implicitly include separately supplied FP32 globals, or NVFP4 and MXFP4 share the same local scale representation.","check":"Compare the complete seven-tensor input with the version-pinned recipe and MXFP4 table.","outcome":"No global argument is present in the task, while NVFP4 E4M3 and MXFP4 UE8M0 are explicitly distinct recipe fields."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c003",
+      "claim": "The table exactly describes the actual seven task tensors, packed and logical/reordered shapes, per-L A by B-transpose FP16 reference, tolerance, K divisibility, tile-dependent M/N constraint, and the task-description and scale-dtype inconsistencies.",
+      "claim_type": "semantics",
+      "covers": ["u005", "u006", "u007", "u008", "u009", "u010", "u011", "u012", "u013", "u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"input_t","observation":"The type bound contains seven tensors."},
+        {"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/reference.py","revision":"same commit","locator":"ref_kernel, generate_input, create_scale_factor_tensors, return tuple, and check_implementation","observation":"The code constructs physical packed A/B, logical scale shapes, reordered 32-by-4 layouts, preallocated FP16 C, computes each L slice with B transposed, and uses 1e-3 tolerances. It creates torch.float8_e4m3fn scales."},
+        {"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/template.py","revision":"same commit","locator":"custom_kernel docstring and tuple unpack","observation":"The template exposes the seven fields and labels scale types e4m3fnuz."},
+        {"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.yml","revision":"same commit","locator":"description and tests","observation":"The prose abbreviates five members, states K divisible by 256 and tile-relative M/N divisibility, and lists ten tests consistent with the table."}
+      ],
+      "challenge": {"alternative":"The reordered scales are an editorial optimization not supplied to entrants, physical FP4 shape keeps K rather than K/2, or FNUZ and FN labels agree upstream.","check":"Trace generate_input's allocations, permutations, return tuple, template unpack, and dtype constructors at the pinned commit.","outcome":"All seven objects are passed; packed allocations use K/2 bytes; the logical/reordered dimensions follow directly from atom_m=(32,4), atom_k=4, and K/16 scales; the two dtype suffixes visibly differ."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c004",
+      "claim": "The Python shape helper reproduces the official task storage dimensions for valid positive shapes, enforces K divisible by 256, and correctly demonstrates that the former scale-array divisibility assertion rejects nine of ten official tests.",
+      "claim_type": "code",
+      "covers": ["u017", "u018"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {"command":"conda run -n base python -c '<execute current task_storage_shapes, seven valid K values, official ten tests, and K=255 negative control>'","environment":"KernelWiki host; conda base standard-library Python","reference":"current code block and pinned task.yml/reference.py","result":"Exited 0: current shape equations matched packed/logical/reordered construction; all ten official shapes passed the K rule; nine failed the old (K/16) modulo 128 assertion.","negative_control":"K=255 raised ValueError as required."}
+      ],
+      "challenge": {"alternative":"The helper accidentally models logical FP4 dimensions as physical bytes, or its scale layout works only for K divisible by 2048.","check":"Compare each returned dimension with the allocations/permutation in reference.py and exercise K=256, 512, 1536, 2048, 2304, 7168, and 16384.","outcome":"A/B use K/2, logical scales K/16, reordered rest_k K/64, and every published K succeeds, including those rejected by the former rule."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c005",
+      "claim": "The implementation boundary correctly distinguishes NVFP4 block16 UE4M3 tcgen05 semantics from MXFP4 UE8M0, identifies the pointer-array CUTLASS schedule and current collective API without contestant attribution, states the tensor-map alignment contract rather than a universal 128-byte rule, and separates TMEM organization from logical tile limits.",
+      "claim_type": "compatibility",
+      "covers": ["u019", "u020", "u021", "u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"block-scale valid combinations and TMEM operands","observation":"The ISA lists mxf4nvf4 block16 with UE4M3 and describes TMEM destinations/scale addresses."},
+        {"url":"https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/include/cutlass/float_subbyte.h#L494-L512","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"mx_float4_t and nv_float4_t","observation":"The exact types select UE8M0 for MXFP4 and UE4M3 for NVFP4."},
+        {"url":"https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu","revision":"same commit","locator":"operand types and lines 120-164 collective/kernel construction","observation":"The official single-GEMM example uses nv_float4 types, collective builders, kernel::GemmUniversal, and device::GemmUniversalAdapter."},
+        {"url":"https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu","revision":"same commit","locator":"MMA1SMConfig and MMA2SMConfig","observation":"The named pointer-array schedule appears in the grouped example, which also defines a cooperative 256-by-256-by-256 logical MMA tile."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.2.1","locator":"cuTensorMapEncodeTiled restrictions","observation":"General tiled-map alignment is 16 bytes for the base and byte strides, with mode-specific additional constraints; no universal 128-byte operand rule appears."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM organization and allocation","observation":"The 128-lane by 512-column model describes tensor-memory addressing and allocation rather than a logical matrix-shape ceiling."}
+      ],
+      "challenge": {"alternative":"NVFP4 hardware consumes UE8M0 after a hidden conversion, the named schedule is the contest winner's single-GEMM kernel, TMA always needs 128 bytes, or TMEM hard-caps M at 128.","check":"Resolve exact scale typedefs, official schedule call site, Driver API restrictions, and the official two-SM tile configuration.","outcome":"Each alternative is contradicted by a direct type, API, or example locus; no contestant implementation source exists in the public task/leaderboard."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c006",
+      "claim": "The three rows are the task's exact B200 1.5-GHz speed-of-light values for the listed M/N/K/L cases, ranking uses their geometric mean, and the values are theoretical max-of-math-and-DRAM comparisons rather than contestant or cuBLAS measurements.",
+      "claim_type": "performance",
+      "covers": ["u023", "u024", "u025", "u026", "u027"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"speed-of-light table, benchmarks, and ranking_by","observation":"The exact three shape/value rows are labeled speed-of-light analysis based on max FP4 Tensor Core math and DRAM throughput at 1.5 GHz, and ranking_by is geom. No measured contestant or cuBLAS row is present."}
+      ],
+      "challenge": {"alternative":"The values are observed contestant latencies or one cuBLAS benchmark summarized as a single score.","check":"Read the table label and compare rows with the benchmarks and ranking field.","outcome":"They are explicitly theoretical per-shape rows; the ranking is a later geometric aggregation, and no cuBLAS field exists."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c007",
+      "claim": "The August 8, 2026 public leaderboard snapshot and score-times-one-million transformation reproduce ranks, users, scores, and timestamps for current ranks 1-3 and 8-10; the first three postdate the official cutoff, so the page correctly withholds winner, code, CUTLASS, cuBLAS, trials, and variance attributions.",
+      "claim_type": "performance",
+      "covers": ["u028", "u029", "u030", "u031", "u032", "u033", "u034", "u035"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://site--bot--dxfjds728w5v.code.run/submissions/nvfp4_gemm/NVIDIA?limit=12","revision":"fetched 2026-08-08","locator":"LeaderboardRankedEntry rows 1-10","observation":"All displayed identities, ranks, floating-point scores, filenames, and UTC timestamps match after multiplying submission_score by one million. The response contains no source, method, comparison baseline, trials, or variance fields."},
+        {"url":"https://developer.download.nvidia.com/licenses/Blackwell-NVFP4-Hackathon-Terms-and-Conditions.pdf","revision":"official rules fetched 2026-08-08","locator":"contest period end","observation":"The rules end the contest on December 19, while the snapshot's current ranks 1-3 are timestamped December 20-21."}
+      ],
+      "challenge": {"alternative":"The current endpoint is automatically the immutable prize cutoff table, and participant techniques can be inferred from filenames.","check":"Compare row timestamps with the official deadline and inspect the complete API response schema/fields.","outcome":"Post-cutoff rows preclude that inference, and filenames/scores contain no implementation evidence."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c008",
+      "claim": "Applicability is correctly limited to the exact packed payload, scale layouts, transpose/output/tolerance contract and B200 target; generic four-bit formats are not interchangeable, the native path is Blackwell-specific, software emulation is not excluded, and optimization choices require exact constraint checks and profiling.",
+      "claim_type": "compatibility",
+      "covers": ["u036", "u037"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://github.com/gpu-mode/reference-kernels/blob/ae67948685dfccf54ae8374dc9402addb7aae4f6/problems/nvidia/nvfp4_gemm/template.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"input and output contract","observation":"The implementation must accept the exact seven tensors and return the supplied FP16 output."},
+        {"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4 recipe and MXFP4 comparison","observation":"NVFP4 and MXFP4 differ in scale representation and group size; arbitrary INT4 or FP4 data is not the same contract."},
+        {"url":"https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/","revision":"NVIDIA technical blog fetched 2026-08-08","locator":"Blackwell fifth-generation Tensor Core discussion","observation":"Native NVFP4 compute is attributed to Blackwell hardware."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"PTX ISA 9.0","locator":"target notes","observation":"The native block-scaled tcgen05 forms are architecture-specific; the ISA statement does not prohibit software conversion elsewhere."}
+      ],
+      "challenge": {"alternative":"Any 4-bit tensor can be reinterpreted losslessly, Hopper has the same native path under another mnemonic, or a particular scheduling choice is universally best.","check":"Compare payload/scale semantics, target tables, and normative task fields, then look for a source-backed universal schedule result.","outcome":"The format and target contracts differ, and no source provides a universal optimization ranking; the page states conditional boundaries only."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c009",
+      "claim": "All twelve primary-source links resolve to their intended official rules, pinned task files, public leaderboard, versioned NVIDIA documents, pinned CUTLASS examples, and tensor-map reference; the 'Query via' label correctly introduces the local retrieval command.",
+      "claim_type": "other",
+      "covers": ["u038", "u039", "u040", "u041", "u042", "u043", "u044", "u045", "u046", "u047", "u048", "u049", "u050"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {"command":"curl -L -sS -o /dev/null -w '%{http_code}' <all twelve current primary-source URLs>","environment":"KernelWiki host, 2026-08-08","reference":"current Primary sources list and final target identities","result":"Every URL returned HTTP 200 and final content matched the named rules, file, API, documentation section, or example.","negative_control":"A nonexistent sibling file in the same pinned nvfp4_gemm GitHub tree returned HTTP 404."}
+      ],
+      "challenge": {"alternative":"A positive response is a soft 404, mutable unrelated page, or wrong commit path.","check":"Inspect final identities and exact commit strings, and compare the same-path invalid control.","outcome":"Pinned paths contain the named source files, vendor documents have the named sections, the API returns ranked JSON, and the invalid sibling is rejected."}
+    },
+    {
+      "claim_id": "kernel-nvfp4-gemm-current-c010",
+      "claim": "The displayed conda-base get_page command retrieves the current page without the detached artifact bundle.",
+      "claim_type": "code",
+      "covers": ["u051"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {"command":"conda run -n base python scripts/get_page.py kernel-nvfp4-gemm","environment":"KernelWiki repository; conda base, 2026-08-08","reference":"current query block and absence of artifact_dir","result":"Exited 0, emitted the current page, and contained no full/ artifact attachment markers or PR-2139 patch name.","negative_control":"The query with a nonexistent page ID exited nonzero."}
+      ],
+      "challenge": {"alternative":"Removing --include-code leaves the command invalid or artifacts still attach implicitly.","check":"Run the exact command and search output for former artifact filenames/section markers.","outcome":"The page resolves and the detached bundle is absent."}
+    }
+  ],
+  "commands": [
+    "re-run the current CPU-only task shape helper and invalid-K control under conda base",
+    "fetch the public leaderboard and compare all six displayed rows field by field",
+    "resolve all twelve primary links with a pinned same-tree 404 control",
+    "run the current get_page command and verify detached artifact names do not appear",
+    "inspect the official task and CUTLASS/NVIDIA source loci used for every current mechanism and compatibility statement"
+  ],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is available locally, so no GPU implementation or contestant performance was reproduced. The leaderboard is explicitly a dated current snapshot, not a cutoff or prize oracle; no contestant source is public through that endpoint.",
+  "scope": "All 51 current units for body hash c5bd73b9a4501849ca7bc91e4a94a7de62cd1bf395495ceb820d6ca9c8465a37 were checked against immutable task/CUTLASS revisions, version-pinned NVIDIA documentation, the dated public API response, and discriminating host controls."
+}

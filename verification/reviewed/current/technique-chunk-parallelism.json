@@ -1,0 +1,132 @@
+{
+  "claims": [
+    {
+      "challenge": {
+        "alternative": "Chunk IDs in one GPU grid execute in increasing order, so every program can update one shared boundary state directly.",
+        "check": "Compare independent program-instance scheduling with the recurrence's ordered boundary dependency.",
+        "outcome": "The programming model supplies no grid order or implicit grid-wide barrier; the page requires an explicit scan or ordered stages and a token-reference oracle."
+      },
+      "claim": "A chunkwise linear recurrence can expose parallel local matrix work only after a model-specific equivalent transform, while boundary states must preserve sequence order through a valid scan or explicitly ordered stages rather than an unordered shared-state grid.",
+      "claim_id": "technique-chunk-parallelism-current-c001",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006", "u007"],
+      "evidence": [
+        {
+          "locator": "Abstract",
+          "observation": "TFLA starts from a chunkwise-parallel formulation of linear RNNs and adds within-chunk sequence parallelism, supporting the separation between local work and recurrent boundary semantics.",
+          "revision": "arXiv:2503.14376v3",
+          "url": "https://arxiv.org/abs/2503.14376v3"
+        },
+        {
+          "locator": "program instances and execution model",
+          "observation": "Triton programs are independent grid instances; the model does not promise increasing program-ID scheduling or an implicit whole-grid synchronization point.",
+          "revision": "Triton language documentation, retrieved 2026-08-09",
+          "url": "https://triton-lang.org/main/programming-guide/chapter-01/introduction.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "GatedDeltaNet chunking is equivalent to a generic softmax-style QK-transpose/V computation with an additive state.",
+        "check": "Inspect the pinned training implementation and recurrence representation.",
+        "outcome": "The repository uses model-specific chunkwise Triton paths and a WY representation of the gated delta rule; the page states that boundary and does not present generic substitute code."
+      },
+      "claim": "The pinned GatedDeltaNet training implementation uses chunkwise Triton kernels and a WY representation, providing direct model-specific evidence but no universal generic-attention formula or chunk-size rule.",
+      "claim_id": "technique-chunk-parallelism-current-c002",
+      "claim_type": "mechanism",
+      "covers": ["u008"],
+      "evidence": [
+        {
+          "locator": "chunkwise training paths and WY preparation",
+          "observation": "The repository implements the gated delta rule with dedicated chunkwise Triton kernels and WY transforms rather than the former additive pseudo-kernel.",
+          "revision": "NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921",
+          "url": "https://github.com/NVlabs/GatedDeltaNet/tree/b53d6d3a161267432a79c1c04af69fa52bddc921"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "TFLA is a recursive Blackwell/GatedDeltaNet implementation whose arbitrary chunks come from TMEM capacity.",
+        "check": "Inspect the paper's stated algorithm, application, repository target, and benchmark scope.",
+        "outcome": "The paper adds one within-chunk sequence-parallel level, applies it to mLSTM, and reports H100 work; the page explicitly excludes the unsupported Blackwell, GDN, TMEM, and recursive claims."
+      },
+      "claim": "TFLA adds an additional within-chunk sequence-parallel level for arbitrarily large chunks and reduced intermediate-state materialization, but its published application/code is mLSTM with H100 evidence rather than GatedDeltaNet or a Blackwell/TMEM implementation.",
+      "claim_id": "technique-chunk-parallelism-current-c003",
+      "claim_type": "compatibility",
+      "covers": ["u009"],
+      "evidence": [
+        {
+          "locator": "Abstract and code link",
+          "observation": "The authors state the arbitrary-chunk, intensity, and materialization contributions, identify mLSTM as the application, and publish corresponding official code and H100 benchmarks.",
+          "revision": "arXiv:2503.14376v3; NX-AI/mlstm_kernels 5b98ff8e2bec189b3d3c249405bab5149564d6f8",
+          "url": "https://arxiv.org/abs/2503.14376v3"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "Qwen3-Next's 3:1 description is approximate, or the same chunkwise backend covers its full-attention layers.",
+        "check": "Expand the pinned 48-layer type pattern and distinguish linear_attention from full_attention entries.",
+        "outcome": "The pattern yields exactly 36 GDN and 12 full-attention layers, and the page assigns chunkwise GDN only to the former."
+      },
+      "claim": "The pinned Qwen3-Next 48-layer configuration contains 36 Gated DeltaNet linear-attention and 12 full-attention layers in a repeated 3:1 pattern, so a chunkwise GDN backend does not replace the full-attention implementation or cache.",
+      "claim_id": "technique-chunk-parallelism-current-c004",
+      "claim_type": "compatibility",
+      "covers": ["u010"],
+      "evidence": [
+        {
+          "locator": "config.json layer_types and num_hidden_layers",
+          "observation": "The immutable configuration repeats three linear_attention entries and one full_attention entry across 48 layers.",
+          "revision": "Qwen3-Next-80B-A3B-Instruct 9c7f2fbe84465e40164a94cc16cd30b6999b0cc7",
+          "url": "https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Instruct/blob/9c7f2fbe84465e40164a94cc16cd30b6999b0cc7/config.json"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "C=32 and C=256-512 are architecture-independent decode/prefill optima, with larger Blackwell TMEM always favoring larger chunks.",
+        "check": "Search the cited algorithms for fixed prescriptions and enumerate correctness, resource, scan, and workload variables changed by chunk size.",
+        "outcome": "The cited sources provide no universal sizes or TMEM rule; the page removes them and defines a controlled multi-shape selection procedure."
+      },
+      "claim": "No cited evidence establishes universal C=32 or C=256-512 optima; supported chunk sizes must be compared under fixed correctness and benchmarking controls across algorithm, resource, tail, scan, and workload costs, and TMEM availability alone predicts neither legality nor speed.",
+      "claim_id": "technique-chunk-parallelism-current-c005",
+      "claim_type": "performance",
+      "covers": ["u011", "u012", "u013", "u014", "u015", "u016", "u017", "u018"],
+      "evidence": [
+        {
+          "locator": "Abstract and implementation scope",
+          "observation": "TFLA claims support for arbitrarily large chunks in its model-specific algorithm but supplies no fixed decode/prefill optimum or Blackwell/TMEM selection rule.",
+          "revision": "arXiv:2503.14376v3",
+          "url": "https://arxiv.org/abs/2503.14376v3"
+        },
+        {
+          "locator": "pinned GDN implementation variants",
+          "observation": "The concrete GDN paths encode model dimensions, layouts, gates, and variable-length handling, demonstrating that these are implementation inputs rather than consequences of architecture name alone.",
+          "revision": "NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921",
+          "url": "https://github.com/NVlabs/GatedDeltaNet/tree/b53d6d3a161267432a79c1c04af69fa52bddc921"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": [
+    "Inspect TFLA v3 and pinned official mLSTM code scope",
+    "Inspect pinned GatedDeltaNet chunkwise/WY paths",
+    "Challenge unordered shared-state pseudocode against Triton's program model",
+    "Expand the immutable Qwen3-Next layer pattern"
+  ],
+  "id": "technique-chunk-parallelism",
+  "page_verdict": "verified",
+  "path": "wiki/techniques/chunk-parallelism.md",
+  "residual_risk": "No GPU was available to benchmark candidate chunk sizes. The page deliberately provides a verification procedure and source-scoped implementation boundaries rather than a tuned size or executable kernel.",
+  "scope": "All 18 current body units, the frontmatter Blackwell claim, sequence-ordering invariant, model/repository scopes, and strongest alternatives were checked against direct versioned sources."
+}

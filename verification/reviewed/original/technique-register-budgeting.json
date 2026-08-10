@@ -1,0 +1,157 @@
+{
+  "claims": [
+    {
+      "claim": "SM occupancy is inversely proportional to registers per thread, higher occupancy is the governing goal for memory-bound kernels, register controls force a budget, and Blackwell TMEM frees about 100 registers per thread.",
+      "claim_id": "technique-register-budgeting-original-c001",
+      "claim_type": "semantics",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "locator": "sections 8.2.3.1 and 10.38",
+          "observation": "Occupancy is calculated from the compiled function, block size, and shared-memory use; register thresholds cause discrete resident-block transitions. Launch bounds guide compiler heuristics rather than imposing an exact register count.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        },
+        {
+          "locator": "epilogue TMEM load path around lines 455-463",
+          "observation": "The pinned SM100 implementation loads completed TMEM values into registers for its epilogue, so TMEM does not eliminate all accumulator-related register demand or establish a fixed saving.",
+          "path": "artifacts/kernels/deepgemm/full/sm100_fp8_gemm_1d1d.cuh",
+          "revision": "DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f, byte-verified",
+          "url": "https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The displayed launch-bounds example forces 32 registers per thread, yields about four 256-thread blocks per SM, and spills if necessary.",
+      "claim_id": "technique-register-budgeting-original-c002",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "evidence": [
+        {
+          "locator": "Launch Bounds, lines 8688-8713",
+          "observation": "The two-argument qualifier supplies a maximum thread count and desired minimum resident blocks. The compiler derives an architecture-dependent upper limit L and may reduce or increase register use; it does not set 32 registers or guarantee residency when another resource limits the launch.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Lowering the register budget has the fixed qualitative consequences shown: spills are bad, recomputation is neutral, and reduced unrolling is bad for compute-bound kernels.",
+      "claim_id": "technique-register-budgeting-original-c003",
+      "claim_type": "performance",
+      "covers": ["u003", "u004", "u005", "u006"],
+      "evidence": [
+        {
+          "locator": "Launch Bounds, lines 8700-8706",
+          "observation": "The documented consequence of forcing usage below the compiler's initial choice is usually more local-memory use and/or more instructions; it does not assign workload-independent good, neutral, or bad labels to individual transformations.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        },
+        {
+          "locator": "Attempts 9-12",
+          "observation": "In the author's kernel, wider loads, extra accumulator chains, higher unrolling, and software pipelining all regressed or had no effect, showing that individual compiler/code-shape changes need a concrete comparison.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Memory-bound kernels can hide spill traffic behind memory latency, so aggressive register budgeting often wins.",
+      "claim_id": "technique-register-budgeting-original-c004",
+      "claim_type": "performance",
+      "covers": ["u007"],
+      "evidence": [
+        {
+          "locator": "--resource-usage and launch-bounds descriptions",
+          "observation": "Spill stores and loads are stack/local-memory traffic, and the compiler guide describes register limits as a tradeoff rather than a generally winning policy.",
+          "revision": "CUDA Compiler Driver 13.0.2",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-compiler-driver-nvcc/index.html"
+        },
+        {
+          "locator": "Attempts 10-12",
+          "observation": "This memory-bound B200 kernel regressed when register pressure caused spills, and reducing maxrregcount from 80 to 64 had no effect because the natural allocation was already below the cap.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "GPU Mode rank 1 used 32 registers at exactly 18.5 microseconds and rank 3 used 45 registers at about 20 microseconds.",
+      "claim_id": "technique-register-budgeting-original-c005",
+      "claim_type": "performance",
+      "covers": ["u008", "u009"],
+      "evidence": [
+        {
+          "locator": "What the Top Solutions Did Differently",
+          "observation": "The author says all three inspected solutions clustered around an 18.5 microsecond geometric mean and separately reports caps of 32 for rank 1 and 45 for rank 3. The source does not assign the table's exact 18.5 and approximately 20 microsecond values to those two rows or publish controlled runs.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The difference between the 32- and 45-register solutions proves that occupancy dominates NVFP4 GEMV performance.",
+      "claim_id": "technique-register-budgeting-original-c006",
+      "claim_type": "performance",
+      "covers": ["u010"],
+      "evidence": [
+        {
+          "locator": "What the Top Solutions Did Differently",
+          "observation": "The compared solutions also differed in PTX decode, cache policy, load width, exact-K specialization, and reuse. No one-variable register-cap or occupancy ablation is provided.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        },
+        {
+          "locator": "Attempt 11",
+          "observation": "The author's own cap change from 80 to 64 produced no effect, directly demonstrating that a nominal cap does not identify the compiled register count or isolate occupancy.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Occupancy-first register budgeting should be used for memory-bound, inner-loop-pressure, and sub-byte kernels, but not for compute-bound GEMM or kernels whose spills serialize.",
+      "claim_id": "technique-register-budgeting-original-c007",
+      "claim_type": "performance",
+      "covers": ["u011", "u012", "u013", "u014", "u015"],
+      "evidence": [
+        {
+          "locator": "sections 8.2.3.1 and 10.38",
+          "observation": "CUDA exposes occupancy prediction and compiler constraints but does not prescribe these categories; optimal launch bounds require detailed per-kernel analysis and generally differ across architecture revisions.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        },
+        {
+          "locator": "Attempts 10-12 and Takeaways",
+          "observation": "Even within one memory-bound sub-byte kernel, only measurements of natural register use, spills, and variants discriminated useful from ineffective or harmful changes.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    }
+  ],
+  "commands": [
+    "Inspect CUDA 13.0 launch-bounds, occupancy, maxrregcount, spill, and resource-usage contracts",
+    "Compare the author-reported NVFP4 observations and failed attempts",
+    "Inspect the pinned SM100 DeepGEMM TMEM epilogue path"
+  ],
+  "id": "technique-register-budgeting",
+  "page_verdict": "refuted",
+  "path": "wiki/techniques/register-budgeting.md",
+  "residual_risk": "No B200 compiler or profiler run was available. Exact cap effects and performance remain compiler-, kernel-, launch-, and workload-specific.",
+  "scope": "All 15 baseline body units plus the frontmatter TMEM/register claim were checked against archived NVIDIA documentation, the cited author's report, and a pinned SM100 implementation."
+}

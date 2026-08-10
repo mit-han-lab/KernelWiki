@@ -1,0 +1,176 @@
+{
+  "claims": [
+    {
+      "challenge": {
+        "alternative": "Registers alone determine occupancy, so an inverse rule is sufficient.",
+        "check": "Compare the occupancy API inputs and launch-bounds threshold behavior with the page's resource model.",
+        "outcome": "The official API consumes a compiled function, block size, and dynamic shared memory, while the guide describes discrete resident-block thresholds; the page states both limits and avoids a performance guarantee."
+      },
+      "claim": "Register use is one of several discrete residency constraints, and CUDA's occupancy API predicts active blocks for the compiled function and concrete launch inputs without predicting performance.",
+      "claim_id": "technique-register-budgeting-current-c001",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002"],
+      "evidence": [
+        {
+          "locator": "section 8.2.3.1",
+          "observation": "The guide defines active-block occupancy calculation from a kernel, block size, and shared-memory usage, and separately describes register thresholds between n and n+1 resident blocks.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        },
+        {
+          "locator": "cudaOccupancyMaxActiveBlocksPerMultiprocessor",
+          "observation": "The runtime contract returns maximum active blocks per SM for a function, block size, and dynamic shared-memory size.",
+          "revision": "CUDA Runtime API 13.0.2",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-runtime-api/group__CUDART__OCCUPANCY.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The second launch-bounds argument forces that many blocks and therefore fixes the register count.",
+        "check": "Trace the compiler's documented derivation and both above-L and below-L cases.",
+        "outcome": "The compiler derives L, can reduce use with spill/instruction costs, and can increase use up to L; the page's table and prose preserve those exact limits."
+      },
+      "claim": "maxrregcount is a maximum subject to ABI/compiler constraints, two-argument launch bounds guide an architecture-dependent limit rather than exact residency, resource-usage reports compiled resources, and the occupancy API does not measure runtime performance.",
+      "claim_id": "technique-register-budgeting-current-c002",
+      "claim_type": "mechanism",
+      "covers": ["u003", "u004", "u005", "u006", "u007"],
+      "evidence": [
+        {
+          "locator": "--maxrregcount and --resource-usage",
+          "observation": "The driver documents the maximum, ABI bump, compiler-reserved registers, tradeoff, and the exact resource report contents.",
+          "revision": "CUDA Compiler Driver 13.0.2",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-compiler-driver-nvcc/index.html"
+        },
+        {
+          "locator": "Launch Bounds, lines 8688-8713",
+          "observation": "The guide defines L and both compiler response branches, and says the optimal values require per-kernel analysis and usually change across architectures.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "A cap sweep can be interpreted from timings alone without recording compiler output or controlling correctness and launch inputs.",
+        "check": "Test whether a nominal cap necessarily changes the compiled allocation and whether occupancy APIs accept source-level categories.",
+        "outcome": "The compiler may naturally use fewer registers than the cap, while the API requires the concrete function and launch; the workflow records and discriminates both before attribution."
+      },
+      "claim": "The shown nvcc commands validly compile an uncapped and 64-register-cap SM100a variant with resource reports, and the five-step procedure controls the evidence needed to attribute a cap effect.",
+      "claim_id": "technique-register-budgeting-current-c003",
+      "claim_type": "code",
+      "covers": ["u008", "u009", "u010", "u011", "u012", "u013", "u014", "u015"],
+      "evidence": [
+        {
+          "locator": "--gpu-architecture, --maxrregcount and --resource-usage",
+          "observation": "The archived driver documents sm_100a as a target and the exact long-form options used by the two commands.",
+          "revision": "CUDA Compiler Driver 13.0.2",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-compiler-driver-nvcc/index.html"
+        },
+        {
+          "locator": "Occupancy Calculator",
+          "observation": "The official procedure queries the compiled function with block size and dynamic shared-memory bytes and converts returned blocks to active warps.",
+          "revision": "CUDA C++ Programming Guide 13.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.0/cuda-c-programming-guide/index.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "A memory-bound kernel can always hide spills, and any lower cap should increase occupancy.",
+        "check": "Inspect spill representation and a cap that remains above natural allocation.",
+        "outcome": "The compiler reports spills as stack/local-memory operations, and the cited author's 80-to-64 change had no effect because the allocation was already below 64; the page states both negative controls."
+      },
+      "claim": "Spills add local-memory instructions and traffic, while a lower maxrregcount value can be inert when natural use is below the cap; neither a memory-bound label nor a nominal cap determines the outcome.",
+      "claim_id": "technique-register-budgeting-current-c004",
+      "claim_type": "performance",
+      "covers": ["u016"],
+      "evidence": [
+        {
+          "locator": "Printing Code Generation Statistics",
+          "observation": "The driver identifies spill stores/loads and stack frame as per-thread stack/local-memory resource use.",
+          "revision": "CUDA Compiler Driver 13.0.2",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-compiler-driver-nvcc/index.html"
+        },
+        {
+          "locator": "Attempts 10-12",
+          "observation": "The author's memory-bound kernel regressed with spill-inducing pressure and saw no change from a cap that remained above natural use.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "TMEM eliminates accumulator register pressure and yields a fixed per-thread saving.",
+        "check": "Trace D residence, epilogue transfer, and a concrete SM90 accumulator fragment.",
+        "outcome": "PTX puts tcgen05 D in TMEM, the pinned SM100 epilogue loads it to registers, and the 128-register comparison belongs to one m64n256 FP32 WGMMA shape; the page keeps that scope."
+      },
+      "claim": "tcgen05 stores its resident D accumulator in TMEM, but epilogue batches and other kernel state still need registers; 128 registers per thread is a shape-specific SM90 m64n256 FP32 D example rather than a universal Blackwell saving.",
+      "claim_id": "technique-register-budgeting-current-c005",
+      "claim_type": "compatibility",
+      "covers": ["u017", "u018"],
+      "evidence": [
+        {
+          "locator": "tcgen05.mma and Tensor Memory",
+          "observation": "The ISA defines D as a TMEM address and tcgen05.ld as the transfer from TMEM to registers.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+        },
+        {
+          "locator": "epilogue path around lines 455-463",
+          "observation": "The pinned kernel loads Tensor Memory into registers before storing through shared memory.",
+          "revision": "DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f",
+          "url": "https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh"
+        },
+        {
+          "locator": "SM90 m64n256k16 FP32 WGMMA wrapper accumulator operand list",
+          "observation": "The wrapper exposes 128 float D registers per participating thread for this exact N=256 shape.",
+          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/arch/mma_sm90_gmma.hpp"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The reported 32 and 45 caps establish a causal ranking and a general memory-bound policy.",
+        "check": "List co-varying mechanisms and inspect the author's own cap experiment.",
+        "outcome": "The report lists PTX, cache, load-width, specialization, and reuse differences and supplies no cap ablation; its own above-natural cap change had no effect. The page explicitly limits the observation."
+      },
+      "claim": "The author reported three top NVFP4 GEMV solutions around an 18.5 microsecond aggregate and caps of 32 and 45 in ranks 1 and 3, but the confounded implementations and missing ablation do not prove a causal register-cap or occupancy ordering.",
+      "claim_id": "technique-register-budgeting-current-c006",
+      "claim_type": "performance",
+      "covers": ["u019", "u020"],
+      "evidence": [
+        {
+          "locator": "What the Top Solutions Did Differently and Attempt 11",
+          "observation": "The author reports the aggregate cluster and caps, enumerates multiple other differences, and reports a no-effect maxrregcount experiment in the author's own implementation.",
+          "revision": "retrieved 2026-08-08",
+          "url": "https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": [
+    "Inspect archived CUDA 13 compiler, programming-guide, runtime, and PTX contracts",
+    "Inspect pinned SM100 DeepGEMM and CUTLASS 4.5.0 register-residence examples",
+    "Challenge the cited NVFP4 observation with its co-varying mechanisms and no-effect cap experiment"
+  ],
+  "id": "technique-register-budgeting",
+  "page_verdict": "verified",
+  "path": "wiki/techniques/register-budgeting.md",
+  "residual_risk": "The commands were syntax-verified against archived documentation but not executed because this environment has no CUDA toolkit or GPU. Cap performance remains target-, compiler-, kernel-, and workload-specific by design.",
+  "scope": "All 20 current body units, the revised frontmatter claim, command syntax, causal limits, and the cited performance observation were checked against direct versioned sources."
+}

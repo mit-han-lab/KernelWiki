@@ -1,0 +1,90 @@
+{
+  "path": "wiki/kernels/fp8-block-scale-gemm.md",
+  "id": "kernel-fp8-block-scale-gemm",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c001",
+      "claim": "DeepSeek-V3 forward FP8 training uses 1x128 activation tiles and 128x128 weight blocks to adapt scales to local outliers, while other phases include exceptions such as 128x1 activation grouping.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u005"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"Sections 3.3.2 and Appendix B.2","observation":"The paper gives the exact forward groupings and outlier motivation, then explicitly distinguishes backward activation grouping and other higher-precision policies."}],
+      "challenge": {"alternative":"The 128x128 grouping is universal for every activation/weight/gradient and model phase.","check":"Compare forward quantization prose with backward exceptions and sensitivity ablations.","outcome":"The paper preserves 1x128 forward activations but changes/restricts other cases, matching the page's logical-format and non-universality boundary."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c002",
+      "claim": "DeepGEMM commit 891d57b4 implements related FP8 GEMMs on SM90 and SM100 with architecture-specific scale handling.",
+      "claim_type": "compatibility",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Introduction, requirements, and scale-factor notice","observation":"The project supports SM90/SM100 FP8 GEMMs and explicitly requires FP32 scale factors on SM90 versus packed UE8M0 on SM100."}],
+      "challenge": {"alternative":"The repository's current mixed FP8/FP4 scope makes the pinned FP8 paths obsolete or architecture-neutral.","check":"Inspect exact SM90/SM100 FP8 source inclusions and API dispatch at the pinned commit.","outcome":"Distinct 1D1D implementations remain selected by architecture and encode different scale paths, so the page's pinned split is current for that revision."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c003",
+      "claim": "For A[M,K] times B[N,K]^T under the DeepSeek-V3 forward recipe, logical activation-scale shape is [M,K/128] and logical weight-scale shape is [N/128,K/128]; the displayed derived check enforces divisibility and computes the 4096 example correctly without claiming an implementation layout.",
+      "claim_type": "code",
+      "covers": ["u003", "u004"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python <displayed deepseek_v3_scale_shapes function and assertion>","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"wiki/kernels/fp8-block-scale-gemm.md and DeepSeek-V3 report Section 3.3.2","result":"The 4096-cubed example returns ((4096,32),(32,32)) and exits 0.","negative_control":"Changing N to 4095 triggers the divisibility assertion."}],
+      "challenge": {"alternative":"The example accidentally describes DeepGEMM's physical packed/TMA layout rather than only logical scale groups.","check":"Compare the function's returned ranks with the repository's transformed layouts and its own explicit prose disclaimer.","outcome":"The function only divides logical dimensions and the page says transformed layouts are excluded; the negative control discriminates the stated 128 grouping."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c004",
+      "claim": "Pinned SM90 1D1D requires FP32 factors and BLOCK_K=128, performs WGMMA partial accumulation, then scale-multiplies/adds into FP32 final_accum on CUDA cores; the paper equates the 128-element interval to four WGMMAs and describes the limiting additions as 14-bit precision.",
+      "claim_type": "code",
+      "covers": ["u006", "u007"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4","locator":"BLOCK_K assertion and math warp-group loop","observation":"The implementation declares float accum/final_accum, issues BLOCK_K/WGMMA::K operations, and then executes final_accum += scale_a*scale_b*accum."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"summary of DeepSeek-V3 report v2","locator":"Hopper Accumulation","observation":"The primary-paper capture records four WGMMAs per 128 elements and the 14-bit precision characterization."}],
+      "challenge": {"alternative":"Scale application is fused into WGMMA or occurs only once in the epilogue, and the paper's interval counts instructions.","check":"Trace one k_block iteration and compare it with the paper's explicit parenthetical equivalence.","outcome":"Scales are loaded per K block and combined after WGMMA completion; the paper says 128 elements equals four WGMMAs, ruling out both alternatives."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c005",
+      "claim": "Pinned SM100 uses packed four-per-int32 UE8M0 factors, TMA/UTCCP scale movement into TMEM, a block-scaled UMMA descriptor, and TMEM accumulation rather than the SM90 CUDA-core promotion loop; selected SM100 recipes include K granularities 32 and 128.",
+      "claim_type": "code",
+      "covers": ["u008", "u009", "u010"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scale-factor notice","observation":"SM100 requires packed UE8M0 with four values per torch.int."},{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"same commit","locator":"TMA scale loads, UTCCP copies, make_instr_desc_block_scaled, and MMA loop","observation":"The exact dataflow moves factors to TMEM and selects float_ue8m0_t block-scaled UMMA; no SM90-style final_accum loop is present."},{"path":"/tmp/kernelwiki-deepgemm-pinned/tests/generators.py","revision":"same commit","locator":"gran_k_list for architecture 10","observation":"SM100 generator coverage includes gran_k 32 and 128, whereas SM90 uses 128."}],
+      "challenge": {"alternative":"Packed UE8M0 is merely an external storage optimization and the MMA still receives ordinary FP8 E4M3 scale values after unpacking.","check":"Follow scale type from API requirement through TMEM copy to the instruction descriptor template.","outcome":"The descriptor's scale type is cutlass::float_ue8m0_t and the hardware block-scaled operation consumes its descriptors; E4M3 is the matrix-element type, not the scale type."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c006",
+      "claim": "The only retained numeric performance observation is DeepGEMM's source-reported up-to 1550 TFLOPS on H800, explicitly missing shape/utilization/timing statistics and unreproduced; CUTLASS availability is not presented as a matched comparison.",
+      "claim_type": "performance",
+      "covers": ["u011", "u012"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The page transcribes exactly the stated GPU and maximum while its caveat enumerates the fields absent from that sentence."},{"path":"sources/docs/cutlass-changelog-sm100.md","revision":"release capture through 4.5.0","locator":"blockscaled GEMM entries","observation":"CUTLASS availability is documented, but no matched CUTLASS/DeepGEMM comparison is present, agreeing with the page's refusal to rank them."}],
+      "challenge": {"alternative":"A shape and utilization can be recovered from linked optimization changes or theoretical peak and safely structured.","check":"Require one primary benchmark cell containing workload, environment, timing, samples, and metric conventions.","outcome":"No such cell is attached to the README maximum, so the qualified prose and empty structured list are the strongest supported form."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c007",
+      "claim": "The selection checklist correctly requires exact scale grouping/representation/layout/architecture matching, includes preprocessing and epilogue costs, and calls for numerical comparison on the real data distribution.",
+      "claim_type": "compatibility",
+      "covers": ["u013", "u014", "u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"interface notices and user-managed casting/layout warning","observation":"The README distinguishes scale ABIs and says transposition/FP8 casting are separate user responsibilities whose simple utilities may be slower."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"DeepSeek-V3 report v2 capture","locator":"Fine-Grained Quantization and Hopper Accumulation","observation":"The model source motivates group-specific numerical validation and documents scale/precision overheads and exceptions."}],
+      "challenge": {"alternative":"Matching FP8 dtype and peak GEMM throughput is enough to select the kernel.","check":"Enumerate API assertions and all work outside the GEMM call that affects compatibility, accuracy, and end-to-end time.","outcome":"Scale dtype/layout and recipe dispatch are hard requirements; casting/layout transforms and distribution-sensitive quantization error remain outside a bare throughput number."}
+    },
+    {
+      "claim_id": "kernel-fp8-block-scale-gemm-current-c008",
+      "claim": "The source list points to the exact DeepSeek-V3 v2 FP8 report, audited DeepGEMM commit 891d57b4, and official NVIDIA PTX ISA, with each used only at its proper model, implementation, or instruction-contract scope.",
+      "claim_type": "other",
+      "covers": ["u018", "u019", "u020"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/html/2412.19437v2","revision":"DeepSeek-V3 report v2","locator":"FP8 Training","observation":"Model-level grouping/numerical source."},{"url":"https://github.com/deepseek-ai/DeepGEMM/tree/891d57b4db1071624b5c8fa0d1e51cb317fa709f","revision":"commit 891d57b4","locator":"repository tree","observation":"Exact implementation snapshot."},{"url":"https://docs.nvidia.com/cuda/parallel-thread-execution/","revision":"official PTX ISA, consulted 2026-08-08","locator":"tcgen05.mma and alternate floating-point formats","observation":"Authoritative version-sensitive instruction and UE8M0 contract."}],
+      "challenge": {"alternative":"The paper can define exact current PTX syntax or the PTX manual can establish DeepGEMM's implementation choices.","check":"Map each page claim to its cited layer and inspect whether any behavior is transferred across sources.","outcome":"Model format comes from the paper, source dataflow from the pinned repository, and instruction caution from PTX; the page avoids cross-layer inference."}
+    }
+  ],
+  "commands": ["inspect DeepGEMM commit 891d57b4 README, SM90/SM100 kernels, PTX wrappers, and test recipes", "inspect DeepSeek-V3 Technical Report v2", "execute the displayed logical-shape check and a failing divisibility negative control", "conda run -n base python scripts/validate.py"],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is installed, so kernel correctness, numerical error, and the H800 maximum were not reproduced. PTX behavior is described at contract level and exact assembly remains toolkit/version-sensitive.",
+  "scope": "All 20 current units for body hash 5c0369ba45f1bfcc220967e83d4765f7e8b56908a310a1bf0356e9bb2c996e70 were checked against the pinned implementation, primary paper, official PTX source, and a discriminating host check."
+}

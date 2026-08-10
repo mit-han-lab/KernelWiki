@@ -1,0 +1,87 @@
+{
+  "path": "wiki/languages/cuda-cpp.md",
+  "id": "lang-cuda-cpp",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "lang-cuda-cpp-original-c001",
+      "claim": "Gau Nernst's hand-written CUDA C++ and inline-PTX tutorial reports 1475.93 TFLOP/s for its final 4096-cubed B200 kernel versus 1506.74 TFLOP/s for its PyTorch 2.9.1/CUDA 13 cuBLAS baseline, which rounds to 98 percent.",
+      "claim_type": "performance",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/README.md","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"benchmark table and environment","observation":"The pinned author source gives M=N=K=4096, Modal B200, PyTorch 2.9.1/CUDA 13, cuBLAS 1506.74, and v6 1475.93 TFLOP/s. A conda-base ratio check produced 97.955 percent and rejected a broken 1600-TFLOP/s baseline."}],
+      "challenge": {"alternative":"The 98 percent compares with theoretical peak or another shape/environment.","check":"Use the exact cuBLAS and v6 rows and disclosed shape/software.","outcome":"The ratio rounds to 98 only against the stated same-table cuBLAS row; the claim is source-reported for that setup."}
+    },
+    {
+      "claim_id": "lang-cuda-cpp-original-c002",
+      "claim": "The displayed tmem_alloc_cta helper correctly issues tcgen05.alloc from thread 0 alone.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"cta_group::1 issue granularity","observation":"Allocation is warp-collective: all threads of one warp must execute the same sync.aligned instruction, and lane-0-only execution is undefined."},{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b","locator":"TMEM allocation branch","observation":"The pinned author code executes alloc in every lane of warp 1, not thread 0."}]
+    },
+    {
+      "claim_id": "lang-cuda-cpp-original-c003",
+      "claim": "The displayed tcgen05_mma helper supplies two immediate descriptors for accumulator C and output D as the final two operands of an unscaled f16 MMA.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/common.h","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"tcgen05_mma_f16","observation":"The real wrapper takes one instruction descriptor and an enable-input-D integer, converts the latter to a local predicate, then passes idesc and predicate as the final operands."},{"path":"/tmp/kernelwiki-ptx-1302.html","revision":"CUDA 13.0.2, PTX ISA 9.0 fetched 2026-08-08","locator":"tcgen05.mma unscaled f16 grammar","observation":"The required final operands are idesc and enable-input-D predicate, optionally preceded by a lane-disable vector; there are no C/D immediate descriptors."}]
+    },
+    {
+      "claim_id": "lang-cuda-cpp-original-c004",
+      "claim": "The literal alloc, 32x32b.x1 load, and dealloc instruction spellings are legal PTX ISA 9.0 forms when issued with their required collective and completion context.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation and deallocation grammar","observation":"The exact shared b32 allocation and taddr deallocation forms match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"32x32b repetition table","observation":"32x32b.x1.b32 is legal and produces one 32-bit register per participating thread."}],
+      "challenge": {"alternative":"The text strings themselves are fabricated even though wrapper participation is wrong.","check":"Separate instruction grammar from CUDA control flow and compare exact qualifiers.","outcome":"The instruction strings are valid; the allocation wrapper is wrong because of how it predicates them."}
+    },
+    {
+      "claim_id": "lang-cuda-cpp-original-c005",
+      "claim": "The two mbarrier instructions have valid default release-CTA arrive-expect-tx and acquire-CTA parity-wait semantics for a correctly initialized CTA-shared barrier and phase.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-arrive","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"arrive.expect_tx grammar and default semantics/scope","observation":"Absent qualifiers default to release and CTA; expect_tx adds byte count and performs one arrival."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait","revision":"same archive","locator":"try_wait.parity grammar and defaults","observation":"Absent qualifiers default to acquire and CTA; parity must track the current or immediately preceding phase."}],
+      "challenge": {"alternative":"The omitted semantic/scope qualifiers make both instructions relaxed or system-scoped.","check":"Read the documented defaults for each grammar.","outcome":"The defaults are release/acquire at CTA scope as required for a CTA-local stage."}
+    },
+    {
+      "claim_id": "lang-cuda-cpp-original-c006",
+      "claim": "The two inline helpers alone are a safe complete TMA-to-MMA synchronization implementation.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/inline-ptx-assembly/index.html#incorrect-optimization","revision":"CUDA 13.0.2 Inline PTX guide","locator":"volatile and memory clobber pitfall","observation":"Hidden memory effects or a need to stop compiler memory motion require a memory clobber; neither helper declares one."},{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b","locator":"barrier initialization and staged pipeline","observation":"The complete source initializes every barrier, publishes initialization to the async proxy, tracks separate TMA/MMA/mainloop/epilogue phases, and uses paired full/empty handoffs; the page shows none of that lifecycle."}]
+    },
+    {
+      "claim_id": "lang-cuda-cpp-original-c007",
+      "claim": "The warp-role skeleton matches the tutorial's final source: warp 0 elects one TMA issuer, CTA 0 warp 1 elects one MMA issuer, and warps 2-5 collectively drain TMEM in the epilogue.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_WARPS and role branches around lines 227-297","observation":"The source declares one TMA warp, one MMA warp, four epilogue warps and uses elected single issuers for TMA/MMA while all epilogue lanes participate in TMEM loads."}],
+      "challenge": {"alternative":"Every lane in the TMA/MMA warps issues or the epilogue is lane-0-only.","check":"Inspect elect_sync predicates and warp-range branches.","outcome":"Only elected threads issue TMA/MMA; all warps at IDs 2 and above enter the epilogue path."}
+    },
+    {
+      "claim_id": "lang-cuda-cpp-original-c008",
+      "claim": "The two related links resolve to the local PTX language page and evidence-scoped tcgen05 tutorial source card.",
+      "claim_type": "other",
+      "covers": ["u005", "u006"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"test -f wiki/languages/ptx-sm100.md && test -f sources/blogs/tcgen05-tutorial.md","environment":"current KernelWiki worktree","reference":"Resolve links from wiki/languages and inspect IDs.","result":"Both targets exist with IDs lang-ptx and blog-tcgen05-tutorial.","negative_control":"wiki/languages/not-cuda.md does not exist."}],
+      "challenge": {"alternative":"The ../../ source path escapes to a missing or unrelated file.","check":"Resolve it from wiki/languages and inspect frontmatter.","outcome":"It lands on the intended tutorial card; the broken local control fails."}
+    }
+  ],
+  "commands": ["conda run -n base python -c '<1475.93/1506.74 ratio with broken baseline control>'", "local related-link resolution"],
+  "scope": "All six baseline units for body hash 7a58194cb413f25af6db71a4e0d90828273f461ee66232063fb6e6a96176d836 were checked against PTX ISA 9.0, CUDA 13.0.2 inline-PTX rules, Gau Nernst's pinned commit 3b90ac9b, and host controls.",
+  "residual_risk": "No CUDA toolkit or B200 is installed locally. The author benchmark is verified as faithful source reporting, not independently reproduced performance."
+}

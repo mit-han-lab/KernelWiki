@@ -1,0 +1,263 @@
+{
+  "path": "wiki/migration/register-to-tmem.md",
+  "id": "migration-register-to-tmem",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "migration-register-to-tmem-original-c001",
+      "claim": "For Hopper wgmma.mma_async.m64n256k16 with an f32 accumulator, each of the 128 warpgroup threads holds N/2 = 128 f32 accumulator registers; high per-thread register use can constrain occupancy.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"m64nNk16 accumulator D fragment table","observation":"The f32 accumulator is N/2 registers per thread, hence 128 when N=256."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/hopper-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Hopper Tuning Guide","locator":"occupancy limits","observation":"The guide identifies register usage as one factor limiting active blocks/warps."}],
+      "challenge": {"alternative":"The 128 values are distributed across the whole warpgroup rather than held by every thread.","check":"Read the fragment table's per-thread vector expression and substitute N=256.","outcome":"The table explicitly describes each thread's fragment as N/2 f32 registers."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c002",
+      "claim": "On sm_100a, tcgen05 MMA writes D in Tensor Memory, whose CTA-visible structure is 128 lanes by 512 columns of 32-bit cells (256 KiB total addressable structure).",
+      "claim_type": "mechanism",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"Tensor Memory organization and tcgen05 MMA D operand","observation":"The ISA defines 512 columns, 128 rows/lanes, 32-bit cells and TMEM destination addresses for D."}],
+      "challenge": {"alternative":"TMEM is merely a name for accumulator registers or has 512 bytes rather than columns.","check":"Inspect the address-space organization and MMA destination operand type.","outcome":"It is a distinct dynamically allocated space and column allocation covers all 128 lanes."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c003",
+      "claim": "Putting the resident MMA accumulator in TMEM eliminates accumulator register pressure entirely and necessarily frees the full register file for epilogues, enables larger tiles, and removes registers as an occupancy bottleneck.",
+      "claim_type": "performance",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"occupancy limits","observation":"Blackwell still has a 64K-register file and 255-register per-thread limit; all nonresident accumulator fragments, addresses, loop state, and epilogue batches still consume registers. Occupancy remains resource- and launch-specific."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c004",
+      "claim": "An SM90 SM has 65,536 32-bit registers (256 KiB).",
+      "claim_type": "compatibility",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/hopper-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Hopper Tuning Guide","locator":"Streaming Multiprocessor occupancy bullets","observation":"The official guide states 64K 32-bit registers per SM; multiplying by four bytes gives 256 KiB."}],
+      "challenge": {"alternative":"64K denotes bytes or registers per processing block.","check":"Read the unit and scope in the occupancy bullet.","outcome":"It explicitly says 32-bit registers per SM."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c005",
+      "claim": "The detailed 174-register Hopper budget and its conclusion of exactly two warpgroups/equivalently two CTAs per SM are generally valid for m64n256k16 BF16.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"A and D register fragment tables","observation":"The register-A BF16 fragment is four f16x2 registers, not the claimed 16; only the 128-register f32 D count is ISA-defined."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy calculation","observation":"Active blocks depend on block size, allocated registers, shared memory, barriers, and allocation granularity; a warpgroup is not inherently one CTA."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c006",
+      "claim": "Changing the example to k32 and double-buffering necessarily yields 300 registers per thread, 38,400 per warpgroup, and exactly one CTA per SM.",
+      "claim_type": "code",
+      "covers": ["u005", "u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/hopper-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Hopper Tuning Guide","locator":"maximum registers per thread and occupancy","observation":"The architectural maximum is 255 registers per thread, and actual allocation/spilling is compiler- and kernel-specific."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"PTX ISA 9.0","locator":"D fragment table","observation":"Accumulator register count depends on N and dtype, not K; double buffering is an implementation choice rather than an m64n256k32 consequence."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c007",
+      "claim": "Compiler register spills use per-thread local memory, which resides in device memory and may be cached in L2 and, depending on architecture, L1; spills can materially hurt performance.",
+      "claim_type": "mechanism",
+      "covers": ["u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#local-memory","revision":"CUDA 13.0.2 Programming Guide","locator":"Local Memory","observation":"Automatic variables may be placed in local memory, which is off-chip device memory and follows documented cache behavior; the guide warns that access is expensive."}],
+      "challenge": {"alternative":"Local memory means on-chip storage private to the thread and therefore register-speed.","check":"Inspect the programming guide's physical placement and caching description.","outcome":"Local is a scope/name, not on-chip placement; accesses use device-memory paths."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c008",
+      "claim": "Register, L1-local, and L2-spill accesses universally cost about 4, 30, and 200 cycles, so each spilled accumulator adds exactly 200 times K_tiles cycles.",
+      "claim_type": "code",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-best-practices-guide/index.html#local-memory","revision":"CUDA 13.0.2 Best Practices Guide","locator":"Local memory performance","observation":"Official guidance does not define these fixed latencies; caching, dependencies, coalescing, occupancy, compiler placement, and overlap determine cost. One spill access does not imply a serialized 200-cycle addition per K tile."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c009",
+      "claim": "The 29-register Blackwell budget, 7,424-register CTA total, eight-CTA register limit, two-CTA TMEM limit, and categorical TMEM-bound occupancy conclusion are generally valid for m128n256k16.",
+      "claim_type": "code",
+      "covers": ["u009", "u010"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"occupancy limits","observation":"The guide requires occupancy calculation from actual block size, compiled register allocation, shared memory, cluster shape and other resources; none of the page's per-thread category counts are architectural constants."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory-allocation","revision":"PTX ISA 9.0","locator":"dynamic column allocation","observation":"TMEM allocations are dynamic in power-of-two column units; the ISA does not derive the page's universal CTA residency limit from an MMA N dimension."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c010",
+      "claim": "The Hopper pseudocode captures the central register lifecycle: an f32 m64n256 accumulator is a 128-register fragment per thread, wgmma updates register D asynchronously, commit/wait completes a group, and the registers are then directly available to the issuing threads.",
+      "claim_type": "code",
+      "covers": ["u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"wgmma register fragments, mma_async, commit_group, and wait_group","observation":"The page's high-level register-D lifecycle and 128-register count agree, although helper names are explicitly pseudocode."}],
+      "challenge": {"alternative":"wgmma writes D to shared memory or TMEM and only later transfers it to registers.","check":"Inspect the D operand class and fragment table.","outcome":"D is an explicit per-thread register vector in the wgmma instruction."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c011",
+      "claim": "The Hopper pseudocode proves its arrays remain in registers and that no registers remain for epilogue temporaries.",
+      "claim_type": "code",
+      "covers": ["u011"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#local-memory","revision":"CUDA 13.0.2 Programming Guide","locator":"automatic arrays and local memory","observation":"A C++ array's placement is compiler-dependent; dynamic indexing or pressure can place it in local memory. Register headroom also depends on the compiled kernel, not the illustrative tally."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c012",
+      "claim": "The displayed Blackwell CUDA/PTX block is a correct accumulator lifecycle: lane 0 allocates/deallocates, 32x1b stores/loads initialize/read f32, a literal enables input D, no completion is needed, and a fence plus syncthreads makes results readable.",
+      "claim_type": "code",
+      "covers": ["u012"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"alloc/dealloc issue granularity","observation":"cta_group::1 allocation and deallocation require all lanes of one warp, not lane 0."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"ld/st shape grammar and completion","observation":"The displayed 32x1b forms are not legal; ld/st are warp-collective asynchronous operations with matching waits."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"same archive","locator":"f16 grammar, predicate and completion semantics","observation":"enable-input-D is a predicate, and MMA completion must be tracked before readers/reuse; fence is ordering, not completion."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c013",
+      "claim": "With TMEM, tile size is no longer constrained by registers; Hopper m128n256 necessarily spills, while Blackwell m128n256/m128n512/m256n256 have the stated universal fit and occupancy properties.",
+      "claim_type": "code",
+      "covers": ["u013", "u014"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"occupancy resources","observation":"Registers remain a kernel resource and practical tile choice depends on all resources and measured workload behavior."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"PTX ISA 9.0","locator":"supported matrix shapes","observation":"The common single instruction has N up to 256; an m128n512 output would require an implementation decomposition, not the claimed one-instruction fit."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c014",
+      "claim": "A Blackwell epilogue has the full register file available, and the displayed rich epilogue necessarily uses about 24 temporaries without spilling whereas the Hopper equivalent often spills.",
+      "claim_type": "code",
+      "covers": ["u015", "u016"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"register limits","observation":"Blackwell has 64K registers/SM and a 255-register/thread limit shared by all live variables; TMEM residency reduces one source of pressure but does not reserve the full file for an epilogue or prove allocation/spilling for pseudocode."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c015",
+      "claim": "Overlapping one tile's epilogue with another tile's MMA is impossible with register accumulators, and the two-allocation sketch is a complete safe tcgen05 overlap protocol.",
+      "claim_type": "code",
+      "covers": ["u017", "u018"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2407.08608","revision":"FlashAttention-3 paper, arXiv 2407.08608","locator":"Hopper asynchrony and warp-specialization contributions","observation":"FA3 overlaps Hopper tensor-core work with non-matmul work via warp specialization/interleaving despite register accumulators, disproving impossibility."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"PTX ISA 9.0","locator":"commit, waits, lifetimes, and allocation rules","observation":"Safe overlap requires explicit completion and no conflicting read/write/reuse; the sketch's opaque fence_and_sync and helper calls do not establish those edges."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c016",
+      "claim": "FlashAttention-4 is a concrete Blackwell case using TMEM-resident score/output accumulators and scheduling non-matmul work around asynchronous tensor-core work.",
+      "claim_type": "mechanism",
+      "covers": ["u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2603.05451v1","revision":"FlashAttention-4 paper v1","locator":"forward kernel architecture and ping-pong scheduling","observation":"The paper places attention accumulators in TMEM and assigns MMA, softmax, and correction roles to overlap asymmetric units."}],
+      "challenge": {"alternative":"FA4 keeps both GEMM accumulators resident in ordinary registers as on Hopper.","check":"Inspect the paper's thread-memory mapping and forward pipeline.","outcome":"Its Blackwell design explicitly uses TMEM for the score/output accumulator storage."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c017",
+      "claim": "The Hopper and Blackwell FlashAttention register budgets of about 254 and 20 registers per thread, two- and 236-register margins, and resulting spill/no-spill conclusions are measured or source-defined.",
+      "claim_type": "code",
+      "covers": ["u020", "u021"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2603.05451v1","revision":"FlashAttention-4 paper v1","locator":"architecture and evaluation","observation":"The paper explains TMEM and warp roles but does not publish these per-thread category totals or margins; actual register allocation is variant/compiler-specific and the claimed arithmetic omits live epilogue/pipeline state."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c018",
+      "claim": "The first-party FA4 report uses software-selected polynomial exp2 work on CUDA cores and reports up to 1605 TFLOP/s on B200 BF16 at a labeled 71 percent.",
+      "claim_type": "performance",
+      "covers": ["u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://tridao.me/blog/2026/flash4/","revision":"Tri Dao first-party FA4 post, fetched 2026-08-08","locator":"software exponential and performance sections","observation":"The author describes selective polynomial/FMA exp2 computation and reports up to 1605 TFLOP/s on B200 BF16, labeled 71 percent."}],
+      "challenge": {"alternative":"All exponentials use the polynomial path or 1605 is an independently reproduced fixed-shape median.","check":"Read the selection description and maximum-performance wording.","outcome":"Only a selected fraction uses software exp, and the number is an author-reported maximum; the page's wording is correspondingly source-scoped only in this claim."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c019",
+      "claim": "TMEM is not directly addressable by ordinary CUDA expressions; tcgen05 data-movement instructions transfer values between TMEM and registers for scalar/epilogue computation.",
+      "claim_type": "code",
+      "covers": ["u023"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM addressing and tcgen05.ld/st","observation":"TMEM uses a special 32-bit lane/column address and is accessed by the tcgen05 instruction family; ld transfers TMEM data to per-thread registers."}],
+      "challenge": {"alternative":"A TMEM address can be cast to a CUDA pointer and dereferenced like shared/global memory.","check":"Inspect defined state spaces and the instruction-only addressing model.","outcome":"No CUDA/PTX generic load/store state space maps to TMEM; dedicated tcgen05 movement is required."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c020",
+      "claim": "Every fine-grained TMEM load costs 420 cycles while an x4 vector form fetches four adjacent values in one 420-cycle access, so the displayed loop is a valid optimization.",
+      "claim_type": "code",
+      "covers": ["u024"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ld shape/repetition/register mapping","observation":"The instruction has collective shape- and repetition-specific mapping; it is not a scalar tmem_load_f32 API, and x4 does not establish the page's adjacent-scalar abstraction or latency."},{"url":"https://arxiv.org/abs/2512.02189","revision":"Blackwell microbenchmark paper v1","locator":"memory hierarchy latency experiment","observation":"The cited approximately 420-cycle figure concerns a measured cache-miss path in that methodology, not a normative per-tcgen05.ld latency for every shape."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c021",
+      "claim": "A Blackwell migration should use at minimum m128n256 for one-SM or m256n256 for two-SM MMA, and those choices carry no spilling risk.",
+      "claim_type": "code",
+      "covers": ["u025"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"shape constraints","observation":"The ISA supports shape choices through descriptors but does not prescribe a performance minimum."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"Blackwell Tuning Guide","locator":"occupancy guidance","observation":"Tile selection and spills depend on the full kernel, shape, resources and measurements; TMEM does not guarantee spill-free code."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c022",
+      "claim": "Every TMEM allocation must be explicitly deallocated before kernel exit, including persistent-kernel termination paths.",
+      "claim_type": "code",
+      "covers": ["u026"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation/deallocation description","observation":"The ISA requires all allocated Tensor Memory to be deallocated with tcgen05.dealloc before the kernel exits."}],
+      "challenge": {"alternative":"Kernel exit implicitly releases TMEM as it does local registers.","check":"Read the explicit lifecycle requirement in the allocation section.","outcome":"The ISA states the opposite: explicit deallocation is mandatory."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c023",
+      "claim": "Omitting deallocation merely leaks TMEM to the next CTA, which then cannot allocate, and making one source path reach a helper is sufficient cleanup.",
+      "claim_type": "mechanism",
+      "covers": ["u026"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"deallocation and collective issue rules","observation":"The ISA specifies a must-deallocate contract and collective matching operation; it does not define omission as a recoverable cross-CTA leak. Every actual exit path and every lane of the designated warp must satisfy the protocol."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c024",
+      "claim": "The summary correctly contrasts register-resident wgmma D with TMEM-resident tcgen05 D, direct register result use with collective tcgen05.ld readback, implicit register lifetime with explicit TMEM deallocation, and the fact that double-buffered resident accumulators consume two register fragments versus two TMEM regions.",
+      "claim_type": "mechanism",
+      "covers": ["u027", "u029", "u030", "u031", "u032", "u034"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"wgmma D register fragments","observation":"Hopper D is a per-thread register vector."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"same archive","locator":"tcgen05 D, ld, allocation/deallocation","observation":"Blackwell D is addressed in TMEM, read through tcgen05.ld, and explicitly deallocated; separate live buffers consume separate storage regions."}],
+      "challenge": {"alternative":"tcgen05 D is still an implicit register vector or TMEM disappears automatically on scope exit.","check":"Compare operand classes and lifecycle sections for both instruction families.","outcome":"The architectures expose distinct storage and cleanup contracts exactly as summarized in these rows."}
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c025",
+      "claim": "A migrated accumulator must be zero-initialized with a tcgen05.st zero pattern before its first MMA.",
+      "claim_type": "code",
+      "covers": ["u028"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"enable-input-D semantics","observation":"When enable-input-D is false, the operation computes D=A*B without reading prior D, so an explicit zero store is not universally required."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c026",
+      "claim": "TMEM gives every epilogue ample access to the full register file with only minimal spill risk.",
+      "claim_type": "performance",
+      "covers": ["u033"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"register file and per-thread limits","observation":"All other live values and loaded TMEM batches consume the same finite register file; the spill outcome requires compiled-resource evidence for a concrete kernel."}]
+    },
+    {
+      "claim_id": "migration-register-to-tmem-original-c027",
+      "claim": "m64n256 is Hopper's universal maximum practical tile, while m128n256 or m256n256 are Blackwell's universal practical maxima determined only by TMEM columns.",
+      "claim_type": "performance",
+      "covers": ["u035"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"instruction shapes","observation":"Instruction shape is not a complete CTA tile or practical-kernel maximum; kernels compose multiple instructions."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"Blackwell Tuning Guide","locator":"resource limits","observation":"Practical tiles depend on workload and all resources rather than a universal architecture-only maximum."}]
+    }
+  ],
+  "commands": ["direct archived PTX/tuning-guide inspection", "FA3/FA4 primary-paper comparison", "host arithmetic checks for N/2 and TMEM byte capacity"],
+  "scope": "All 35 baseline units for body hash d18a8529e0c9cab4d1711c15938892a04771dbccb5548fc61e5298b0fd6c0ed4 were checked against CUDA 13.0.2 PTX ISA 9.0, archived Hopper/Blackwell guidance, and author-primary FA3/FA4 papers.",
+  "residual_risk": "No Hopper/Blackwell compiler or GPU is installed locally. Architectural storage and instruction contracts are source-verified; no unsourced register allocation, latency, occupancy, or performance estimate is accepted."
+}

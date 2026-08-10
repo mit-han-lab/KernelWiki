@@ -1,0 +1,196 @@
+{
+  "path": "wiki/hardware/mbarrier.md",
+  "id": "hw-mbarrier",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "hw-mbarrier-original-c001",
+      "claim": "mbarrier is a 64-bit shared-memory synchronization object for threads and asynchronous operations, introduced on Hopper and essential to Blackwell warp-specialized kernels.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "mbarrier overview, lifecycle, and ISA/target notes",
+          "observation": "The object is 64-bit shared-memory state for thread/async synchronization, but mbarrier instructions began in PTX 7.0 on sm_80. Hopper added transaction-count support, not mbarrier itself; 'essential' is also not a universal ISA requirement."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c002",
+      "claim": "The key-operation PTX correctly states that TMA completion performs an arrival with a transferred-byte count and then flips barrier parity.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#contents-of-the-mbarrier-object",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "arrive-on, expect-tx, complete-tx, and phase-completion definitions",
+          "observation": "arrive.expect_tx performs an arrive-on and increments tx-count. A TMA complete-tx decrements tx-count rather than performing another arrival; phase advances only when both pending arrivals and tx-count reach zero."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c003",
+      "claim": "An mbarrier advances through phases, and parity is the low bit of the phase that a parity wait must track across reuse.",
+      "claim_type": "semantics",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "phase lifecycle and parity operand semantics",
+          "observation": "The ISA defines sequential phases, even/odd parity values, automatic reinitialization after completion, and a lifetime tracking requirement for parity waits."
+        }
+      ],
+      "challenge": {
+        "alternative": "Parity is toggled by every arrival rather than once per completed phase.",
+        "check": "Compare the arrive-on definition with the atomic phase-transition requirements.",
+        "outcome": "Arrivals only decrement pending count; parity changes with the phase transition after all completion conditions hold."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c004",
+      "claim": "The pipeline pseudocode correctly uses one global phase bit toggled after every iteration for every stage barrier.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "parity lifetime rule and Example 2",
+          "observation": "Parity belongs to each mbarrier object's phase. With multiple stage objects, a stage's expected parity changes only when that same object completes, not on every loop iteration; one globally toggled bit is wrong for typical even stage counts."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c005",
+      "claim": "TMA directly signals an mbarrier's transaction completion, eliminating the need for a producer thread to issue a separate completion arrival.",
+      "claim_type": "mechanism",
+      "covers": ["u005"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "mbarrier::complete_tx::bytes completion mechanism",
+          "observation": "On copy completion, TMA performs complete-tx for the copied byte count on the supplied mbarrier. The consumer still waits; only manual producer completion signaling is avoided."
+        }
+      ],
+      "challenge": {
+        "alternative": "The producer must issue mbarrier.complete_tx after the TMA instruction returns.",
+        "check": "Inspect the completion_mechanism definition for cp.async.bulk.tensor.",
+        "outcome": "The async operation itself performs complete-tx on completion, discriminating it from software-simulated complete_tx."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c006",
+      "claim": "The displayed TMA integration code is a valid or reproducible CUDA example and its no-extra-arrive warning accurately describes TMA hardware as performing an arrival.",
+      "claim_type": "code",
+      "covers": ["u006", "u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "exact cp.async.bulk.tensor grammar and mbarrier completion",
+          "observation": "The page uses undefined helper calls and omits descriptor/coordinate/address details. More importantly, TMA performs complete-tx, not arrive-on; an extra arrive changes pending-arrival accounting rather than racing with a hardware arrival."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c007",
+      "claim": "Reusing a barrier stage with the wrong parity can let a wait observe an earlier phase rather than the intended new one.",
+      "claim_type": "semantics",
+      "covers": ["u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "phaseParity accepted phases and tracking note",
+          "observation": "A parity wait may refer to the current or immediately preceding phase, so software must track each object's phase throughout its lifetime."
+        }
+      ],
+      "challenge": {
+        "alternative": "The instruction derives the intended generation from the address and ignores a stale parity operand.",
+        "check": "Inspect the explicit phaseParity operand contract.",
+        "outcome": "The operand chooses the phase parity being tested; there is no separate generation tag supplied by the address."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c008",
+      "claim": "If an mbarrier is initialized for N pending arrivals and only M<N arrive-on operations occur, with no count-adjusting operation, its phase cannot complete.",
+      "claim_type": "semantics",
+      "covers": ["u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#phase-completion-of-the-mbarrier-object",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "pending-arrival initialization and phase-completion requirements",
+          "observation": "Completion requires pending arrivals to reach zero; fewer unit arrivals leave a positive count."
+        }
+      ],
+      "challenge": {
+        "alternative": "A zero tx-count alone completes the phase even when arrivals remain.",
+        "check": "Inspect whether completion conditions are alternatives or conjunctive.",
+        "outcome": "The ISA requires both pending-arrival count and tx-count to be zero."
+      }
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c009",
+      "claim": "Using the shared::cluster state-space qualifier is by itself the rule for cluster-level mbarrier synchronization in two-SM MMA.",
+      "claim_type": "semantics",
+      "covers": ["u010"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "shared-memory-location support table and wait scope semantics",
+          "observation": ".shared::cluster describes where the object resides, whereas .cluster describes synchronization scope. Only arrive/expect_tx/complete_tx support cluster-shared objects; test/try waits operate on a CTA-shared object and may use cluster scope with a mapped remote address. The page conflates these distinctions."
+        }
+      ]
+    },
+    {
+      "claim_id": "hw-mbarrier-original-c010",
+      "claim": "The related TMA and warp-specialization pages are relevant internal links for mbarrier producer/completion and role handoff patterns.",
+      "claim_type": "other",
+      "covers": ["u011", "u012"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "test -f wiki/hardware/tma.md && test -f wiki/techniques/warp-specialization.md",
+          "environment": "baseline worktree at commit 2777d18ffb3a3d682d8f25a3e3b8864d925a5ff1",
+          "reference": "Both relative Markdown targets should exist and their frontmatter IDs should match the linked concepts.",
+          "result": "Both files exist; their IDs are hw-tma and technique-warp-specialization and their bodies cover the stated relationships.",
+          "negative_control": "test -f wiki/hardware/not-a-page.md exits nonzero."
+        }
+      ],
+      "challenge": {
+        "alternative": "Either relative path is broken or points to a page unrelated to synchronization.",
+        "check": "Resolve both paths from wiki/hardware and inspect their page IDs and headings.",
+        "outcome": "Both files exist at the resolved locations and directly cover the stated relationships."
+      }
+    }
+  ],
+  "commands": [],
+  "residual_risk": "No CUDA toolkit is installed locally, so no PTX snippets were assembled. The semantic defects are discriminated by PTX ISA 9.0's exact lifecycle, transaction-count, state-space, and scope definitions.",
+  "scope": "All 12 immutable baseline units were checked against CUDA 13.0.2 PTX ISA 9.0 and the baseline repository links."
+}

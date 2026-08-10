@@ -1,0 +1,40 @@
+{
+  "path": "wiki/techniques/cccl-memory-primitives.md",
+  "id": "technique-cccl-memory-primitives",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-cccl-memory-primitives-current-c001",
+      "claim": "The page accurately scopes PR 3559 to SM100 scan policies/dispatch/tests and PR 6152 to a debug-only DispatchTopK logging correction, excluding DSA or TopK performance conclusions from the latter.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002", "u003", "u004"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/cccl/PR-3559/diff.patch","revision":"CCCL captured merge 25523da2","locator":"complete changed-file patch","observation":"The patch adds scan type/policy plumbing and SM100 scan tunings across the stated files."},{"path":"artifacts/prs/cccl/PR-6152/diff.patch","revision":"CCCL captured merge 3fb05826","locator":"complete patch","observation":"Only the debug format, scalar grid argument and occupancy variable name change; no TopK algorithm or tuning changes."}],
+      "challenge": {"alternative":"The surrounding captured TopK key file makes PR 6152 valid evidence for the entire algorithm.","check":"Distinguish key-file context from added/deleted lines in the PR patch.","outcome":"The semantic delta is only logging; the page explicitly preserves that distinction."}
+    },
+    {
+      "claim_id": "technique-cccl-memory-primitives-current-c002",
+      "claim": "The PR 3559 policy table correctly lists type/operator classification, threads/items, load/store/cache choices, delay constructors, and Policy1000-to-Policy900 fallback, and rejects items>=4 as proof of vectorization.",
+      "claim_type": "mechanism",
+      "covers": ["u005", "u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/cccl/PR-3559/key-files/cub/cub/device/dispatch/tuning/tuning_scan.cuh","revision":"CCCL captured merge 25523da2","locator":"sm100_tuning specializations, select_agent_policy100 and Policy1000","observation":"Every listed policy field/classifier/fallback appears in the source; the double path explicitly derives from sm90_tuning and item count is independent of load/store/cache policy."}],
+      "challenge": {"alternative":"CUB may internally vectorize whenever items is at least four, making the deleted boolean a reliable proxy.","check":"Compare specializations with similar item counts and inspect independent BlockLoadAlgorithm/iterator/type dispatch.","outcome":"Item count neither encodes alignment/contiguity nor fixes the selected load algorithm; the page's non-implication is correct."}
+    },
+    {
+      "claim_id": "technique-cccl-memory-primitives-current-c003",
+      "claim": "The transfer workflow follows the source's semantic/type/architecture dispatch dimensions, demands controlled correctness/performance evaluation, enumerates selection properties absent from PR 6152, and explicitly withholds conclusions for unrelated primitives.",
+      "claim_type": "performance",
+      "covers": ["u012", "u013", "u014", "u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/cccl/PR-3559/key-files/cub/cub/device/dispatch/tuning/tuning_scan.cuh","revision":"CCCL captured merge 25523da2","locator":"classification, SM80/SM90/SM100 policies, tuning comments and fallbacks","observation":"The independent dimensions and scoped benchmark comments support exactly the proposed controlled matrix, without a portable speed guarantee."},{"path":"artifacts/prs/cccl/PR-6152/diff.patch","revision":"CCCL captured merge 3fb05826","locator":"all changed lines","observation":"No selection semantics, tie/ordering/NaN/repeatability or architecture result is changed or established, justifying the explicit evidence exclusions."}],
+      "challenge": {"alternative":"The workflow smuggles in unsupported claims by listing correctness cases not mentioned in either PR.","check":"Read each item as a verification requirement versus an asserted behavior and compare the final evidence exclusions.","outcome":"The page does not predict outcomes; it identifies what must be tested and states that PR 6152 establishes none of them."}
+    }
+  ],
+  "commands": ["inspect complete captured CCCL 3559/6152 diffs and scan/TopK key files"],
+  "scope": "All 17 current semantic units for body hash d1c2e2981a7cbb20812788c814381f9f5a67edcec521a6497f68034d83483b8f were checked against complete captured PR deltas and key files.",
+  "residual_risk": "No GPU benchmark was run; the page reports policy structure and a test protocol, not new performance results."
+}

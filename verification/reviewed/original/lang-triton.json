@@ -1,0 +1,266 @@
+{
+  "path": "wiki/languages/triton-blackwell.md",
+  "id": "lang-triton",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "lang-triton-original-c001",
+      "claim": "The GitHub v3.6.0 release is commit 7c56a5e40f7fd928dfd5c72902d5def0097db73a and was published on 2026-01-21 UTC.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u046"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url": "https://github.com/triton-lang/triton/releases/tag/v3.6.0", "revision": "v3.6.0, commit 7c56a5e40f7fd928dfd5c72902d5def0097db73a", "locator": "release header", "observation": "The upstream release page identifies v3.6.0, short commit 7c56a5e, and publication at 21 Jan 23:27."}],
+      "challenge": {"alternative": "The date refers only to a later documentation update or another tag.", "check": "Inspect the signed upstream v3.6.0 release header and resolve the tag with git ls-remote.", "outcome": "Both identify the same v3.6.0 commit and release publication."}
+    },
+    {
+      "claim_id": "lang-triton-original-c002",
+      "claim": "Triton 3.6 was the first release with native Blackwell tcgen05/TMEM lowering; through Triton 3.5 the compiler only emitted Hopper WGMMA and kept accumulators in registers.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u011", "u017", "u020", "u022", "u024", "u040", "u041", "u042", "u043", "u046"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url": "https://github.com/triton-lang/triton/blob/819e9c8c29ad2ae96cbd93a1d3b8a3a0f4c8f09c/include/triton/Dialect/TritonNvidiaGPU/IR/TritonNvidiaGPUOps.td", "revision": "Triton v3.3.0, commit 819e9c8c29ad2ae96cbd93a1d3b8a3a0f4c8f09c", "locator": "TTNG_TCGen5MMAOp, TTNG_TCGen5MMAScaledOp, TTNG_TMEMLoadOp, TTNG_TMEMStoreOp, TTNG_TMEMAllocOp, TTNG_TMEMCopyOp", "observation": "The v3.3.0 dialect defines native TCGen5 MMA and TMEM operations; TMEMCopy explicitly lowers to tcgen05.cp."},
+        {"url": "https://github.com/triton-lang/triton/blob/819e9c8c29ad2ae96cbd93a1d3b8a3a0f4c8f09c/test/Conversion/tritongpu_to_llvm_blackwell.mlir", "revision": "Triton v3.3.0, commit 819e9c8c29ad2ae96cbd93a1d3b8a3a0f4c8f09c", "locator": "Blackwell lowering CHECK directives", "observation": "Pinned tests require tcgen05.mma, tcgen05.commit, TMEM encodings, scaled MMA, and cta_group::2 output."},
+        {"url": "https://github.com/triton-lang/triton/compare/v3.2.0...v3.3.0", "revision": "v3.2.0 9641643da6c52000c807b5eeed05edaec4402a67 to v3.3.0 819e9c8c29ad2ae96cbd93a1d3b8a3a0f4c8f09c", "locator": "new Blackwell dialect, lowering, allocation, and test files", "observation": "The version boundary adds MMAv5 lowering, tensor-memory allocation, and Blackwell lowering tests; the corresponding symbols are absent at v3.2.0."}
+      ],
+      "challenge": {"alternative": "The v3.3 symbols are dead scaffolding while real compilation still emits only WGMMA.", "check": "Inspect v3.3's conversion tests and MMAv5 lowering files, and compare their absence at v3.2.", "outcome": "The pinned v3.3 tests check concrete tcgen05 PTX forms, directly contradicting the claimed 3.6 first-support boundary."}
+    },
+    {
+      "claim_id": "lang-triton-original-c003",
+      "claim": "Triton 3.6 incrementally expands the existing Blackwell backend with generic tcgen05.cp, more generic TMEM/ld/st layouts, tcgen05.mma layout generalization, aref warp-specialization work, and initial Gluon multi-CTA/2CTA support.",
+      "claim_type": "compatibility",
+      "covers": ["u011", "u012", "u013", "u014", "u015", "u017", "u019", "u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url": "https://github.com/triton-lang/triton/releases/tag/v3.6.0", "revision": "Triton v3.6.0, commit 7c56a5e40f7fd928dfd5c72902d5def0097db73a", "locator": "Backend & Compiler lines 221-225; NVIDIA Backend lines 310-340; Gluon lines 351-389", "observation": "The release enumerates generic tcgen05.cp, TMEM layout changes, tcgen05.mma generalization, warp-specialization aref work, initial 2CTA/multi-CTA, num_ctas, and scaled MMA support."}],
+      "challenge": {"alternative": "These items are a wholesale first implementation rather than refinements.", "check": "Compare the 3.6 release items with the pinned v3.3 and v3.5 dialect/tests and release notes.", "outcome": "Earlier releases already contain TCGen5/TMEM lowering; the listed 3.6 changes are narrower additions and generalizations."}
+    },
+    {
+      "claim_id": "lang-triton-original-c004",
+      "claim": "By Triton 3.5, Blackwell paths include persistent-matmul and fused-attention warp specialization, generic tcgen05.ld/st exposure, block-scaled matmul, and an explicit Gluon tcgen05/TMEM tutorial.",
+      "claim_type": "compatibility",
+      "covers": ["u006", "u007", "u013", "u014"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url": "https://github.com/triton-lang/triton/releases/tag/v3.5.0", "revision": "Triton v3.5.0, commit c3c476f357f1e9768ea4e45aa5c17528449ab9ef", "locator": "NVIDIA Backend, Hopper/Blackwell Features and Blackwell-Specific", "observation": "The release notes enable warp specialization for persistent matmul and FA and list TMEM, tcgen05_copy, generic tcgen05.ld/st, and tcgen05.commit work."},
+        {"url": "https://github.com/triton-lang/triton/blob/c3c476f357f1e9768ea4e45aa5c17528449ab9ef/python/tutorials/gluon/06-tcgen05.py", "revision": "Triton v3.5.0, commit c3c476f357f1e9768ea4e45aa5c17528449ab9ef", "locator": "tutorial introduction, tmem_example_kernel, and small_mma_kernel", "observation": "The tutorial allocates/loads/stores TMEM and invokes tcgen05_mma on Blackwell."},
+        {"url": "https://github.com/triton-lang/triton/blob/c3c476f357f1e9768ea4e45aa5c17528449ab9ef/python/tutorials/10-block-scaled-matmul.py", "revision": "Triton v3.5.0, commit c3c476f357f1e9768ea4e45aa5c17528449ab9ef", "locator": "Blackwell block-scaled matmul tutorial", "observation": "The v3.5 tree already ships the tl.dot_scaled Blackwell tutorial."}
+      ],
+      "challenge": {"alternative": "Those user-visible examples appear only after the v3.5 tag.", "check": "Open the files and release notes at the exact v3.5 commit.", "outcome": "The tagged v3.5 tree contains the tutorial files and implementation references."}
+    },
+    {
+      "claim_id": "lang-triton-original-c005",
+      "claim": "The page's 'when to use' bullets are recommendations; their concrete examples are grounded by actual Triton attention, GatedDeltaNet projection, format-conversion, normalization, dot_scaled, and warp-specialized matmul code, but the page provides no benchmark scope for its CuTe-DSL turnaround comparison.",
+      "claim_type": "other",
+      "covers": ["u001", "u002", "u003", "u004", "u005"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path": "artifacts/prs/", "revision": "verbatim bundles at SHAs a1257fd1, 890df95b, 766d225f, 5bdc07d9, and 5638d40f", "locator": "the six files linked in original units u048-u053 and their PROVENANCE.yaml entries", "observation": "Pinned code contains Triton JIT kernels for the named workload categories. No unit or cited benchmark defines or measures 'turnaround' against CuTe DSL."}],
+      "challenge": {"alternative": "The bullets report a scoped comparative benchmark rather than editorial guidance.", "check": "Inspect the bullets, cited source trail, and performance table columns.", "outcome": "They contain no workload, machine, software revision, timed region, trials, or turnaround measurements."}
+    },
+    {
+      "claim_id": "lang-triton-original-c006",
+      "claim": "The 'use alternatives' introduction is editorial guidance rather than a universal benchmark result; the two following bullets give specific downstream cases.",
+      "claim_type": "other",
+      "covers": ["u008"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path": "verification/baseline-queue.jsonl", "revision": "immutable baseline body SHA 6b9394376db86dd1090ef2012a0d599ad3ac0703f7df8c9bbf9c61c4c24888f1", "locator": "u008-u010", "observation": "The imperative heading is followed by one SGLang benchmark report and one routing decision, not a universal performance table."}],
+      "challenge": {"alternative": "The heading itself is an independently quantified claim for all workloads.", "check": "Inspect its grammatical form and the scope of the two supporting units.", "outcome": "It is a recommendation whose factual support is limited to the two named cases."}
+    },
+    {
+      "claim_id": "lang-triton-original-c007",
+      "claim": "SGLang PR 5390 reports 10,447.34 total tok/s for its CUTLASS MLA run versus 8,227.35 tok/s for its Triton run (26.98% higher), and PR 21595 changes the SM100 multimodal-attention default from triton_attn to FA4.",
+      "claim_type": "performance",
+      "covers": ["u009", "u010", "u032"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url": "https://github.com/sgl-project/sglang/pull/5390", "revision": "merged commit 84810da4ae424d15ec06a3e32a03a839dd50a644", "locator": "Deepseek-R1 Benchmarks, CUTLASS and Triton result blocks", "observation": "The PR records the commands, 3,000 prompts, token lengths, dtype, TP/DP settings, and the two reported throughput totals; this verifies only what that PR reports, not a universal speedup."},
+        {"url": "https://github.com/sgl-project/sglang/pull/21595", "revision": "merged commit 87a27682", "locator": "Summary and commit 'Restrict fa4 default to Blackwell SM100 only'", "observation": "The PR explicitly changes the Blackwell datacenter SM100 default from triton_attn to fa4 while retaining other defaults by architecture."}
+      ],
+      "challenge": {"alternative": "The percentage compares different metrics or the routing change applies to every GPU.", "check": "Use the total-token-throughput rows for both PR 5390 runs and the architecture-scoped summary of PR 21595.", "outcome": "10447.34/8227.35-1 is 26.98%, and the routing PR explicitly restricts the change to SM100."}
+    },
+    {
+      "claim_id": "lang-triton-original-c008",
+      "claim": "The page correctly cautions that plain tl.dot lowering and every tutorial/downstream shape are not proved by the cited downstream artifacts.",
+      "claim_type": "compatibility",
+      "covers": ["u016", "u018", "u019", "u025", "u026", "u027"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path": "artifacts/prs/vllm/PR-34597/key-files/vllm/v1/attention/ops/triton_decode_attention.py", "revision": "upstream SHA a1257fd1, sha256 16cba0b3e98d2829df6d235e3d368ffaa66d72cc2a100ac53f96542e30472796", "locator": "whole file; tl.dot sites around lines 358, 372, and 399", "observation": "The artifact contains tl.dot kernels but no PTX dump, tcgen05 name, TMEM operation, warp_specialize argument, or lowering record."}],
+      "challenge": {"alternative": "The downstream artifact itself contains inspectable tcgen05 PTX proving every tl.dot path.", "check": "Search the provenance-pinned artifact for tcgen05, TMEM, PTX, and warp_specialize and compare to a positive-control Triton v3.5 tcgen05 tutorial.", "outcome": "The downstream file has none of those lowering witnesses; the positive control does."}
+    },
+    {
+      "claim_id": "lang-triton-original-c009",
+      "claim": "vLLM PR 34597 is an SM100-only production-decode anchor that demonstrates its tl.dot kernels lower through Triton 3.6's tcgen05/TMEM path.",
+      "claim_type": "compatibility",
+      "covers": ["u017", "u023", "u024", "u026", "u027", "u048", "u049", "u054"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url": "https://github.com/vllm-project/vllm/pull/34597", "revision": "merged commit a1257fd1", "locator": "PR summary and changed files", "observation": "The PR adds FP8 KV-cache support to a generic Triton MLA backend and describes that backend as the only MLA option on SM120; it does not identify an SM100-only path or tcgen05 lowering."},
+        {"url": "https://github.com/vllm-project/vllm/blob/a1257fd1/vllm/v1/attention/ops/triton_decode_attention.py", "revision": "commit a1257fd1", "locator": "kernel definitions and tl.dot call sites", "observation": "The code contains tl.dot but no architecture guard, Triton-version requirement, warp_specialize, tcgen05, TMEM, or emitted PTX evidence."}
+      ],
+      "challenge": {"alternative": "Architecture metadata outside the code proves it is SM100-only and its tl.dot necessarily emits tcgen05.", "check": "Inspect the primary PR body, exact changed code, and its guards/imports.", "outcome": "The primary source mentions SM120 and supplies no lowering witness, contradicting the SM100-only/demonstration framing."}
+    },
+    {
+      "claim_id": "lang-triton-original-c010",
+      "claim": "vLLM PR 34597 genuinely modifies an @triton.jit MLA decode kernel with tl.dot operations and adds FP8 KV-cache support, with two verbatim files pinned locally at merge SHA a1257fd1.",
+      "claim_type": "code",
+      "covers": ["u017", "u021", "u023", "u024", "u026", "u027", "u048", "u049", "u054"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path": "artifacts/prs/vllm/PR-34597/", "revision": "upstream SHA a1257fd1; asset_mode verbatim", "locator": "PROVENANCE.yaml; triton_decode_attention.py decorators and tl.dot call sites; triton_mla.py supported_kv_cache_dtypes", "observation": "The provenance lists exact hashes; the code contains Triton kernels and the stated tl.dot operations, while the backend file adds FP8 cache dtypes."}],
+      "challenge": {"alternative": "The bundle is a derived excerpt or contains only a dispatch gate.", "check": "Verify asset_mode, upstream paths, SHA-256 values, decorators, and dot call sites.", "outcome": "Both files are marked verbatim and contain the implementation described, though they do not prove a particular backend lowering."}
+    },
+    {
+      "claim_id": "lang-triton-original-c011",
+      "claim": "vLLM PR 29339 gates triton_kernels MXFP4 use to SM90 and SM100 and changes only the dispatch file mxfp4.py.",
+      "claim_type": "compatibility",
+      "covers": ["u028"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url": "https://github.com/vllm-project/vllm/pull/29339", "revision": "merged commit c17610e2", "locator": "PR title, motivation, and changed files", "observation": "The upstream PR limits triton_kernels to SM90/SM100 for MXFP4 and lists only vllm/model_executor/layers/quantization/mxfp4.py."}],
+      "challenge": {"alternative": "The PR adds a new Triton kernel or proves TCGen5 code generation.", "check": "Inspect its one-file diff and changed-files list.", "outcome": "It is a dispatch gate, not a kernel or lowering proof."}
+    },
+    {
+      "claim_id": "lang-triton-original-c012",
+      "claim": "Pinned SGLang artifacts show a GatedDeltaNet fused projection implemented with Triton loads/stores and an extend-attention kernel implemented with Triton dot products.",
+      "claim_type": "code",
+      "covers": ["u029", "u030", "u031", "u052", "u053"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {"path": "artifacts/prs/sglang/PR-21019/key-files/python/sglang/jit_kernel/triton/gdn_fused_proj.py", "revision": "upstream SHA 5bdc07d9, sha256 c4ef85167eb11065721e76dd5d63d6f346f309f84822578dd4a3874249acef89", "locator": "@triton.jit kernels and tl.load/tl.store sites", "observation": "The verbatim file implements fused QKVZBA split/reshape/cat projection through Triton memory operations and contains no tl.dot."},
+        {"path": "artifacts/prs/sglang/PR-22079/key-files/python/sglang/srt/layers/attention/triton_ops/extend_attention.py", "revision": "upstream SHA 5638d40f, sha256 d27789c32e180d725ed867f4f6cd05b09a3c47bfe37794ff60e150d000573edd", "locator": "@triton.jit extend-attention kernels and tl.dot call sites", "observation": "The verbatim file performs QK, QPE/KPE, and probability/value dot products."}
+      ],
+      "challenge": {"alternative": "The page swapped which artifact contains matrix products.", "check": "Search each exact file for decorators, tl.dot, tl.load, and tl.store.", "outcome": "The GDN projection is load/store rearrangement; extend_attention contains the dot products, matching the narrowed claim."}
+    },
+    {
+      "claim_id": "lang-triton-original-c013",
+      "claim": "The local downstream artifacts do not contain an explicit tcgen05 PTX dump or a warp-specialized descriptor/TMA lowering witness.",
+      "claim_type": "code",
+      "covers": ["u018", "u019", "u026", "u027"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "rg -n -i 'tcgen05|tmem|warp_specialize' artifacts/prs/vllm/PR-34597 artifacts/prs/sglang/PR-22079 artifacts/prs/sglang/PR-21019", "environment": "GNU ripgrep over provenance-pinned local artifacts", "reference": "A lowering witness would contain a TCGen5/TMEM/PTX term or explicit warp-specialize surface.", "result": "No matching lowering witness was found in the three cited downstream bundles.", "negative_control": "The same terms match Triton v3.5.0's python/tutorials/gluon/06-tcgen05.py and compiler sources."}],
+      "challenge": {"alternative": "The absence result is caused by a broken search pattern.", "check": "Run the identical search against the pinned upstream positive control.", "outcome": "The positive control matches, so the search discriminates the downstream artifacts."}
+    },
+    {
+      "claim_id": "lang-triton-original-c014",
+      "claim": "The live FlashInfer-Bench author leaderboard displays 0.628x/73.1% for gemini-2.5-pro, 0.467x/92.3% for gpt-5-2025-08-07, and 0.456x/73.1% for claude-opus-4-1-20250805 across 660 workloads.",
+      "claim_type": "performance",
+      "covers": ["u033", "u034", "u035", "u036"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url": "https://bench.flashinfer.ai/", "revision": "live leaderboard retrieved 2026-08-08", "locator": "Leaderboard, Author / Avg Speedup / % Resolved rows 1-3", "observation": "The three exact values and resolution percentages appear in the named rows; each percentage is labeled over 660 workloads."}],
+      "challenge": {"alternative": "The values belong to model workloads rather than leaderboard authors or adjacent columns.", "check": "Read the author row and its two labeled columns without flattening neighboring rows.", "outcome": "Each value maps to the same author row and the exact Avg Speedup and % Resolved columns."}
+    },
+    {
+      "claim_id": "lang-triton-original-c015",
+      "claim": "Those FlashInfer-Bench rows are a preserved Triton-3.5-era snapshot that specifically measures AI-generated Triton kernels, and no Triton 3.6 rerun is available.",
+      "claim_type": "performance",
+      "covers": ["u033", "u037"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url": "https://bench.flashinfer.ai/", "revision": "live leaderboard retrieved 2026-08-08", "locator": "Leaderboard rows and labels", "observation": "The current live page still shows the values but labels them only by author, speedup, resolved percentage, and workload count; it supplies no Triton version, historical-snapshot date, or Triton-only language filter."}],
+      "challenge": {"alternative": "Hidden table metadata pins these exact rows to Triton 3.5 and marks a missing 3.6 rerun.", "check": "Inspect the leaderboard labels and linked public page for version/language scope.", "outcome": "The source exposes neither asserted scope, while the identical values are current, so the historical Triton-version framing is false."}
+    },
+    {
+      "claim_id": "lang-triton-original-c016",
+      "claim": "The gated_delta_net_decode block is a usable Triton kernel implementing its stated recurrent-state update.",
+      "claim_type": "code",
+      "covers": ["u038"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "conda run -n base python -c <AST undefined-name audit over the two wiki Python blocks>", "environment": "Conda base, Python 3.13.14, host AST analysis", "reference": "A self-contained kernel must define every loaded local name or receive it as an argument.", "result": "gated_delta_net_decode loads undefined name offsets; its state/output address expressions are also inconsistent between load and store.", "negative_control": "A well-scoped control function taking offsets and d as arguments reports no undefined names."}],
+      "challenge": {"alternative": "offsets is an implicit Triton builtin.", "check": "Compare the function arguments and Triton language namespace with the AST load set.", "outcome": "offsets is neither an argument, assignment, nor tl builtin, so the displayed function cannot compile as written."}
+    },
+    {
+      "claim_id": "lang-triton-original-c017",
+      "claim": "The sparse_attention_fwd block is a usable Triton sparse-attention kernel.",
+      "claim_type": "code",
+      "covers": ["u039"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "conda run -n base python -c <AST undefined-name audit over the two wiki Python blocks>", "environment": "Conda base, Python 3.13.14, host AST analysis", "reference": "A self-contained kernel must define every loaded local name or receive it as an argument and must write its promised output.", "result": "sparse_attention_fwd loads undefined d and offsets, stops at an unfinished softmax comment, and never stores Output.", "negative_control": "A well-scoped control function taking offsets and d as arguments reports no undefined names."}],
+      "challenge": {"alternative": "d and offsets are compiler-provided names and the omitted store is outside the excerpt by design.", "check": "Inspect the complete fenced block, signature, and loaded names.", "outcome": "The block closes without defining the names or producing Output, so it is incomplete executable-looking code."}
+    },
+    {
+      "claim_id": "lang-triton-original-c018",
+      "claim": "CPU launch overhead can materially affect short-kernel workflows; CUDA Graphs reduce repeated CPU launch costs, and vLLM at commit a1257fd1 defaults to FULL_AND_PIECEWISE graphs and has GDN decode graph support.",
+      "claim_type": "performance",
+      "covers": ["u044", "u045", "u046"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cuda-graphs.html", "revision": "CUDA Programming Guide 13.2", "locator": "4.2 CUDA Graphs introduction", "observation": "The guide states that per-kernel host setup is significant for short kernels and graphs reduce CPU launch costs by preparing work in advance."},
+        {"url": "https://github.com/vllm-project/vllm/blob/a1257fd1/vllm/config/compilation.py", "revision": "vLLM commit a1257fd1", "locator": "CUDAGraphMode and CompilationConfig.cudagraph_mode documentation", "observation": "FULL_AND_PIECEWISE is documented as the v1 default and most performant mode for most models."},
+        {"url": "https://github.com/vllm-project/vllm/blob/a1257fd1/vllm/v1/attention/backends/gdn_attn.py", "revision": "vLLM commit a1257fd1", "locator": "GDNAttentionMetadataBuilder and build_for_cudagraph_capture", "observation": "The GDN backend advertises uniform-batch graph support and implements decode-only full graph capture."}
+      ],
+      "challenge": {"alternative": "CUDA Graphs are unrelated to launch overhead or GDN opts out of vLLM's default graph path.", "check": "Inspect the CUDA guide plus the pinned compilation default and GDN metadata builder.", "outcome": "The sources directly connect graphs to CPU launch cost and explicitly implement GDN decode graph capture."}
+    },
+    {
+      "claim_id": "lang-triton-original-c019",
+      "claim": "All six artifact links in the examples table resolve to provenance-pinned verbatim upstream files, and their file-purpose descriptions match the code at the recorded revisions.",
+      "claim_type": "other",
+      "covers": ["u047", "u048", "u049", "u050", "u051", "u052", "u053", "u054"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "conda run -n base python -c <resolve six paths and compare PROVENANCE.yaml SHA-256 entries>", "environment": "Conda base, Python 3.13.14, repository filesystem", "reference": "Each relative link must resolve and its hash must match a verbatim provenance entry.", "result": "All six paths exist; their five bundles declare asset_mode verbatim and exact upstream SHAs/hashes. Code inspection finds the described MLA, FP8-cache, format-conversion, normalization, GDN projection, and extend-attention roles.", "negative_control": "artifacts/prs/vllm/PR-00000/key-files/missing.py does not resolve."}],
+      "challenge": {"alternative": "At least one link is a summary, derived asset, or stale target.", "check": "Resolve paths, read bundle asset_mode/upstream_sha, verify hashes, and inspect the referenced symbols.", "outcome": "Every linked file is present and provenance marks it verbatim; the broken control fails as expected."}
+    },
+    {
+      "claim_id": "lang-triton-original-c020",
+      "claim": "data/triton-universe.yaml enumerates exactly 42 pull requests.",
+      "claim_type": "numeric",
+      "covers": ["u055"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "conda run -n base python -c <parse data/triton-universe.yaml and count prs>", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "The declared total and actual list length should equal the wiki's 42.", "result": "The file declares total=267 and contains 267 PR entries: 117 captured and 150 skipped.", "negative_control": "The equality check actual_count == 42 evaluates false while actual_count == declared total evaluates true."}],
+      "challenge": {"alternative": "42 is a filtered sublist explicitly identified by the page.", "check": "Inspect the file's top-level lane, total, captured, skipped, and prs fields.", "outcome": "The page says full universe, while the canonical full list has 267 entries."}
+    },
+    {
+      "claim_id": "lang-triton-original-c021",
+      "claim": "Entries marked captured:false in data/triton-universe.yaml are intentionally not shipped; the five table bundles are captured:true.",
+      "claim_type": "other",
+      "covers": ["u047", "u055"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "conda run -n base python -c <parse capture flags for the five linked PR IDs>", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "Linked bundles should be captured and skipped entries should lack shipped bundles by policy.", "result": "All five linked PR IDs are captured:true; the universe has 150 captured:false entries and the table files all exist.", "negative_control": "A nonexistent PR ID has no universe entry or artifact path."}],
+      "challenge": {"alternative": "The linked artifacts violate the capture ledger.", "check": "Join their source PR IDs against data/triton-universe.yaml.", "outcome": "Every linked bundle is marked captured:true."}
+    },
+    {
+      "claim_id": "lang-triton-original-c022",
+      "claim": "PR 34597 and PR 29339 are post-refresh while PR 22079 and PR 21019 are pre-refresh according to data/refresh-cutoff.yaml::previous_pages_manifest.",
+      "claim_type": "semantics",
+      "covers": ["u017", "u023", "u028", "u029", "u030", "u031", "u054"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "conda run -n base python -c <parse data/refresh-cutoff.yaml and compare four PR dates>", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "The asserted manifest should exist and distinguish the named entries relative to the active cutoff.", "result": "The file contains only cutoff_date=2026-05-20 and no previous_pages_manifest; all four PR dates precede the active cutoff.", "negative_control": "A synthetic 2026-05-21 date is correctly classified after the cutoff."}],
+      "challenge": {"alternative": "The manifest exists under another key and still supports the labels.", "check": "Parse every top-level key and compare the named PR dates to the sole cutoff.", "outcome": "There is no manifest field and no named PR is post-cutoff, so the administrative classifications are stale."}
+    },
+    {
+      "claim_id": "lang-triton-original-c023",
+      "claim": "The page's version_sensitive pointer resolves to a registry entry that applies back to this page.",
+      "claim_type": "other",
+      "covers": ["u056"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command": "conda run -n base python scripts/validate.py", "environment": "Conda base, Python 3.13.14", "reference": "The validator requires the pointer ID to resolve and the registry entry to include the page in applies_to.", "result": "Validation passes with vs-triton-3.6-blackwell-tcgen05 resolving to an entry that lists wiki/languages/triton-blackwell.md.", "negative_control": "The registry validator's unresolved-pointer rule rejects an unknown ID in its test path."}],
+      "challenge": {"alternative": "The pointer is dangling even though the prose mentions a registry.", "check": "Resolve it through the repository validator and inspect applies_to.", "outcome": "The structural pointer is valid; its semantic lower bound is separately refuted by c002."}
+    }
+  ],
+  "commands": [
+    "git compare and grep across exact Triton v3.2.0, v3.3.0, v3.4.0, v3.5.0, and v3.6.0 tags",
+    "conda run -n base python AST audit of both wiki code blocks with a well-scoped negative control",
+    "conda run -n base python YAML/link/provenance/count audits with broken controls",
+    "conda run -n base python scripts/validate.py"
+  ],
+  "scope": "Original body hash 6b9394376db86dd1090ef2012a0d599ad3ac0703f7df8c9bbf9c61c4c24888f; all 56 units. Version boundary checked from v3.2.0 through v3.7.1; downstream claims pinned to merge SHAs; leaderboard retrieved 2026-08-08.",
+  "residual_risk": "No GPU was available, so no new PTX or performance run was attempted. Claims requiring such proof were either limited to what pinned sources report or refuted when the page asserted the absent proof."
+}

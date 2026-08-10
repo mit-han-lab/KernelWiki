@@ -1,0 +1,60 @@
+{
+  "path": "wiki/kernels/flash-attention-sm100-mla-topk.md",
+  "id": "kernel-flash-attention-sm100-mla-topk",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-current-c001",
+      "claim": "PR 2441 merge f219c89c adds the SM100 CuTe DSL MLA 64/512 top-k forward path for packed MQA with 128 query heads per KV head; top-k uses cp.async gather, defaults to 2048, requires a multiple of 256, and rejects page tables.",
+      "claim_type": "compatibility",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flash-attention/PR-2441/key-files/flash_attn/cute/flash_fwd_mla_sm100.py","revision":"PR 2441 merge f219c89c886c6ccbf9d3dbd9fe41b11ac64e9df8; SHA-256 f6512b25d901463cf62433b745e87ead30443f295ce313c03e363c886ece296e","locator":"FlashAttentionMLAForwardSm100 constructor and __call__ assertions","observation":"The source defaults hdim/hdimv to 64/512 and topk to 2048, requires pack_gqa, qhead_per_kvhead=128 and cp.async gather in top-k mode, checks topk_length modulo tile_n*2=256, and rejects mPageTable."}],
+      "challenge": {"alternative":"The code is a generic paged MLA path and the named dimensions/top-k are only benchmark examples.","check":"Inspect constructor defaults plus hard assertions and the page-table guard in the pinned merge.","outcome":"Several constraints are enforced in code, and page tables are explicitly rejected rather than merely unbenchmarked."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-current-c002",
+      "claim": "The pinned merge separates indexed top-k K/V gathering, tile scheduling, and their integration; the gather uses caller indices, cp.async copies, and an optional bounds bitmask, while the integrating kernel supplies two-CTA tcgen05/TMEM/softmax/output flow.",
+      "claim_type": "code",
+      "covers": ["u003", "u004", "u005", "u006", "u007"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flash-attention/PR-2441/key-files/flash_attn/cute/topk_gather_kv.py","revision":"PR 2441 merge f219c89c; SHA-256 58b10c0f75f789b80a163e976c4addd643665fc3b1498249da6e962fec673afb","locator":"CpasyncGatherKVManager create, load_index_topk, compute_bitmask, compute_X_ptr, and load_X","observation":"The dedicated manager reads indices, checks bounds when enabled, forms indexed global pointers, and issues cp.async K/V copies."},{"path":"artifacts/prs/flash-attention/PR-2441/key-files/flash_attn/cute/flash_fwd_mla_sm100.py","revision":"same merge and pinned hash","locator":"imports, scheduler selection, two-CTA/MMA/TMEM setup, and role dispatch","observation":"The kernel imports the gather manager and scheduler types independently and integrates them with cta_group TWO, explicit TMEM regions, softmax and epilogue roles."}],
+      "challenge": {"alternative":"Top-k is only a masking flag inside the softmax loop, and tile scheduling is inseparable from the gather implementation.","check":"Trace module ownership and dataflow from mIndexTopk to K/V pointers and separately from scheduler construction to work tiles.","outcome":"The gather manager owns indexed loads/validity, scheduler objects own work assignment, and the MLA module composes both, establishing separate evidence paths."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-current-c003",
+      "claim": "The performance table exactly transcribes the PR author's initial top-k=2048 decode rows—0.31 ms/955.47 TFLOPS without bitmask, 0.33 ms/898.08 with bitmask, and 1.98 ms/1180.70 vanilla—for batch 512, seqlen_q 1, seqlen_k 16384, 128 heads and the 64/512 shape, while explicitly recording the missing environment and non-reproduction.",
+      "claim_type": "performance",
+      "covers": ["u008", "u009", "u010", "u011", "u012"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://api.github.com/repos/Dao-AILab/flash-attention/pulls/2441","revision":"GitHub PR record observed 2026-08-08; merge f219c89c886c6ccbf9d3dbd9fe41b11ac64e9df8","locator":"PR body, initial saturating decode performance block and introductory sentence","observation":"The page's three rows, dimensions, top-k length, and no-bitmask bounds qualification exactly match the author text. That text does not name GPU model, dtype, detailed software/timing setup, sample count, or variance, matching the page caveat."}],
+      "challenge": {"alternative":"The 0.31 and 0.33 values can be rounded into one 0.3-ms B200 BF16 result, or the vanilla row is a throughput winner that contradicts sparse benefit.","check":"Compare exact row variants/columns and distinguish latency from reported TFLOPS and unreported environment fields.","outcome":"The two sparse rows differ by bounds handling and must remain distinct; lower work can yield lower latency with lower TFLOPS, and no absent environment field is inferred."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-current-c004",
+      "claim": "The transfer checklist follows enforced merge constraints: preserve exact MQA/dimension/top-k/index contracts, require in-bounds indices before disabling the bitmask, reject inferred page-table support, and measure indexed memory behavior separately from reduced arithmetic and full-workload correctness/latency.",
+      "claim_type": "performance",
+      "covers": ["u013", "u014", "u015", "u016"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/prs/flash-attention/PR-2441/key-files/flash_attn/cute/flash_fwd_mla_sm100.py","revision":"PR 2441 merge f219c89c","locator":"top-k constructor assertions, page-table guard, and gather/bitmask pipeline selection","observation":"The source enforces the listed compatibility and bounds distinctions and routes sparse loads through a dedicated indexed path."},{"path":"artifacts/prs/flash-attention/PR-2441/diff.patch","revision":"same merge; SHA-256 4525d7f9af76740692474ffc0266fe9cf72f894ce753fd9d18b70771c96b6810","locator":"benchmark effective-sequence FLOP accounting and gather-index setup","observation":"Arithmetic uses the effective gather length, while K/V access uses generated indices and separate bandwidth accounting, supporting independent measurement rather than a guaranteed proportional outcome."}],
+      "challenge": {"alternative":"Top-k length alone predicts latency and correctness, making bounds, page mode, and memory-path validation unnecessary.","check":"Compare hard feature guards, bitmask predicates, arbitrary indexed pointers, and the PR's differing bitmask/no-bitmask rows.","outcome":"Behavior and even reported latency vary with bounds handling, while an unsupported page mode is rejected; top-k length is insufficient."}
+    },
+    {
+      "claim_id": "kernel-flash-attention-sm100-mla-topk-current-c005",
+      "claim": "The local source record and byte-verified PR-2441 provenance resolve the exact integration and gather files, and the displayed lookup succeeds while a false filename fails.",
+      "claim_type": "code",
+      "covers": ["u017", "u018"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python <the displayed pathlib lookup>; sha256sum artifacts/prs/flash-attention/PR-2441/diff.patch and key files","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"sources/prs/flash-attention/PR-2441.md and artifacts/prs/flash-attention/PR-2441/PROVENANCE.yaml","result":"The displayed assertions pass; provenance records merge f219c89c, flash_fwd_mla_sm100.py and topk_gather_kv.py with hashes that match the local files.","negative_control":"Replacing topk_gather_kv.py with nonexistent_topk.py raises AssertionError."}],
+      "challenge": {"alternative":"The page finds stale text but not the captured file, or the bundle belongs to the unrelated FA3 PR 1236.","check":"Resolve both paths, compare source_pr_id/upstream SHA, and test a deliberately absent filename.","outcome":"The manifest is explicitly PR 2441 at f219c89c, hash-matches its files, and rejects the absent token; PR 1236 is no longer a source relationship."}
+    }
+  ],
+  "commands": ["inspect PR 2441 GitHub API record", "inspect byte-verified PR-2441 diff and key files", "execute the page lookup and a failing filename negative control with conda base Python", "conda run -n base python scripts/validate.py"],
+  "residual_risk": "No NVIDIA GPU or CUDA toolkit is installed, so the kernel, numerical results, and author-reported latency/TFLOPS rows were not reproduced. Compatibility and mechanism statements are source-level conclusions tied to merge f219c89c; the performance rows remain deliberately outside structured metadata because the PR omits essential environment details.",
+  "scope": "All 18 current units for body hash 73e3ffa9038dafda7f4083be34a1dabae23531849cb738ba46e7914bfcff9857 were checked against the exact PR record, byte-verified merge artifacts, source constraints, a discriminating lookup test, and repository validation."
+}

@@ -1,0 +1,179 @@
+{
+  "path": "wiki/techniques/epilogue-fusion.md",
+  "id": "technique-epilogue-fusion",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-epilogue-fusion-original-c001",
+      "claim": "Epilogue fusion inherently means overlapping post-MMA work with ongoing MMA, and Blackwell normally assigns warps 2-15 to drain one TMEM half while warp 1 writes the other.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"warp-role dispatch and epilogue path","observation":"The official example assigns a 128-thread epilogue group (four warps), reads one completed TMEM accumulator, converts through registers/SMEM, and stores; fusion and concurrent next-tile MMA are separate scheduling choices."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c002",
+      "claim": "An SM100 tcgen05 accumulator resides in TMEM and an ordinary elementwise epilogue must first transfer its relevant values into registers through a legal TMEM copy/load operation.",
+      "claim_type": "mechanism",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.ld TMEM-to-register operation","observation":"The instruction collectively copies TMEM data into per-thread register vectors and requires load completion before use."}],
+      "challenge": {"alternative":"TMEM can be cast to a CUDA pointer and used directly by scalar arithmetic.","check":"Inspect PTX state spaces and legal TMEM movement instructions.","outcome":"TMEM is instruction-addressed and tcgen05.ld/copy is required before ordinary register computation."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c003",
+      "claim": "The displayed epilogue_warp_fn is safe usable CUDA for fourteen warps to load TMEM scalars, apply scale/bias/ReLU, and store a tile.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"shape, collective execution, mapping, and completion","observation":"There is no scalar tmem_load_f32(r,c) operation; loads are warp-collective shaped operations with mapped register vectors and wait::ld completion. The block also omits edge predicates and source/result layout mapping."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c004",
+      "claim": "TMEM double-buffering with a mandatory 256/256 column split is the key required mechanism for Blackwell epilogue fusion.",
+      "claim_type": "mechanism",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMEM allocation and epilogue","observation":"The official warp-specialized GEMM allocates 512 columns and performs a fused conversion/store epilogue without establishing the page's mandatory equal-half ping-pong design."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c005",
+      "claim": "The displayed mma_epilogue_overlap is a complete phase-correct two-region protocol.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"expected arrivals and reusable phases","observation":"The epilogue-done barriers are initialized with count one while comments require all epilogue warps, and repeated waits have no token/parity state."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"tcgen05 completion","observation":"A raw barrier arrival after an opaque MMA helper does not attach asynchronous MMA completion as tcgen05.commit does; allocation, load completion, tail drain, and deallocation are also absent."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c006",
+      "claim": "CUTLASS 4.5.0 defines composable epilogue fusion operation tags and a CollectiveBuilder that accepts a fusion operation or callbacks.",
+      "claim_type": "compatibility",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"FusionOperation and LinComb* operation tags","observation":"The release defines linear combination, activation, row/column bias, auxiliary, block-scale, residual, and top-k softmax tags."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/collective/collective_builder.hpp","revision":"same tag","locator":"CollectiveBuilder template","observation":"The final policy parameter accepts FusionOpOrCallbacks with a LinearCombination default."}],
+      "challenge": {"alternative":"The names are documentation-only and not accepted by the SM100 builder.","check":"Trace operation tags through sm100_builder.inl and sm100 callback specializations.","outcome":"SM100 builder specializations instantiate callbacks for supported operation tags; support remains combination-dependent rather than arbitrary."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c007",
+      "claim": "CUTLASS 4.5.0 can fuse arbitrary element-wise operations without support or schedule constraints.",
+      "claim_type": "compatibility",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/collective/builders/sm100_builder.inl","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"SM100 CollectiveBuilder specializations and static constraints","observation":"Support is selected by architecture, operator class, schedule, layouts, alignments, datatypes, tile and recognized fusion operation/callback combinations; it is not arbitrary."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c008",
+      "claim": "The displayed LinCombEltAct and Sm100EpilogueTmaWarpSpecialized typedefs are valid CUTLASS 4.5.0 code for a scale+bias+ReLU SM100 epilogue.",
+      "claim_type": "code",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"LinCombEltAct template signature","observation":"The actual parameters are ActivationFn template, ElementOutput, ElementCompute, ElementSource, ElementScalar, and rounding; the shown order/types do not represent the claimed output/source policy."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue","revision":"same tag","locator":"full tree symbol search","observation":"No Sm100EpilogueTmaWarpSpecialized type exists; construction uses CollectiveBuilder, EpilogueTileAuto, EpilogueScheduleAuto and an optional fusion op/callback."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c009",
+      "claim": "The row labeled Scale + Bias gives the standard GEMM source epilogue equation y=alpha*acc+beta*C.",
+      "claim_type": "mechanism",
+      "covers": ["u008"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"LinearCombination versus LinCombPerRowBias/LinCombPerColBias","observation":"alpha*acc+beta*C is a linear combination with a source tensor C; bias is a distinct row/column input in separate operation tags."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c010",
+      "claim": "Activation, output conversion/quantization, gated activation/product, online-softmax rescaling, and residual addition are legitimate categories of work that may be fused around a matrix/attention output when their data dependencies and supported implementation permit it.",
+      "claim_type": "mechanism",
+      "covers": ["u009", "u010", "u011", "u012", "u013"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"activation, residual, bias, block-scale and softmax operation tags","observation":"The release directly implements several listed categories and marks source/residual/activation capabilities."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/thread/activation.h","revision":"same tag","locator":"ReLU, SiLU and GELU functors","observation":"The activation functions named in the table are present as epilogue-compatible functors."}],
+      "challenge": {"alternative":"Every listed formula is automatically one CUTLASS SM100 visitor and therefore always legal/profitable.","check":"Search exact operation tags and builder constraints for each composition.","outcome":"Only the operation categories are established; exact combinations require supported callbacks or custom code and benchmarking."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c011",
+      "claim": "Every Blackwell GEMM with a nontrivial epilogue should use fourteen epilogue warps, which are available by default, and fusion necessarily removes one launch and one global-memory round trip.",
+      "claim_type": "performance",
+      "covers": ["u014"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"epilogue CooperativeGroup and dispatch","observation":"This official example uses a 128-thread/four-warp epilogue group, not a default fourteen. Whether fusion removes a launch/intermediate depends on the unfused baseline and graph."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c012",
+      "claim": "Attention implementations can interleave softmax rescaling/output accumulation with tensor-core work when their schedule provides correct dependencies.",
+      "claim_type": "mechanism",
+      "covers": ["u015"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2407.08608","revision":"FlashAttention-3 paper","locator":"asynchrony and interleaving design","observation":"FA3 describes overlapping/interleaving GEMM and softmax/non-GEMM work on Hopper through warp specialization and instruction scheduling."}],
+      "challenge": {"alternative":"Softmax rescaling must wait for the entire attention matrix and cannot overlap any subsequent tensor-core work.","check":"Inspect the tiled online-softmax schedule and producer/consumer dependencies.","outcome":"The cited kernel operates tilewise and interleaves independent tensor/non-tensor work; exact next-tile timing remains implementation-specific."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c013",
+      "claim": "Fusing FP32-to-FP8/FP16 output conversion can avoid materializing an FP32 intermediate in global memory.",
+      "claim_type": "mechanism",
+      "covers": ["u016"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/sm100_visitor_store_tma_warpspecialized.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"compute_quantized_value and store visitor","observation":"The SM100 visitor computes quantized output fragments before the output store instead of storing an FP32 intermediate tensor."}],
+      "challenge": {"alternative":"Conversion still necessarily writes and rereads an FP32 tensor between kernels.","check":"Trace accumulator fragment conversion into the visitor's output/store path.","outcome":"The conversion occurs in the epilogue path before the final output write, so no separate FP32 global intermediate is required."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c014",
+      "claim": "An epilogue may read a TMEM accumulator only after the corresponding tcgen05 MMA work completes; synchronization must also prevent overwrite before all reads complete.",
+      "claim_type": "mechanism",
+      "covers": ["u017"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"MMA completion and operand lifetimes","observation":"Commit associates asynchronous work completion with an mbarrier; destination/source lifetimes prohibit conflicting access before completion."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"load completion and source lifetime","observation":"TMEM source data must remain valid until the collective load completes."}],
+      "challenge": {"alternative":"Disjoint warp roles or __syncthreads alone makes incomplete asynchronous work visible.","check":"Distinguish thread synchronization from async-proxy completion and source lifetime.","outcome":"Role separation does not complete asynchronous operations; explicit completion edges are required."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c015",
+      "claim": "Fourteen simultaneous epilogue warps receive equal proportional shares of TMEM bandwidth, and sufficiently wide TILE_N therefore bottlenecks on TMEM read bandwidth.",
+      "claim_type": "performance",
+      "covers": ["u018"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"load semantics and shapes","observation":"The ISA specifies mappings and completion but no equal-share bandwidth model or TILE_N bottleneck threshold; the assumed fourteen-warp configuration is not architectural."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c016",
+      "claim": "A store-only epilogue wastes fourteen warps and should reduce CTA size or repurpose those exact warps for next-tile TMA prefetch.",
+      "claim_type": "performance",
+      "covers": ["u019"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"role groups and epilogue TMA-store pipeline","observation":"The official design uses four epilogue warps for conversion/staging/store; changing CTA roles affects collectives, pipeline participation, and occupancy and cannot be inferred from epilogue simplicity alone."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c017",
+      "claim": "Every file under artifacts/kernels/epilogue-fusion/full is verbatim upstream code.",
+      "claim_type": "compatibility",
+      "covers": ["u020"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"inspect full/PROVENANCE.yaml and the first lines of every full artifact; compare nvfp4 file with raw merge revision","environment":"current worktree, 2026-08-09","reference":"Every full file should be upstream-verbatim if the page claim is true.","result":"nvfp4_scaled_mm_kernels.cu byte-matches vLLM merge ed7a29d9..., but tmem-load-into-registers-for-epilogue.cu declares itself an extracted block from a local blog card and is not upstream-verbatim.","negative_control":"The separately labeled variants file declares derived/not upstream, demonstrating the repository can distinguish modes."}]
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-original-c018",
+      "claim": "The page and its artifact bundle are returned by scripts/get_page.py with --include-code, and variant files carry the required derived/not-upstream header.",
+      "claim_type": "code",
+      "covers": ["u020", "u021", "u022"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"conda run -n base python scripts/get_page.py technique-epilogue-fusion --include-code; inspect output and variant headers","environment":"Conda base, current worktree","reference":"Command should exit zero, include the page/artifacts, and variants should be labeled.","result":"Command exited zero with 628 lines and included artifact content; 01-double-buffered-tmem-epilogue-skeleton.cu starts with the required derived/not-upstream provenance line.","negative_control":"A nonexistent page ID is rejected by the retrieval script."}],
+      "challenge": {"alternative":"The command omits artifacts or treats the derived skeleton as upstream.","check":"Search captured output for artifact paths and inspect the first source line.","outcome":"Artifacts are included and the variant's provenance label is explicit; this does not rescue the separate false claim about every full file."}
+    }
+  ],
+  "commands": ["exact CUTLASS 4.5.0 source search", "PTX ISA 9.0 lifecycle inspection", "vLLM PR full-SHA and artifact byte-hash comparison", "conda-base page retrieval with provenance controls"],
+  "scope": "All 22 baseline units for body hash f37f59190f56273dbd2ec10059fd85e03af89ea72f6cf5e9898fb14e1f3fd450 were reviewed, including every code block and artifact-routing claim.",
+  "residual_risk": "No CUDA compiler or SM100 GPU is available locally. Unsupported scheduling and throughput claims were refuted rather than inferred from source structure."
+}

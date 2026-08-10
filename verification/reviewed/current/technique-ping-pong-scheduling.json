@@ -1,0 +1,143 @@
+{
+  "claims": [
+    {
+      "challenge": {
+        "alternative": "The two-stage schedule is ordinary buffer ping-pong and the paper promises complete MMA/softmax overlap.",
+        "check": "Compare the paper's wording and the pinned implementation's per-stage state with the page's bounded definition.",
+        "outcome": "The paper says the schedule maximizes overlap, while the source gives each query stage distinct softmax/output state; the page expressly avoids a stall-free guarantee."
+      },
+      "claim": "In the pinned FA4 SM100 forward implementation, q_stage=2 covers two 128-row query/output tiles and interleaves one tile's MMA with the other's softmax using one MMA warp, two softmax warpgroups, and a correction warpgroup.",
+      "claim_id": "technique-ping-pong-scheduling-current-c001",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002"],
+      "evidence": [
+        {
+          "locator": "section 3.1.2",
+          "observation": "The paper describes two output tiles per block, with tensor-core work for one tile overlapping softmax for the other, and identifies two softmax groups plus a correction group.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        },
+        {
+          "locator": "q_stage default, cta_tiler, and warp-role definitions",
+          "observation": "The source defaults to q_stage=2 and m_block=128, extends the CTA query dimension by q_stage, and assigns the stated specialized roles.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/flash_fwd_sm100.py"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The role table and checklist overstate requirements that are merely CuTe implementation details.",
+        "check": "Separate source-specific role IDs from PTX lifecycle/completion requirements and inspect both against the page wording.",
+        "outcome": "The page labels role IDs as implementation choices; its completion and TMEM-lifetime requirements match the ISA, while its remaining handoffs match the pinned source's explicit pipelines."
+      },
+      "claim": "The pinned default source uses the listed warp roles, one collective TMEM allocation with disjoint per-stage regions, and multiple producer/consumer pipelines; a correct adaptation must preserve completion, ownership, visibility, lifetime, boundary, and tail obligations.",
+      "claim_id": "technique-ping-pong-scheduling-current-c002",
+      "claim_type": "code",
+      "covers": ["u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011", "u012", "u013", "u014", "u015", "u016", "u017", "u018", "u019"],
+      "evidence": [
+        {
+          "locator": "warp IDs, TmemAllocator, TMEM offsets, and pipeline producer/consumer states",
+          "observation": "The implementation assigns softmax0 to warps 0-3, softmax1 to 4-7, correction to 8-11, MMA/load/epilogue to 12/14/13, leaves 15 empty in the default layout, allocates one TMEM region, and builds distinct pipelines and stage states.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/flash_fwd_sm100.py"
+        },
+        {
+          "locator": "tcgen05 allocation, MMA, commit, fence, load, and deallocation contracts",
+          "observation": "PTX specifies collective TMEM lifetime and the completion and ordering machinery required around asynchronous tcgen05 operations; an unrelated barrier is not a substitute.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The B200-versus-Hopper throughput figures or the simplified cycle counts were transcribed from a secondary summary.",
+        "check": "Read the version-pinned paper's hardware table and worked roofline example directly.",
+        "outcome": "The primary paper gives 8192 versus 4096 BF16 MMA ops/clock/SM, 16 exponential ops/clock/SM for both, and the stated 1024/1024/768-cycle M=N=d=128 example."
+      },
+      "claim": "FA4's paper models B200 at twice Hopper's BF16 tensor-core operations per clock per SM while exponential throughput is unchanged, and gives a simplified 128-by-128 example with 1024 MMA, 1024 exponential, and 768 shared-memory cycles.",
+      "claim_id": "technique-ping-pong-scheduling-current-c003",
+      "claim_type": "performance",
+      "covers": ["u020"],
+      "evidence": [
+        {
+          "locator": "sections 2.2 and 3.1.1",
+          "observation": "The paper supplies the per-SM rates, example cycle counts, doubled-query scaling, and the caveat that its simplified roofline omits other resources.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The reported peak and utilization isolate ping-pong scheduling because it is the section's central technique.",
+        "check": "Inspect what system each source benchmarks and whether either includes a q_stage or ping-pong-only ablation.",
+        "outcome": "Both report complete FA4 forward kernels with multiple simultaneous techniques and no isolated ping-pong timing; the page states that limitation."
+      },
+      "claim": "The FA4 paper reports up to 1613 TFLOP/s and 71% for complete forward kernels, while the author blog reports up to 1605 TFLOP/s and 71%; neither result isolates ping-pong scheduling or proves 100% unit utilization.",
+      "claim_id": "technique-ping-pong-scheduling-current-c004",
+      "claim_type": "performance",
+      "covers": ["u021"],
+      "evidence": [
+        {
+          "locator": "abstract and performance results",
+          "observation": "The paper reports up to 1613 TFLOP/s and 71% for FA4 as a complete implementation.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        },
+        {
+          "locator": "Performance and Key Techniques",
+          "observation": "The author blog reports up to 1605 TFLOP/s and 71% and lists several techniques contributing to the complete kernel, without a ping-pong-only ablation.",
+          "revision": "Tri Dao FA4 blog, 2026",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "q_stage=1 is not a supported control, or the pattern is Blackwell-only because the pinned file targets SM100.",
+        "check": "Inspect accepted q_stage values in source and the paper's stated scheduling lineage.",
+        "outcome": "The source accepts q_stage 1 or 2 and adjusts roles for one stage; the paper explicitly says the schedule is similar to FA3's Hopper schedule."
+      },
+      "claim": "The pinned SM100 implementation supports q_stage=1 as a controlled comparison to q_stage=2, and the broader scheduling idea is not intrinsically Blackwell-only because the paper traces it to Hopper-era FA3.",
+      "claim_id": "technique-ping-pong-scheduling-current-c005",
+      "claim_type": "compatibility",
+      "covers": ["u022", "u023"],
+      "evidence": [
+        {
+          "locator": "q_stage validation and role reassignment",
+          "observation": "The implementation restricts q_stage to 1 or 2 and conditionally changes its role layout for q_stage=1.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/flash_fwd_sm100.py"
+        },
+        {
+          "locator": "section 3.1.2",
+          "observation": "The paper says FA4 follows a ping-pong schedule similar to FlashAttention-3, which targeted Hopper.",
+          "revision": "FlashAttention-4 paper v1, 2026-03-05",
+          "url": "https://arxiv.org/html/2603.05451v1"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": [
+    "Inspect FA4 paper v1 hardware model, pipeline, and performance scope",
+    "Inspect pinned Dao-AILab SM100 q_stage options, role assignments, TMEM offsets, and pipelines",
+    "Compare lifecycle requirements with PTX ISA 9.0 tcgen05 contracts"
+  ],
+  "id": "technique-ping-pong-scheduling",
+  "page_verdict": "verified",
+  "path": "wiki/techniques/ping-pong-scheduling.md",
+  "residual_risk": "The source was inspected but not compiled or profiled because this host has no CUDA toolkit or GPU. Performance remains author-reported and the recommended q_stage comparison is a procedure, not a measured local result.",
+  "scope": "All 23 current body units for hash 4553571158ca2be094f2a4198252e45b48298e0e318c60760f7f547f16ed438d were reviewed against the version-pinned paper, implementation, blog, and PTX lifecycle contract."
+}

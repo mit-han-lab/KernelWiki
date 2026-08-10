@@ -1,0 +1,173 @@
+{
+  "path": "wiki/techniques/fine-grained-quantization.md",
+  "id": "technique-fine-grained-quantization",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c001",
+      "claim": "Fine-grained scaling prevents an outlier from destroying tensor precision, and Blackwell universally uses native UE8M0 while Hopper requires Nc=128 CUDA-core promotion.",
+      "claim_type": "compatibility",
+      "covers": ["u001"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"sections 3.3.2 and 3.5.2","observation":"The paper presents 1x128/128x128 scaling and Nc=128 as its scoped FP8 training design; it does not guarantee that local scaling prevents all outlier-induced error or prescribe this Hopper implementation universally."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"block-scale valid-combination table","observation":"Blackwell block-scaled tcgen05 supports multiple kinds and both UE8M0 and UE4M3 combinations, not only UE8M0."}
+      ]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c002",
+      "claim": "The scaling diagram's 128x128 FP32 factor has 0.006% overhead and a 1x128 activation group captures a per-channel distribution.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [
+        {"command":"Compute scale-count ratio and storage ratio for one FP32 factor per 128x128 FP8 payload block","environment":"deterministic host arithmetic","reference":"Distinguish factor count from bytes and distinguish a row-by-128-channel group from a channel-wide group.","result":"1/16384 is 0.0061035% as a count ratio, but 4/(16384*1) is 0.024414% storage overhead; a 1x128 group is one token/row across 128 channels, not a per-channel distribution.","negative_control":"Using a one-byte factor yields the stated 0.0061035% byte ratio, confirming that the missing factor width causes the ambiguity."}
+      ]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c003",
+      "claim": "DeepSeek's fine-grained FP8 scheme uses 1x128 activation groups and 128x128 weight groups.",
+      "claim_type": "semantics",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"section 3.3.2 and Appendix B.2","observation":"The report states tile-wise 1x128 activation scaling and block-wise 128x128 weight scaling."}],
+      "challenge": {"alternative":"Both operands use the same 128x128 block.","check":"Read the separate activation and weight granularity definitions.","outcome":"The paper explicitly assigns different geometries to the two operands."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c004",
+      "claim": "The displayed deepgemm_fp8_tile function is a representative DeepGEMM CUDA implementation with the stated scale tensors and FP32 output accumulator.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/deepgemm/full/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f, byte-verified","locator":"BLOCK_K assertion and math warp-group loop","observation":"The upstream kernel uses WGMMA descriptors, staged TMA scale loads, float accum/final_accum arrays, and a templated epilogue. The displayed function uses undefined types/constants/partial and is neither upstream nor compilable."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c005",
+      "claim": "Hopper FP8 WGMMA accumulates with approximately FP22 precision and DeepGEMM universally promotes every four instructions.",
+      "claim_type": "semantics",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"sections 3.3.2 and 3.5.2","observation":"The report characterizes H800 FP8 Tensor Core accumulation as retaining about 14 bits, not FP22, and describes Nc=128/four-WGMMA promotion for its specific scheme."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c006",
+      "claim": "The displayed hopper_fp8_gemm_with_promotion function is a valid DeepGEMM implementation of Nc=128 promotion.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/deepgemm/full/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f, byte-verified","locator":"lines 250-323 accumulator, WGMMA, promotion and store path","observation":"The exact source differs materially and the sketch contains undefined types, dimensions, helper calls, scale indices, and partial/tail behavior; it cannot serve as reproducible code."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c007",
+      "claim": "Nc=128 was selected because four WGMMA operations cover 128 K elements, bound relative error near 0.1%, make smaller intervals too costly, and make Nc=256 unacceptably inaccurate.",
+      "claim_type": "performance",
+      "covers": ["u007", "u008", "u009", "u010", "u011"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"sections 3.3.2 and 3.5.2","observation":"The source supports Nc=128 and equivalence to four WGMMAs in the described configuration, but provides none of the page's 0.1%, 'too much overhead', or 'unacceptable Nc=256' thresholds."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c008",
+      "claim": "DeepGEMM's pinned SM100 FP8 path uses native tcgen05 block scaling with packed UE8M0 factors instead of the SM90 final_accum promotion loop.",
+      "claim_type": "mechanism",
+      "covers": ["u012"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"artifacts/kernels/deepgemm/full/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f, byte-verified","locator":"block-scaled descriptor, TMA/UTCCP scale path and mma_t::fma","observation":"The file selects float_ue8m0_t block scaling and TMEM scale operands and has no SM90 final_accum loop."}],
+      "challenge": {"alternative":"SM100 still performs the same CUDA-core promotion after every K block.","check":"Search the pinned SM100 kernel for final_accum and trace scale addresses into the UMMA wrapper.","outcome":"No final_accum promotion exists; the scales are operands of block-scaled UMMA."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c009",
+      "claim": "The UE8M0 pseudo-structure correctly decodes every byte as 2^(e-127), including all 256 encodings.",
+      "claim_type": "code",
+      "covers": ["u013"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#alternate-floating-point-data-formats","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ue8m0 alternate floating-point format","observation":"Encoding 0xff is NaN, so the displayed exponent formula incorrectly treats it as a finite 2^128 value. PTX also specifies packed ue8m0x2 register use rather than this invented descriptor API."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c010",
+      "claim": "The displayed tcgen05.mma PTX is valid native block-scale grammar with UE8M0 factors read directly from shared memory.",
+      "claim_type": "code",
+      "covers": ["u014"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"floating-point block-scale syntax","observation":"Valid grammar requires a block-scaled kind such as mxf8f6f4, the .block_scale qualifier, an instruction descriptor, two TMEM scale addresses, and enable-input-d. The displayed f8f6f4 form instead supplies nonexistent SMEM scale operands and a misplaced scale_d/mask sequence."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c011",
+      "claim": "UE8M0 and E4M3 scale elements occupy 8 bits and FP32 scale elements occupy 32 bits.",
+      "claim_type": "semantics",
+      "covers": ["u015"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#alternate-floating-point-data-formats","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ue8m0 and ue4m3 format definitions","observation":"Both alternate scale formats are byte-sized; FP32 is a 32-bit floating type."}],
+      "challenge": {"alternative":"The four-value packing makes each UE8M0 scale 32 bits.","check":"Distinguish element width from container width.","outcome":"Four byte-sized values can occupy one 32-bit container without changing element width."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c012",
+      "claim": "UE8M0 has the finite range 2^-127 through 2^128 and E4M3 scale values are accurately summarized as about 0 through 448 with 240 distinct values.",
+      "claim_type": "semantics",
+      "covers": ["u016", "u017"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#alternate-floating-point-data-formats","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ue8m0 and ue4m3 definitions","observation":"UE8M0 reserves 0xff for NaN, invalidating the claimed finite 2^128 endpoint. PTX's unsigned UE4M3 scale encoding is not the signed E4M3 payload/range summarized by the table."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c013",
+      "claim": "The compared recipes use 32-value MXFP4 groups, 16-value NVFP4 1D groups, and 128-element DeepGEMM SM90 activation groups.",
+      "claim_type": "semantics",
+      "covers": ["u018"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4 quantization and comparison with MXFP4","observation":"The documentation distinguishes NVFP4 block 16 from MXFP4 block 32."},{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"section 3.3.2","observation":"DeepSeek activation scaling is one scale per 128 channels for each token."}],
+      "challenge": {"alternative":"All low-precision formats use one universal block size.","check":"Compare the recipe-specific group definitions.","outcome":"The primary sources explicitly define different sizes and geometries."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c014",
+      "claim": "E4M3-scaled NVFP4 requires software decode on Blackwell, and FP32 scaling is categorically the best-precision option while UE8M0 is categorically coarser.",
+      "claim_type": "compatibility",
+      "covers": ["u019", "u020"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mxf4nvf4 valid combinations","observation":"Blackwell tcgen05 natively accepts the block16 UE4M3 NVFP4 combination. Element format alone does not establish a universal error ranking across different grouping and quantizer recipes."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c015",
+      "claim": "NVFP4's 1D recipe reconstructs an E2M1 payload with a block-of-16 E4M3 scale and one per-tensor FP32 scale.",
+      "claim_type": "code",
+      "covers": ["u021", "u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"E2M1 format, two-level scaling and 1D grouping","observation":"The recipe is exactly payload times local block scale times global scale; the displayed function explicitly decodes only the selected low nibble."}],
+      "challenge": {"alternative":"NVFP4 uses only one scale or groups 32 payloads like MXFP4.","check":"Inspect both levels and the 1D group size in the versioned recipe.","outcome":"The source defines two levels and 16-value local groups."}
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c016",
+      "claim": "The three prescriptive use rules are generally validated: DeepGEMM geometry for 671B+ training, NVFP4 as highest precision versus MXFP4 native acceleration, and Nc=128 promotion for Hopper FP8 inference.",
+      "claim_type": "performance",
+      "covers": ["u023", "u024", "u025"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"model and FP8 training sections","observation":"This validates one model/training design, not a general size threshold or inference rule."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"block-scale valid combinations","observation":"Both MXFP4 UE8M0 and NVFP4-compatible UE4M3 forms have native block-scaled instruction support; the ISA makes no highest-precision recommendation."}]
+    },
+    {
+      "claim_id": "technique-fine-grained-quantization-original-c017",
+      "claim": "The caveats establish universal accuracy/performance orderings for scale format, block size and Nc, and say Blackwell native block scaling works only with UE8M0.",
+      "claim_type": "performance",
+      "covers": ["u026", "u027", "u028", "u029"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4/MXFP4 comparison","observation":"Finer grouping and fractional scales provide more representational freedom and metadata, but do not prove strictly better precision for every tensor or implementation."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mxf4nvf4 block16 UE4M3 row","observation":"Native UE4M3 block scaling directly contradicts the UE8M0-only claim; the ISA supplies no Nc performance/accuracy curve."}]
+    }
+  ],
+  "commands": ["inspect byte-verified DeepGEMM SM90/SM100 FP8 sources", "check exact PTX ISA 9.0 block-scale grammar and valid combinations"],
+  "scope": "All 29 immutable baseline units and frontmatter compatibility claims were checked against DeepSeek-V3 v2, pinned DeepGEMM 891d57b, Transformer Engine 2.13, and PTX ISA 9.0.",
+  "residual_risk": "No GPU experiment was run. Unsupported universal accuracy and performance comparisons are refuted rather than replaced with estimates."
+}

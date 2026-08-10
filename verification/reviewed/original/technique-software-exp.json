@@ -1,0 +1,236 @@
+{
+  "claims": [
+    {
+      "claim": "FlashAttention-4 replaces hardware ex2 with a four-FMA degree-4 software exponential over a symmetric reduced interval.",
+      "claim_id": "technique-software-exp-original-c001",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "evidence": [
+        {
+          "locator": "Faster exponential section",
+          "observation": "The authors run a selected software degree-3 path alongside hardware MUFU.EX2, with floor reduction and a fractional interval [0,1); they do not replace all hardware exponentials.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        },
+        {
+          "locator": "flash_attn/cute/utils.py POLY_EX2 and ex2_emulation_2; softmax.py apply_exp2_convert",
+          "observation": "The pinned implementation uses the degree-3 coefficient set by default and chooses between hardware exp2 and software emulation by fragment.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/tree/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The Hopper/Blackwell resource table gives exact architecture counts and implies that any exp-per-MMA kernel is SFU-bound and software exp has eight times hardware throughput.",
+      "claim_id": "technique-software-exp-original-c002",
+      "claim_type": "performance",
+      "covers": ["u002", "u003", "u004", "u005", "u006", "u007", "u008"],
+      "evidence": [
+        {
+          "locator": "Feeds and Speeds",
+          "observation": "For one M=N=D=128 B200 model, the authors use 8192 BF16 tensor-core ops/cycle, 16 exponential ops/cycle, and derive 1024 cycles for each of tensor cores and exponentials. They do not publish the page's architecture table, universal bottleneck rule, or 8x software throughput.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The displayed software_exp2 function implements FlashAttention-4's Cody-Waite reduction and minimax polynomial with about 22 bits of accuracy.",
+      "claim_id": "technique-software-exp-original-c003",
+      "claim_type": "code",
+      "covers": ["u009", "u010"],
+      "evidence": [
+        {
+          "locator": "Faster exponential section",
+          "observation": "The published method uses floor reduction to f in [0,1), degree-3 Sollya coefficients 1, 0.6951, 0.2276, 0.0771, and exponent-bit reconstruction. The snippet uses nearest-integer reduction, a symmetric interval, degree-4 Taylor coefficients, and ldexpf.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        },
+        {
+          "locator": "flash_attn/cute/utils.py lines 32-58 and 756-793",
+          "observation": "The exact pinned code confirms the published degree-3 path, clamps below -127, assumes inputs no larger than 127, and uses packed operations plus bit reconstruction.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/utils.py"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The displayed softmax CUDA function is a valid FlashAttention-4 implementation and its FMA throughput is fully available beside tensor-core work.",
+      "claim_id": "technique-software-exp-original-c004",
+      "claim_type": "code",
+      "covers": ["u011", "u012"],
+      "evidence": [
+        {
+          "locator": "forward pipeline and faster exponential sections",
+          "observation": "FA4 has two synchronized softmax warpgroups, a correction warpgroup, TMEM staging, conditional rescaling, and a tunable hybrid exponential split. The standalone warp function implements none of that schedule and the source only says FMA units would otherwise be underutilized, not fully available.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The displayed PTX is a valid SFU-free FlashAttention-4 Horner implementation.",
+      "claim_id": "technique-software-exp-original-c005",
+      "claim_type": "code",
+      "covers": ["u013", "u014"],
+      "evidence": [
+        {
+          "locator": "floating-point instructions and ex2.approx",
+          "observation": "The fragment uses undeclared %ni and %scale registers and reconstructs with ex2.approx, so it is neither self-contained nor SFU-free. Its coefficients and reduction also differ from FA4.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html"
+        },
+        {
+          "locator": "flash_attn/cute/utils.py combine_int_frac_ex2 and ex2_emulation_2",
+          "observation": "The exact software path uses integer exponent-field reconstruction rather than a hardware ex2 instruction.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/utils.py"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The page's degree-4 Taylor polynomial has about 22 mantissa bits of accuracy on the stated reduced interval.",
+      "claim_id": "technique-software-exp-original-c006",
+      "claim_type": "semantics",
+      "covers": ["u015"],
+      "evidence": [
+        {
+          "command": "Dense-grid relative-error evaluation of the displayed polynomial on 1,000,002 points in [-0.5,0.5]",
+          "environment": "Conda base Python 3 host arithmetic",
+          "negative_control": "The same evaluator applied to the published rounded degree-3 coefficients on [0,1) produced approximately 8.763e-5, confirming the procedure distinguishes coefficient sets.",
+          "reference": "Compare the displayed polynomial to math.pow(2,x) and report maximum sampled relative error.",
+          "result": "Maximum sampled relative error was 5.5684e-5 at -0.5, approximately 14.13 bits, not 22 bits. A grid is not a rigorous global bound."
+        }
+      ],
+      "oracle": "host-experiment",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "FlashAttention-4 measured a 1.1-1.3x cuDNN speedup from software exponential alone.",
+      "claim_id": "technique-software-exp-original-c007",
+      "claim_type": "performance",
+      "covers": ["u020"],
+      "evidence": [
+        {
+          "locator": "Attention Benchmarks",
+          "observation": "The 1.1-1.3x forward comparison is for the complete FA4 implementation, which combines pipelining, hybrid exp, conditional rescaling, TMEM staging, scheduling, and other choices; no exp-only ablation is reported there.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Software exp should be used for any transcendental-throughput-limited kernel and is not recommended on Hopper because four FMAs are unjustified there.",
+      "claim_id": "technique-software-exp-original-c008",
+      "claim_type": "compatibility",
+      "covers": ["u021", "u022"],
+      "evidence": [
+        {
+          "locator": "FA4 README and implementation scope",
+          "observation": "The current FA4 package says it is optimized for Hopper and Blackwell, while the cited software-exp rationale and tuning are for a concrete Blackwell forward pipeline. Neither source defines a universal transcendental substitution rule or the stated Hopper prohibition.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/tree/a369df707e1980fb328abcc1733e3457ec10155f"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Four dependent FMAs take about 16 cycles versus about 20 cycles for ex2.approx, and the win follows from 128 FMA versus 16 SFU units.",
+      "claim_id": "technique-software-exp-original-c009",
+      "claim_type": "performance",
+      "covers": ["u023"],
+      "evidence": [
+        {
+          "locator": "Feeds and Speeds and Faster exponential sections",
+          "observation": "The source provides a tile-level 16-exp-ops/cycle model and motivates a hybrid path, but does not provide the page's instruction latency, FMA-unit count, or derived 8x comparison. The actual default polynomial is degree 3 plus range reduction and reconstruction.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "challenge": {
+        "alternative": "Natural exponential needs different polynomial coefficients rather than input conversion.",
+        "check": "Apply the identity e^x = 2^(x log2(e)).",
+        "outcome": "The identity exactly supports the stated input conversion, independent of the approximation chosen for exp2."
+      },
+      "claim": "A base-2 exponential implementation can approximate e^x by first multiplying x by log2(e).",
+      "claim_id": "technique-software-exp-original-c010",
+      "claim_type": "semantics",
+      "covers": ["u024"],
+      "evidence": [
+        {
+          "locator": "softmax scale_log2 construction and exp2 calls",
+          "observation": "FA4 converts the natural softmax scale to base-2 before evaluating exp2.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/softmax.py"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "claim": "Attention inputs are always non-positive, so software reconstruction only needs to handle underflow and not special values or an explicit input contract.",
+      "claim_id": "technique-software-exp-original-c011",
+      "claim_type": "semantics",
+      "covers": ["u025"],
+      "evidence": [
+        {
+          "locator": "flash_attn/cute/utils.py ex2_emulation and ex2_emulation_2",
+          "observation": "The exact helpers state x<=127 assumptions, clamp values below -127, and rely on particular rounding modes. The wider softmax implementation separately handles all-masked -infinity and dtype scaling cases.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/utils.py"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Softmax approximation errors cancel under normalization, BF16 conversion makes the polynomial automatically sufficient, and degree 6 gives near-ULP accuracy across the full float range.",
+      "claim_id": "technique-software-exp-original-c012",
+      "claim_type": "semantics",
+      "covers": ["u016", "u017", "u018", "u019"],
+      "evidence": [
+        {
+          "locator": "Faster exponential section and forward pipeline",
+          "observation": "The authors specify a degree-3 relative-error approximation and BF16 conversion inside one validated attention design; they make none of the page's error-cancellation, universal sufficiency, or degree-6 full-range near-ULP claims.",
+          "revision": "FlashAttention-4 blog, retrieved 2026-08-09",
+          "url": "https://tridao.me/blog/2026/flash4/"
+        },
+        {
+          "locator": "flash_attn/cute/utils.py POLY_EX2 and softmax implementation",
+          "observation": "The pinned implementation contains degree 0 through 5 coefficient sets, not the claimed degree-6 construction, and validates approximation only as part of its concrete dtype/softmax pipeline.",
+          "revision": "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+          "url": "https://github.com/Dao-AILab/flash-attention/blob/a369df707e1980fb328abcc1733e3457ec10155f/flash_attn/cute/utils.py"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    }
+  ],
+  "commands": [
+    "Inspect FlashAttention-4 first-party blog and pinned source revision a369df7",
+    "Inspect archived PTX ISA 9.0 instruction declarations",
+    "Evaluate both displayed and published coefficient sets on dense host grids"
+  ],
+  "id": "technique-software-exp",
+  "page_verdict": "refuted",
+  "path": "wiki/techniques/software-exp.md",
+  "residual_risk": "No B200 SASS inspection or performance run was available. The dense numerical experiment is discriminating evidence, not a formal error bound.",
+  "scope": "All 25 baseline body units and the page's architecture, code, accuracy, compatibility, and performance implications were checked."
+}

@@ -1,0 +1,165 @@
+{
+  "claims": [
+    {
+      "challenge": {
+        "alternative": "A swizzle eliminates bank conflicts by construction, regardless of consumer access.",
+        "check": "Apply the documented bank mapping to different warp address sets and include same-word/broadcast cases.",
+        "outcome": "Conflicts are properties of the concrete request; the page defines that dependency and limits swizzle benefit to a target access pattern."
+      },
+      "claim": "Shared memory maps successive 32-bit words to 32 banks, conflicts serialize different-word same-bank accesses within a warp request, and a swizzle may reduce but cannot universally eliminate conflicts.",
+      "claim_id": "technique-swizzling-current-c001",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002"],
+      "evidence": [
+        {
+          "locator": "Shared Memory and Bank Conflicts",
+          "observation": "The guide defines 32 banks, successive 32-bit-word mapping, conflict serialization, and same-word/broadcast exceptions.",
+          "revision": "Nsight Compute Profiling Guide 13.3",
+          "url": "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "128B is the only legal Blackwell mapping, and a tensor-map enumerator alone determines correctness.",
+        "check": "Compare TMA enum mappings, encoder constraints, and tcgen05 descriptor layout values.",
+        "outcome": "Both APIs expose multiple modes and independent constraints, while the producer destination and consumer addressing must denote the same physical layout; the page lists exact common encodings."
+      },
+      "claim": "A TMA-to-tcgen05 tile requires consistent tensor-map, base/alignment, and consumer-descriptor mappings; CUDA 13 defines the listed TMA chunk spans and PTX 9.0 defines legal no/32B/64B/128B tcgen05 modes with exact layout-field values and combination-specific constraints.",
+      "claim_id": "technique-swizzling-current-c002",
+      "claim_type": "compatibility",
+      "covers": ["u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011", "u012", "u013", "u014", "u015"],
+      "evidence": [
+        {
+          "locator": "CUtensorMapSwizzle and cuTensorMapEncodeTiled constraints",
+          "observation": "The API lists NONE, 32B/64B/128B 16B-chunk mappings and 128B atom variants, plus datatype/interleave/inner-box restrictions.",
+          "revision": "CUDA Driver API 13.0.97",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html"
+        },
+        {
+          "locator": "tcgen05 shared-memory descriptor and valid combinations",
+          "observation": "PTX defines the descriptor fields, layout values, invalid values, and type/major/shape constraints quoted by the page.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "Swizzle<3,4,3> means three base bits, four mask bits, and can be applied from row indices without base alignment.",
+        "check": "Evaluate the CUTLASS template masks and compare layout versus pointer swizzling.",
+        "outcome": "The template source defines the opposite parameter meanings, yields address bits 7:9 into 4:6, and explicitly distinguishes position-dependent hardware pointers; the page matches."
+      },
+      "claim": "CUTLASS Swizzle<BBits,MBase,SShift> uses mask width, invariant low bits, and field distance respectively; Swizzle<3,4,3> maps address bits 7:9 into 4:6, with equivalence to a logical row formula dependent on stride, byte units, composition, and base alignment.",
+      "claim_id": "technique-swizzling-current-c003",
+      "claim_type": "code",
+      "covers": ["u016", "u017", "u018", "u019", "u020", "u021"],
+      "evidence": [
+        {
+          "locator": "Swizzle definition and apply",
+          "observation": "The header defines parameter meanings, mask positions, and XOR application exactly as summarized.",
+          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/swizzle.hpp"
+        },
+        {
+          "locator": "pointer_swizzle position dependence",
+          "observation": "CUTLASS states that hardware chose position-dependent swizzles and distinguishes swizzle_ptr from composed swizzle_layout.",
+          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/pointer_swizzle.hpp"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "Supplying CU_TENSOR_MAP_SWIZZLE_128B is sufficient, and any mismatch always appears as a runtime error.",
+        "check": "Enumerate every encoder input/constraint and distinguish invalid encoding from a legal but logically inconsistent consumer.",
+        "outcome": "The driver validates encoder contracts through CUresult, while consumer semantics are separate; the checklist and two failure classes are correctly separated."
+      },
+      "claim": "A reproducible tiled tensor map must validate alignment, rank-specific dimensions/strides, box and element strides, mode constraints, CUresult, and the matching consumer mapping; successful encoding alone does not validate logical MMA output.",
+      "claim_id": "technique-swizzling-current-c004",
+      "claim_type": "mechanism",
+      "covers": ["u022", "u023", "u024", "u025", "u026", "u027", "u028"],
+      "evidence": [
+        {
+          "locator": "cuTensorMapEncodeTiled parameters, return values, and constraints",
+          "observation": "The archived API defines output/base alignment, rank-sized arrays, rank-minus-one byte strides, box/element constraints, swizzle restrictions, and CUresult failures.",
+          "revision": "CUDA Driver API 13.0.97",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html"
+        },
+        {
+          "locator": "tcgen05 shared-memory descriptor",
+          "observation": "The consumer descriptor independently supplies base, leading/stride dimensions, offset, major mode, and swizzle layout.",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "The 2.75x result isolates bank-conflict removal by 128B swizzling.",
+        "check": "Diff the tutorial's v1b/v2b encoder, TMA issuance, and descriptors and read the author's causal discussion.",
+        "outcome": "The inner TMA width and loop structure change together with swizzle/descriptor mode, and the author explicitly proposes TMA efficiency as an alternative; the page reports a combined treatment."
+      },
+      "claim": "The pinned tutorial's B200 4096-cube 3D TMA path reports 252.81 TFLOP/s for 16B/no-swizzle and 695.43 for 128B/128B-swizzle, approximately 2.75x and 46% of its cuBLAS result, without isolating bank-conflict or swizzle causality.",
+      "claim_id": "technique-swizzling-current-c005",
+      "claim_type": "performance",
+      "covers": ["u029", "u030", "u031", "u032"],
+      "evidence": [
+        {
+          "locator": "128-byte global load and swizzling, v1/v2 diff, benchmark, and remarks",
+          "observation": "The first-party tutorial supplies the exact values, simultaneous 16B-to-128B TMA and swizzle changes, lack of ncu access, and alternative wider-load explanation.",
+          "revision": "tcgen05 for dummies; source commit 3b90ac9b3f624bdf1f6f78d02dcd533675d36573",
+          "url": "https://gau-nernst.github.io/tcgen05/"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "challenge": {
+        "alternative": "A zero conflict counter or successful tensor-map encode is sufficient to select and validate a swizzle.",
+        "check": "Separate encoding validity, output permutation correctness, per-access wavefronts, and end-to-end timing.",
+        "outcome": "Each oracle discriminates a different failure mode, and the procedure controls producer/consumer pairs, correctness, profiler-version metric discovery, resources, and timing."
+      },
+      "claim": "Swizzle verification requires controlled matched-layout variants, explicit encoder and output checks, tool-discovered shared-memory request/wavefront/conflict metrics, end-to-end timing, and recorded environment rather than one counter or architecture heuristic.",
+      "claim_id": "technique-swizzling-current-c006",
+      "claim_type": "other",
+      "covers": ["u033", "u034", "u035", "u036", "u037", "u038", "u039"],
+      "evidence": [
+        {
+          "locator": "Metrics Examples and Shared Memory table",
+          "observation": "Nsight Compute documents metric discovery/naming, l1tex bank-conflict aggregates, and requests/wavefronts/conflicts as distinct shared-memory observations.",
+          "revision": "Nsight Compute 13.3",
+          "url": "https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html"
+        },
+        {
+          "locator": "cuTensorMapEncodeTiled and tcgen05 descriptor contracts",
+          "observation": "The producer and consumer interfaces have separate validity and layout requirements, supporting independent encoding and numerical checks.",
+          "revision": "CUDA 13.0.2",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html"
+        }
+      ],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    }
+  ],
+  "commands": [
+    "Inspect CUDA 13 tensor-map and PTX tcgen05 mapping contracts",
+    "Inspect CUTLASS 4.5.0 address-bit swizzle semantics",
+    "Trace tutorial v1b/v2b changes and causal caveat",
+    "Inspect current Nsight Compute bank-conflict measurement model"
+  ],
+  "id": "technique-swizzling",
+  "page_verdict": "verified",
+  "path": "wiki/techniques/swizzling.md",
+  "residual_risk": "No GPU experiment was available. The page intentionally requires per-consumer correctness and profiler comparison because legal mappings do not imply conflict-free or faster execution.",
+  "scope": "All 39 current body units, exact enum/descriptor values, CUTLASS semantics, performance provenance, validation workflow, and frontmatter claim were checked."
+}

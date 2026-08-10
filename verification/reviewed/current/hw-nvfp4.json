@@ -1,0 +1,179 @@
+{
+  "path": "wiki/hardware/nvfp4.md",
+  "id": "hw-nvfp4",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "hw-nvfp4-current-c001",
+      "claim": "NVFP4 is a hierarchical quantization recipe whose 1D form reconstructs each E2M1 payload with a block-of-16 E4M3 local scale and a per-tensor FP32 scale; E2M1 has the stated bits, numeric set, and two-values-per-byte packing, and Transformer Engine 2.13 also defines 16-by-16 weight scaling.",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002", "u003", "u004", "u005", "u006", "u007"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html",
+          "revision": "Transformer Engine 2.13",
+          "locator": "E2M1 data format, two-level scaling, mathematical formulation, and 1D/2D scaling",
+          "observation": "The vendor defines the E2M1 bit allocation and range, the E2M1/local-scale/global-scale product, one E4M3 scale per 16 values, one FP32 scale per tensor, and a 16-by-16 block in 2D weight scaling. Exhaustive decoding yields the page's finite numeric set; two 4-bit values occupy one byte."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#alternate-floating-point-data-formats",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "ue4m3 alternate floating-point format",
+          "observation": "PTX names the scale representation .ue4m3 and defines its one padding/zero MSB followed by four exponent and three mantissa bits."
+        }
+      ],
+      "challenge": {
+        "alternative": "NVFP4 is only the E2M1 encoding, uses one scale level, or groups 32 values like MXFP4.",
+        "check": "Separate payload format from the two tensors of scale metadata in the version-pinned recipe and compare the 1D and 2D grouping definitions.",
+        "outcome": "The documentation explicitly gives E2M1 times local E4M3 times global FP32, with 16-value 1D and 16-by-16 2D groups."
+      }
+    },
+    {
+      "claim_id": "hw-nvfp4-current-c002",
+      "claim": "The comparison table correctly distinguishes NVFP4 block-of-16 E4M3 local scaling plus a global scale from MXFP4 block-of-32 UE8M0 local scaling, and scopes the error statement to representational freedom rather than a universal outcome.",
+      "claim_type": "semantics",
+      "covers": ["u008", "u009", "u010", "u011", "u012", "u013", "u014"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html",
+          "revision": "Transformer Engine 2.13",
+          "locator": "Comparison with MXFP8 and MXFP4",
+          "observation": "NVIDIA contrasts NVFP4's 16-value E4M3 local groups and per-tensor global scale with MXFP4's 32-value E8M0 power-of-two groups and describes accuracy benefits as recipe behavior rather than an input-independent theorem."
+        }
+      ],
+      "challenge": {
+        "alternative": "Smaller groups and fractional scales guarantee strictly lower error for all tensors and quantizers.",
+        "check": "Test the strict claim on exactly representable data and inspect whether the source quantifies every scale-selection method and metric.",
+        "outcome": "Exactly representable tensors can tie, and the source does not make a universal strict-error claim; the page now states only greater scale freedom and requires workload measurement."
+      }
+    },
+    {
+      "claim_id": "hw-nvfp4-current-c003",
+      "claim": "The PTX table gives valid E2M1 block-scale combinations for kind::mxf4 block32 with UE8M0/scale_vec::2X and kind::mxf4nvf4 block16 with UE4M3/scale_vec::4X, and correctly warns that kind::mxf4nvf4 alone also permits UE8M0 modes and requires an architecture-specific target.",
+      "claim_type": "compatibility",
+      "covers": ["u015", "u016", "u017", "u018"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "tcgen05.mma block-scale grammar, valid combination tables, and target notes",
+          "observation": "The grammar and tables list the two displayed combinations, additional mxf4nvf4 UE8M0 combinations, and architecture-specific sm_100a-family targets."
+        }
+      ],
+      "challenge": {
+        "alternative": "kind::mxf4nvf4 uniquely selects block16 UE4M3, so the other qualifiers are documentation noise.",
+        "check": "Enumerate all rows with kind mxf4nvf4 in the PTX valid-combination tables.",
+        "outcome": "Rows include both UE4M3/block16 and UE8M0 modes; full qualifiers are behavior-selecting."
+      }
+    },
+    {
+      "claim_id": "hw-nvfp4-current-c004",
+      "claim": "The displayed cvt.rn.f16x2.e2m1x2 form converts one byte-sized packed E2M1 pair to a 32-bit f16x2 result, and the typed mov.b32 scalar-to-four-byte capability and measurement caveat are accurate.",
+      "claim_type": "code",
+      "covers": ["u019", "u020", "u021"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cvt",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "packed alternate-format conversion syntax and e2m1x2 example",
+          "observation": "The exact mnemonic, packed source width, and packed half result width match the page."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-mov",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "scalar-to-vector move rules and b32/four-byte example",
+          "observation": "The ISA permits the described unpack when vector element declarations are byte-sized and explicitly provides semantics rather than a performance guarantee."
+        }
+      ],
+      "challenge": {
+        "alternative": "The source is a 32-bit scalar or the result contains four f16 values, and mov is unconditionally faster.",
+        "check": "Apply the x2 packed-type sizes in the cvt grammar and distinguish mov semantics from generated-instruction performance.",
+        "outcome": "e2m1x2 occupies 8 bits and f16x2 32 bits; neither PTX section promises a relative timing result."
+      }
+    },
+    {
+      "claim_id": "hw-nvfp4-current-c005",
+      "claim": "The page rejects an architecture-independent 4x-over-Hopper number and enumerates the baseline and environment details needed to make an NVFP4 throughput comparison meaningful.",
+      "claim_type": "performance",
+      "covers": ["u022"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "mxf4/mxf4nvf4 target notes",
+          "observation": "Native tcgen05 FP4 forms require Blackwell architecture-specific targets, so Hopper cannot be a like-for-like native instruction baseline. The ISA contains no universal 4x result; shapes, layouts, target, and instruction combinations are explicit variables."
+        }
+      ],
+      "challenge": {
+        "alternative": "Four-bit operands automatically prove 4x throughput versus Hopper regardless of the chosen baseline.",
+        "check": "Check whether Hopper is a legal target for the FP4 instruction and whether operand width alone fixes MMA issue rate and end-to-end kernel work.",
+        "outcome": "Hopper is not a target for these instructions, and the comparison necessarily selects a different instruction/emulation path plus workload conditions."
+      }
+    },
+    {
+      "claim_id": "hw-nvfp4-current-c006",
+      "claim": "The three external references are version-pinned to Transformer Engine 2.13 and CUDA 13.0.2 PTX ISA 9.0 sections that define NVFP4, tcgen05.mma, and cvt.",
+      "claim_type": "other",
+      "covers": ["u023", "u024", "u025"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html",
+          "revision": "Transformer Engine 2.13",
+          "locator": "NVFP4 page",
+          "observation": "The URL includes the 2.13 release segment and resolves to the cited format/recipe material."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "tcgen05.mma and cvt anchors",
+          "observation": "Both links share the CUDA 13.0.2 archive and select the intended PTX sections."
+        }
+      ],
+      "challenge": {
+        "alternative": "One reference points to rolling documentation or to an unrelated conversion section.",
+        "check": "Inspect version path segments and resolve both PTX anchors in the archive.",
+        "outcome": "All version segments and section targets match the labels."
+      }
+    },
+    {
+      "claim_id": "hw-nvfp4-current-c007",
+      "claim": "The three internal references resolve to the fine-grained quantization, NVFP4 GEMM, and NVFP4 GEMV pages.",
+      "claim_type": "other",
+      "covers": ["u026", "u027", "u028"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "test -f wiki/techniques/fine-grained-quantization.md && test -f wiki/kernels/nvfp4-gemm.md && test -f wiki/kernels/nvfp4-gemv.md",
+          "environment": "current KernelWiki worktree after NVFP4 remediation",
+          "reference": "Resolve targets from wiki/hardware and compare their frontmatter IDs with the link labels.",
+          "result": "All three targets exist and identify the intended technique and kernels.",
+          "negative_control": "wiki/kernels/not-an-nvfp4-kernel.md does not exist, so the check rejects a broken target."
+        }
+      ],
+      "challenge": {
+        "alternative": "At least one relative path resolves outside the intended wiki directory or to an unrelated page.",
+        "check": "Resolve each relative path and inspect its frontmatter ID.",
+        "outcome": "The paths resolve to technique-fine-grained-quantization, kernel-nvfp4-gemm, and kernel-nvfp4-gemv."
+      }
+    }
+  ],
+  "commands": [
+    "test -f wiki/techniques/fine-grained-quantization.md && test -f wiki/kernels/nvfp4-gemm.md && test -f wiki/kernels/nvfp4-gemv.md",
+    "structural validation after remediation"
+  ],
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed locally, so the one-line PTX form was not assembled and no performance experiment was run. Exact syntax and compatibility come from PTX ISA 9.0; the page deliberately makes no numeric speed claim.",
+  "scope": "All 28 current units for body hash b574ab0127a35863b7ec1a2eb952aa93fe86bc145085a497ad64b9c3bc93a46a were checked against Transformer Engine 2.13, CUDA 13.0.2 PTX ISA 9.0, and local link resolution."
+}

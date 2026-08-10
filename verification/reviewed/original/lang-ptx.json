@@ -1,0 +1,115 @@
+{
+  "path": "wiki/languages/ptx-sm100.md",
+  "id": "lang-ptx",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "lang-ptx-original-c001",
+      "claim": "The page is an overview of PTX instruction families relevant to Blackwell SM100 hardware features.",
+      "claim_type": "other",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05, cluster launch control, cp.async.bulk.tensor, packed cvt, and ld sections","observation":"The archive defines each instruction family represented by the page and gives Blackwell target notes for the architecture-specific forms."}],
+      "challenge": {"alternative":"These mnemonics belong to CUDA C++ rather than PTX or to Hopper only.","check":"Resolve each mnemonic in the archived PTX ISA and inspect target notes.","outcome":"They are PTX instructions; tcgen05 and CLC forms have Blackwell target scope while TMA also has Hopper forms."}
+    },
+    {
+      "claim_id": "lang-ptx-original-c002",
+      "claim": "The displayed tcgen05 alloc/dealloc, unscaled f16 MMA, ld/st 32x32b x1, and shared-to-TMEM cp forms are legal PTX ISA 9.0 instruction shapes with the described operand locations; all allocated TMEM must be deallocated before exit.",
+      "claim_type": "code",
+      "covers": ["u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"alloc/dealloc grammar and lifecycle","observation":"The shown shared b32 allocation destination, taddr deallocation source, column count, and before-exit rule match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"same archive","locator":"unscaled floating-point grammar and examples","observation":"The f16 forms use TMEM D, A/B descriptors, idesc, and enable-input-D predicate for both CTA-group modes."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"ld/st grammar and repetition table","observation":"32x32b.x1 is valid for warp-collective TMEM-register transfers."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-cp","revision":"same archive","locator":"cp grammar and 128x256b example","observation":"The exact cta_group::1 128x256b shared-descriptor-to-TMEM form is documented."}],
+      "challenge": {"alternative":"The allocation counts rows, MMA requires block-scale operands, x1 is illegal for 32x32b, or cp copies in the opposite direction.","check":"Compare each exact grammar and operand description rather than adjacent forms.","outcome":"Allocation counts columns, the unscaled f16 grammar accepts the shown five operands, x1 is listed, and cp is SMEM to TMEM."}
+    },
+    {
+      "claim_id": "lang-ptx-original-c003",
+      "claim": "tcgen05.fence::after_thread_sync is the critical fence between TMA completion and MMA.",
+      "claim_type": "mechanism",
+      "covers": ["u002"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"after_thread_sync semantics and canonical handoff patterns","observation":"The fence orders subsequent asynchronous tcgen05 instructions across a documented execution-ordering handoff; it is not a TMA completion wait."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"same archive","locator":"global-to-shared mbarrier completion","observation":"TMA load completion is tracked through complete_tx on an mbarrier and must be awaited before consuming the destination."}]
+    },
+    {
+      "claim_id": "lang-ptx-original-c004",
+      "claim": "PTX ISA 9.0 defines the displayed E2M1x2-to-F16x2 conversion and typed b32 scalar-to-four-byte vector move.",
+      "claim_type": "code",
+      "covers": ["u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cvt","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"packed alternate-format conversion","observation":"The cvt mnemonic and packed source/result types match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-mov","revision":"same archive","locator":"scalar-to-vector move","observation":"A b32 source can be decomposed into four b8 destinations when types are declared accordingly."}],
+      "challenge": {"alternative":"The conversion consumes one scalar FP4 or the move cannot write byte-sized destinations.","check":"Apply packed x2 widths and the scalar/vector total-size rule.","outcome":"The source is an 8-bit pair and four byte destinations exactly match b32."}
+    },
+    {
+      "claim_id": "lang-ptx-original-c005",
+      "claim": "The mov.b32 byte decomposition is categorically faster than bitwise extraction.",
+      "claim_type": "performance",
+      "covers": ["u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-mov","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mov semantics","observation":"The ISA provides no relative latency or throughput guarantee."},{"url":"https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html","revision":"author post fetched 2026-08-08","locator":"vectorized PTX decode stage","observation":"The author's reported improvement bundles mov, conversions, vectorized decode, and arithmetic; no isolated mov-versus-bitwise trial is reported."}]
+    },
+    {
+      "claim_id": "lang-ptx-original-c006",
+      "claim": "The displayed ld.global load forms are legal vector widths and L1 eviction-priority qualifiers in PTX ISA 9.0.",
+      "claim_type": "code",
+      "covers": ["u004"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ld grammar, eviction priorities, and vector examples","observation":"L1::no_allocate and L1::evict_last are legal hints; v2.u64 and v4.u64 move 128 and 256 bits."}],
+      "challenge": {"alternative":"v4.u64 is unsupported or the qualifiers are L2-only.","check":"Inspect the exact ld vector/type and L1 eviction-priority sets.","outcome":"Both qualifiers are in the L1 set and v4.u64 is an explicit 256-bit example."}
+    },
+    {
+      "claim_id": "lang-ptx-original-c007",
+      "claim": "L1::no_allocate necessarily bypasses L1 for one-use data and L1::evict_last keeps reused data resident.",
+      "claim_type": "performance",
+      "covers": ["u004"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#cache-operators","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"cache eviction priority semantics","observation":"These qualifiers are performance hints that may not always be respected and do not guarantee bypass, residence, or workload suitability."},{"url":"https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/","revision":"author post fetched 2026-08-08","locator":"top-solution observations and failed wider-load experiment","observation":"The policies are source-reported for particular implementations, not universal cache guarantees."}]
+    },
+    {
+      "claim_id": "lang-ptx-original-c008",
+      "claim": "clusterlaunchcontrol.try_cancel takes one ClcID output and directly returns a valid tile ID or decline.",
+      "claim_type": "code",
+      "covers": ["u005"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel grammar and completion","observation":"The asynchronous instruction takes shared response and mbarrier addresses, writes a 16-byte opaque response, and requires query_cancel instructions after completion to determine success and decode coordinates."}]
+    },
+    {
+      "claim_id": "lang-ptx-original-c009",
+      "claim": "The first displayed cp.async.bulk.tensor form is a legal 2D global-to-cluster-shared TMA load completed in bytes on an mbarrier.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"global-to-shared::cluster grammar","observation":"The dimensions, state spaces, optional tile mode, tensor-map coordinates, and mbarrier completion operands match."}],
+      "challenge": {"alternative":"Cluster shared memory requires multicast or the tensor map must be a raw global address.","check":"Compare non-multicast cluster-destination grammar and operand descriptions.","outcome":"A cluster destination is legal without multicast and uses an opaque tensor-map address plus coordinates."}
+    },
+    {
+      "claim_id": "lang-ptx-original-c010",
+      "claim": "Appending .multicast is the legal multicast qualifier for the displayed TMA load.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"global-to-shared::cluster multicast grammar and example","observation":"The required qualifier is .multicast::cluster, followed by a 16-bit CTA mask; .multicast alone is not in the grammar."}]
+    },
+    {
+      "claim_id": "lang-ptx-original-c011",
+      "claim": "The three related links resolve to the CUDA C++, tcgen05 MMA, and NVFP4 pages named by their labels.",
+      "claim_type": "other",
+      "covers": ["u007", "u008", "u009"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"test -f wiki/languages/cuda-cpp.md && test -f wiki/hardware/tcgen05-mma.md && test -f wiki/hardware/nvfp4.md","environment":"current KernelWiki worktree","reference":"Resolve each relative path and compare frontmatter IDs with labels.","result":"All three files exist with IDs lang-cuda-cpp, hw-tcgen05-mma, and hw-nvfp4.","negative_control":"wiki/languages/not-a-real-target.md does not exist."}],
+      "challenge": {"alternative":"A relative path resolves to an adjacent directory or unrelated ID.","check":"Resolve from wiki/languages and inspect target frontmatter.","outcome":"Each exact target and ID matches; the missing-target control fails."}
+    }
+  ],
+  "commands": ["local path resolution with a missing-target control"],
+  "scope": "All nine baseline units for body hash 7ef09348591994e947177b5ee3a4a04af46cd573163a183b47b016ff51d1fec9 were checked against CUDA 13.0.2 PTX ISA 9.0, the version-scoped author evidence, and local link controls.",
+  "residual_risk": "No CUDA assembler or Blackwell GPU is installed locally. Legal forms and ordering semantics come from PTX ISA 9.0; the original page's performance prescriptions were not retained without measurements."
+}

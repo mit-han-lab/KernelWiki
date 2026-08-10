@@ -1,0 +1,90 @@
+{
+  "path": "wiki/techniques/epilogue-fusion.md",
+  "id": "technique-epilogue-fusion",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "technique-epilogue-fusion-current-c001",
+      "claim": "The page correctly defines fusion as in-kernel output transformation/materialization and separates it from optional concurrent next-tile overlap and any fixed warp-role count.",
+      "claim_type": "mechanism",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"fusion operation expression tags","observation":"Fusion operations define transformations of accumulator/source/auxiliary values independently of a next-tile overlap schedule."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"same tag","locator":"four-warp epilogue group and completed-accumulator path","observation":"A concrete implementation uses four epilogue warps and a completed TMEM accumulator, disproving any architectural default role count while matching the scoped page."}],
+      "challenge": {"alternative":"Epilogue fusion necessarily uses double-buffered overlap or fourteen dedicated warps on SM100.","check":"Compare the fusion operation interface with a tagged SM100 role schedule.","outcome":"The operation graph is schedule-independent and the pinned schedule uses four epilogue warps; the page explicitly preserves that distinction."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-current-c002",
+      "claim": "The TMEM-to-output section accurately requires a legal collective TMEM-to-register copy/load and presents exact CUTLASS 4.5.0 CuTe DSL routing identifiers with an explicit non-standalone warning.",
+      "claim_type": "code",
+      "covers": ["u003", "u004", "u005", "u006"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"copy_atom_t2r through epilogue loop and tail","observation":"The displayed names and sequence occur in the official file; that file also supplies the layouts, participant groups, copy partitions, conversion, SMEM/TMA store pipeline, tail and TMEM free named by the warning."}],
+      "challenge": {"alternative":"The excerpt is runnable as written or silently invents the load shape.","check":"Exact-search every identifier and compare surrounding declarations/dependencies.","outcome":"All shown APIs and load shape occur at the tag, while ellipsis and the warning unambiguously prevent standalone interpretation."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-current-c003",
+      "claim": "All correctness-boundary rows and the multi-region paragraph match tcgen05 MMA completion, collective load completion/source lifetime, mbarrier phase, disjoint-address, output-edge, store-tail, and deallocation obligations.",
+      "claim_type": "mechanism",
+      "covers": ["u007", "u008", "u009", "u010", "u011", "u012"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"MMA completion and lifetimes","observation":"Commit and mbarrier completion are required before dependent TMEM access."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"collective load, wait, mapping and source lifetime","observation":"Loads are collective/asynchronous, require wait::ld, and preserve TMEM source lifetime through completion."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"same archive","locator":"allocation and explicit deallocation","observation":"TMEM must be collectively allocated and matching storage freed before exit."}],
+      "challenge": {"alternative":"Warp specialization, __syncthreads, or nonaliasing alone supplies every edge.","check":"Separate asynchronous proxy completion, register-load completion, address disjointness and lifecycle cleanup.","outcome":"Each is independent; the page names every required class rather than substituting one primitive for all of them."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-current-c004",
+      "claim": "The CUTLASS section gives the exact LinCombEltAct parameter order, accurately summarizes CollectiveBuilder's SM100 inputs, rejects a nonexistent type, scopes support to valid combinations, and correctly describes the pinned vLLM builder/carveout usage.",
+      "claim_type": "code",
+      "covers": ["u013", "u014", "u015", "u016", "u017"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"LinCombEltAct declaration","observation":"The displayed six template parameters and defaults match exactly."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/collective/collective_builder.hpp","revision":"same tag","locator":"CollectiveBuilder declaration","observation":"The described architecture through FusionOpOrCallbacks inputs match the template signature."},{"path":"artifacts/prs/vllm/PR-16032/key-files/csrc/quantization/fp4/nvfp4_scaled_mm_kernels.cu","revision":"vLLM merge ed7a29d9f8b48978e3bbf43599d21b4de65387e0","locator":"Fp4GemmSm100 CollectiveEpilogue/CollectiveMainloop","observation":"The wrapper uses EpilogueTileAuto, EpilogueScheduleAuto and StageCountAutoCarveout of CollectiveEpilogue::SharedStorage exactly as stated."}],
+      "challenge": {"alternative":"Sm100EpilogueTmaWarpSpecialized exists under an indirect include or the builder accepts every operation regardless of constraints.","check":"Search the entire exact-tag epilogue tree and inspect builder specializations/static assertions.","outcome":"The name is absent and support is selected through constrained builder/callback specializations; can_implement is correctly required."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-current-c005",
+      "claim": "The operation table correctly separates source linear combination from bias and describes activation, conversion/quantization, gated, online-softmax, and residual dependencies without claiming universal built-in composition.",
+      "claim_type": "mechanism",
+      "covers": ["u018", "u019", "u020", "u021", "u022", "u023", "u024", "u025"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"LinearCombination, bias, activation, residual, block-scale and softmax tags","observation":"Source, explicit bias, activation, auxiliary/residual, quantized scale and reduction-capability distinctions match the table."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/thread/activation.h","revision":"same tag","locator":"ReLU, SiLU, GELU functors","observation":"The named activation functions exist; the page correctly conditions compositions on supported/custom callbacks."}],
+      "challenge": {"alternative":"beta*C is itself always bias or every row is one built-in SM100 visitor.","check":"Compare distinct operation tags and callback capability flags.","outcome":"The page separates source and bias, and explicitly denies universal built-in composition."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-current-c006",
+      "claim": "The overlap/evaluation section requires both ownership directions, boundary/tail tests, controlled baselines, compiled/profiler resource evidence, and rejects fixed warp-bandwidth or guaranteed-speedup claims while preserving the conditional saved-intermediate benefit.",
+      "claim_type": "performance",
+      "covers": ["u026", "u027", "u028", "u029"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"load semantics without latency/bandwidth guarantee","observation":"The ISA supports correctness edges but publishes no equal-share bandwidth or universal performance result."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"resource-dependent occupancy","observation":"Concrete registers, shared memory, block size and launch data are needed for occupancy, supporting the measurement workflow."}],
+      "challenge": {"alternative":"Removing an intermediate guarantees a win and steady-state correctness implies correct prologue/tail.","check":"Account for added resources/synchronization and separately exercise first/last/partial stages.","outcome":"Those costs and states can reverse or invalidate the result; the page explicitly requires controlled comparison and boundary faults."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-current-c007",
+      "claim": "The artifact section accurately distinguishes the byte-matched vLLM file, historical extracted snippet, and labeled incomplete derived skeleton, and the displayed Conda-base retrieval command succeeds while a nonexistent page fails.",
+      "claim_type": "code",
+      "covers": ["u030", "u031", "u032", "u033", "u034", "u035"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"sha256sum artifact files; compare nvfp4 file to raw merge revision; inspect headers/provenance; run Conda-base get_page command and nonexistent-page control","environment":"current worktree and network, 2026-08-09","reference":"Modes/hashes and command behavior should match the page.","result":"nvfp4 matches e8aed5... at the full merge SHA; the second full file says extracted; the variant says derived/not upstream; retrieval exited zero with 547 lines.","negative_control":"scripts/get_page.py no-such-epilogue-page --include-code exited 1."}],
+      "challenge": {"alternative":"Directory name full makes both files upstream-verbatim or the variant is safe production code.","check":"Use file-level provenance/header rather than directory inference.","outcome":"The file-level labels establish mixed modes exactly as the page warns."}
+    },
+    {
+      "claim_id": "technique-epilogue-fusion-current-c008",
+      "claim": "All six primary URLs and three related local links resolve exactly; fabricated external and local controls fail.",
+      "claim_type": "other",
+      "covers": ["u036", "u037", "u038", "u039", "u040", "u041", "u042", "u043", "u044"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"HTTP-check six exact primary URLs; resolve three relative links; repeat with fabricated HTTP and local targets","environment":"current worktree/network, 2026-08-09","reference":"Exact pinned/archived sources and intended local pages should resolve.","result":"All six URLs returned HTTP 200 and all three local files existed.","negative_control":"A fabricated CUDA path returned HTTP 404 and wiki/techniques/not-real.md was absent."}],
+      "challenge": {"alternative":"Redirects hide missing revisions or similarly named local pages satisfy links.","check":"Require exact immutable GitHub blob/archive page success and exact resolved local paths.","outcome":"Every exact target resolved while both controls failed."}
+    }
+  ],
+  "commands": ["exact CUTLASS 4.5.0 and vLLM merge-source inspection", "artifact hash/provenance checks with negative controls", "Conda-base retrieval test", "external/local link checks"],
+  "scope": "All 44 current units for body hash 7b78dc20ff19f53642d3b695375cd2e64bb0f6f55abad1feba792f98a12ad994 were checked against exact-release code, archived PTX, byte hashes and discriminating host controls.",
+  "residual_risk": "No CUDA compiler or SM100 GPU is installed locally. The page intentionally contains no throughput, occupancy, participant-count, or TMEM-bandwidth prediction for an unmeasured kernel."
+}

@@ -1,0 +1,127 @@
+{
+  "path": "wiki/hardware/tma.md",
+  "id": "hw-tma",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "hw-tma-current-c001",
+      "claim": "TMA on sm_90 and later permits one thread to issue non-blocking rank-1 through rank-5 tensor copies; global-to-shared loads can target CTA/cluster shared memory and multicast with mbarrier byte completion, shared-to-global stores use bulk groups, copied types are not generally converted, and OOB loads fill rather than clamp.",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002", "u003", "u004", "u005"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"syntax, description, completion table, history, and target notes","observation":"The instruction contract supplies the rank set, directions, non-blocking behavior, multicast mode, direction-specific completion, datatype-copy semantics, and sm_90 floor."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#asynchronous-data-copies-using-the-tensor-memory-accelerator-tma","revision":"CUDA 13.0.2","locator":"TMA overview and OOB behavior","observation":"The programming guide demonstrates one-thread issue and documents filling of out-of-bounds tensor-load elements rather than edge clamping."}
+      ],
+      "challenge": {"alternative":"All TMA directions use a barrier arrival and the descriptor requests source-to-destination numeric conversion.","check":"Compare load/store completion rows and inspect whether the tensor map contains distinct source and destination datatypes.","outcome":"Loads use complete_tx, stores use bulk_group, and one datatype describes the tensor representation; no general conversion pair exists."}
+    },
+    {
+      "claim_id": "hw-tma-current-c002",
+      "claim": "The tensor-map field list, basic CUDA Driver API 13.0.97 tiled-encoder constraints, required CUresult handling, and Blackwell device-side encoding/proxy-publication qualification are accurate.",
+      "claim_type": "semantics",
+      "covers": ["u006", "u007", "u008", "u009", "u010", "u011", "u012", "u013", "u014", "u015", "u016", "u017", "u018", "u019", "u020", "u021"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"cuTensorMapEncodeTiled parameters, requirements, and returns","observation":"The API lists all summarized fields and the 64B tensor-map output alignment, basic 16B base/stride and inner-box rules, box dimensions 1..256, element strides 1..8, swizzle-span bound, type-specific exceptions, and CUresult failure contract."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#encoding-a-tensor-map-on-device","revision":"CUDA 13.0.2","locator":"device-side encoding/modification and tensormap proxy fence","observation":"The Blackwell path and fence.proxy.tensormap::generic publication sequence match the page's qualification."}
+      ],
+      "challenge": {"alternative":"A tensor map is always host-created and 128B aligned, with unconstrained box dimensions.","check":"Inspect the Driver API object alignment/box bounds and the separate Blackwell device-encoding section.","outcome":"The host object alignment is 64B, box entries are bounded, and device-side construction/modification is documented with proxy ordering."}
+    },
+    {
+      "claim_id": "hw-tma-current-c003",
+      "claim": "The representative 2D global-to-CTA-shared PTX is exact and the load lifecycle correctly separates initialization, one software arrive/expected-byte update, TMA complete_tx bytes, per-stage phase tracking, and an acquire wait with conjunctive phase completion.",
+      "claim_type": "code",
+      "covers": ["u022", "u023", "u024", "u025", "u026", "u027", "u028", "u029", "u030"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"global-to-shared grammar and mbarrier::complete_tx::bytes semantics","observation":"The shown instruction qualifier order/operands are accepted, the default load mode is tile, and completion decrements tx-count by copied bytes."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#phase-completion-of-the-mbarrier-object","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"arrive.expect_tx, phase completion, and wait ordering","observation":"The page's separate arrival/expected-byte/complete-byte accounting and requirement for both counters to reach zero match the object lifecycle."}
+      ],
+      "challenge": {"alternative":"Each TMA completion supplies a software arrival, or zero tx-count alone releases the consumer.","check":"Trace complete-tx and arrive-on to their separate object fields and inspect the phase-completion conjunction.","outcome":"TMA changes only tx-count, and completion requires both tx-count and pending arrivals to be zero."}
+    },
+    {
+      "claim_id": "hw-tma-current-c004",
+      "claim": "The shared-to-global store sequence uses the required bulk_group qualifier, commit_group, and wait_group 0, and correctly distinguishes grouping from completion and source-buffer reuse safety.",
+      "claim_type": "code",
+      "covers": ["u031", "u032", "u033"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"shared::cta-to-global form plus cp.async.bulk commit_group/wait_group sections","observation":"The exact instruction operands and completion qualifier match the grammar; commit creates a per-thread group and wait_group 0 waits for all prior committed groups and makes writes visible to the issuer."}],
+      "challenge": {"alternative":"commit_group is a blocking store completion operation, making wait_group redundant.","check":"Compare the definitions of commit_group and wait_group.","outcome":"Commit only batches uncommitted operations; the separately defined wait supplies completion."}
+    },
+    {
+      "claim_id": "hw-tma-current-c005",
+      "claim": "The exact cluster-multicast form, same-offset destination and barrier signaling, cluster lifetime/initialization/election/mask/wait invariants, GEMM A/B index-reuse example, and non-guaranteed traffic caveat are correct.",
+      "claim_type": "code",
+      "covers": ["u034", "u035", "u036", "u037", "u038", "u039", "u040", "u041", "u042"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"multicast::cluster ctaMask, same-offset data, and mbarrier signal semantics","observation":"The instruction and same-offset semantics match exactly; cluster-shared lifetime makes initialization and liveness necessary, while one intended issue requires cluster-level rather than per-CTA election. The ISA gives no exact DRAM-saving factor."}],
+      "challenge": {"alternative":"threadIdx.x==0 elects one issuer for the whole cluster and a one-to-two multicast proves exactly half DRAM traffic.","check":"Count threadIdx.x==0 threads across CTAs and distinguish functional destination count from measured cache/DRAM transactions.","outcome":"There is one such thread per CTA, and the functional ISA does not specify baseline cache reuse or an exact bandwidth ratio."}
+    },
+    {
+      "claim_id": "hw-tma-current-c006",
+      "claim": "TMA and tcgen05 expose multiple swizzle layouts; correctness requires the TMA map, base/leading dimensions, and consuming shared-memory descriptor to match, while bank-conflict benefit remains access-pattern-specific rather than universally requiring 128B.",
+      "claim_type": "semantics",
+      "covers": ["u043", "u044", "u045"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"CUtensorMapSwizzle enum and swizzle constraints","observation":"The tensor map supports none, 32B, 64B, 128B, and additional variants with inner-span/alignment/type rules."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-layout","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 descriptor swizzling modes","observation":"tcgen05 descriptors likewise encode multiple modes and interpret addresses/layout accordingly; legal modes vary by instruction configuration."}
+      ],
+      "challenge": {"alternative":"128B is the one canonical tcgen05 layout and automatically makes any consumer conflict-free.","check":"Enumerate legal descriptor modes and apply a mismatched/alternate consumer access pattern.","outcome":"Non-128B modes are normative, and bank mapping still depends on consumer addresses; only a matched pattern can obtain the intended conflict behavior."}
+    },
+    {
+      "claim_id": "hw-tma-current-c007",
+      "claim": "The Blackwell GEMM data path and per-stage full/empty ownership transitions correctly require load completion before MMA reads and asynchronous-MMA read completion before producer overwrite, with separate per-stage phases and no substitution of CTA sync or fence for completion.",
+      "claim_type": "semantics",
+      "covers": ["u046", "u047", "u048", "u049", "u050", "u051"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA atoms, PipelineTmaUmma full/empty producer-consumer loops, UMMA, TMEM retrieve, and epilogue","observation":"The complete implementation follows the stated data path and explicitly acquires/releases per-stage pipeline state around asynchronous TMA and UMMA lifetimes."}],
+      "challenge": {"alternative":"tcgen05 consumes shared operands at issue, so only a full barrier is needed and producers may overwrite immediately afterward.","check":"Trace the official pipeline's consumer release relative to asynchronous MMA issue/completion.","outcome":"Stage release is delayed through the consumer lifecycle; the implementation retains separate producer and consumer state, discriminating asynchronous operand lifetime."}
+    },
+    {
+      "claim_id": "hw-tma-current-c008",
+      "claim": "The tuning guidance makes all layout, multicast, issue, and stage choices conditional on access pattern/resources, states the monotonic storage cost of distinct stages, rejects a universal 3-5 optimum, and specifies enough controls for a scoped profile.",
+      "claim_type": "performance",
+      "covers": ["u052"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"derive storage = fixed_bytes + stages * per_stage_bytes and inspect that no numeric speedup is asserted","environment":"symbolic resource accounting over the documented distinct-stage design","reference":"Each stage owns separate positive-size operand buffers and barrier state; performance depends on target execution/resource conditions.","result":"Adding a stage increases storage by per_stage_bytes; the page supplies no fixed optimum or outcome and requires controlled target measurement.","negative_control":"A single reused non-overlapped buffer does not satisfy the distinct-stage premise and therefore does not show the same linear allocation."}],
+      "challenge": {"alternative":"Three to five stages is an architecture constant that can be selected without profiling.","check":"Search the normative TMA contract for a stage-count field and compare resource use across different tile sizes.","outcome":"TMA exposes no such constant; tile bytes and occupancy change the feasible and useful count."}
+    },
+    {
+      "claim_id": "hw-tma-current-c009",
+      "claim": "The four external references are pinned to CUDA 13.0.2/Driver API 13.0.97/PTX ISA 9.0 and an immutable CUTLASS 4.5.0 TMA tutorial.",
+      "claim_type": "other",
+      "covers": ["u053", "u054", "u055", "u056"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#asynchronous-data-copies-using-the-tensor-memory-accelerator-tma","revision":"CUDA 13.0.2","locator":"TMA section","observation":"The archive and anchor match the label."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"tensor-map management","observation":"The archive resolves to the encoder constraints."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tensor copy section","observation":"The archive and anchor match the label."},
+        {"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_tma/tma_v0.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"complete TMA tutorial","observation":"The immutable blob exists at the pinned release commit."}
+      ],
+      "challenge": {"alternative":"One source follows rolling docs or a mutable Git branch.","check":"Inspect CUDA archive segments and the Git blob identifier.","outcome":"All CUDA links include 13.0.2 and CUTLASS names an exact commit."}
+    },
+    {
+      "claim_id": "hw-tma-current-c010",
+      "claim": "The internal references resolve to the verified mbarrier and tcgen05 MMA pages.",
+      "claim_type": "other",
+      "covers": ["u057", "u058"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [{"command":"test -f wiki/hardware/mbarrier.md && test -f wiki/hardware/tcgen05-mma.md","environment":"current KernelWiki worktree after TMA remediation","reference":"Resolve both relative paths and inspect their frontmatter IDs.","result":"Both files exist with IDs hw-mbarrier and hw-tcgen05-mma and cover the linked contracts.","negative_control":"wiki/hardware/not-tcgen05.md does not exist, so the path check rejects a broken target."}],
+      "challenge": {"alternative":"One path is broken or links to an unrelated generation.","check":"Resolve both paths and compare page IDs/titles.","outcome":"Both point to the intended verified hardware pages."}
+    }
+  ],
+  "commands": ["inspect CUTLASS 4.5.0 TMA/UMMA pipeline", "derive per-stage storage scaling", "test -f wiki/hardware/mbarrier.md && test -f wiki/hardware/tcgen05-mma.md", "structural validation after remediation"],
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed locally, so the three PTX snippets were not assembled and no TMA timing/traffic counters were collected. Syntax and ordering are version-pinned to PTX ISA 9.0; the page makes no numeric performance claim.",
+  "scope": "All 58 current units for body hash 1eb48a33cd77ce277ac4783d357f5784e487533159bbe155fc942f404f3655f1 were checked against CUDA 13.0.2, CUDA Driver API 13.0.97, PTX ISA 9.0, CUTLASS 4.5.0, symbolic resource accounting, and local link resolution."
+}

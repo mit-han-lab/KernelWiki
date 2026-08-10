@@ -1,0 +1,130 @@
+{
+  "claims": [
+    {
+      "claim": "Low TMA/tcgen05 activity, phase-local tensor-core drops, and warps observed at mbarrier.try_wait establish pipeline stalls in an otherwise compute-bound kernel.",
+      "claim_id": "pattern-pipeline-stalls-original-c001",
+      "claim_type": "semantics",
+      "covers": ["u001"],
+      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html","revision":"Nsight Compute 2025.3","locator":"Warp State Statistics and sampling","observation":"Warp states are sampled symptoms, stalls are not necessarily performance-impacting, and NVIDIA says to focus on them when schedulers fail to issue; source correlation does not by itself prove the causal pipeline or a compute-bound classification."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Two stages cannot hide a three-cycle latency chain.",
+      "claim_id": "pattern-pipeline-stalls-original-c002",
+      "claim_type": "performance",
+      "covers": ["u002"],
+      "evidence": [{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v3.cu","revision":"3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"matmul_v3 launch and pipeline","observation":"The cited tutorial's pipelined v3 instantiates NUM_STAGES=2 and reports a benefit; neither it nor the tuning guide defines a generic three-cycle chain or a universal depth rule."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "challenge": {"alternative":"A stale phase can be harmless because parity repeats every other reuse.","check":"Inspect the PTX validity window for state/parity waits and the per-iteration example.","outcome":"A wait may identify only the current or immediately preceding phase, so incorrect per-object phase tracking can wait for the wrong reuse or invoke an invalid state."},
+      "claim": "Incorrect mbarrier phase tracking can make a consumer wait for or observe the wrong reuse of a barrier.",
+      "claim_id": "pattern-pipeline-stalls-original-c003",
+      "claim_type": "semantics",
+      "covers": ["u003"],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait","revision":"PTX ISA 9.0","locator":"state and phaseParity validity","observation":"test_wait/try_wait accepts state or parity for the current or immediately preceding phase, requiring phase state to be maintained for each reused object."}],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "claim": "Missing tcgen05.fence::after_thread_sync between a TMA wait and MMA issue lets MMA read SMEM before the TMA transfer is visible.",
+      "claim_id": "pattern-pipeline-stalls-original-c004",
+      "claim_type": "semantics",
+      "covers": ["u004"],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait","revision":"PTX ISA 9.0","locator":"acquire wait ordering","observation":"A successful acquire wait provides visibility for prior cp.async.bulk operations associated with the barrier."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"PTX ISA 9.0","locator":"tcgen05 fence description","observation":"after_thread_sync orders subsequent asynchronous tcgen05 operations after prior tcgen05/execution-ordering operations across threads; it is not the general TMA-to-SMEM visibility primitive asserted by the page."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Using one tile serializes every warp on that tile's softmax or epilogue.",
+      "claim_id": "pattern-pipeline-stalls-original-c005",
+      "claim_type": "performance",
+      "covers": ["u005"],
+      "evidence": [{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper v1","locator":"sections 3.1.1-3.1.2","observation":"FA4 motivates two-tile overlap for its specific attention schedule, but does not establish that every single-tile kernel serializes all warps or that this is a general stall cause."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "After a TMA operation, hardware performs an mbarrier arrival in addition to the producer's manual arrival, so the producer over-arrives and releases the next stage stale.",
+      "claim_id": "pattern-pipeline-stalls-original-c006",
+      "claim_type": "semantics",
+      "covers": ["u006"],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-arrive","revision":"PTX ISA 9.0","locator":"arrive.expect_tx and complete_tx semantics","observation":"arrive.expect_tx performs the software arrival and increases tx-count; a TMA .complete_tx operation decrements transaction bytes rather than performing a second arrival. An unmatched extra arrive can still break a phase, but the stated mechanism is false."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Three to five pipeline stages are typical on Blackwell, and warp specialization eliminates role-switching stalls.",
+      "claim_id": "pattern-pipeline-stalls-original-c007",
+      "claim_type": "performance",
+      "covers": ["u007", "u008"],
+      "evidence": [{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v3.cu","revision":"3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_STAGES instantiation","observation":"The cited v3 uses two stages, which is a direct counterexample to the proposed typical range."},{"url":"https://gau-nernst.github.io/tcgen05/","revision":"retrieved 2026-08-09","locator":"warp specialization","observation":"The tutorial reports a source-specific speedup and distinct role loops, not elimination of all role-switching or pipeline stalls."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "challenge": {"alternative":"The candidate descriptions imply guaranteed speedups.","check":"Compare them with the exact TMEM ownership and FA4 scheduling contracts.","outcome":"The rows only identify the structural overlap each technique can test; the underlying sources require disjoint state and synchronization and do not guarantee speedup."},
+      "claim": "Double-buffering can use separate TMEM output regions while MMA and output consumption overlap, and FA4's ping-pong schedule alternates two query/output tiles between MMA and softmax work.",
+      "claim_id": "pattern-pipeline-stalls-original-c008",
+      "claim_type": "semantics",
+      "covers": ["u009", "u010"],
+      "evidence": [{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu","revision":"3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"TMEM output stages and epilogue handoff","observation":"The pinned tutorial source uses distinct output buffers so epilogue and MMA work can overlap."},{"url":"https://arxiv.org/html/2603.05451v1","revision":"FlashAttention-4 paper v1","locator":"section 3.1.2","observation":"FA4 assigns two output tiles per block and overlaps one tile's MMA with the other's softmax."}],
+      "oracle": "web-primary",
+      "verdict": "verified"
+    },
+    {
+      "claim": "The six-step diagnosis checklist gives generally correct profiler metrics, phase progression, TMA accounting, tcgen05 fencing, and stage-count advice.",
+      "claim_id": "pattern-pipeline-stalls-original-c009",
+      "claim_type": "code",
+      "covers": ["u011"],
+      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html","revision":"Nsight Compute 2025.3","locator":"metric collection and Warp State Statistics","observation":"Available metrics and sampled stall states are tool/chip dependent and must be interpreted with scheduler issue evidence."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"PTX ISA 9.0","locator":"after_thread_sync semantics","observation":"The checklist's mandatory after_thread_sync placement for TMA-to-MMA is a semantic conflation, and parity changes per barrier phase/reuse rather than after every wait globally."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "The tcgen05 tutorial progresses from a one-stage 62%-of-cuBLAS kernel to three-stage 70%, warp-specialized 80%, 2-SM 86%, and persistent-plus-CLC 98%, with the stated isolated causes.",
+      "claim_id": "pattern-pipeline-stalls-original-c010",
+      "claim_type": "performance",
+      "covers": ["u012", "u013", "u014", "u015", "u016"],
+      "evidence": [{"url":"https://gau-nernst.github.io/tcgen05/","revision":"retrieved 2026-08-09","locator":"final progression and version sections","observation":"The exact results are v1a 254.62, v2b 695.43, v3 pipelining 939.61, v4 warp specialization 1208.83, v5 2-SM 1302.29, and v6 static persistence 1475.93 TFLOP/s versus 1506.74 cuBLAS. The pinned v3 source uses two stages, and the author explicitly did not add CLC."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Too many stages exceed a 228-KiB shared-memory budget.",
+      "claim_id": "pattern-pipeline-stalls-original-c011",
+      "claim_type": "compatibility",
+      "covers": ["u017"],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy","revision":"CUDA 13.0.2 Blackwell Tuning Guide","locator":"occupancy and shared memory","observation":"Compute capability 10.0 has a 228-KiB per-SM limit, but whether a stage count exceeds it depends on bytes per stage, fixed storage, per-block limits, and configuration; the unqualified statement has no tile payload."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    },
+    {
+      "claim": "Phase-tracking bugs are notoriously hard to debug, so development assertions should be added.",
+      "claim_id": "pattern-pipeline-stalls-original-c012",
+      "claim_type": "semantics",
+      "covers": ["u018"],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait","revision":"PTX ISA 9.0","locator":"state and phaseParity validity","observation":"A phase-aware wait is valid only for the current or immediately preceding phase, so the program must maintain the correct per-object phase across reuse."},{"url":"https://docs.nvidia.com/compute-sanitizer/ComputeSanitizer/index.html","revision":"Compute Sanitizer documentation, retrieved 2026-08-09","locator":"Racecheck and Synccheck synchronization tracing and deadlock detection","observation":"NVIDIA provides specialized development diagnostics for asynchronous-copy synchronization, barrier misuse, synchronization tracing, and deadlocks, confirming that these state protocols need explicit development-time checks beyond output timing."}],
+      "oracle": "web-primary",
+      "verdict": "verified",
+      "challenge": {"alternative":"Output comparison alone is enough, so assertions on phase invariants add no debugging value.","check":"Inspect the phase validity window and the failure modes addressed by NVIDIA's synchronization diagnostics.","outcome":"A stale or wrong per-object phase can wait on the wrong reuse or deadlock; checking the application's expected phase/ownership state during development localizes that protocol error before a final-value mismatch or hang."}
+    },
+    {
+      "claim": "Pipelining is a waste of effort on memory-bound kernels.",
+      "claim_id": "pattern-pipeline-stalls-original-c013",
+      "claim_type": "performance",
+      "covers": ["u019"],
+      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html#roofline","revision":"Nsight Compute 2025.3","locator":"roofline analysis","observation":"A memory-bound classification identifies a limiting ceiling; it does not imply that latency-hiding, issue overlap, or a staged transfer change cannot improve the measured kernel."}],
+      "oracle": "web-primary",
+      "verdict": "refuted"
+    }
+  ],
+  "commands": ["Inspect PTX ISA 9.0 mbarrier and tcgen05 ordering contracts", "Inspect Nsight Compute 2025.3 profiling semantics", "Inspect tcgen05 tutorial article and pinned v3/v6 source"],
+  "id": "pattern-pipeline-stalls",
+  "page_verdict": "refuted",
+  "path": "wiki/patterns/pipeline-stalls.md",
+  "residual_risk": "No Blackwell GPU or Nsight Compute installation is available locally, so no target-side profiler experiment was performed. The tutorial measurements remain author-reported.",
+  "scope": "All 19 baseline body units for hash ec21f3208711a7056069ab687fce39dd6bc96f6ee8fd093b42542af45799b592 were reviewed, including diagnostic semantics, synchronization claims, candidates, the checklist, and every progression number."
+}

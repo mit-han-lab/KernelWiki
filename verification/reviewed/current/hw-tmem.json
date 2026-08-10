@@ -1,0 +1,253 @@
+{
+  "path": "wiki/hardware/tmem.md",
+  "id": "hw-tmem",
+  "page_verdict": "verified",
+  "claims": [
+    {
+      "claim_id": "hw-tmem-current-c001",
+      "claim": "Blackwell TMEM is a 256 KiB per-SM, 128-lane by 512-column array of 32-bit cells used for tcgen05 D and some A operands; replacing a register-D WGMMA fragment changes rather than eliminates register pressure.",
+      "claim_type": "semantics",
+      "covers": ["u001", "u002"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "Tensor Memory organization and tcgen05 operand overview",
+          "observation": "The ISA specifies the capacity, lane-column geometry, and TMEM operand roles."
+        },
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/arch/mma_sm90_gmma.hpp",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "MMA_64x256x16_F32F16F16_SS::CRegisters",
+          "observation": "The representative SM90 wrapper declares 128 float accumulators per participating thread, while the corrected text expressly leaves other GPR uses in scope."
+        }
+      ],
+      "challenge": {
+        "alternative": "The 256 KiB figure is separate from the lane-column array, or moving D to TMEM makes the whole kernel register-free.",
+        "check": "Recompute the lane-column capacity and inspect both the exact WGMMA CRegisters typedef and the corrected residual-register wording.",
+        "outcome": "128 x 512 x 4 bytes equals 256 KiB, and the page limits the relief to the D fragment while preserving other GPR uses."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c002",
+      "claim": "A b32 taddr encodes lane and column, while collective tcgen05 load/store access maps four warps to successive 32-lane chunks using shape-specific register layouts rather than per-thread row ownership.",
+      "claim_type": "semantics",
+      "covers": ["u003", "u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory-addressing",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "TMEM address format; tcgen05.ld/st access restrictions",
+          "observation": "The address field table assigns lane to bits 31:16 and column to 15:0; the access tables partition lanes into four warp chunks and define layouts by instruction shape."
+        }
+      ],
+      "challenge": {
+        "alternative": "The upper address half is a CUDA thread ID, making the corrected warning against row ownership unnecessary.",
+        "check": "Compare the address definition with the collective execution and access-restriction tables.",
+        "outcome": "The ISA calls it a TMEM lane and separately requires warp-collective execution with shape-dependent mappings."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c003",
+      "claim": "TMEM allocation returns a b32 taddr through shared memory, uses one allocator warp for group 1 or one warp per peer CTA for group 2, requires one CTA-group value throughout the kernel, and every allocation must be collectively deallocated before exit.",
+      "claim_type": "semantics",
+      "covers": ["u012", "u013", "u014", "u015", "u016", "u017", "u018", "u019"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "alloc/dealloc syntax, issue granularity, constraints, and lifecycle",
+          "observation": "The section specifies the shared b32 result, group-specific warp collectives, same-group invariant, 32-512 power-of-two nCols, blocking availability behavior, and before-exit deallocation rule."
+        }
+      ],
+      "challenge": {
+        "alternative": "Allocation is a lane-0 instruction and CTA synchronization supplies the missing collective behavior.",
+        "check": "Inspect the mandatory .sync/.aligned and same-operand clauses for cta_group::1 and the paired-CTA issue table.",
+        "outcome": "The operation itself must execute uniformly across the allocator warp or warps; a later CTA barrier cannot repair divergent issue."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c004",
+      "claim": "The 512-column pool admits the stated 128-, 256-, and 512-column whole-allocation budgets, while a 192-column logical region requires a legal 256-column reservation or suballocation.",
+      "claim_type": "semantics",
+      "covers": ["u020", "u021", "u022", "u023", "u024"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "nCols power-of-two constraint and 512-column maximum",
+          "observation": "Legal sizes are powers of two in [32,512]. Division of the single 512-column pool yields the displayed stage counts, and 192 itself is excluded."
+        }
+      ],
+      "challenge": {
+        "alternative": "Multiple-of-32 sizes such as 192 are legal even if the high-level CUTLASS allocator rounds them.",
+        "check": "Read the PTX operand constraint rather than inferring it from a library allocator.",
+        "outcome": "The ISA itself requires nCols to be a power of two, discriminating the 192-column case."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c005",
+      "claim": "tcgen05 MMA/copy completion uses commit plus mbarrier, load/store completion uses the corresponding tcgen05.wait form, and before/after fences provide cross-thread ordering rather than completion; source lifetimes and CTA synchronization must respect those distinctions.",
+      "claim_type": "semantics",
+      "covers": ["u025", "u026", "u027", "u028", "u029", "u030"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-wait",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "wait::ld/wait::st semantics and asynchronous-operation table",
+          "observation": "The wait variants block on prior ld/st operations from the executing thread."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "commit completion and fence ordering sections",
+          "observation": "Commit attaches prior MMA/cp/shift completion to an mbarrier; fences compose around execution-ordering operations and provide no completion promise."
+        }
+      ],
+      "challenge": {
+        "alternative": "A CTA barrier or before_thread_sync fence implicitly waits for every prior asynchronous tcgen05 operation.",
+        "check": "Compare the normative effect of fence/barrier examples with the separate commit and wait completion mechanisms.",
+        "outcome": "Only commit/mbarrier and wait::* state completion; fences are explicitly ordering and code-motion constraints."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c006",
+      "claim": "The page lists valid tcgen05.ld/st shapes, rejects nonexistent .32x1b scalar forms, and gives the exact valid group-1 128x256b shared-memory-to-TMEM tcgen05.cp instruction with correct operands and asynchronous caveat.",
+      "claim_type": "code",
+      "covers": ["u031", "u032", "u033", "u034"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "tcgen05.ld/st shape grammar",
+          "observation": "The five listed shapes appear in the grammar and .32x1b does not."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-cp",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "tcgen05.cp syntax, operand descriptions, and Example 1",
+          "observation": "The exact displayed instruction appears in the vendor example; taddr is the destination, sdesc is a b64 SMEM descriptor, and cp is asynchronous."
+        }
+      ],
+      "challenge": {
+        "alternative": "The copied shape is 128x256 elements rather than bits, or sdesc denotes another TMEM address.",
+        "check": "Inspect the shape suffix and operand-type description adjacent to the exact example.",
+        "outcome": "The suffix is explicitly 128x256b and the source is explicitly a shared-memory matrix descriptor."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c007",
+      "claim": "A correct multi-stage TMEM accumulator pipeline must fit the column budget and use explicit producer/consumer barriers and completion before drain or recycle; alternating two addresses alone does not create overlap.",
+      "claim_type": "mechanism",
+      "covers": ["u035", "u036", "u037", "u038", "u039", "u040", "u041"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "TMEM allocation; PipelineUmmaAsync stages; producer/consumer acquire, commit, wait, and release",
+          "observation": "The pinned complete implementation allocates the shared TMEM pool and coordinates distinct accumulator producers/consumers with explicit stage barriers and completion state."
+        }
+      ],
+      "challenge": {
+        "alternative": "The hardware automatically detects alternating accumulator addresses and overlaps serial code without pipeline participants.",
+        "check": "Inspect the vendor tutorial for the control and synchronization state that accompanies multiple TMEM stages.",
+        "outcome": "The implementation explicitly acquires, commits, waits, and releases stages; address alternation is not sufficient."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c008",
+      "claim": "CUTLASS 4.5.0's Python DSL uses TmemAllocator allocation/wait/retrieve/free operations, typed pointers, cute.make_tensor, tcgen05 copy atoms, and pipeline completion in the sequence summarized by the page.",
+      "claim_type": "code",
+      "covers": ["u042", "u043", "u044", "u045", "u046", "u047", "u048", "u049"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "TmemAllocator construction and allocate/wait/retrieve/make_tensor/load/free flow",
+          "observation": "Every named operation and its ordering appears in the official tutorial."
+        },
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/python/CuTeDSL/cutlass/utils/tmem_allocator.py",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "TmemAllocator methods allocate, wait_for_alloc, retrieve_ptr, and free",
+          "observation": "The library implementation defines the exact high-level allocation API and collective allocator-warp behavior summarized."
+        }
+      ],
+      "challenge": {
+        "alternative": "The tutorial bypasses TmemAllocator and obtains an implicitly allocated TMEM tensor from the MMA atom.",
+        "check": "Trace the accumulator pointer from shared allocation-result storage through retrieve_ptr and make_tensor.",
+        "outcome": "The pointer is explicitly allocated, waited for, retrieved, rebound, drained, and freed."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c009",
+      "claim": "The pinned links identify the exact CUTLASS 4.5.0 tutorial and allocator implementation, while the rejected Layout(memory_space=MemorySpace.TMEM), tcgen05_mma, and similar convenience calls are absent from that version.",
+      "claim_type": "compatibility",
+      "covers": ["u050"],
+      "verdict": "verified",
+      "oracle": "local-primary-source",
+      "evidence": [
+        {
+          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "repository-wide exact-token search; linked tutorial and allocator paths",
+          "observation": "The two linked files exist and implement the described API. Exact searches for MemorySpace.TMEM, tcgen05_mma, tcgen05_fence, and tmem_load as displayed API names return no definitions or uses."
+        }
+      ],
+      "challenge": {
+        "alternative": "The convenience calls are generated symbols or re-exported from a path not imported by the tutorial.",
+        "check": "Search the entire pinned repository, not only the tutorial directory, and inspect public arch and utility exports.",
+        "outcome": "The tokens remain absent repository-wide while the documented allocator and copy-atom interfaces are present."
+      }
+    },
+    {
+      "claim_id": "hw-tmem-current-c010",
+      "claim": "The five primary-reference links resolve to the pinned PTX sections and pinned CUTLASS 4.5.0 SM100 tutorial tree that support the page.",
+      "claim_type": "other",
+      "covers": ["u051", "u052", "u053", "u054", "u055"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "Tensor Memory and linked alloc/ld/commit anchors",
+          "observation": "The archive resolves the listed normative sections at the pinned CUDA version."
+        },
+        {
+          "url": "https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm",
+          "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "SM100 tutorial directory",
+          "observation": "The commit-pinned directory contains the referenced progressive SM100 Python GEMM tutorials."
+        }
+      ],
+      "challenge": {
+        "alternative": "The URLs silently track latest documentation or a moving CUTLASS branch.",
+        "check": "Inspect the CUDA archive segment and immutable Git commit embedded in each URL.",
+        "outcome": "Both source families are version-pinned in the links themselves."
+      }
+    }
+  ],
+  "commands": [
+    "rg -n against the full pinned CUTLASS 4.5.0 worktree for exact API tokens",
+    "structural validation after remediation"
+  ],
+  "residual_risk": "No CUDA toolkit or NVIDIA GPU is installed locally, so the exact PTX example was not assembled and the pipeline was not benchmarked. Its syntax and semantics are matched to PTX ISA 9.0, and the high-level API is matched to immutable CUTLASS 4.5.0 source.",
+  "scope": "All 55 current scan units for body hash f6c0135c31b4600deecf3ee1dd972746a40bb9b3c0968b96e5ceb231a35ce816 were verified against CUDA 13.0.2 PTX ISA 9.0 and CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5."
+}

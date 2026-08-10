@@ -1,0 +1,611 @@
+{
+  "path": "wiki/hardware/clc.md",
+  "id": "hw-clc",
+  "page_verdict": "refuted",
+  "claims": [
+    {
+      "claim_id": "hw-clc-original-c001",
+      "claim": "CLC is a Blackwell compute-capability 10.0 mechanism that enables dynamic work stealing for persistent workers.",
+      "claim_type": "mechanism",
+      "covers": ["u001"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html",
+          "revision": "CUDA Programming Guide 13.2",
+          "locator": "4.12 Work Stealing with Cluster Launch Control, introduction",
+          "observation": "The guide identifies CLC as a Blackwell compute-capability 10.0 feature and describes its work-stealing role."
+        }
+      ],
+      "challenge": {
+        "alternative": "CLC is merely a CUTLASS software scheduler rather than a Blackwell hardware feature.",
+        "check": "CUDA Programming Guide 13.2 section 4.12 identifies the architectural feature independently of CUTLASS.",
+        "outcome": "The vendor programming guide assigns the feature to Blackwell compute capability 10.0."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c002",
+      "claim": "CLC replaces the static CUDA grid model and removes fixed CTA-to-initial-tile assignments.",
+      "claim_type": "semantics",
+      "covers": ["u001", "u003"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "Dynamic Scheduler with Cluster Launch Control, rules 1-4",
+          "observation": "CUTLASS launches a full grid with one ClcID per output tile; each worker uses its own blockIdx as its first tile and only queries subsequent work."
+        }
+      ],
+      "challenge": {
+        "alternative": "Workers receive even their first tile exclusively from a CLC queue.",
+        "check": "Inspect rule 4 and the dynamic-persistent pseudocode in the pinned CUTLASS documentation.",
+        "outcome": "The first work coordinate is the preloaded blockIdx, so the original absolute wording is false."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c003",
+      "claim": "After its initial tile, a persistent worker can query another ClcID, which supports dynamic load balancing when SM availability is uneven.",
+      "claim_type": "mechanism",
+      "covers": ["u002", "u003"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cutlass/4.3.3/media/docs/cpp/blackwell_cluster_launch_control.html",
+          "revision": "CUTLASS 4.3.3",
+          "locator": "Dynamic Scheduler with Cluster Launch Control, lines 102-115",
+          "observation": "The documentation describes workers querying subsequent ClcIDs and motivates CLC with uneven real-time SM availability."
+        }
+      ],
+      "challenge": {
+        "alternative": "CLC only cancels work and never returns the canceled work identifier to the requester.",
+        "check": "CUTLASS rules 2, 4, and 5 describe the query response and subsequent tile processing.",
+        "outcome": "A successful request returns a ClcID that the existing worker processes."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c004",
+      "claim": "CLC guarantees that an ordinary equal-cost GEMM tail is eliminated because idle CTAs always take the remaining tiles.",
+      "claim_type": "performance",
+      "covers": ["u004", "u006"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html",
+          "revision": "CUDA Programming Guide 13.2",
+          "locator": "4.12 introduction and Cluster Launch Control flow",
+          "observation": "CLC still launches the problem-sized grid and steals only not-yet-started blocks; a request may also decline for reasons other than end-of-grid. It does not create more parallel work than the grid contains or guarantee full occupancy."
+        },
+        {
+          "url": "https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html",
+          "revision": "NVIDIA Matrix Multiplication Background User's Guide",
+          "locator": "3.2 Wave Quantization",
+          "observation": "Wave occupancy depends on tile count, tile shape, and SM count; an underfilled last wave is a quantization property, not a universally eliminated condition."
+        }
+      ],
+      "challenge": {
+        "alternative": "CLC can keep all SMs busy even when fewer unprocessed ClcIDs than SMs remain.",
+        "check": "Compare the documented full-grid/cancellation model with NVIDIA's wave-quantization definition.",
+        "outcome": "CLC can redistribute pending IDs among existing workers but cannot manufacture additional independent tiles."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c005",
+      "claim": "try_cancel cancels application-selected output tiles that no longer need to be computed, such as rejected speculative tokens, masked attention tiles, or finished sequences.",
+      "claim_type": "semantics",
+      "covers": ["u005", "u010", "u012", "u013", "u014", "u015"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html",
+          "revision": "CUDA Programming Guide 13.2",
+          "locator": "4.12, Cluster Launch Control flow and 4.12.1 API Details",
+          "observation": "A requester atomically cancels an unspecified not-yet-started block or cluster, obtains its index, and performs that work itself. The operation is work stealing, not semantic work deletion or cancellation of a caller-selected tile."
+        }
+      ],
+      "challenge": {
+        "alternative": "The request accepts a desired tile coordinate and discards that tile's work.",
+        "check": "Inspect the request operands and success path in the official API example.",
+        "outcome": "The request supplies result and barrier addresses; the canceled coordinate is an output decoded after success and must be processed by the thief."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c006",
+      "claim": "For 256 equal-sized one-CTA tiles on 132 SMs at one CTA per SM, the second wave has 124 active and 8 idle SMs, or about 6% of the SMs idle.",
+      "claim_type": "code",
+      "covers": ["u006"],
+      "verdict": "verified",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "conda run -n base python -c 'import math; tiles=256; sms=132; waves=math.ceil(tiles/sms); tail=tiles-(waves-1)*sms; idle=sms-tail; print({\"waves\":waves,\"tail_active\":tail,\"tail_idle\":idle,\"idle_percent\":round(100*idle/sms,2),\"negative_control_idle_if_full_tail\":sms-sms})'",
+          "environment": "Conda base, Python 3.13.14, CPU-only arithmetic model; assumptions are exactly one resident CTA per SM and equal tile duration.",
+          "reference": "ceil(256/132)=2 waves; the remainder is 124 and 132-124=8.",
+          "result": "waves=2, tail_active=124, tail_idle=8, idle_percent=6.06.",
+          "negative_control": "A deliberately full second wave reports 0 idle SMs, distinguishing the remainder calculation."
+        }
+      ],
+      "challenge": {
+        "alternative": "The second wave is full or has a different number of idle SMs.",
+        "check": "Compute quotient, remainder, and idle fraction directly and compare a deliberately full-tail control.",
+        "outcome": "The exact arithmetic yields 124 active and 8 idle SMs under the stated assumptions."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c007",
+      "claim": "The CLC diagram's 132-CTA launch, request-before-first-work sequence, and guarantee that all CTAs remain busy until a tile queue is empty describe the documented execution model.",
+      "claim_type": "code",
+      "covers": ["u007"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "Dynamic Scheduler with Cluster Launch Control, rules 1-6 and pseudocode",
+          "observation": "The documented grid has as many blocks as output tiles, each worker processes blockIdx first, and a CLC request may decline. The wiki diagram instead launches only an SM-count grid and requests the first tile."
+        }
+      ],
+      "challenge": {
+        "alternative": "A CLC kernel is launched with only one persistent CTA per SM and the first tile is returned by try_cancel.",
+        "check": "Compare the diagram to pinned rules 1-6 and the dynamic-persistent pseudocode.",
+        "outcome": "Both its grid size and its initial-work order contradict the documented model."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c008",
+      "claim": "clusterlaunchcontrol.try_cancel requests cancellation of a not-yet-launched ClcID that the requester can take over; PTX exposes try_cancel and query_cancel rather than try_acquire.",
+      "claim_type": "semantics",
+      "covers": ["u008"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.13.17 clusterlaunchcontrol.try_cancel and 9.7.13.18 clusterlaunchcontrol.query_cancel",
+          "observation": "The PTX specification defines try_cancel for a cluster not yet launched and query_cancel for decoding; the instruction inventory contains no try_acquire form."
+        }
+      ],
+      "challenge": {
+        "alternative": "A separate clusterlaunchcontrol.try_acquire instruction performs the work query.",
+        "check": "Inspect the adjacent, exhaustive CLC instruction sections in PTX ISA 9.0.",
+        "outcome": "Only try_cancel and query_cancel are defined for CLC."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c009",
+      "claim": "The persistent_gemm_clc CUDA block demonstrates a valid CLC request/decode loop.",
+      "claim_type": "code",
+      "covers": ["u009"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.13.17 syntax and example; 9.7.13.18 query_cancel syntax",
+          "observation": "The instruction asynchronously writes a b128 opaque response to shared memory, completes an mbarrier transaction, and requires query_cancel to decode success and coordinates. The wiki block uses register outputs and a direct predicate, has no mbarrier completion, and omits initial blockIdx work and required proxy ordering."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html",
+          "revision": "CUDA Programming Guide 13.2",
+          "locator": "4.12.1.1 steps 1-6",
+          "observation": "The official sequence initializes a shared mbarrier, submits the async request, sets a 16-byte transaction count, waits, decodes success, conditionally decodes the ID, and fences proxy access."
+        }
+      ],
+      "challenge": {
+        "alternative": "The short inline PTX is an accepted register-returning form omitted from the main syntax.",
+        "check": "Compare every operand and completion mechanism against the normative PTX syntax and official CUDA example.",
+        "outcome": "The claimed form lacks mandatory address, mbarrier, completion, b128, and decode operations."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c010",
+      "claim": "clc_try_cancel(uint2) cancels a caller-selected tile and returns cancellation success directly from the PTX request.",
+      "claim_type": "code",
+      "covers": ["u011"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.13.17 try_cancel syntax and 9.7.13.18 query_cancel syntax",
+          "observation": "The request takes shared response and mbarrier addresses, not an input tile coordinate or boolean destination. Success is decoded later from the 16-byte opaque response."
+        }
+      ],
+      "challenge": {
+        "alternative": "The pointer operand denotes the desired tile coordinate and the first output is a bool.",
+        "check": "Inspect the normative operand descriptions and query_cancel decoder.",
+        "outcome": "The address is the response destination; the canceled coordinate is returned only inside the opaque response."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c011",
+      "claim": "CUTLASS 4.5.0 supports CLC-backed SM100 scheduling through the PersistentScheduler tag and PersistentTileSchedulerSm100 implementation.",
+      "claim_type": "compatibility",
+      "covers": ["u016"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/gemm/kernel/tile_scheduler.hpp",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "PersistentScheduler tag and TileSchedulerSelector<PersistentScheduler, arch::Sm100>",
+          "observation": "The selector maps the PersistentScheduler tag for arch::Sm100 to PersistentTileSchedulerSm100."
+        }
+      ],
+      "challenge": {
+        "alternative": "PersistentScheduler maps to the older SM90 static scheduler on SM100.",
+        "check": "Inspect the architecture-specific specialization at the pinned v4.5.0 revision.",
+        "outcome": "The arch::Sm100 specialization names PersistentTileSchedulerSm100."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c012",
+      "claim": "The GemmUniversal typedef shown is a valid CUTLASS 4.5.0 SM100 CLC kernel instantiation.",
+      "claim_type": "code",
+      "covers": ["u017"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/95_blackwell_gemm_green_context/95_blackwell_gemm_green_context.cu",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "dynamic_kernel_config",
+          "observation": "The SM100 CLC example builds collective mainloop and epilogue types, uses cute::Shape tile/cluster shapes, sets DynamicPersistentScheduler, and instantiates cutlass::gemm::kernel::GemmUniversal with four template parameters. The wiki uses an incompatible legacy device::GemmUniversal signature and places PersistentScheduler as a trailing argument."
+        }
+      ],
+      "challenge": {
+        "alternative": "CUTLASS 4.5.0 retains a compatible legacy overload for exactly the shown SM100 form.",
+        "check": "Compare the complete pinned official SM100 dynamic-persistent example and scheduler position.",
+        "outcome": "The authoritative example uses the 3.x collective API and a different kernel template structure."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c013",
+      "claim": "The simplified ClcTileScheduler block accurately models a synchronous coordinate-returning CLC query.",
+      "claim_type": "code",
+      "covers": ["u018"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/gemm/kernel/sm100_tile_scheduler.hpp",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "PersistentTileSchedulerSm100::advance_to_next_work and fetch_next_work",
+          "observation": "CUTLASS issues an async query through PipelineCLCFetchAsync, waits as a consumer, decodes a staged opaque response, releases the stage, and then swizzles/rasterizes. The wiki's synchronous clc_try_cancel call omits the required pipeline and response semantics."
+        }
+      ],
+      "challenge": {
+        "alternative": "The pipeline is only a latency optimization and synchronous direct coordinate return is semantically valid.",
+        "check": "Compare the PTX opaque-response completion model and the pinned CUTLASS implementation.",
+        "outcome": "Async shared-memory completion and explicit response decoding are part of the instruction semantics, not optional scheduling decoration."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c014",
+      "claim": "The three-row table gives generally valid exact SM-utilization values for 2048, 4096, and 8192 square GEMMs under static and CLC scheduling.",
+      "claim_type": "performance",
+      "covers": ["u019", "u020", "u021", "u022"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "conda run -n base python -c 'import math; cases=[(\"B200_128x256\",148,128,256),(\"B200_256x256\",148,256,256),(\"132SM_128x256\",132,128,256)]; out=[]\nfor name,sms,tm,tn in cases:\n tiles=math.ceil(2048/tm)*math.ceil(2048/tn); out.append((name,tiles,round(100*min(tiles,sms)/sms,2)))\nprint({\"same_2048x2048_different_scope\":out,\"negative_control_assume_invariant\":len({x[2] for x in out})==1})'",
+          "environment": "Conda base, Python 3.13.14, CPU-only tile-count upper-bound model; no GPU performance inference beyond active-SM capacity.",
+          "reference": "NVIDIA's wave-quantization model makes active-SM capacity depend on tile shape and SM count; exact utilization additionally requires hardware, dtype, software, occupancy, and timing scope.",
+          "result": "For the same 2048x2048 output, active-SM capacity is 86.49% for 128x256 tiles on 148 SMs, 43.24% for 256x256 tiles on 148 SMs, and 96.97% for 128x256 tiles on 132 SMs.",
+          "negative_control": "The deliberately false invariant-scope control evaluates to false because the three scoped capacities differ."
+        }
+      ],
+      "challenge": {
+        "alternative": "The table's percentages are invariant properties of GEMM dimension alone.",
+        "check": "Hold the 2048x2048 output constant while varying only documented scope variables: tile shape and SM count.",
+        "outcome": "The capacity changes materially, so unscoped exact utilization and improvement values are not valid factual measurements."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c015",
+      "claim": "The tcgen05 for dummies result improved from about 940 to 1476 TFLOPS because the final kernel used persistent scheduling plus CLC.",
+      "claim_type": "performance",
+      "covers": ["u023"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://gau-nernst.github.io/tcgen05/",
+          "revision": "Article dated 2025-12-21; code pinned at gau-nernst/learn-cuda commit 3b90ac9b",
+          "locator": "Persistent kernel (with static scheduling), final performance table and closing remarks",
+          "observation": "The author labels 1475.93 TFLOPS as persistent with static scheduling, reports 939.61 TFLOPS for pipelining, and explicitly lists CLC as a feature not added."
+        }
+      ],
+      "challenge": {
+        "alternative": "The section title is stale and the final code actually issues CLC instructions.",
+        "check": "Inspect the pinned final algorithm, performance row label, and the closing statement that CLC remains unimplemented.",
+        "outcome": "All three loci identify static scheduling and exclude CLC from the measured kernel."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c016",
+      "claim": "Small output dimensions can reduce GEMM tile parallelism and expose wave-quantization or under-utilization effects.",
+      "claim_type": "performance",
+      "covers": ["u024"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html",
+          "revision": "NVIDIA Matrix Multiplication Background User's Guide",
+          "locator": "2.3 Typical Tile Dimensions and 3.2 Wave Quantization",
+          "observation": "NVIDIA documents the tradeoff between tile parallelism and efficiency and shows that an underfilled tile wave reduces SM utilization."
+        }
+      ],
+      "challenge": {
+        "alternative": "Only K, not the output M-N footprint, controls parallel work and GPU utilization.",
+        "check": "Inspect the guide's output tiling model and wave-quantization example.",
+        "outcome": "Thread blocks tile the M-N output, and the resulting tile count directly controls wave occupancy."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c017",
+      "claim": "For the shown M=32, N=K=8192 and 128x256 tile, a B200 has 132 SMs and CLC lets 32 persistent CTAs handle the tiles while avoiding the static scheduler's idle-SM condition.",
+      "claim_type": "code",
+      "covers": ["u025"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://developer.nvidia.com/blog/scaling-autonomous-ai-agents-and-workloads-with-nvidia-dgx-spark/",
+          "revision": "NVIDIA technical blog, Table 8, 2026",
+          "locator": "Table 8 platform specifications",
+          "observation": "The NVIDIA B200 configuration has 148 SMs, not 132."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html",
+          "revision": "CUDA Programming Guide 13.2",
+          "locator": "4.12 Cluster Launch Control flow",
+          "observation": "CLC steals indices from the already launched problem-sized grid. With only 32 output tiles, it cannot create enough independent ClcIDs to occupy 148 SMs; a request can only cancel one of those 32 not-yet-started blocks."
+        }
+      ],
+      "challenge": {
+        "alternative": "CLC turns a 32-block problem into an SM-count-sized persistent grid with additional work IDs.",
+        "check": "Compare the 32-tile arithmetic with the official full-grid and cancellation model.",
+        "outcome": "The grid contains one ID per problem block; CLC redistributes those IDs but does not increase their number."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c018",
+      "claim": "CLC cancellation operates at cluster granularity, so a 2x2 worker cluster consumes a 2x2 set of ClcIDs on a successful query.",
+      "claim_type": "semantics",
+      "covers": ["u026"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "Dynamic Scheduler with Cluster Launch Control, rule 6",
+          "observation": "The documentation explicitly states cluster granularity and gives the 2x2 worker/2x2 ClcID example."
+        }
+      ],
+      "challenge": {
+        "alternative": "Each CTA in a cluster independently cancels exactly one unrelated CTA ID.",
+        "check": "Inspect rule 6 and the official cluster programming example's multicast response semantics.",
+        "outcome": "One cluster-level query consumes the matching cluster-sized group and broadcasts the first CTA ID."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c019",
+      "claim": "The cooperative_clc_loop code is a valid 2-CTA CLC plus cta_group::2 execution pattern.",
+      "claim_type": "code",
+      "covers": ["u027"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html",
+          "revision": "CUDA Programming Guide 13.2",
+          "locator": "4.12.2.2 Use-case: Thread Block Clusters",
+          "observation": "The cluster form requires a single cluster thread, multicast try_cancel, per-CTA local mbarriers at cluster scope, cluster synchronization to guarantee all blocks exist, and local-rank adjustment of the returned first CTA ID. The wiki code implements none of these requirements."
+        }
+      ],
+      "challenge": {
+        "alternative": "clc_try_cancel_cluster encapsulates every required barrier, multicast, rank, and proxy operation.",
+        "check": "The helper is undefined and the surrounding code still derives rank from blockIdx.x modulo 2 without the documented returned-ID adjustment or cluster lifetime synchronization.",
+        "outcome": "The visible algorithm cannot establish the required cluster semantics even under that abstraction."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c020",
+      "claim": "CUTLASS can apply a software swizzle/rasterization transform to initial and CLC-returned work coordinates.",
+      "claim_type": "mechanism",
+      "covers": ["u028"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/gemm/kernel/sm100_tile_scheduler.hpp",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "PersistentTileSchedulerSm100::fetch_next_work and swizzle_and_rasterize",
+          "observation": "The scheduler decodes a CLC response and passes its coordinates through swizzle_and_rasterize; Arguments exposes max_swizzle_size and raster_order."
+        }
+      ],
+      "challenge": {
+        "alternative": "Only the initial blockIdx is swizzled while CLC-returned IDs bypass the transform.",
+        "check": "Inspect fetch_next_work immediately after work_tile_info_from_clc_response.",
+        "outcome": "The decoded returned tile is explicitly passed to swizzle_and_rasterize."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c021",
+      "claim": "The apply_l2_swizzle code implements a collision-free Morton/Z-order mapping of all input tiles.",
+      "claim_type": "code",
+      "covers": ["u029"],
+      "verdict": "refuted",
+      "oracle": "host-experiment",
+      "evidence": [
+        {
+          "command": "conda run -n base python -c 'N=4; bits=2; f=lambda m,n: ((m*N+n>>bits)//N,((m*N+n>>bits)%N)^(((m*N+n>>bits)//N)&((1<<bits)-1))); out=[f(m,n) for m in range(4) for n in range(4)]; morton=lambda m,n: sum(((n>>b)&1)<<(2*b)|((m>>b)&1)<<(2*b+1) for b in range(2)); print({\"wiki_outputs\":out,\"unique\":len(set(out)),\"expected_unique\":16,\"claimed_morton_order\":sorted(((morton(m,n),m,n) for m in range(4) for n in range(4))),\"negative_control_identity_unique\":len(set((m,n) for m in range(4) for n in range(4)))})'",
+          "environment": "Conda base, Python 3.13.14; direct integer translation of the wiki function for a 4x4 grid with swizzle_bits=2.",
+          "reference": "A tile permutation, including a Morton order, must map all 16 input coordinates to 16 unique output coordinates.",
+          "result": "The function produces only four unique outputs; every four inputs collide. Its sequence differs from the 16-entry bit-interleaved Morton reference.",
+          "negative_control": "An identity mapping over the same grid produces all 16 unique outputs, showing the uniqueness check discriminates a valid permutation from the wiki function."
+        }
+      ],
+      "challenge": {
+        "alternative": "The repeated coordinates are expected Morton grouping rather than destructive collisions.",
+        "check": "Compare cardinality and exact order against bit-interleaved Morton indices.",
+        "outcome": "A traversal must retain one output per tile; collapsing 16 inputs to 4 outputs cannot be a traversal permutation."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c022",
+      "claim": "CLC scheduling overhead is universally near zero and CLC tail handling is universally optimal compared with a software atomic scheduler.",
+      "claim_type": "performance",
+      "covers": ["u030", "u031"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cutlass/4.3.3/media/docs/cpp/blackwell_cluster_launch_control.html",
+          "revision": "CUTLASS 4.3.3",
+          "locator": "Static Scheduler and Cluster Launch Control Pipeline Class",
+          "observation": "CUTLASS calls static scheduling zero-overhead and explicitly pipelines CLC queries to hide their latency. This contradicts an unqualified near-zero CLC cost, while no universal optimality guarantee is stated."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html",
+          "revision": "CUDA Programming Guide 13.2",
+          "locator": "4.12 Cluster Launch Control flow",
+          "observation": "CLC requests can decline for end-of-grid or other reasons such as a higher-priority kernel, so the API does not guarantee an optimal tail schedule."
+        }
+      ],
+      "challenge": {
+        "alternative": "Hardware CLC has no meaningful request latency or failure behavior under any workload.",
+        "check": "Inspect the CUTLASS latency-hiding pipeline rationale and the CUDA request-decline conditions.",
+        "outcome": "Both query latency and non-end-of-grid declines are documented, refuting the categorical comparison."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c023",
+      "claim": "CLC exposes try_cancel, while a software work queue must explicitly manage its atomic state and synchronization.",
+      "claim_type": "semantics",
+      "covers": ["u032"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.13.17 clusterlaunchcontrol.try_cancel",
+          "observation": "PTX defines the CLC request directly."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#atomic-functions",
+          "revision": "CUDA C++ Programming Guide 13.0.2",
+          "locator": "10.14 Atomic Functions",
+          "observation": "CUDA atomics provide read-modify-write primitives and defined scopes but do not constitute a tile scheduler; queue state, indexing, termination, and ordering remain software responsibilities."
+        }
+      ],
+      "challenge": {
+        "alternative": "CUDA atomicAdd itself supplies the same ClcID selection, cancellation, and completion protocol as CLC.",
+        "check": "Compare the normative APIs and operands of atomicAdd and clusterlaunchcontrol.try_cancel.",
+        "outcome": "atomicAdd changes a caller-provided word; CLC interacts with pending grid launches and returns an opaque cancellation response."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c024",
+      "claim": "L2 tile swizzling is a CLC hardware policy configured at kernel launch rather than a CUTLASS scheduler coordinate transform.",
+      "claim_type": "mechanism",
+      "covers": ["u033"],
+      "verdict": "refuted",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/gemm/kernel/sm100_tile_scheduler.hpp",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "Arguments and swizzle_and_rasterize",
+          "observation": "max_swizzle_size and raster_order are CUTLASS scheduler arguments, and the transformation is ordinary scheduler code applied after CLC response decoding."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.13.17 and 9.7.13.18",
+          "observation": "The CLC PTX surface contains request and response operations and has no swizzle-policy operand or initialization instruction."
+        }
+      ],
+      "challenge": {
+        "alternative": "The CUTLASS arguments are forwarded to an undocumented CLC hardware launch attribute.",
+        "check": "Trace fetch_next_work from response decode through swizzle_and_rasterize at the pinned revision.",
+        "outcome": "The coordinates are transformed directly in device-side CUTLASS code."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c025",
+      "claim": "Base CLC try_cancel requires sm_100 or newer, while ordinary software atomic scheduling is available on sm_70 and newer.",
+      "claim_type": "compatibility",
+      "covers": ["u034"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel",
+          "revision": "CUDA 13.0.2, PTX ISA 9.0",
+          "locator": "9.7.13.17 Target ISA Notes",
+          "observation": "The base instruction requires sm_100 or higher; the multicast qualifier has narrower architecture-specific targets."
+        },
+        {
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#atomic-functions",
+          "revision": "CUDA C++ Programming Guide 13.0.2",
+          "locator": "10.14.1 atomicAdd availability",
+          "observation": "Common 32-bit atomicAdd variants predate sm_70, so an integer-atomic software scheduler is available throughout the stated sm_70+ range."
+        }
+      ],
+      "challenge": {
+        "alternative": "CLC is also available on Hopper sm_90, or software atomics first appear only on sm_100.",
+        "check": "Compare the PTX target note with the CUDA atomic availability notes.",
+        "outcome": "CLC starts at sm_100, while suitable integer atomics are supported well before sm_70."
+      }
+    },
+    {
+      "claim_id": "hw-clc-original-c026",
+      "claim": "CUTLASS has a built-in SM100 CLC scheduler implementation; an atomic tile queue is a separate software scheduler design.",
+      "claim_type": "compatibility",
+      "covers": ["u035"],
+      "verdict": "verified",
+      "oracle": "web-primary",
+      "evidence": [
+        {
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cutlass/gemm/kernel/sm100_tile_scheduler.hpp",
+          "revision": "CUTLASS 4.5.0, commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "locator": "PersistentTileSchedulerSm100",
+          "observation": "CUTLASS implements the CLC pipeline, response decoding, coordinate mapping, and persistent-work interface in its SM100 scheduler."
+        }
+      ],
+      "challenge": {
+        "alternative": "CUTLASS only exposes raw CLC PTX and leaves the entire scheduler to each application.",
+        "check": "Inspect the complete PersistentTileSchedulerSm100 class at the pinned revision.",
+        "outcome": "The class provides a reusable built-in scheduler rather than only an instruction wrapper."
+      }
+    }
+  ],
+  "commands": [
+    "conda run -n base python scripts/validate.py",
+    "conda run -n base python /users/Master/.codex/skills/kernel-wiki-verifier/scripts/scan_wiki.py /users/Master/wiki-evolve/KernelWiki --output /users/Master/wiki-evolve/KernelWiki/verification/baseline-queue.jsonl",
+    "nvidia-smi --query-gpu=name,compute_cap,driver_version --format=csv,noheader (not available)",
+    "nvcc --version (not available)",
+    "git ls-remote https://github.com/NVIDIA/cutlass.git refs/tags/v4.5.0",
+    "git clone --depth 1 --branch v4.5.0 --filter=blob:none https://github.com/NVIDIA/cutlass.git /tmp/kernelwiki-cutlass-dRC5i4/cutlass",
+    "conda run -n base python -c <static-wave arithmetic>",
+    "conda run -n base python -c <scope-discrimination arithmetic>",
+    "conda run -n base python -c <wiki swizzle versus Morton permutation>"
+  ],
+  "scope": "All 35 baseline coverage units were split into mechanism, semantics, compatibility, code, and performance claims. CLC semantics were checked against CUDA Programming Guide 13.2 and PTX ISA 9.0; CUTLASS behavior and API names were checked at v4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5; arithmetic-only examples were run in Conda base Python 3.13.14.",
+  "residual_risk": "No local NVIDIA GPU or CUDA compiler is installed. No positive CLC speedup is accepted from this page; its unscoped utilization table and CLC-attributed benchmark are refuted rather than replaced with new performance numbers."
+}
