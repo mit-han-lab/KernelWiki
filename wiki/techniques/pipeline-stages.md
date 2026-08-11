@@ -92,7 +92,7 @@ Modular Part 3 uses five A/B stages in its particular 2-SM matmul. The eventual 
 
 - [PTX ISA 9.0 mbarrier](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier)
 - [PTX ISA 9.0 bulk tensor copy](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor)
-- [PTX ISA 9.0 tcgen05 completion](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit)
+- [PTX ISA 9.0 tcgen05 completion](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit)
 - [CUTLASS 4.5.0 CuTe DSL pipeline example](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py)
 - [Pinned tcgen05 tutorial source](https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v3.cu)
 - [Modular Part 3](https://www.modular.com/blog/matrix-multiplication-on-nvidias-blackwell-part-3-the-optimizations-behind-85-of-sota-performance)

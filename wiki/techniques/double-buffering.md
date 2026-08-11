@@ -100,8 +100,8 @@ Useful negative tests deliberately delay the epilogue, swap a barrier phase, omi
 ## Primary references
 
 - [PTX ISA 9.0 Tensor Memory](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory)
-- [PTX ISA 9.0 tcgen05 allocation](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc)
-- [PTX ISA 9.0 tcgen05 load and wait](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld)
+- [PTX ISA 9.0 tcgen05 allocation](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit)
+- [PTX ISA 9.0 tcgen05 load and wait](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld)
 - [PTX ISA 9.0 mbarrier](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier)
 - [CUDA 13.0.2 Blackwell Tuning Guide](https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy)
 - [Pinned combined SMEM/TMEM example](https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu)

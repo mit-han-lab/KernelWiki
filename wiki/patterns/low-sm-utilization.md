@@ -59,7 +59,7 @@ In Gau Nernst's `M=N=K=4096` B200 experiment, v5 reports 1302.29 TFLOP/s (86.43%
 ## Primary References
 
 - [CUDA Programming Guide: Cluster Launch Control](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html)
-- [PTX ISA 9.0 CLC target and request semantics](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel)
+- [PTX ISA 9.0 CLC target and request semantics](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel)
 - [CUTLASS 4.5.0 CLC scheduling](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md)
 - [Pinned tutorial v6](https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu)
 - [Tutorial result progression](https://gau-nernst.github.io/tcgen05/)

@@ -19,7 +19,7 @@
         },
         {
           "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/arch/mma_sm90_gmma.hpp",
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "MMA_64x256x16_F32F16F16_SS::CRegisters",
           "observation": "The representative Hopper m64n256 FP32 wrapper declares 128 float accumulator registers per participating thread, not per warpgroup; the page states the resource unit incorrectly and makes an unbounded elimination claim."
@@ -56,7 +56,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.ld access restrictions and four-warp lane chunks",
           "observation": "The access table assigns the four participating warps to successive 32-lane TMEM chunks."
@@ -77,7 +77,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.ld execution and access restrictions",
           "observation": "TMEM loads and stores are warp-collective operations with instruction-shape-specific lane mappings; the ISA does not grant an independently owned row to each thread."
@@ -109,7 +109,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.alloc and tcgen05.dealloc lifecycle",
           "observation": "The ISA exposes explicit allocation/deallocation instructions and requires all allocated TMEM to be deallocated before kernel exit."
@@ -130,7 +130,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.alloc and tcgen05.dealloc issue granularity",
           "observation": "For cta_group::1, alloc/dealloc are warp-collective: all threads of one warp must execute the same .sync.aligned instruction. Lane-0-only execution violates that contract."
@@ -146,7 +146,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "nCols constraints and cta_group::1 semantics",
           "observation": "nCols is a power of two from 32 through 512 in units of columns; one-CTA allocation applies to the current CTA. A 256-column block contains 128 x 256 32-bit cells."
@@ -183,7 +183,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "allocation lifecycle, commit completion, and fence semantics",
           "observation": "The normative rule is that all allocations must be deallocated before kernel exit; it does not specify the page's leak/hang failure mode. The code also uses undefined helpers and substitutes fence plus __syncthreads for commit/mbarrier completion."
@@ -199,7 +199,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.ld/st shape and repetition grammar",
           "observation": "The documented shapes include .16x64b, .16x128b, .16x256b, .32x32b, and .16x32bx2, not .32x1b. ld/st are warp-collective asynchronous operations with their own completion rules, so the scalar wrappers and derived zero loop are invalid."
@@ -215,7 +215,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-cp",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-cp",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.cp grammar and operand descriptions",
           "observation": "The exact cta_group::1.128x256b form and the b64 shared-memory descriptor source appear in the vendor grammar."
@@ -237,7 +237,7 @@
       "evidence": [
         {
           "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "TMEM allocation and PipelineUmmaAsync accumulator stages",
           "observation": "The pinned vendor tutorial allocates TMEM and uses an asynchronous accumulator-stage pipeline, demonstrating the mechanism without claiming it is universally profitable."
@@ -258,14 +258,14 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "MMA completion mechanism",
           "observation": "A fence plus __syncthreads does not observe MMA completion."
         },
         {
           "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "PipelineUmmaAsync producer/consumer loops",
           "observation": "The real overlap uses separate producer/consumer participants and barriers; the page executes each epilogue serially and only comments that overlap occurred, while calling invalid helpers."
@@ -281,7 +281,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "nCols constraints and total TMEM columns",
           "observation": "Both 128 and 256 are legal power-of-two allocation sizes and the SM contains 512 columns; the table's corresponding arithmetic follows directly."
@@ -302,7 +302,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "nCols operand constraints",
           "observation": "The allocation size must be a power of two from 32 through 512; 192 is not a legal exact allocation and would need a larger legal reservation."
@@ -340,7 +340,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "TmemAllocator, retrieve_ptr, make_fragment_C, and cute.make_tensor",
           "observation": "The official Python tutorial allocates columns, retrieves a typed TMEM pointer, and binds it to the accumulator layout with cute.make_tensor."
@@ -361,7 +361,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "SM100 TMEM allocation, MMA, and epilogue implementation",
           "observation": "The real API uses utils.TmemAllocator, allocate/wait_for_alloc/retrieve_ptr, cute.make_tensor, tiled MMA objects, and tcgen05 copy atoms. The displayed symbols and MemorySpace.TMEM layout argument do not exist in the pinned implementation."
@@ -377,7 +377,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "commit/mbarrier completion, fence semantics, and allocation constraints",
           "observation": "MMA completion is observed through tcgen05.commit plus mbarrier, while fences only order operations and code motion. An allocation may persist across work; it must be deallocated before kernel exit. More than 512 columns violates the documented operand constraint, for which the ISA does not promise the listed failure modes."
@@ -393,7 +393,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "warp-collective access restrictions",
           "observation": "TMEM load/store access is collective and shape-mapped rather than independently row-owned. CUDA warp shuffles exchange registers only within one warp, so they cannot by themselves move values from another warp's TMEM lane range."

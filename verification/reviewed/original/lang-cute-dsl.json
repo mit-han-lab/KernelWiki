@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/CHANGELOG.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"4.5.0 CuTe DSL section and repository tree","observation":"The exact release contains CuTe DSL Python packages plus SM100/Blackwell operations and examples."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/CHANGELOG.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"4.5.0 CuTe DSL section and repository tree","observation":"The exact release contains CuTe DSL Python packages plus SM100/Blackwell operations and examples."}],
       "challenge": {"alternative":"CuTe DSL arrived after 4.5.0 or only targets pre-Blackwell architectures.","check":"Inspect the v4.5.0 tag rather than rolling documentation.","outcome":"The tagged Python package implements tcgen05/TMEM and the tag contains Blackwell CuTe DSL examples."}
     },
     {
@@ -20,7 +20,7 @@
       "covers": ["u001"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"Overview and repository organization","observation":"CUTLASS describes C++ template abstractions and Python DSLs as parallel interfaces; the release also ships extensive SM100 C++ kernels. It does not designate CuTe DSL as the primary Blackwell layer."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"Overview and repository organization","observation":"CUTLASS describes C++ template abstractions and Python DSLs as parallel interfaces; the release also ships extensive SM100 C++ kernels. It does not designate CuTe DSL as the primary Blackwell layer."}]
     },
     {
       "claim_id": "lang-cute-dsl-original-c003",
@@ -39,7 +39,7 @@
       "covers": ["u002"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MmaF16BF16Op and CtaGroup definitions","observation":"The Python API constructs tcgen05.MmaF16BF16Op with datatypes, instruction shape, CTA group, operand source, and major modes; neither displayed SM100_MMA symbol exists in the tag."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MmaF16BF16Op and CtaGroup definitions","observation":"The Python API constructs tcgen05.MmaF16BF16Op with datatypes, instruction shape, CTA group, operand source, and major modes; neither displayed SM100_MMA symbol exists in the tag."}]
     },
     {
       "claim_id": "lang-cute-dsl-original-c005",
@@ -48,7 +48,7 @@
       "covers": ["u002"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"mma_inst_shape_mnk, MmaF16BF16Op, make_fragment_C, and TMEM pointer replacement","observation":"The 1-CTA example uses (128,256,16), CtaGroup.ONE, and replaces the C fragment pointer with allocated TMEM."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"mma_inst_shape_mnk and CtaGroup.TWO","observation":"The 2-CTA example uses (256,256,16) and CtaGroup.TWO."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"mma_inst_shape_mnk, MmaF16BF16Op, make_fragment_C, and TMEM pointer replacement","observation":"The 1-CTA example uses (128,256,16), CtaGroup.ONE, and replaces the C fragment pointer with allocated TMEM."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"mma_inst_shape_mnk and CtaGroup.TWO","observation":"The 2-CTA example uses (256,256,16) and CtaGroup.TWO."}],
       "challenge": {"alternative":"Those are CTA tile shapes rather than instruction shapes, or the accumulator remains in registers.","check":"Trace mma_inst_shape_mnk into MmaF16BF16Op and make_fragment_C into the retrieved TMEM pointer.","outcome":"The source names and passes them as instruction shapes and explicitly swaps the accumulator tensor to TMEM."}
     },
     {
@@ -58,7 +58,7 @@
       "covers": ["u003"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TmemAllocator, retrieve_ptr, tmem copy atom/partition, and free","observation":"The release uses a shared holding buffer, TmemAllocator allocation/wait/retrieve/free lifecycle, Ld32x32bOp copy atom, make_tmem_copy, per-thread partitions, and a register tensor. make_tmem_ptr is absent."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TmemAllocator, retrieve_ptr, tmem copy atom/partition, and free","observation":"The release uses a shared holding buffer, TmemAllocator allocation/wait/retrieve/free lifecycle, Ld32x32bOp copy atom, make_tmem_copy, per-thread partitions, and a register tensor. make_tmem_ptr is absent."}]
     },
     {
       "claim_id": "lang-cute-dsl-original-c007",
@@ -67,7 +67,7 @@
       "covers": ["u004"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"host_function TMA atom construction and kernel TMA partition/copy","observation":"The tag uses CopyBulkTensorTileG2SOp and make_tiled_tma_atom_A/B, then tma_partition and cute.copy; neither displayed symbol/call signature occurs."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"host_function TMA atom construction and kernel TMA partition/copy","observation":"The tag uses CopyBulkTensorTileG2SOp and make_tiled_tma_atom_A/B, then tma_partition and cute.copy; neither displayed symbol/call signature occurs."}]
     },
     {
       "claim_id": "lang-cute-dsl-original-c008",
@@ -76,7 +76,7 @@
       "covers": ["u005"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"kernel decorator, role dispatch, PipelineTmaUmma/PipelineUmmaAsync, TmemAllocator, and teardown","observation":"The real warp-specialized kernel uses @cute.kernel, explicit participant groups and states, collective TMEM allocation/free, tiled-copy partitioning, and pipeline tails. The displayed decorator/helpers are absent and deallocation from every epilogue warp is not the source lifecycle."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"kernel decorator, role dispatch, PipelineTmaUmma/PipelineUmmaAsync, TmemAllocator, and teardown","observation":"The real warp-specialized kernel uses @cute.kernel, explicit participant groups and states, collective TMEM allocation/free, tiled-copy partitioning, and pipeline tails. The displayed decorator/helpers are absent and deallocation from every epilogue warp is not the source lifecycle."}]
     },
     {
       "claim_id": "lang-cute-dsl-original-c009",
@@ -85,7 +85,7 @@
       "covers": ["u007"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"CUTLASS DSL overview","observation":"NVIDIA describes Python-native interfaces, faster compile times, framework integration without glue code, and more intuitive metaprogramming than deep C++ expertise."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"CUTLASS DSL overview","observation":"NVIDIA describes Python-native interfaces, faster compile times, framework integration without glue code, and more intuitive metaprogramming than deep C++ expertise."}],
       "challenge": {"alternative":"Python is only a host-side generator and users still author the kernel in C++ templates.","check":"Inspect the tagged CuTe DSL examples and decorators.","outcome":"Kernel bodies are authored in Python with @cute.kernel and lowered by the DSL."}
     },
     {
@@ -114,7 +114,7 @@
       "covers": ["u009"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MMA operation/trait implementations","observation":"The tag provides typed tcgen05 operations and traits."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py","revision":"same tag","locator":"retrieve_tmem_ptr, alloc_tmem, and dealloc_tmem","observation":"The tag exposes TMEM allocation, pointer retrieval, and deallocation APIs."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MMA operation/trait implementations","observation":"The tag provides typed tcgen05 operations and traits."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py","revision":"same tag","locator":"retrieve_tmem_ptr, alloc_tmem, and dealloc_tmem","observation":"The tag exposes TMEM allocation, pointer retrieval, and deallocation APIs."}],
       "challenge": {"alternative":"Blackwell Python support is only an example-layer inline-PTX escape hatch.","check":"Inspect the installed package tree rather than examples alone.","outcome":"The architecture and nvgpu packages contain public typed operations and allocation helpers."}
     },
     {
@@ -124,7 +124,7 @@
       "covers": ["u010"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"make_smem_layout_a/b and allocate_tensor","observation":"The example uses layout algebra and Blackwell helper functions but explicitly supplies MMA tilers, datatypes, major modes, layouts, alignment, and swizzle objects. Handling is typed/composable, not universally automatic."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"make_smem_layout_a/b and allocate_tensor","observation":"The example uses layout algebra and Blackwell helper functions but explicitly supplies MMA tilers, datatypes, major modes, layouts, alignment, and swizzle objects. Handling is typed/composable, not universally automatic."}]
     },
     {
       "claim_id": "lang-cute-dsl-original-c014",

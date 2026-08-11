@@ -38,7 +38,7 @@
           "locator": "tcgen05 allocation, MMA, commit, fence, and mbarrier contracts",
           "observation": "TMEM lifecycle is collective and asynchronous MMA requires its documented completion/order protocol; an unrelated mbarrier arrive/wait pair does not establish completion.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         }
       ],
       "oracle": "web-primary",

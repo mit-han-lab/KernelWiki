@@ -30,7 +30,7 @@
       "covers": ["u002"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepseek-v32/README.md","revision":"DeepSeek-V3.2-Exp 87e509a2e5a100d221c97df52c6e8be7835f0057","locator":"DeepSeek Sparse Attention announcement and high-performance CUDA kernels","observation":"The release names its mechanism DeepSeek Sparse Attention (DSA), links indexer logits to DeepGEMM and sparse kernels to FlashMLA, and does not identify it as the ACL paper's three-branch NSA."},{"path":"/tmp/kernelwiki-deepseek-v32/inference/model.py","revision":"same commit","locator":"Indexer.forward and MLA.forward","observation":"The model selects top-k token positions with a learned indexer and masks full attention to those positions; it does not implement the NSA compression/selection/window gated sum."},{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232","locator":"Sparse Attention Kernels","observation":"FlashMLA says these kernels power DSA in DeepSeek-V3.2-Exp, not NSA."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepseek-v32/README.md","revision":"DeepSeek-V3.2-Exp 87e509a2e5a100d221c97df52c6e8be7835f0057","locator":"DeepSeek Sparse Attention announcement and high-performance CUDA kernels","observation":"The release names its mechanism DeepSeek Sparse Attention (DSA), links indexer logits to DeepGEMM and sparse kernels to FlashMLA, and does not identify it as the ACL paper's three-branch NSA."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepseek-v32/inference/model.py","revision":"same commit","locator":"Indexer.forward and MLA.forward","observation":"The model selects top-k token positions with a learned indexer and masks full attention to those positions; it does not implement the NSA compression/selection/window gated sum."},{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232","locator":"Sparse Attention Kernels","observation":"FlashMLA says these kernels power DSA in DeepSeek-V3.2-Exp, not NSA."}]
     },
     {
       "claim_id": "kernel-nsa-original-c004",
@@ -58,7 +58,7 @@
       "covers": ["u005"],
       "verdict": "refuted",
       "oracle": "host-experiment",
-      "evidence": [{"command":"conda run -n base python -c '<evaluate the displayed first-block update for scores=[0,0], values=[1,3], then compare stable softmax>'","environment":"KernelWiki host; conda base standard-library Python","reference":"Displayed nsa_sparse_attention_fwd update and normalized softmax definition","result":"Exited 0: the displayed update produced 4.0 with lse=0.0; normalized softmax produced 2.0 with log-partition log(2). The listing also references undefined SEQ_LEN, ignores pid in query indexing, and loads one query head per program rather than the paper's group-centric query set.","negative_control":"The stable reference divided by the within-block partition sum and returned the expected average 2.0."}]
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py nsa-former-counterexamples","environment":"KernelWiki host; conda base standard-library Python","reference":"Displayed nsa_sparse_attention_fwd update and normalized softmax definition","result":"Exited 0: the displayed update produced 4.0 with lse=0.0; normalized softmax produced 2.0 with log-partition log(2). The listing also references undefined SEQ_LEN, ignores pid in query indexing, and loads one query head per program rather than the paper's group-centric query set.","negative_control":"The stable reference divided by the within-block partition sum and returned the expected average 2.0."}]
     },
     {
       "claim_id": "kernel-nsa-original-c007",
@@ -67,7 +67,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "host-experiment",
-      "evidence": [{"command":"conda run -n base python -c '<compare range(0,4,2) used by the displayed scalar-load loop with all window positions>'","environment":"KernelWiki host; conda base standard-library Python","reference":"Displayed sliding-window loop","result":"Exited 0: the candidate loop visited [0,2], while a four-position window is [0,1,2,3].","negative_control":"A unit-stride reference enumerated all four positions."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py nsa-former-counterexamples","environment":"KernelWiki host; conda base standard-library Python","reference":"Displayed sliding-window loop","result":"Exited 0: the candidate loop visited [0,2], while a four-position window is [0,1,2,3].","negative_control":"A unit-stride reference enumerated all four positions."}],
       "challenge": {"alternative":"BLOCK_SIZE denotes a vectorized block load hidden by the loop body.","check":"Inspect the addresses used inside the loop.","outcome":"The body loads only K[pos] and V[pos], not a BLOCK_SIZE-wide tile, and BLOCK_SIZE is not declared in the signature."}
     },
     {
@@ -152,7 +152,7 @@
       "covers": ["u020", "u021"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <ACL paper, PDF, and lucidrains repository URLs>","environment":"KernelWiki host, 2026-08-08","reference":"Source-link identities and HTTP resolution","result":"ACL landing page, proceedings PDF, and lucidrains repository each returned HTTP 200 and matched their stated identities.","negative_control":"A nonexistent sibling path under aclanthology.org returned HTTP 404."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py urls-original-nsa","environment":"KernelWiki host, 2026-08-08","reference":"Source-link identities and HTTP resolution","result":"Both URLs in the baseline Sources section returned HTTP 200 and matched the NSA paper and explicitly third-party implementation identities.","negative_control":"A nonexistent sibling path under aclanthology.org returned HTTP 404."}],
       "challenge": {"alternative":"The repository is the authors' official implementation or one link silently redirects to an unrelated resource.","check":"Inspect repository owner/readme and final target identity, then compare a same-host invalid path.","outcome":"The links are live; lucidrains is explicitly third-party rather than an official paper artifact, and the negative control fails distinctly."}
     },
     {

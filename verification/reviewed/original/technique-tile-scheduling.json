@@ -47,7 +47,7 @@
       "covers": ["u008", "u009"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"clusterlaunchcontrol.try_cancel and query instruction syntax","observation":"The raw interface submits a cancel request to a response buffer/mbarrier and queries the response; it has no policy operand or scheduler initialization API. The enum and helper calls are invented."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"clusterlaunchcontrol.try_cancel and query instruction syntax","observation":"The raw interface submits a cancel request to a response buffer/mbarrier and queries the response; it has no policy operand or scheduler initialization API. The enum and helper calls are invented."}]
     },
     {
       "claim_id": "technique-tile-scheduling-original-c006",
@@ -56,7 +56,7 @@
       "covers": ["u010"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"scheduler tags and SM100 TileSchedulerSelector specializations","observation":"PersistentScheduler, DynamicPersistentScheduler, StreamKScheduler and GroupScheduler tags map to SM100 scheduler implementations."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"scheduler tags and SM100 TileSchedulerSelector specializations","observation":"PersistentScheduler, DynamicPersistentScheduler, StreamKScheduler and GroupScheduler tags map to SM100 scheduler implementations."}],
       "challenge": {"alternative":"The named categories exist only for SM90 and have no SM100 selection route.","check":"Inspect the arch::Sm100 selector specializations and included implementation headers.","outcome":"The tag-to-class mappings explicitly instantiate SM100 persistent, Stream-K and group implementations."}
     },
     {
@@ -66,7 +66,7 @@
       "covers": ["u011"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"public scheduler tags and SM100 selector mappings","observation":"The public tags are DynamicPersistentScheduler, StreamKScheduler and GroupScheduler; implementation classes are detail types. The group wrapper reuses an SM90 static grouped scheduler rather than inheriting the SM100 CLC class, and modern GemmUniversal composition does not use the shown legacy argument list."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"public scheduler tags and SM100 selector mappings","observation":"The public tags are DynamicPersistentScheduler, StreamKScheduler and GroupScheduler; implementation classes are detail types. The group wrapper reuses an SM90 static grouped scheduler rather than inheriting the SM100 CLC class, and modern GemmUniversal composition does not use the shown legacy argument list."}]
     },
     {
       "claim_id": "technique-tile-scheduling-original-c008",
@@ -94,7 +94,7 @@
       "covers": ["u015", "u016", "u017", "u018"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"SM100 Stream-K scheduler arguments and decomposition modes","observation":"Stream-K decomposition is parameterized and may fall back to data-parallel work; the implementation offers no universal near-100-percent guarantee. CLC redistributes unlaunched IDs but does not increase the count of independent remainder tiles, and remainder zero requires a full-wave special case."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"SM100 Stream-K scheduler arguments and decomposition modes","observation":"Stream-K decomposition is parameterized and may fall back to data-parallel work; the implementation offers no universal near-100-percent guarantee. CLC redistributes unlaunched IDs but does not increase the count of independent remainder tiles, and remainder zero requires a full-wave special case."}]
     },
     {
       "claim_id": "technique-tile-scheduling-original-c011",
@@ -122,7 +122,7 @@
       "covers": ["u023", "u024", "u025", "u026"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"multiple scheduler tags and architecture selectors","observation":"CUTLASS exposes alternative persistent, dynamic, static, Stream-K and grouped routes rather than encoding the page's universal rankings. Profitability depends on shape, decomposition, resource use and workload; the tagged source supplies no always/best/essential theorem."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"multiple scheduler tags and architecture selectors","observation":"CUTLASS exposes alternative persistent, dynamic, static, Stream-K and grouped routes rather than encoding the page's universal rankings. Profitability depends on shape, decomposition, resource use and workload; the tagged source supplies no always/best/essential theorem."}]
     },
     {
       "claim_id": "technique-tile-scheduling-original-c014",
@@ -131,7 +131,7 @@
       "covers": ["u027"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_params.h","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"max_swizzle_size and raster_order scheduler arguments","observation":"Swizzle is configurable and therefore a legitimate tuning dimension, but the source provides no categorical cache-capacity failure for every larger value or benefit loss for every smaller value."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_params.h","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"max_swizzle_size and raster_order scheduler arguments","observation":"Swizzle is configurable and therefore a legitimate tuning dimension, but the source provides no categorical cache-capacity failure for every larger value or benefit loss for every smaller value."}]
     },
     {
       "claim_id": "technique-tile-scheduling-original-c015",
@@ -140,7 +140,7 @@
       "covers": ["u028", "u029"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"reduction_mode argument and SM100/underlying Stream-K integration","observation":"The scheduler supports configurable reduction/decomposition modes rather than one universal atomic path. Neither this implementation nor the pinned CLC documentation establishes a fixed tens-of-cycles acquisition cost."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"reduction_mode argument and SM100/underlying Stream-K integration","observation":"The scheduler supports configurable reduction/decomposition modes rather than one universal atomic path. Neither this implementation nor the pinned CLC documentation establishes a fixed tens-of-cycles acquisition cost."}]
     }
   ],
   "commands": [

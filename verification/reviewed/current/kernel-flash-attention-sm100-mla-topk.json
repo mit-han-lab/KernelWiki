@@ -50,7 +50,7 @@
       "covers": ["u017", "u018"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"conda run -n base python <the displayed pathlib lookup>; sha256sum artifacts/prs/flash-attention/PR-2441/diff.patch and key files","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"sources/prs/flash-attention/PR-2441.md and artifacts/prs/flash-attention/PR-2441/PROVENANCE.yaml","result":"The displayed assertions pass; provenance records merge f219c89c, flash_fwd_mla_sm100.py and topk_gather_kv.py with hashes that match the local files.","negative_control":"Replacing topk_gather_kv.py with nonexistent_topk.py raises AssertionError."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py flash-attention-topk","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"sources/prs/flash-attention/PR-2441.md and artifacts/prs/flash-attention/PR-2441/PROVENANCE.yaml","result":"The displayed assertions pass; provenance records merge f219c89c, flash_fwd_mla_sm100.py and topk_gather_kv.py with hashes that match the local files.","negative_control":"Replacing topk_gather_kv.py with nonexistent_topk.py raises AssertionError."}],
       "challenge": {"alternative":"The page finds stale text but not the captured file, or the bundle belongs to the unrelated FA3 PR 1236.","check":"Resolve both paths, compare source_pr_id/upstream SHA, and test a deliberately absent filename.","outcome":"The manifest is explicitly PR 2441 at f219c89c, hash-matches its files, and rejects the absent token; PR 1236 is no longer a source relationship."}
     }
   ],

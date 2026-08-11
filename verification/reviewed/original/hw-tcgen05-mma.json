@@ -12,7 +12,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1, description and Target ISA Notes",
           "observation": "The specification calls tcgen05.mma the fifth generation MMA operation and lists sm_100a among its targets."
@@ -36,10 +36,10 @@
       "claim_type": "semantics",
       "covers": ["u001"],
       "verdict": "refuted",
-      "oracle": "local-primary-source",
+      "oracle": "web-primary",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass",
+          "url": "https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5",
           "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "repository-wide case-insensitive search for 'Unified Matrix', 'Unified MMA', and UMMA",
           "observation": "The pinned NVIDIA repository uses UMMA extensively but contains no definition of it as 'Unified Matrix Multiply-Accumulate'; the pinned PTX ISA names the instruction family tcgen05 and likewise does not make that expansion."
@@ -55,7 +55,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.2 instruction issue granularity and 9.7.16.10.9.1",
           "observation": "mma with cta_group::1 or ::2 is issued by a single thread; the WGMMA section defines warpgroup-wide execution."
@@ -76,7 +76,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.12.1 tcgen05.commit",
           "observation": "The issuer must use tcgen05.commit with an mbarrier to make completion observable; cross-thread use also requires the documented fence ordering."
@@ -92,7 +92,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
           "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "MMA_64x256x16_F32F16F16_SS CRegisters",
           "observation": "The pinned wrapper declares float CRegisters[128] for that WGMMA shape; PTX ISA 9.0 places tcgen05 D in TMEM, avoiding that accumulator allocation in the GPR file."
@@ -113,7 +113,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10 overview and 9.7.16.10.9.1 syntax",
           "observation": "tcgen05 A may be a shared-memory descriptor or a TMEM address. The WGMMA ISA supports both register-sourced and descriptor-sourced A forms, so ldmatrix is not universally required."
@@ -129,7 +129,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-matrix-multiply-and-accumulate-operations",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10 overview",
           "observation": "The overview locates B in current/peer CTA shared memory and D in TMEM."
@@ -150,13 +150,13 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-special-sync-operations-fence",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.11.1 tcgen05.fence",
           "observation": "The fence orders tcgen05 operations around execution-ordering operations and constrains code motion; it is not a completion wait."
         },
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.12.1 tcgen05.commit",
           "observation": "tcgen05.commit attaches prior async operations to an mbarrier, whose wait makes completion observable."
@@ -172,7 +172,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1 syntax groups 1, 2, and 5",
           "observation": "The grammar enumerates three unscaled floating kinds, three block-scaled kinds, and i8."
@@ -193,7 +193,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1 syntax and instruction descriptor semantics",
           "observation": "f8f6f4 is in the no-block-scaling grammar; the block-scaled MX kind is mxf8f6f4, not mxf8. M and N are encoded by idesc and are not fixed by the kind qualifier, and f16-family output typing is configuration-dependent."
@@ -246,7 +246,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10 overview and 9.7.16.10.9.1 description",
           "observation": "The operand-access model distinguishes current versus peer CTA resources and the mma description explicitly calls the instruction asynchronous."
@@ -267,7 +267,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1 syntax and examples",
           "observation": "Unscaled forms require a 4- or 8-element disable-output-lane vector before enable-input-d. Block-scaled forms require block_scale qualifiers and two TMEM scale operands. The wiki examples provide neither grammar."
@@ -283,7 +283,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.12.1 completion mechanism",
           "observation": "The loop lacks tcgen05.commit plus mbarrier wait before result consumption and does not establish safe operand-stage release relative to asynchronous MMA consumption."
@@ -299,7 +299,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.mma grammar and WGMMA operand forms",
           "observation": "The block contains literal ellipses and undeclared operands, forces Hopper A through ldmatrix despite descriptor-sourced A forms, omits tcgen05's mask vector, and substitutes a fence for completion."
@@ -315,7 +315,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
           "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "warp-specialized TMA/UMMA pipeline and accumulator lifecycle",
           "observation": "The pinned NVIDIA tutorial implements distinct pipeline roles around TMEM-backed UMMA, demonstrating the design pattern without making it universal."
@@ -336,7 +336,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-shared-memory-descriptor",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "Table 40 shared-memory descriptor layout",
           "observation": "The descriptor explicitly defines no-swizzle, 128B, 64B, and 32B modes; validity depends on satisfying the selected layout's constraints, not on always selecting 128B."
@@ -352,7 +352,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-shared-memory-descriptor",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "Table 40 shared-memory descriptor layout",
           "observation": "The function omits the stride field and required fixed fields, and encodes swizzle value 3 in bits 61-63; PTX declares value 3 invalid and assigns value 2 to 128B swizzle."

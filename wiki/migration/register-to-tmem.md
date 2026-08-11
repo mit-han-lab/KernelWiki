@@ -99,8 +99,8 @@ Do not translate an instruction shape directly into a required CTA tile or assum
 
 - [PTX ISA 9.0 WGMMA register fragments](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-register-fragment-wgmma-64n16)
 - [PTX ISA 9.0 Tensor Memory](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory)
-- [PTX ISA 9.0 tcgen05 allocation](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc)
-- [PTX ISA 9.0 tcgen05 MMA](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+- [PTX ISA 9.0 tcgen05 allocation](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit)
+- [PTX ISA 9.0 tcgen05 MMA](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma)
 - [CUDA 13.0.2 Hopper Tuning Guide](https://docs.nvidia.com/cuda/archive/13.0.2/hopper-tuning-guide/index.html#occupancy)
 - [CUDA 13.0.2 Blackwell Tuning Guide](https://docs.nvidia.com/cuda/archive/13.0.2/blackwell-tuning-guide/index.html#occupancy)
 - [FlashAttention-3 paper](https://arxiv.org/abs/2407.08608)

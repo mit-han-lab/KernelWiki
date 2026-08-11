@@ -12,7 +12,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-matrix-multiply-and-accumulate-operations",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "WGMMA operand/execution sections; tcgen05 issue, MMA grammar, kind, fence, and commit sections",
           "observation": "Every current table cell matches the pinned instruction models, including both A-location alternatives and separate completion/ordering mechanisms."
@@ -33,7 +33,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "alloc/dealloc, MMA source lifetime, commit, ld, descriptor, and cta_group rules",
           "observation": "The checklist follows the normative dependency order and confines performance-sensitive choices to explicit retuning."
@@ -54,7 +54,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.7.1 syntax, description, issue rules, and before-exit mandate",
           "observation": "Each lifecycle statement follows directly from the allocation-management section and Table 46."
@@ -75,7 +75,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "mbarrier-based completion, specialized inter-thread synchronization, and fence description",
           "observation": "The ISA gives the two mechanisms the distinct guarantees stated by the page."
@@ -96,7 +96,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.8.1 access restrictions, 9.7.16.8.3 tcgen05.ld, and wait-based completion",
           "observation": "TMEM is lane-partitioned by warp, ld transfers to register vectors asynchronously, and wait::ld observes load completion."
@@ -117,7 +117,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-shared-memory-descriptor",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "Table 40 swizzle modes; instruction descriptor and data-path layouts",
           "observation": "The ISA defines multiple valid swizzles and shapes, with M/N selected through idesc under configuration-specific constraints."
@@ -138,7 +138,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
           "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "role partition, pipeline participants, and TMEM accumulator path",
           "observation": "The example combines single-thread MMA issue with warp/CTA work for TMA, allocation, and accumulator consumption, demonstrating that total role counts remain a design variable."
@@ -159,7 +159,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/70_blackwell_gemm/70_blackwell_fp16_gemm.cu",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/70_blackwell_gemm/70_blackwell_fp16_gemm.cu",
           "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "CollectiveBuilder, kernel::GemmUniversal, and device adapter; include/cutlass/gemm/dispatch_policy.hpp schedule tags",
           "observation": "The current description follows the example's construction and both named 1SM/2SM schedule tags exist in the pinned dispatch-policy header."

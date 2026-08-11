@@ -20,7 +20,7 @@
       "covers": ["u002"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Introduction, requirements, and scale-factor notice","observation":"The project supports SM90/SM100 FP8 GEMMs and explicitly requires FP32 scale factors on SM90 versus packed UE8M0 on SM100."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Introduction, requirements, and scale-factor notice","observation":"The project supports SM90/SM100 FP8 GEMMs and explicitly requires FP32 scale factors on SM90 versus packed UE8M0 on SM100."}],
       "challenge": {"alternative":"The repository's current mixed FP8/FP4 scope makes the pinned FP8 paths obsolete or architecture-neutral.","check":"Inspect exact SM90/SM100 FP8 source inclusions and API dispatch at the pinned commit.","outcome":"Distinct 1D1D implementations remain selected by architecture and encode different scale paths, so the page's pinned split is current for that revision."}
     },
     {
@@ -30,7 +30,7 @@
       "covers": ["u003", "u004"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"conda run -n base python <displayed deepseek_v3_scale_shapes function and assertion>","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"wiki/kernels/fp8-block-scale-gemm.md and DeepSeek-V3 report Section 3.3.2","result":"The 4096-cubed example returns ((4096,32),(32,32)) and exits 0.","negative_control":"Changing N to 4095 triggers the divisibility assertion."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py fp8-block-scale-shapes","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"wiki/kernels/fp8-block-scale-gemm.md and DeepSeek-V3 report Section 3.3.2","result":"The 4096-cubed example returns ((4096,32),(32,32)) and exits 0.","negative_control":"Changing N to 4095 triggers the divisibility assertion."}],
       "challenge": {"alternative":"The example accidentally describes DeepGEMM's physical packed/TMA layout rather than only logical scale groups.","check":"Compare the function's returned ranks with the repository's transformed layouts and its own explicit prose disclaimer.","outcome":"The function only divides logical dimensions and the page says transformed layouts are excluded; the negative control discriminates the stated 128 grouping."}
     },
     {
@@ -40,7 +40,7 @@
       "covers": ["u006", "u007"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4","locator":"BLOCK_K assertion and math warp-group loop","observation":"The implementation declares float accum/final_accum, issues BLOCK_K/WGMMA::K operations, and then executes final_accum += scale_a*scale_b*accum."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"summary of DeepSeek-V3 report v2","locator":"Hopper Accumulation","observation":"The primary-paper capture records four WGMMAs per 128 elements and the 14-bit precision characterization."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4","locator":"BLOCK_K assertion and math warp-group loop","observation":"The implementation declares float accum/final_accum, issues BLOCK_K/WGMMA::K operations, and then executes final_accum += scale_a*scale_b*accum."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"summary of DeepSeek-V3 report v2","locator":"Hopper Accumulation","observation":"The primary-paper capture records four WGMMAs per 128 elements and the 14-bit precision characterization."}],
       "challenge": {"alternative":"Scale application is fused into WGMMA or occurs only once in the epilogue, and the paper's interval counts instructions.","check":"Trace one k_block iteration and compare it with the paper's explicit parenthetical equivalence.","outcome":"Scales are loaded per K block and combined after WGMMA completion; the paper says 128 elements equals four WGMMAs, ruling out both alternatives."}
     },
     {
@@ -50,7 +50,7 @@
       "covers": ["u008", "u009", "u010"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scale-factor notice","observation":"SM100 requires packed UE8M0 with four values per torch.int."},{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"same commit","locator":"TMA scale loads, UTCCP copies, make_instr_desc_block_scaled, and MMA loop","observation":"The exact dataflow moves factors to TMEM and selects float_ue8m0_t block-scaled UMMA; no SM90-style final_accum loop is present."},{"path":"/tmp/kernelwiki-deepgemm-pinned/tests/generators.py","revision":"same commit","locator":"gran_k_list for architecture 10","observation":"SM100 generator coverage includes gran_k 32 and 128, whereas SM90 uses 128."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scale-factor notice","observation":"SM100 requires packed UE8M0 with four values per torch.int."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"same commit","locator":"TMA scale loads, UTCCP copies, make_instr_desc_block_scaled, and MMA loop","observation":"The exact dataflow moves factors to TMEM and selects float_ue8m0_t block-scaled UMMA; no SM90-style final_accum loop is present."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/tests/generators.py","revision":"same commit","locator":"gran_k_list for architecture 10","observation":"SM100 generator coverage includes gran_k 32 and 128, whereas SM90 uses 128."}],
       "challenge": {"alternative":"Packed UE8M0 is merely an external storage optimization and the MMA still receives ordinary FP8 E4M3 scale values after unpacking.","check":"Follow scale type from API requirement through TMEM copy to the instruction descriptor template.","outcome":"The descriptor's scale type is cutlass::float_ue8m0_t and the hardware block-scaled operation consumes its descriptors; E4M3 is the matrix-element type, not the scale type."}
     },
     {
@@ -60,7 +60,7 @@
       "covers": ["u011", "u012"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The page transcribes exactly the stated GPU and maximum while its caveat enumerates the fields absent from that sentence."},{"path":"sources/docs/cutlass-changelog-sm100.md","revision":"release capture through 4.5.0","locator":"blockscaled GEMM entries","observation":"CUTLASS availability is documented, but no matched CUTLASS/DeepGEMM comparison is present, agreeing with the page's refusal to rank them."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The page transcribes exactly the stated GPU and maximum while its caveat enumerates the fields absent from that sentence."},{"path":"sources/docs/cutlass-changelog-sm100.md","revision":"release capture through 4.5.0","locator":"blockscaled GEMM entries","observation":"CUTLASS availability is documented, but no matched CUTLASS/DeepGEMM comparison is present, agreeing with the page's refusal to rank them."}],
       "challenge": {"alternative":"A shape and utilization can be recovered from linked optimization changes or theoretical peak and safely structured.","check":"Require one primary benchmark cell containing workload, environment, timing, samples, and metric conventions.","outcome":"No such cell is attached to the README maximum, so the qualified prose and empty structured list are the strongest supported form."}
     },
     {
@@ -70,7 +70,7 @@
       "covers": ["u013", "u014", "u015", "u016", "u017"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"interface notices and user-managed casting/layout warning","observation":"The README distinguishes scale ABIs and says transposition/FP8 casting are separate user responsibilities whose simple utilities may be slower."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"DeepSeek-V3 report v2 capture","locator":"Fine-Grained Quantization and Hopper Accumulation","observation":"The model source motivates group-specific numerical validation and documents scale/precision overheads and exceptions."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"interface notices and user-managed casting/layout warning","observation":"The README distinguishes scale ABIs and says transposition/FP8 casting are separate user responsibilities whose simple utilities may be slower."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"DeepSeek-V3 report v2 capture","locator":"Fine-Grained Quantization and Hopper Accumulation","observation":"The model source motivates group-specific numerical validation and documents scale/precision overheads and exceptions."}],
       "challenge": {"alternative":"Matching FP8 dtype and peak GEMM throughput is enough to select the kernel.","check":"Enumerate API assertions and all work outside the GEMM call that affects compatibility, accuracy, and end-to-end time.","outcome":"Scale dtype/layout and recipe dispatch are hard requirements; casting/layout transforms and distribution-sensitive quantization error remain outside a bare throughput number."}
     },
     {

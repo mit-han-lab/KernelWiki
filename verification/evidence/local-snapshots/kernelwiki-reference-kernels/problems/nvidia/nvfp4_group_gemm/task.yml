@@ -1,0 +1,67 @@
+# name: nvfp4-block-scaled-gemm
+
+files:
+  - {"name": "submission.py", "source": "@SUBMISSION@"}
+  - {"name": "task.py", "source": "task.py"}
+  - {"name": "utils.py", "source": "utils.py"}
+  - {"name": "reference.py", "source": "reference.py"}
+  - {"name": "eval.py", "source": "../eval_better_bench_grouped_gemm.py"}
+
+lang: "py"
+
+description: |
+  
+  You will implement a block scaled group matrix-matrix multiplication kernel optimized for NVIDIA B200.
+  To be explicit, you will be given a tuple of tensors:
+  ```
+  (abc_tensors, sfasfb_tensors, problem_sizes)
+  ```
+  where:
+  * `abc_tensors` is list of tuples (a, b, c) where 
+    a is torch.Tensor[float4e2m1fn_x2] of shape [M, K // 2, L]
+    b is torch.Tensor[float4e2m1fn_x2] of shape [N, K // 2, L]
+    c is torch.Tensor[float16] of shape [M, N, L]
+  * `sfasfb_tensors` is list of tuples (sfa, sfb) where 
+    sfa is torch.Tensor[float8_e4m3fnuz] of shape [M, K // 16, L]
+    sfb is torch.Tensor[float8_e4m3fnuz] of shape [N, K // 16, L]
+  * `problem_sizes` is list of tuples (M, N, K, L)
+  
+  Each group's matrix sizes `M` is divisible by mma_tiler_mn[0], `N` is divisible by mma_tiler_mn[1], `K` is divisible by 256.
+  The ranking criteria is the geometric mean of the benchmark results.
+  For the grand price, your kernel will be evaluated against the speed of light analysis
+  and the solution closest to the speed of light will be awarded the grand price.
+  ```
+  The speed of light analysis based on the max(FP4 Tensor Core math throughput, DRAM memory throughput) of B200 and tested under 1.5Ghz clock with the average M, N, K values per group:
+  G  M_values    N_values    K_values  L time[us]
+  8 [80, 176, 128, 72, 64, 248, 96, 160] [4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096] [7168, 7168, 7168, 7168, 7168, 7168, 7168, 7168] 1 18.833
+  8 [40, 76, 168, 72, 164, 148, 196, 160] [7168, 7168, 7168, 7168, 7168, 7168, 7168, 7168] [2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048] 1 10.667
+  2 [192, 320] [3072, 3072] [4096, 4096] 1 2.406
+  2 [128, 384] [4096, 4096] [1536, 1536] 1 1.525
+  ```
+config:
+  main: "eval.py"
+
+templates:
+  Python: "template.py"
+
+tests:
+  - {"m": [96, 128], "n": [128, 256], "k": [256, 512], "g": 2, "seed": 1111}
+  - {"m": [256, 72], "n": [512, 384], "k": [256, 256], "g": 2, "seed": 1111}
+  - {"m": [128, 128], "n": [128, 256], "k": [512, 256], "g": 2, "seed": 1111}
+  - {"m": [80, 128, 256], "n": [384, 256, 128], "k": [256, 512, 256], "g": 3, "seed": 1111}
+  - {"m": [64, 72, 96], "n": [128, 384, 512], "k": [512, 512, 256], "g": 3, "seed": 1111}
+  - {"m": [64, 256, 128], "n": [768, 128, 256], "k": [512, 256, 512], "g": 3, "seed": 1111}
+  - {"m": [128, 128, 64], "n": [256, 512, 512], "k": [768, 256, 768], "g": 3, "seed": 1111}
+  - {"m": [128, 128, 128, 128], "n": [128, 128, 128, 128], "k": [512, 256, 512, 256], "g": 4, "seed": 1111}
+  - {"m": [40, 56, 384, 512], "n": [512, 384, 256, 128], "k": [256, 256, 256, 256], "g": 4, "seed": 1111}
+  - {"m": [512, 384, 256, 128], "n": [256, 256, 256, 256], "k": [512, 768, 512, 768], "g": 4, "seed": 1111}
+
+benchmarks:
+  - {"m": [80, 176, 128, 72, 64, 248, 96, 160], "n": [4096, 4096, 4096, 4096, 4096, 4096, 4096, 4096], "k": [7168, 7168, 7168, 7168, 7168, 7168, 7168, 7168], "g": 8, "seed": 1111}
+  - {"m": [40, 76, 168, 72, 164, 148, 196, 160], "n": [7168, 7168, 7168, 7168, 7168, 7168, 7168, 7168], "k": [2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048], "g": 8, "seed": 1111}
+  - {"m": [192, 320], "n": [3072, 3072], "k": [4096, 4096], "g": 2, "seed": 1111}
+  - {"m": [128, 384], "n": [4096, 4096], "k": [1536, 1536], "g": 2, "seed": 1111}
+
+ranking_by: "geom"
+
+ranked_timeout: 300

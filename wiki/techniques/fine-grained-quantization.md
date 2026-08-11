@@ -128,4 +128,4 @@ the documented Blackwell targets; it is not necessarily a software-decode path.
 - [DeepSeek-V3 Technical Report v2](https://arxiv.org/abs/2412.19437v2)
 - [DeepGEMM at commit `891d57b`](https://github.com/deepseek-ai/DeepGEMM/tree/891d57b4db1071624b5c8fa0d1e51cb317fa709f)
 - [Transformer Engine 2.13 NVFP4](https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html)
-- [PTX ISA 9.0 `tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+- [PTX ISA 9.0 `tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma)

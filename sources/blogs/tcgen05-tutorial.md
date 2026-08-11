@@ -54,4 +54,4 @@ These values are reports for the author's exact environment; they are not portab
 
 - [Article](https://gau-nernst.github.io/tcgen05/)
 - [Pinned source tree](https://github.com/gau-nernst/learn-cuda/tree/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100)
-- [PTX ISA 9.0 tcgen05 reference](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+- [PTX ISA 9.0 tcgen05 reference](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma)

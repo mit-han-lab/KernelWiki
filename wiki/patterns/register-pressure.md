@@ -51,5 +51,5 @@ Report compiled registers and spills, TMEM columns, SMEM, barriers, occupancy li
 - [Nsight Compute 2025.3 register and occupancy analysis](https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html)
 - [PTX ISA 9.0 WGMMA accumulator fragments](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions-wgmma-mma)
 - [PTX ISA 9.0 Tensor Memory](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory)
-- [PTX ISA 9.0 tcgen05 load/wait](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld)
+- [PTX ISA 9.0 tcgen05 load/wait](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld)
 - [Pinned SM100 tutorial implementation](https://github.com/gau-nernst/learn-cuda/tree/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100)

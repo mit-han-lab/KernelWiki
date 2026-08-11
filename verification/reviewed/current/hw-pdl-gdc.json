@@ -81,13 +81,13 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/CMakeLists.txt",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/CMakeLists.txt",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "lines 458-474",
           "observation": "SM90 GDC is appended only if an externally set option is true; SM100 receives an overridable default variable set to ON and, when enabled, adds CUTLASS_ENABLE_GDC_FOR_SM100=1."
         },
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cutlass/arch/grid_dependency_control.h",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/include/cutlass/arch/grid_dependency_control.h",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "compile guards and launch/wait wrappers",
           "observation": "The macro gates instruction-emitting wrapper code for eligible architectures, demonstrating library compilation rather than a device-global launch mode."

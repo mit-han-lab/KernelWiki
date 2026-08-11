@@ -85,7 +85,7 @@
       "covers": ["u008", "u009", "u010", "u016"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_* and k_grouped_fp8_gemm_* APIs","observation":"M-grouped contiguous/masked interfaces keep N and K fixed, masked_m is an int vector of valid M lengths, and K-grouped interfaces instead keep M/N fixed with per-group K lengths. The real contiguous layout may be per-row group IDs or a prefix-sum layout and does not use the invented function."},{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs sections","observation":"The project distinguishes M-axis contiguous/masked APIs from a K-axis-grouped weight-backward API."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_* and k_grouped_fp8_gemm_* APIs","observation":"M-grouped contiguous/masked interfaces keep N and K fixed, masked_m is an int vector of valid M lengths, and K-grouped interfaces instead keep M/N fixed with per-group K lengths. The real contiguous layout may be per-row group IDs or a prefix-sum layout and does not use the invented function."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs sections","observation":"The project distinguishes M-axis contiguous/masked APIs from a K-axis-grouped weight-backward API."}]
     },
     {
       "claim_id": "kernel-deepgemm-original-c010",
@@ -94,7 +94,7 @@
       "covers": ["u011", "u012"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Compiler::build and compiler LazyInit","observation":"The JIT defaults to NVCC; NVRTC is selected only when DG_JIT_USE_NVRTC=1. Generated code is cached by a signature over name/compiler/flags/code. The page's jit_compile call is not a repository API and neither source guarantees an optimal result."},{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"News and DG_JIT_USE_NVRTC setting","observation":"The README explicitly describes the low-overhead JIT C++ module and documents NVRTC as optional, disabled by default, and potentially lower-performing for some cases."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Compiler::build and compiler LazyInit","observation":"The JIT defaults to NVCC; NVRTC is selected only when DG_JIT_USE_NVRTC=1. Generated code is cached by a signature over name/compiler/flags/code. The page's jit_compile call is not a repository API and neither source guarantees an optimal result."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"News and DG_JIT_USE_NVRTC setting","observation":"The README explicitly describes the low-overhead JIT C++ module and documents NVRTC as optional, disabled by default, and potentially lower-performing for some cases."}]
     },
     {
       "claim_id": "kernel-deepgemm-original-c011",
@@ -132,7 +132,7 @@
       "covers": ["u019"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Compiler::build cache lookup, compile, atomic rename, and runtime load","observation":"A signature-keyed cache is checked first; misses compile a CUBIN and create the cache entry, and hits return the existing runtime."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Compiler::build cache lookup, compile, atomic rename, and runtime load","observation":"A signature-keyed cache is checked first; misses compile a CUBIN and create the cache entry, and hits return the existing runtime."}],
       "challenge": {"alternative":"Every call recompiles, or installation precompiles every GEMM specialization.","check":"Follow Compiler::build on cache hit and miss and compare with the README installation statement.","outcome":"The hit path returns before compilation and the README says no CUDA compilation is required during installation."}
     },
     {

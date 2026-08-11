@@ -60,7 +60,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.mma block-scale grammar, valid combination tables, and target notes",
           "observation": "The grammar and tables list the two displayed combinations, additional mxf4nvf4 UE8M0 combinations, and architecture-specific sm_100a-family targets."
@@ -108,7 +108,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "mxf4/mxf4nvf4 target notes",
           "observation": "Native tcgen05 FP4 forms require Blackwell architecture-specific targets, so Hopper cannot be a like-for-like native instruction baseline. The ISA contains no universal 4x result; shapes, layouts, target, and instruction combinations are explicit variables."

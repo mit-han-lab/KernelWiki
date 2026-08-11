@@ -1,0 +1,58 @@
+files:
+  - {"name": "submission.py", "source": "@SUBMISSION@"}
+  - {"name": "task.py", "source": "task.py"}
+  - {"name": "utils.py", "source": "../utils.py"}
+  - {"name": "reference.py", "source": "reference.py"}
+  - {"name": "eval.py", "source": "../eval_better_bench.py"}
+
+lang: "py"
+
+description: |
+
+  You will implement a block scaled matrix-matrix multiplication kernel optimized for NVIDIA B200.
+  To be explicit, you will be given a tuple of tensors:
+  ```
+  (a, b, sfa, sfb, c)
+  ```
+  where:
+  * `a` is M x K x L in K-major order in nvfp4(e2m1)
+  * `b` is N x K x L in K-major order in nvfp4(e2m1)
+  * `sfa` is M x (K // 16) x L in K-major order in fp8(e4m3fnuz)
+  * `sfb` is N x (K // 16) x L in K-major order in fp8(e4m3fnuz)
+  * `c` is M x N x L in fp16
+
+  Matrix sizes `M` is divisible by mma_tiler_mn[0], `N` is divisible by mma_tiler_mn[1], `K` is divisible by 256.
+  The ranking criteria is the geometric mean of the benchmark results.
+  For the grand price, your kernel will be evaluated against the speed of light analysis
+  and the solution closest to the speed of light will be awarded the grand price.
+  ```
+  The speed of light analysis based on the max(FP4 Tensor Core math throughput, DRAM memory throughput) of B200 and tested under 1.5Ghz clock:
+  M   N    K   L time[us]
+  128 7168 16384 1 8.994
+  128 4096 7168  1 2.354
+  128 7168 2048  1 1.333
+  ```
+config:
+  main: "eval.py"
+
+templates:
+  Python: "template.py"
+
+tests:
+  - {"m": 128, "n": 256, "k": 256, "l": 1, "seed": 1111}
+  - {"m": 128, "n": 1536, "k": 7168, "l": 1, "seed": 1111}
+  - {"m": 128, "n": 3072, "k": 1536, "l": 1, "seed": 1111}
+  - {"m": 256, "n": 7168, "k": 256, "l": 1, "seed": 1111}
+  - {"m": 256, "n": 7168, "k": 2048, "l": 1, "seed": 1111}
+  - {"m": 2304, "n": 4608, "k": 7168, "l": 1, "seed": 1111}
+  - {"m": 384, "n": 7168, "k": 2304, "l": 1, "seed": 1111}
+  - {"m": 512, "n": 512, "k": 7168, "l": 1, "seed": 1111}
+  - {"m": 512, "n": 4096, "k": 512, "l": 1, "seed": 1111}
+  - {"m": 512, "n": 1536, "k": 7168, "l": 1, "seed": 1111}
+
+benchmarks:
+  - {"m": 128, "n": 7168, "k": 16384, "l": 1, "seed": 1111}
+  - {"m": 128, "n": 4096, "k": 7168, "l": 1, "seed": 1111}
+  - {"m": 128, "n": 7168, "k": 2048, "l": 1, "seed": 1111}
+
+ranking_by: "geom"

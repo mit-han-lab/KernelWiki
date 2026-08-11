@@ -28,7 +28,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#contents-of-the-mbarrier-object",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-contents",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "arrive-on, expect-tx, complete-tx, and phase-completion definitions",
           "observation": "arrive.expect_tx performs an arrive-on and increments tx-count. A TMA complete-tx decrements tx-count rather than performing another arrival; phase advances only when both pending arrivals and tx-count reach zero."
@@ -139,7 +139,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#phase-completion-of-the-mbarrier-object",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-phase-completion",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "pending-arrival initialization and phase-completion requirements",
           "observation": "Completion requires pending arrivals to reach zero; fewer unit arrivals leave a positive count."

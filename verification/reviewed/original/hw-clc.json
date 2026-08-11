@@ -452,7 +452,7 @@
       "oracle": "host-experiment",
       "evidence": [
         {
-          "command": "conda run -n base python -c 'N=4; bits=2; f=lambda m,n: ((m*N+n>>bits)//N,((m*N+n>>bits)%N)^(((m*N+n>>bits)//N)&((1<<bits)-1))); out=[f(m,n) for m in range(4) for n in range(4)]; morton=lambda m,n: sum(((n>>b)&1)<<(2*b)|((m>>b)&1)<<(2*b+1) for b in range(2)); print({\"wiki_outputs\":out,\"unique\":len(set(out)),\"expected_unique\":16,\"claimed_morton_order\":sorted(((morton(m,n),m,n) for m in range(4) for n in range(4))),\"negative_control_identity_unique\":len(set((m,n) for m in range(4) for n in range(4)))})'",
+          "command": "python3 verification/tools/check_verification_evidence.py clc-swizzle-vs-morton",
           "environment": "Conda base, Python 3.13.14; direct integer translation of the wiki function for a 4x4 grid with swizzle_bits=2.",
           "reference": "A tile permutation, including a Morton order, must map all 16 input coordinates to 16 unique output coordinates.",
           "result": "The function produces only four unique outputs; every four inputs collide. Its sequence differs from the 16-entry bit-interleaved Morton reference.",
@@ -601,10 +601,10 @@
     "nvidia-smi --query-gpu=name,compute_cap,driver_version --format=csv,noheader (not available)",
     "nvcc --version (not available)",
     "git ls-remote https://github.com/NVIDIA/cutlass.git refs/tags/v4.5.0",
-    "git clone --depth 1 --branch v4.5.0 --filter=blob:none https://github.com/NVIDIA/cutlass.git /tmp/kernelwiki-cutlass-dRC5i4/cutlass",
+    "git clone --depth 1 --branch v4.5.0 --filter=blob:none https://github.com/NVIDIA/cutlass.git verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass",
     "conda run -n base python -c <static-wave arithmetic>",
-    "conda run -n base python -c <scope-discrimination arithmetic>",
-    "conda run -n base python -c <wiki swizzle versus Morton permutation>"
+    "python3 verification/tools/check_verification_evidence.py clc-scope-arithmetic",
+    "python3 verification/tools/check_verification_evidence.py clc-swizzle-vs-morton"
   ],
   "scope": "All 35 baseline coverage units were split into mechanism, semantics, compatibility, code, and performance claims. CLC semantics were checked against CUDA Programming Guide 13.2 and PTX ISA 9.0; CUTLASS behavior and API names were checked at v4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5; arithmetic-only examples were run in Conda base Python 3.13.14.",
   "residual_risk": "No local NVIDIA GPU or CUDA compiler is installed. No positive CLC speedup is accepted from this page; its unscoped utilization table and CLC-attributed benchmark are refuted rather than replaced with new performance numbers."

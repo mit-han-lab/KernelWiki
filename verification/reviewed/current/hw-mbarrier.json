@@ -33,7 +33,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#contents-of-the-mbarrier-object",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-contents",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "object contents, lifecycle, phase completion, and mbarrier.init syntax",
           "observation": "All three fields, conjunctive completion, automatic next-phase initialization, wait-before-next-arrive rule, invalidation rule, and the exact CTA-shared init form are normative."
@@ -123,7 +123,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "mbarrier::arrive::one description and cross-thread synchronization examples",
           "observation": "Commit signals one arrive-on after prior MMA/cp/shift completion, and the consumer example waits then executes after_thread_sync before issuing dependent tcgen05 work."
@@ -144,7 +144,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#mbarrier-support-with-shared-memory",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-smem",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "shared-location support table, wait scope description, and cluster Example 4",
           "observation": "The table permits only the three stated operations on cluster-shared addresses; scope is a separate qualifier, and the example initializes an owner's CTA-shared object, maps it for remote arrival, and waits at the owner."

@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description, tests, and benchmarks","observation":"The official grouped-GEMM task supplies an independent M, N, and K for each group; its tests vary all three. Its Python submission interface does not constrain launch count, and it contains no ranking of MoE kernel importance."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description, tests, and benchmarks","observation":"The official grouped-GEMM task supplies an independent M, N, and K for each group; its tests vary all three. Its Python submission interface does not constrain launch count, and it contains no ranking of MoE kernel importance."}]
     },
     {
       "claim_id": "kernel-grouped-gemm-original-c002",
@@ -29,7 +29,7 @@
       "covers": ["u003"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"ten tests and four benchmarks","observation":"Correctness tests include per-group changes to M, N, and K; benchmark group counts are 8, 8, 2, and 2. The task has no 256-expert DeepSeek token example."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"ten tests and four benchmarks","observation":"Correctness tests include per-group changes to M, N, and K; benchmark group counts are 8, 8, 2, and 2. The task has no 256-expert DeepSeek token example."}]
     },
     {
       "claim_id": "kernel-grouped-gemm-original-c004",
@@ -38,7 +38,7 @@
       "covers": ["u004"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout) and Grouped GEMMs (masked layout)","observation":"The README assigns contiguous M-grouping to training forward/prefill, masked M-grouping to graph-compatible decode, and K-grouping to MoE weight backward."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout) and Grouped GEMMs (masked layout)","observation":"The README assigns contiguous M-grouping to training forward/prefill, masked M-grouping to graph-compatible decode, and K-grouping to MoE weight backward."}],
       "challenge": {"alternative":"K-grouped is merely another alias for the M-grouped forward interface, or masked mode is not phase-specific.","check":"Read the three API roles in the pinned README and compare their fixed dimensions.","outcome":"The source distinguishes their axes, fixed dimensions, and MoE phases."}
     },
     {
@@ -48,7 +48,7 @@
       "covers": ["u005"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_nt_contiguous, m_grouped_fp8_fp4_gemm_nt_masked, and k_grouped_fp8_gemm_*_contiguous","observation":"Contiguous mode consumes a tensor-valued grouped_layout, masked mode consumes one integer valid-M count per group rather than a boolean matrix, and K-grouped produces one M-by-N result per group from packed K segments. These interfaces contradict the displayed offsets, mask, and single-output structs."},{"path":"/tmp/kernelwiki-deepgemm-pinned/tests/generators.py","revision":"same commit","locator":"generate_m_grouped_contiguous, generate_m_grouped_masked, and generate_k_grouped_contiguous","observation":"The generators construct per-row IDs or prefix-sum ends, an int32 masked_m vector, and grouped K result tensors, respectively."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_nt_contiguous, m_grouped_fp8_fp4_gemm_nt_masked, and k_grouped_fp8_gemm_*_contiguous","observation":"Contiguous mode consumes a tensor-valued grouped_layout, masked mode consumes one integer valid-M count per group rather than a boolean matrix, and K-grouped produces one M-by-N result per group from packed K segments. These interfaces contradict the displayed offsets, mask, and single-output structs."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/tests/generators.py","revision":"same commit","locator":"generate_m_grouped_contiguous, generate_m_grouped_masked, and generate_k_grouped_contiguous","observation":"The generators construct per-row IDs or prefix-sum ends, an int32 masked_m vector, and grouped K result tensors, respectively."}]
     },
     {
       "claim_id": "kernel-grouped-gemm-original-c006",
@@ -57,7 +57,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/cutlass-audit.8aj07j/repo/include/cutlass/gemm/kernel/gemm_grouped.h","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"kernel::GemmGrouped template declaration","observation":"The actual kernel::GemmGrouped takes Mma, Epilogue, ThreadblockSwizzle, GroupScheduleMode, and optional Transposed template parameters, not tile shape, architecture, element types, and layouts as shown."},{"path":"/tmp/cutlass-audit.8aj07j/repo/include/cutlass/gemm/dispatch_policy.hpp","revision":"same commit","locator":"SM100 BlockScaled Ptr Array Dense GEMM Dispatch Policies","observation":"The named schedule tag exists, but that does not make the unrelated seven-argument GemmGrouped sketch or its invented runtime initializer valid, nor does the tag itself establish CLC use."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/include/cutlass/gemm/kernel/gemm_grouped.h","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"kernel::GemmGrouped template declaration","observation":"The actual kernel::GemmGrouped takes Mma, Epilogue, ThreadblockSwizzle, GroupScheduleMode, and optional Transposed template parameters, not tile shape, architecture, element types, and layouts as shown."},{"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/include/cutlass/gemm/dispatch_policy.hpp","revision":"same commit","locator":"SM100 BlockScaled Ptr Array Dense GEMM Dispatch Policies","observation":"The named schedule tag exists, but that does not make the unrelated seven-argument GemmGrouped sketch or its invented runtime initializer valid, nor does the tag itself establish CLC use."}]
     },
     {
       "claim_id": "kernel-grouped-gemm-original-c007",
@@ -66,7 +66,7 @@
       "covers": ["u007"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"tests and problem_sizes contract","observation":"The official contract permits a different N and K per group, while the snippet accepts one global N and no per-group K. It also depends on undefined BLOCK_M and BLOCK_N constants and supplies no executable launch or correctness check."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"tests and problem_sizes contract","observation":"The official contract permits a different N and K per group, while the snippet accepts one global N and no per-group K. It also depends on undefined BLOCK_M and BLOCK_N constants and supplies no executable launch or correctness check."}]
     },
     {
       "claim_id": "kernel-grouped-gemm-original-c008",
@@ -123,7 +123,7 @@
       "covers": ["u012", "u014"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout) and Grouped GEMMs (masked layout)","observation":"The project explicitly maps variable expert-token M grouping to MoE forward/prefill and its masked interface to decode when CUDA graphs hide valid counts from the CPU."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout) and Grouped GEMMs (masked layout)","observation":"The project explicitly maps variable expert-token M grouping to MoE forward/prefill and its masked interface to decode when CUDA graphs hide valid counts from the CPU."}],
       "challenge": {"alternative":"Contiguous and masked are interchangeable storage names with no phase or graph distinction.","check":"Compare their stated scenarios and API inputs in the README and gemm.hpp.","outcome":"The contiguous API consumes a packed/group map, while masked mode consumes per-group valid-M counts under fixed graph shapes."}
     },
     {
@@ -133,7 +133,7 @@
       "covers": ["u013"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_nt_contiguous type, shape, layout, architecture, and scale checks","observation":"The concrete interface additionally constrains architecture, FP8/FP4 or BF16 formats, operand major modes, scale representations, aligned segment layout, output dtype, and positive dimensions. Shared N/K and variable M alone are insufficient compatibility conditions."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"m_grouped_fp8_fp4_gemm_nt_contiguous type, shape, layout, architecture, and scale checks","observation":"The concrete interface additionally constrains architecture, FP8/FP4 or BF16 formats, operand major modes, scale representations, aligned segment layout, output dtype, and positive dimensions. Shared N/K and variable M alone are insufficient compatibility conditions."}]
     },
     {
       "claim_id": "kernel-grouped-gemm-original-c015",
@@ -151,7 +151,7 @@
       "covers": ["u016"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/cutlass-audit.8aj07j/repo/media/docs/cpp/efficient_gemm.md","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"Threadblock-level GEMM","observation":"NVIDIA documents that small M or N can leave some threadblock threads without meaningful work, and small M and N with large K can produce too few threadblocks to use all multiprocessors."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/media/docs/cpp/efficient_gemm.md","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"Threadblock-level GEMM","observation":"NVIDIA documents that small M or N can leave some threadblock threads without meaningful work, and small M and N with large K can produce too few threadblocks to use all multiprocessors."}],
       "challenge": {"alternative":"Tensor-core tiling always maintains full utilization regardless of M.","check":"Inspect NVIDIA's documented boundary behavior for threadblock tiles and grid size.","outcome":"The primary documentation explicitly identifies partial tiles and insufficient grid parallelism; the claim is retained only as a possibility, not a universal measured outcome."}
     },
     {
@@ -161,7 +161,7 @@
       "covers": ["u017"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (masked layout)","observation":"DeepGEMM states that the mask tensor makes the kernel compute only valid portions."},{"path":"/tmp/kernelwiki-deepgemm-pinned/tests/test_fp8_fp4.py","revision":"same commit","locator":"test_m_grouped_gemm_masked output checks","observation":"Correctness checks slice each group to masked_m[j] valid rows rather than asserting computation across every max-M row."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (masked layout)","observation":"DeepGEMM states that the mask tensor makes the kernel compute only valid portions."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/tests/test_fp8_fp4.py","revision":"same commit","locator":"test_m_grouped_gemm_masked output checks","observation":"Correctness checks slice each group to masked_m[j] valid rows rather than asserting computation across every max-M row."}]
     },
     {
       "claim_id": "kernel-grouped-gemm-original-c018",
@@ -189,7 +189,7 @@
       "covers": ["u020", "u021", "u022", "u023"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <each original source URL>","environment":"KernelWiki host, 2026-08-08","reference":"HTTP resolution plus inspection of repository/site identity","result":"The repository, DeepGEMM, reward-hack, and CUTLASS targets resolved successfully; exact replacement links to pinned task/template/reference and DeepGEMM sources also returned HTTP 200.","negative_control":"A nonexistent file under the pinned GPU Mode grouped-GEMM directory returned HTTP 404."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py urls-original-grouped-gemm","environment":"KernelWiki host, 2026-08-08","reference":"HTTP resolution plus inspection of repository/site identity","result":"The repository, DeepGEMM, reward-hack, and CUTLASS targets resolved successfully; exact replacement links to pinned task/template/reference and DeepGEMM sources also returned HTTP 200.","negative_control":"A nonexistent file under the pinned GPU Mode grouped-GEMM directory returned HTTP 404."}],
       "challenge": {"alternative":"A link is dead or resolves to an unrelated host/project.","check":"Follow redirects, inspect target identities, and compare a same-path nonexistent control.","outcome":"All positive targets resolved to the intended primary projects while the invalid target failed distinctly."}
     },
     {

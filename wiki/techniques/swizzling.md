@@ -48,7 +48,7 @@ These names define mappings, not universal datatype or tile-size recommendations
 
 ## CuTe address-bit form
 
-CUTLASS 4.5.0 defines [`Swizzle<BBits, MBase, SShift>`](https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/swizzle.hpp):
+CUTLASS 4.5.0 defines [`Swizzle<BBits, MBase, SShift>`](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/swizzle.hpp):
 
 - `BBits` is the number of mask bits;
 - `MBase` is the number of least-significant address bits kept invariant; and

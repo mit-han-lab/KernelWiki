@@ -19,7 +19,7 @@
       "covers": ["u002"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c737929f2567bd0a094ae140f8f60f390b1232; SHA-256 46c001c53800f47148918f4fc2969102492dd5164f710fc015db1622f6f9929a","locator":"support matrix and Dense MHA Prefill usage section","observation":"The repository classifies dense prefill on SM100 as MHA with d_qk 192/128 and d_v 128, not MLA/MQA; dense and sparse decode plus sparse prefill are MLA-mode MQA paths."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c737929f2567bd0a094ae140f8f60f390b1232; SHA-256 46c001c53800f47148918f4fc2969102492dd5164f710fc015db1622f6f9929a","locator":"support matrix and Dense MHA Prefill usage section","observation":"The repository classifies dense prefill on SM100 as MHA with d_qk 192/128 and d_v 128, not MLA/MQA; dense and sparse decode plus sparse prefill are MLA-mode MQA paths."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c003",
@@ -28,7 +28,7 @@
       "covers": ["u003", "u004"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"flash_mla_with_kvcache docstring and dispatch","observation":"The 656-byte layout is specifically DeepSeek V3/V3.1/V3.2 FP8+sparse decode; dense decode uses BF16. Its four FP32 scales are per 128-value group within each token, not per head. page_block_size is an input shape rather than a universal dense/sparse page rule."},{"path":"/tmp/kernelwiki-flashmla-pinned/tests/quant.py","revision":"same commit","locator":"FP8KVCacheLayout.get_meta and quantize_k_cache","observation":"The repository also implements a distinct 512-dimensional MODEL1_FP8Sparse format with seven E8M0 scales, disproving a universal 656-byte MLA layout."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"flash_mla_with_kvcache docstring and dispatch","observation":"The 656-byte layout is specifically DeepSeek V3/V3.1/V3.2 FP8+sparse decode; dense decode uses BF16. Its four FP32 scales are per 128-value group within each token, not per head. page_block_size is an input shape rather than a universal dense/sparse page rule."},{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/tests/quant.py","revision":"same commit","locator":"FP8KVCacheLayout.get_meta and quantize_k_cache","observation":"The repository also implements a distinct 512-dimensional MODEL1_FP8Sparse format with seven E8M0 scales, disproving a universal 656-byte MLA layout."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c004",
@@ -37,7 +37,7 @@
       "covers": ["u005"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Performance, dense MLA decoding","observation":"The 3000-GB/s and 660-TFLOPS author-reported maxima on H800 SXM5/CUDA 12.8 are exact, but the public interface accepts page_block_size from the KV tensor and does not specify a fixed value of 64; 64 is a test default."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Performance, dense MLA decoding","observation":"The 3000-GB/s and 660-TFLOPS author-reported maxima on H800 SXM5/CUDA 12.8 are exact, but the public interface accepts page_block_size from the KV tensor and does not specify a fixed value of 64; 64 is a test default."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c005",
@@ -46,7 +46,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/csrc/sm90/decode","revision":"DeepSeek FlashMLA commit 71c7379","locator":"dense and sparse_fp8 implementations plus public interface","observation":"The snippet is not upstream code and mixes mutually exclusive modes: dense decode is BF16, while FP8 cache dispatch is sparse; the real implementation uses generated/specialized kernels, scheduler metadata, separate split/combine paths, and different tensor contracts."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/csrc/sm90/decode","revision":"DeepSeek FlashMLA commit 71c7379","locator":"dense and sparse_fp8 implementations plus public interface","observation":"The snippet is not upstream code and mixes mutually exclusive modes: dense decode is BF16, while FP8 cache dispatch is sparse; the real implementation uses generated/specialized kernels, scheduler metadata, separate split/combine paths, and different tensor contracts."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c006",
@@ -55,7 +55,7 @@
       "covers": ["u007"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Sparse Attention indices contract and sparse-prefill equivalence","observation":"Decode indices encode selected page/offset entries and sparse prefill gathers focused_kv=kv[indices] before QK and PV operations."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Sparse Attention indices contract and sparse-prefill equivalence","observation":"Decode indices encode selected page/offset entries and sparse prefill gathers focused_kv=kv[indices] before QK and PV operations."}],
       "challenge": {"alternative":"The indices merely mask scores after all KV entries have already been read.","check":"Trace the decode index-to-address logic and sparse-prefill reference gather.","outcome":"The SM90/SM100 kernels derive KV addresses from supplied indices, and the reference computation gathers only selected KV rows; this is not a post-read dense mask."}
     },
     {
@@ -65,7 +65,7 @@
       "covers": ["u008"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"flash_mla_with_kvcache and flash_mla_sparse_fwd signatures","observation":"The invented template is not an upstream kernel. Decode takes page-encoded [batch,s_q,topk] indices and the 656-byte layout only in one FP8 mode; sparse prefill instead takes BF16 [s_kv,h_kv,d_qk] KV and [s_q,h_kv,topk] indices."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"flash_mla_with_kvcache and flash_mla_sparse_fwd signatures","observation":"The invented template is not an upstream kernel. Decode takes page-encoded [batch,s_q,topk] indices and the 656-byte layout only in one FP8 mode; sparse prefill instead takes BF16 [s_kv,h_kv,d_qk] KV and [s_q,h_kv,topk] indices."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c008",
@@ -74,7 +74,7 @@
       "covers": ["u009", "u010"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"MHA prefill benchmark, support matrix, and Dense MHA Prefill section","observation":"The 1460/1000 figures belong to NVIDIA's dense MHA forward/backward implementation, not an MLA-prefill variant. Pinned source does use TMEM/TMA in that MHA implementation, but the page's pseudocode is invented and supplies unverified role/dataflow details."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"MHA prefill benchmark, support matrix, and Dense MHA Prefill section","observation":"The 1460/1000 figures belong to NVIDIA's dense MHA forward/backward implementation, not an MLA-prefill variant. Pinned source does use TMEM/TMA in that MHA implementation, but the page's pseudocode is invented and supplies unverified role/dataflow details."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c009",
@@ -83,7 +83,7 @@
       "covers": ["u011"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Performance and support matrix","observation":"The source states both maxima for H800 SXM5 with CUDA 12.8 and lists Dense Decoding / SM90 / MQA / BF16."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Performance and support matrix","observation":"The source states both maxima for H800 SXM5 with CUDA 12.8 and lists Dense Decoding / SM90 / MQA / BF16."}],
       "challenge": {"alternative":"The 3000-GB/s and 660-TFLOPS figures describe one simultaneous operating point or an FP8 path.","check":"Read the exact benchmark qualification and support row.","outcome":"The source explicitly separates memory-bound and compute-bound configurations and labels dense-decode KV format BF16, so the table must preserve that distinction."}
     },
     {
@@ -93,7 +93,7 @@
       "covers": ["u012", "u013"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"sparse MLA decode performance paragraph","observation":"The values are exact author reports, but FP8 describes the KV-cache storage; the source explicitly says matrix multiplication is bfloat16. A single Dtype=FP8 column materially obscures the compute precision."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"sparse MLA decode performance paragraph","observation":"The values are exact author reports, but FP8 describes the KV-cache storage; the source explicitly says matrix multiplication is bfloat16. A single Dtype=FP8 column materially obscures the compute precision."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c011",
@@ -102,7 +102,7 @@
       "covers": ["u014", "u015"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"dense MHA prefill performance and support matrix","observation":"The repository transcribes NVIDIA's B200 maxima and its test/API use BF16 Q/K/V. The rows are MHA prefill, not MLA decode."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"dense MHA prefill performance and support matrix","observation":"The repository transcribes NVIDIA's B200 maxima and its test/API use BF16 Q/K/V. The rows are MHA prefill, not MLA decode."}],
       "challenge": {"alternative":"The figures are MLA prefill results or independently reproduced DeepSeek benchmarks.","check":"Compare the benchmark heading, news entry, support matrix, and test name.","outcome":"Every locator calls this dense MHA on SM100 and attributes the numbers to NVIDIA, excluding an MLA or reproduced interpretation."}
     },
     {
@@ -112,7 +112,7 @@
       "covers": ["u016", "u017"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"sparse MLA prefill performance, API contract, and equivalent PyTorch code","observation":"The values and H800 CUDA 12.8/B200 CUDA 12.9 environments are source-reported, but sparse-prefill Q and KV tensors are explicitly bfloat16; the source does not label this path FP8."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"sparse MLA prefill performance, API contract, and equivalent PyTorch code","observation":"The values and H800 CUDA 12.8/B200 CUDA 12.9 environments are source-reported, but sparse-prefill Q and KV tensors are explicitly bfloat16; the source does not label this path FP8."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c013",
@@ -121,7 +121,7 @@
       "covers": ["u018"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Introduction","observation":"The first-party repository explicitly says its optimized attention kernels power DeepSeek-V3 and DeepSeek-V3.2-Exp."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Introduction","observation":"The first-party repository explicitly says its optimized attention kernels power DeepSeek-V3 and DeepSeek-V3.2-Exp."}],
       "challenge": {"alternative":"The repository is only a standalone benchmark and is not connected to model deployments.","check":"Compare the first-party introduction and sparse-kernel release note with the linked model repositories.","outcome":"Both identify the kernels as powering the named model families and DSA release, although no broader serving-stack claim follows."}
     },
     {
@@ -150,7 +150,7 @@
       "covers": ["u021", "u024"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Introduction and 2025-09-29 news item","observation":"The repository identifies token-level sparse prefill and decode kernels as powering DeepSeek Sparse Attention in DeepSeek-V3.2-Exp."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"Introduction and 2025-09-29 news item","observation":"The repository identifies token-level sparse prefill and decode kernels as powering DeepSeek Sparse Attention in DeepSeek-V3.2-Exp."}],
       "challenge": {"alternative":"The sparse kernels are generic pruning utilities unrelated to the released model's attention execution.","check":"Follow the first-party DSA release statement and API descriptions.","outcome":"The repository explicitly connects both sparse attention stages to DSA and exposes attention operators that consume selected-token indices."}
     },
     {
@@ -170,7 +170,7 @@
       "covers": ["u025"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"DeepSeek V3/V3.1/V3.2 FP8+sparse docstring and dispatch","observation":"656 bytes is tied to one V3-family FP8+sparse decode mode, not MLA generally: dense decode is BF16 and another sparse model layout is 512-dimensional with a different scale representation."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"DeepSeek V3/V3.1/V3.2 FP8+sparse docstring and dispatch","observation":"656 bytes is tied to one V3-family FP8+sparse decode mode, not MLA generally: dense decode is BF16 and another sparse model layout is 512-dimensional with a different scale representation."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c019",
@@ -179,7 +179,7 @@
       "covers": ["u026"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"support matrix","observation":"Dense Prefill is listed only for SM100 and in MHA mode."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"support matrix","observation":"Dense Prefill is listed only for SM100 and in MHA mode."}],
       "challenge": {"alternative":"SM90 dense prefill exists elsewhere in the tree or is implied by global SM90 support.","check":"Compare the support matrix with setup.py source lists and public prefill API dispatch.","outcome":"Dense-prefill build sources and dispatch are under sm100, while SM90 support applies to decode and sparse prefill, not this dense MHA path."}
     },
     {
@@ -189,7 +189,7 @@
       "covers": ["u027"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"decode indices and flash_mla_sparse_fwd arguments","observation":"Both sparse APIs receive caller-produced int32 indices; no top-k selector is invoked by the attention interfaces."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py","revision":"DeepSeek FlashMLA commit 71c7379","locator":"decode indices and flash_mla_sparse_fwd arguments","observation":"Both sparse APIs receive caller-produced int32 indices; no top-k selector is invoked by the attention interfaces."}],
       "challenge": {"alternative":"FlashMLA computes top-k internally before attention.","check":"Trace public signatures, extension calls, and index address use.","outcome":"Indices are required inputs passed into sparse_decode_fwd/sparse_prefill_fwd and directly control gathers; the library code audited here does not produce them."}
     },
     {
@@ -219,7 +219,7 @@
       "covers": ["u031"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"artifacts/kernels/flashmla/full/PROVENANCE.yaml","revision":"local provenance","locator":"origin_url, upstream_repo, and per-file records","observation":"The two files come from separate NVIDIA CUTLASS and FlashInfer repositories, not deepseek-ai/FlashMLA; the bundle-level origin records only CUTLASS."},{"path":"artifacts/kernels/flashmla/variants/01-mla-decode-inner-loop.cu","revision":"SHA-256 4f494dc2d282468966a1e2028bc50d0ef0c364b34d24f75ee881608ddef2df69","locator":"entire derived fragment","observation":"The fragment uses a false Dc=128 assumption and conflates SM90 wgmma with SM100 tcgen05, so it is not a faithful FlashMLA decode reference."}]
+      "evidence": [{"path":"artifacts/kernels/flashmla/full/PROVENANCE.yaml","revision":"local provenance","locator":"origin_url, upstream_repo, and per-file records","observation":"The two files come from separate NVIDIA CUTLASS and FlashInfer repositories, not deepseek-ai/FlashMLA; the bundle-level origin records only CUTLASS."},{"path":"verification/evidence/historical-artifacts/artifacts/kernels/flashmla/variants/01-mla-decode-inner-loop.cu","revision":"SHA-256 4f494dc2d282468966a1e2028bc50d0ef0c364b34d24f75ee881608ddef2df69","locator":"entire derived fragment","observation":"The fragment uses a false Dc=128 assumption and conflates SM90 wgmma with SM100 tcgen05, so it is not a faithful FlashMLA decode reference."}]
     },
     {
       "claim_id": "kernel-flashmla-original-c024",
@@ -238,7 +238,7 @@
       "covers": ["u034"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"B200 prefill performance paragraphs","observation":"The repository reports the two throughput maxima but no ~65% utilization and no complete shape/timing record. Dense prefill is MHA; sparse prefill's documented inputs are BF16 rather than FP8. These omissions and dtype error make both structured records inadmissible."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md","revision":"DeepSeek FlashMLA commit 71c7379","locator":"B200 prefill performance paragraphs","observation":"The repository reports the two throughput maxima but no ~65% utilization and no complete shape/timing record. Dense prefill is MHA; sparse prefill's documented inputs are BF16 rather than FP8. These omissions and dtype error make both structured records inadmissible."}]
     }
   ],
   "commands": ["inspect DeepSeek FlashMLA README, public interfaces, tests, and SM90/SM100 source at commit 71c737929f2567bd0a094ae140f8f60f390b1232", "inspect DeepSeek-V2 paper v5 MLA cache formula", "inspect pinned CUTLASS PR 2466/2472 sources and local artifact provenance", "execute the displayed get_page query and a failing negative control with conda base Python"],

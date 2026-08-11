@@ -380,7 +380,7 @@
   "commands": [
     "conda run -n base python scripts/validate.py",
     "conda run -n base python /users/Master/.codex/skills/kernel-wiki-verifier/scripts/scan_wiki.py /users/Master/wiki-evolve/KernelWiki --output /users/Master/wiki-evolve/KernelWiki/verification/current-queue.jsonl",
-    "git clone --depth 1 --branch v4.5.0 --filter=blob:none https://github.com/NVIDIA/cutlass.git /tmp/kernelwiki-cutlass-dRC5i4/cutlass",
+    "git clone --depth 1 --branch v4.5.0 --filter=blob:none https://github.com/NVIDIA/cutlass.git verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass",
     "conda run -n base python -c <Related-link resolution with broken negative control>"
   ],
   "scope": "Independent current-text pass over all 32 coverage units. CLC semantics and constraints were checked against CUDA Programming Guide 13.2 and archived PTX ISA 9.0; CUTLASS API, pipeline, and coordinate transforms were checked at v4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5; the B200 count used the exact B200 column of NVIDIA's platform table; all current links were tested from the page directory.",

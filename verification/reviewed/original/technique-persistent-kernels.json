@@ -29,7 +29,7 @@
       "covers": ["u003"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel/query semantics and restrictions","observation":"try_cancel is itself the asynchronous request to cancel another not-yet-started block/cluster; query decodes that response. After a thread observes failure, another request from that thread is undefined. The block reverses the protocol and invents self-cancellation."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel/query semantics and restrictions","observation":"try_cancel is itself the asynchronous request to cancel another not-yet-started block/cluster; query decodes that response. After a thread observes failure, another request from that thread is undefined. The block reverses the protocol and invents self-cancellation."}]
     },
     {
       "claim_id": "technique-persistent-kernels-original-c004",
@@ -38,7 +38,7 @@
       "covers": ["u004", "u005"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"16-byte response, mbarrier transaction, proxy fences, query and cluster rules","observation":"The sequence omits initial blockIdx work, expect-tx/publication/fences, the exact failure restriction, and cluster-rank coordinate derivation. It is not a complete protocol even though cancel-before-query is directionally correct."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"16-byte response, mbarrier transaction, proxy fences, query and cluster rules","observation":"The sequence omits initial blockIdx work, expect-tx/publication/fences, the exact failure restriction, and cluster-rank coordinate derivation. It is not a complete protocol even though cancel-before-query is directionally correct."}]
     },
     {
       "claim_id": "technique-persistent-kernels-original-c005",
@@ -57,7 +57,7 @@
       "covers": ["u008", "u009", "u010", "u011", "u012", "u013"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"dynamic scheduler and software swizzle rules","observation":"CLC redistributes existing unlaunched ClcIDs to address uneven SM availability. CUTLASS applies swizzle/raster as a software coordinate transform; CLC neither chains distinct problems nor guarantees ordinary tail elimination."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"request/query result","observation":"try_cancel targets another not-yet-started grid entity; failure means no returned work, not caller cancellation."}]
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"dynamic scheduler and software swizzle rules","observation":"CLC redistributes existing unlaunched ClcIDs to address uneven SM availability. CUTLASS applies swizzle/raster as a software coordinate transform; CLC neither chains distinct problems nor guarantees ordinary tail elimination."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"request/query result","observation":"try_cancel targets another not-yet-started grid entity; failure means no returned work, not caller cancellation."}]
     },
     {
       "claim_id": "technique-persistent-kernels-original-c007",
@@ -85,7 +85,7 @@
       "covers": ["u016", "u017", "u018", "u019", "u020", "u021"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"v6 persistent kernel and static tile assignment","observation":"v6 uses persistent static scheduling, not CLC."},{"path":"sources/blogs/tcgen05-tutorial.md","revision":"pinned source card verified against author article/commit","locator":"progression table and supported takeaways","observation":"939.61 is v3 pipelining and 1475.93 is v6 after warp specialization, 2-SM MMA and persistence; the article explicitly says CLC and threadblock swizzling were not added, so neither isolation nor causal breakdown follows."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"v6 persistent kernel and static tile assignment","observation":"v6 uses persistent static scheduling, not CLC."},{"path":"sources/blogs/tcgen05-tutorial.md","revision":"pinned source card verified against author article/commit","locator":"progression table and supported takeaways","observation":"939.61 is v3 pipelining and 1475.93 is v6 after warp specialization, 2-SM MMA and persistence; the article explicitly says CLC and threadblock swizzling were not added, so neither isolation nor causal breakdown follows."}]
     },
     {
       "claim_id": "technique-persistent-kernels-original-c010",
@@ -113,7 +113,7 @@
       "covers": ["u026"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"failed-request restriction","observation":"After a thread observes a failed request, a subsequent request from that thread is undefined; other CTAs do not generate new ClcIDs."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"failed-request restriction","observation":"After a thread observes a failed request, a subsequent request from that thread is undefined; other CTAs do not generate new ClcIDs."}]
     },
     {
       "claim_id": "technique-persistent-kernels-original-c013",

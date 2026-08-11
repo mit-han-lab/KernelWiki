@@ -33,7 +33,7 @@
       "claim_id": "pattern-pipeline-stalls-original-c004",
       "claim_type": "semantics",
       "covers": ["u004"],
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait","revision":"PTX ISA 9.0","locator":"acquire wait ordering","observation":"A successful acquire wait provides visibility for prior cp.async.bulk operations associated with the barrier."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"PTX ISA 9.0","locator":"tcgen05 fence description","observation":"after_thread_sync orders subsequent asynchronous tcgen05 operations after prior tcgen05/execution-ordering operations across threads; it is not the general TMA-to-SMEM visibility primitive asserted by the page."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait","revision":"PTX ISA 9.0","locator":"acquire wait ordering","observation":"A successful acquire wait provides visibility for prior cp.async.bulk operations associated with the barrier."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-special-sync-operations-fence","revision":"PTX ISA 9.0","locator":"tcgen05 fence description","observation":"after_thread_sync orders subsequent asynchronous tcgen05 operations after prior tcgen05/execution-ordering operations across threads; it is not the general TMA-to-SMEM visibility primitive asserted by the page."}],
       "oracle": "web-primary",
       "verdict": "refuted"
     },
@@ -79,7 +79,7 @@
       "claim_id": "pattern-pipeline-stalls-original-c009",
       "claim_type": "code",
       "covers": ["u011"],
-      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html","revision":"Nsight Compute 2025.3","locator":"metric collection and Warp State Statistics","observation":"Available metrics and sampled stall states are tool/chip dependent and must be interpreted with scheduler issue evidence."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence","revision":"PTX ISA 9.0","locator":"after_thread_sync semantics","observation":"The checklist's mandatory after_thread_sync placement for TMA-to-MMA is a semantic conflation, and parity changes per barrier phase/reuse rather than after every wait globally."}],
+      "evidence": [{"url":"https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html","revision":"Nsight Compute 2025.3","locator":"metric collection and Warp State Statistics","observation":"Available metrics and sampled stall states are tool/chip dependent and must be interpreted with scheduler issue evidence."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-special-sync-operations-fence","revision":"PTX ISA 9.0","locator":"after_thread_sync semantics","observation":"The checklist's mandatory after_thread_sync placement for TMA-to-MMA is a semantic conflation, and parity changes per barrier phase/reuse rather than after every wait globally."}],
       "oracle": "web-primary",
       "verdict": "refuted"
     },

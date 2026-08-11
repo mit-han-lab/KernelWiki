@@ -54,7 +54,7 @@ Gau Nernst's Modal B200 has 148 SMs. In the author's `M=N=K=4096` experiment, v5
 ## Primary References
 
 - [CUDA Programming Guide: block and cluster scheduling](https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/programming-model.html)
-- [PTX ISA 9.0 CLC](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel)
+- [PTX ISA 9.0 CLC](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel)
 - [CUTLASS 4.5.0 CLC scheduling](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md)
 - [Pinned tutorial v6 source](https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu)
 - [Tutorial result progression](https://gau-nernst.github.io/tcgen05/)

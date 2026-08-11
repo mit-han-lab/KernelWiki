@@ -165,10 +165,10 @@
       "oracle": "host-experiment",
       "evidence": [
         {
-          "command": "conda run -n base python -c <resolve page link and parse data/triton-universe.yaml>",
+          "command": "python3 verification/tools/check_verification_evidence.py triton-universe-current",
           "environment": "Conda base, Python 3.13.14, repository filesystem",
           "reference": "The relative link must resolve and the YAML must expose a PR collection with per-entry captured flags.",
-          "result": "The link resolves; the canonical YAML parses with 267 PR entries, each carrying a captured flag, while the wiki text states no copied count.",
+          "result": "The link resolves; the canonical YAML parses with 267 PR entries (116 captured and 151 skipped), every entry carries a captured flag, and the wiki text states no copied count.",
           "negative_control": "../../data/triton-universe-missing.yaml does not resolve."
         }
       ],
@@ -268,7 +268,7 @@
       "oracle": "host-experiment",
       "evidence": [
         {
-          "command": "conda run -n base python -c <resolve six page links, parse bundle PROVENANCE.yaml, and compare SHA-256 values>",
+          "command": "python3 verification/tools/check_verification_evidence.py triton-artifact-provenance",
           "environment": "Conda base, Python 3.13.14, repository filesystem after remediation",
           "reference": "Each link must exist, match a verbatim provenance entry, and contain the named kernel or wrapper behavior.",
           "result": "All six links resolve; all five bundles mark the assets verbatim and their hashes match. Inspection finds the stated MLA kernel/backend, format conversion, normalization, GDN projection, and extend-attention roles.",

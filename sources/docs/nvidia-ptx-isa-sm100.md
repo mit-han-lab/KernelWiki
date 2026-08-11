@@ -32,7 +32,7 @@ The ISA defines legal behavior, not a universal performance ranking between inst
 ## Direct Links
 
 - [PTX ISA 9.0 contents](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/contents.html)
-- [`tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+- [`tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma)
 - [Tensor Memory](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory)
 - [`clusterlaunchcontrol.try_cancel`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel)
 - [`cp.async.bulk.tensor`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor)

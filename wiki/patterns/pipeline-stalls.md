@@ -70,6 +70,6 @@ The pinned v3 source instantiates two stages, not three. Each row is a cumulativ
 
 - [Nsight Compute 2025.3 Profiling Guide](https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html)
 - [PTX ISA 9.0 mbarrier waits and visibility](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-test-wait-try-wait)
-- [PTX ISA 9.0 tcgen05 execution ordering](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence)
+- [PTX ISA 9.0 tcgen05 execution ordering](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-special-sync-operations-fence)
 - [Pinned tutorial v3 source](https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v3.cu)
 - [Tutorial progression](https://gau-nernst.github.io/tcgen05/)

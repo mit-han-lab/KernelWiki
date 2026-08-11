@@ -61,7 +61,7 @@ The paper reports up to 1613 TFLOP/s and 71% for complete FA4 forward kernels; t
 ## Primary References
 
 - [Nsight Compute 2025.3 roofline and profiling guidance](https://docs.nvidia.com/nsight-compute/2025.3/ProfilingGuide/index.html)
-- [PTX ISA 9.0 tcgen05 MMA forms](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+- [PTX ISA 9.0 tcgen05 MMA forms](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma)
 - [Pinned two-stage tutorial pipeline](https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v3.cu)
 - [FlashAttention-4 paper v1](https://arxiv.org/html/2603.05451v1)
 - [FlashAttention-4 author blog](https://tridao.me/blog/2026/flash4/)

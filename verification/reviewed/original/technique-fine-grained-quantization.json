@@ -12,7 +12,7 @@
       "oracle": "web-primary",
       "evidence": [
         {"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"sections 3.3.2 and 3.5.2","observation":"The paper presents 1x128/128x128 scaling and Nc=128 as its scoped FP8 training design; it does not guarantee that local scaling prevents all outlier-induced error or prescribe this Hopper implementation universally."},
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"block-scale valid-combination table","observation":"Blackwell block-scaled tcgen05 supports multiple kinds and both UE8M0 and UE4M3 combinations, not only UE8M0."}
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"block-scale valid-combination table","observation":"Blackwell block-scaled tcgen05 supports multiple kinds and both UE8M0 and UE4M3 combinations, not only UE8M0."}
       ]
     },
     {
@@ -98,7 +98,7 @@
       "covers": ["u014"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"floating-point block-scale syntax","observation":"Valid grammar requires a block-scaled kind such as mxf8f6f4, the .block_scale qualifier, an instruction descriptor, two TMEM scale addresses, and enable-input-d. The displayed f8f6f4 form instead supplies nonexistent SMEM scale operands and a misplaced scale_d/mask sequence."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"floating-point block-scale syntax","observation":"Valid grammar requires a block-scaled kind such as mxf8f6f4, the .block_scale qualifier, an instruction descriptor, two TMEM scale addresses, and enable-input-d. The displayed f8f6f4 form instead supplies nonexistent SMEM scale operands and a misplaced scale_d/mask sequence."}]
     },
     {
       "claim_id": "technique-fine-grained-quantization-original-c011",
@@ -136,7 +136,7 @@
       "covers": ["u019", "u020"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mxf4nvf4 valid combinations","observation":"Blackwell tcgen05 natively accepts the block16 UE4M3 NVFP4 combination. Element format alone does not establish a universal error ranking across different grouping and quantizer recipes."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mxf4nvf4 valid combinations","observation":"Blackwell tcgen05 natively accepts the block16 UE4M3 NVFP4 combination. Element format alone does not establish a universal error ranking across different grouping and quantizer recipes."}]
     },
     {
       "claim_id": "technique-fine-grained-quantization-original-c015",
@@ -155,7 +155,7 @@
       "covers": ["u023", "u024", "u025"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"model and FP8 training sections","observation":"This validates one model/training design, not a general size threshold or inference rule."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"block-scale valid combinations","observation":"Both MXFP4 UE8M0 and NVFP4-compatible UE4M3 forms have native block-scaled instruction support; the ISA makes no highest-precision recommendation."}]
+      "evidence": [{"url":"https://arxiv.org/abs/2412.19437v2","revision":"DeepSeek-V3 Technical Report v2","locator":"model and FP8 training sections","observation":"This validates one model/training design, not a general size threshold or inference rule."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"block-scale valid combinations","observation":"Both MXFP4 UE8M0 and NVFP4-compatible UE4M3 forms have native block-scaled instruction support; the ISA makes no highest-precision recommendation."}]
     },
     {
       "claim_id": "technique-fine-grained-quantization-original-c017",
@@ -164,7 +164,7 @@
       "covers": ["u026", "u027", "u028", "u029"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4/MXFP4 comparison","observation":"Finer grouping and fractional scales provide more representational freedom and metadata, but do not prove strictly better precision for every tensor or implementation."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mxf4nvf4 block16 UE4M3 row","observation":"Native UE4M3 block scaling directly contradicts the UE8M0-only claim; the ISA supplies no Nc performance/accuracy curve."}]
+      "evidence": [{"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4/MXFP4 comparison","observation":"Finer grouping and fractional scales provide more representational freedom and metadata, but do not prove strictly better precision for every tensor or implementation."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"mxf4nvf4 block16 UE4M3 row","observation":"Native UE4M3 block scaling directly contradicts the UE8M0-only claim; the ISA supplies no Nc performance/accuracy curve."}]
     }
   ],
   "commands": ["inspect byte-verified DeepGEMM SM90/SM100 FP8 sources", "check exact PTX ISA 9.0 block-scale grammar and valid combinations"],

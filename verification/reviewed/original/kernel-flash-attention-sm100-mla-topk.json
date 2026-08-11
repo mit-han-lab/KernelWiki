@@ -19,7 +19,7 @@
       "covers": ["u002"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"conda run -n base python <the displayed pathlib/assert snippet>","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"sources/prs/flash-attention/PR-2441.md","result":"The script exits 0 and both asserted file names are present in the local source page.","negative_control":"Changing topk_gather_kv.py to nonexistent_topk_gather.py raises AssertionError."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py flash-attention-topk","environment":"KernelWiki worktree; conda base Python 3.13.14","reference":"sources/prs/flash-attention/PR-2441.md","result":"The script exits 0 and both asserted file names are present in the local source page.","negative_control":"Changing topk_gather_kv.py to nonexistent_topk_gather.py raises AssertionError."}],
       "challenge": {"alternative":"One filename appears only in an unrelated page or the code cannot resolve the relative path.","check":"Execute from repository root and replace one token with a known-absent name.","outcome":"The real page passes and the altered assertion fails, discriminating actual source-page content."}
     },
     {

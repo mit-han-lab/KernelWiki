@@ -20,7 +20,7 @@
       "covers": ["u002"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f; SHA-256 tied to local clone","locator":"Introduction, requirements, and interfaces","observation":"DeepGEMM identifies itself as a tensor-core kernel library for FP8/FP4/BF16 on SM90/SM100."},{"path":"sources/docs/cutlass-changelog-sm100.md","revision":"CUTLASS release entries through 4.5.0","locator":"3.8.0-4.1.0 blockscaled GEMM entries","observation":"CUTLASS records SM100 blockscaled formats and persistent dense blockscaled GEMM examples as a separate implementation family."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f; SHA-256 tied to local clone","locator":"Introduction, requirements, and interfaces","observation":"DeepGEMM identifies itself as a tensor-core kernel library for FP8/FP4/BF16 on SM90/SM100."},{"path":"sources/docs/cutlass-changelog-sm100.md","revision":"CUTLASS release entries through 4.5.0","locator":"3.8.0-4.1.0 blockscaled GEMM entries","observation":"CUTLASS records SM100 blockscaled formats and persistent dense blockscaled GEMM examples as a separate implementation family."}],
       "challenge": {"alternative":"DeepGEMM is merely a wrapper over CUTLASS schedules.","check":"Inspect the first-party README's dependency statement and pinned kernel sources.","outcome":"The project says it borrows concepts but avoids heavy CUTLASS templates and contains its own SM90/SM100 implementations; CUTLASS is adjacent, not its backend."}
     },
     {
@@ -30,7 +30,7 @@
       "covers": ["u003"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scaling-factor interface notice","observation":"SM90 requires FP32 scales; SM100 requires packed UE8M0, not E4M3."},{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"same commit","locator":"BLOCK_K assertion and promotion loop","observation":"SM90 WGMMA partials are held in float registers and only then multiplied by scale_a/scale_b into final_accum after each K block; scales are not applied at the WGMMA boundary."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scaling-factor interface notice","observation":"SM90 requires FP32 scales; SM100 requires packed UE8M0, not E4M3."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh","revision":"same commit","locator":"BLOCK_K assertion and promotion loop","observation":"SM90 WGMMA partials are held in float registers and only then multiplied by scale_a/scale_b into final_accum after each K block; scales are not applied at the WGMMA boundary."}]
     },
     {
       "claim_id": "kernel-fp8-block-scale-gemm-original-c004",
@@ -48,7 +48,7 @@
       "covers": ["u005"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4","locator":"scale TMA/UTCCP path, make_instr_desc_block_scaled, and MMA loop","observation":"The real source copies packed scale blocks into TMEM and constructs a block-scaled UMMA descriptor. It does not contain the displayed function, tmem_alloc helper, global_scale epilogue, or that inline instruction string."},{"path":"/tmp/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/ptx/tcgen05.cuh","revision":"same commit","locator":"tcgen05.mma mxf8f6f4 wrappers","observation":"The actual wrapper syntax is kind::mxf8f6f4.block_scale with bracketed scale descriptors and predicate; the displayed .scale_vec::1X form and operands do not match."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh","revision":"DeepGEMM commit 891d57b4","locator":"scale TMA/UTCCP path, make_instr_desc_block_scaled, and MMA loop","observation":"The real source copies packed scale blocks into TMEM and constructs a block-scaled UMMA descriptor. It does not contain the displayed function, tmem_alloc helper, global_scale epilogue, or that inline instruction string."},{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/ptx/tcgen05.cuh","revision":"same commit","locator":"tcgen05.mma mxf8f6f4 wrappers","observation":"The actual wrapper syntax is kind::mxf8f6f4.block_scale with bracketed scale descriptors and predicate; the displayed .scale_vec::1X form and operands do not match."}]
     },
     {
       "claim_id": "kernel-fp8-block-scale-gemm-original-c006",
@@ -57,7 +57,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scaling-factor interface notice","observation":"Four packed UE8M0 values per torch.int is correct for SM100, but the alternative architecture dtype is FP32 on SM90, not E4M3. The current API also supports multiple granularity recipes and layouts, so the fixed shapes are a DeepSeek-V3 pattern rather than a universal ABI."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"scaling-factor interface notice","observation":"Four packed UE8M0 values per torch.int is correct for SM100, but the alternative architecture dtype is FP32 on SM90, not E4M3. The current API also supports multiple granularity recipes and layouts, so the fixed shapes are a DeepSeek-V3 pattern rather than a universal ABI."}]
     },
     {
       "claim_id": "kernel-fp8-block-scale-gemm-original-c007",
@@ -66,7 +66,7 @@
       "covers": ["u007"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The source states exactly that DeepGEMM achieves up to 1550 TFLOPS on H800 and links the contributing changes."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The source states exactly that DeepGEMM achieves up to 1550 TFLOPS on H800 and links the contributing changes."}],
       "challenge": {"alternative":"1550 is tied to the page's 4096-cubed shape and ~90% utilization metadata.","check":"Read the news item and follow its explicit fields without importing nearby benchmark assumptions.","outcome":"Only GPU and up-to throughput are stated in the README sentence; shape, utilization, timing method, and variance are absent and must not be inferred."}
     },
     {
@@ -114,7 +114,7 @@
       "covers": ["u012"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The source reports only up to 1550 TFLOPS on H800. It does not attach M=N=K=4096, ~90%, timing details, samples, variance, or a single-kernel mechanism attribution to that maximum."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM commit 891d57b4","locator":"2025-04-18 news item","observation":"The source reports only up to 1550 TFLOPS on H800. It does not attach M=N=K=4096, ~90%, timing details, samples, variance, or a single-kernel mechanism attribution to that maximum."}]
     }
   ],
   "commands": ["inspect DeepGEMM commit 891d57b4 README and exact SM90/SM100 1D1D kernels", "inspect DeepSeek-V3 Technical Report v2 fine-grained quantization and accumulation sections", "inspect pinned CUTLASS SM100 changelog capture and DeepGEMM tcgen05 wrappers"],

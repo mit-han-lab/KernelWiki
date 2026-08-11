@@ -12,7 +12,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1 description and Target ISA Notes",
           "observation": "The vendor ISA names the family, describes fifth-generation MMA, and lists sm_100a. Pinned CUTLASS source uses the UMMA namespace but contains no asserted expansion."
@@ -33,7 +33,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-matrix-multiply-and-accumulate-operations",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.2 issue granularity; 9.7.16.10 overview; WGMMA syntax",
           "observation": "tcgen05 mma is single-thread-issued, D is TMEM, A is SMEM or TMEM, and B is SMEM; WGMMA is warpgroup-scoped with register D and instruction-dependent register/descriptor A forms."
@@ -54,7 +54,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.12.1 tcgen05.commit",
           "observation": "commit causes an mbarrier to track prior async operations by the issuer; fence semantics separately order tcgen05 across execution-ordering handoffs."
@@ -75,7 +75,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1 syntax groups 1, 2, and 5",
           "observation": "The grammar lists f16/tf32/f8f6f4 without block scaling, mxf8f6f4/mxf4/mxf4nvf4 with block scaling and two TMEM scale operands, and i8 separately."
@@ -117,7 +117,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1 syntax, operand descriptions, and examples",
           "observation": "The current excerpts retain the disable-output-lane vector and accumulation predicate for unscaled forms, and the block_scale qualifier plus two scale addresses for scaled forms."
@@ -138,7 +138,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-fence",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-special-sync-operations-fence",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.11.1 fence description and 9.7.16.12.1 commit description",
           "observation": "Fence orders operations around execution-ordering instructions and constrains code motion; commit makes an mbarrier track async completion. Operand storage cannot be reused while an async operation still consumes it."
@@ -159,7 +159,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-descriptor",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-shared-memory-descriptor",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "Table 40 shared-memory descriptor layout",
           "observation": "Table 40 assigns the base/leading/stride/fixed/offset/mode fields and maps swizzles 0,1,2,4,6 while declaring 3,5,7 invalid."
@@ -201,7 +201,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
           "revision": "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "MMA_64x256x16_F32F16F16_SS CRegisters and Blackwell tutorial pipeline examples",
           "observation": "The Hopper wrapper declares float[128] accumulators per thread, while pinned Blackwell examples keep D in TMEM and partition pipeline roles."

@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"DSL overview plus checked-out exact tag","observation":"The tag identifies both C++ and Python DSL interfaces, contains the CuTe DSL packages/examples, and resolves to the stated commit."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/README.md","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"DSL overview plus checked-out exact tag","observation":"The tag identifies both C++ and Python DSL interfaces, contains the CuTe DSL packages/examples, and resolves to the stated commit."}],
       "challenge": {"alternative":"The page silently describes the later 4.5.2 API or treats CuTe DSL as the only Blackwell interface.","check":"Resolve the tag commit and compare the page's interface wording with the tagged README/source tree.","outcome":"The commit is exact and the page explicitly places the DSL alongside C++ rather than assigning exclusivity or primacy."}
     },
     {
@@ -30,7 +30,7 @@
       "covers": ["u003", "u004", "u005"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"imports, MmaF16BF16Op construction, make_tiled_mma, make_fragment_C, and TMEM rebind","observation":"The exact one-CTA operation shape, types, source, major modes, tiled-MMA construction, and accumulator rebind match."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"MmaF16BF16Op construction","observation":"The two-CTA tutorial passes (256,256,16) and CtaGroup.TWO."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"imports, MmaF16BF16Op construction, make_tiled_mma, make_fragment_C, and TMEM rebind","observation":"The exact one-CTA operation shape, types, source, major modes, tiled-MMA construction, and accumulator rebind match."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"MmaF16BF16Op construction","observation":"The two-CTA tutorial passes (256,256,16) and CtaGroup.TWO."}],
       "challenge": {"alternative":"The old nonexistent SM100_MMA aliases are still required, the major-mode namespace is invalid, or the dimensions are CTA tile shapes.","check":"Trace the exact symbols exported by nvgpu and the tuple passed to MmaF16BF16Op.","outcome":"nvgpu exports OperandMajorMode, the operation is constructed exactly with the displayed symbols, and the source separately names its larger MMA tiler."}
     },
     {
@@ -40,7 +40,7 @@
       "covers": ["u006", "u007", "u008"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TmemAllocator around lines 97-106, pointer retrieval around 174-177, copy setup around 190-200, and free around 269-270","observation":"Every displayed operation and the stated omitted partition/copy/sync steps correspond to the complete official example."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py","revision":"same tag","locator":"alloc_tmem and dealloc_tmem contracts","observation":"The underlying helper validates column counts and emits architecture TMEM allocation/deallocation operations."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TmemAllocator around lines 97-106, pointer retrieval around 174-177, copy setup around 190-200, and free around 269-270","observation":"Every displayed operation and the stated omitted partition/copy/sync steps correspond to the complete official example."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py","revision":"same tag","locator":"alloc_tmem and dealloc_tmem contracts","observation":"The underlying helper validates column counts and emits architecture TMEM allocation/deallocation operations."}],
       "challenge": {"alternative":"The excerpt can be copied as a standalone lane-local allocator or frees before epilogue readers complete.","check":"Follow the full official control flow from collective allocation through pipeline sync and free.","outcome":"The page marks missing context as required and places synchronization before free, rejecting standalone/lane-local interpretation."}
     },
     {
@@ -50,7 +50,7 @@
       "covers": ["u009", "u010", "u011"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA construction and tma_partition/cute.copy paths","observation":"The one-CTA names, arguments, partition, copy, and pipeline use match."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"CopyBulkTensorTileG2SMulticastOp and cluster launch","observation":"The two-CTA example uses the multicast operation with CtaGroup.TWO and derives TMA atoms from the cluster layout."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA construction and tma_partition/cute.copy paths","observation":"The one-CTA names, arguments, partition, copy, and pipeline use match."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py","revision":"same tag","locator":"CopyBulkTensorTileG2SMulticastOp and cluster launch","observation":"The two-CTA example uses the multicast operation with CtaGroup.TWO and derives TMA atoms from the cluster layout."}],
       "challenge": {"alternative":"The invented SM100_TMA_LOAD_2D alias is needed or the multicast form can be used independently of launch topology.","check":"Search exact tag symbols and trace the cluster layout into atom construction/launch.","outcome":"The displayed typed operations are the actual API, and the multicast topology is constructed consistently rather than inferred automatically."}
     },
     {
@@ -60,7 +60,7 @@
       "covers": ["u012"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"role dispatch, pipeline creation/states, TMEM epilogue, and final tails/free","observation":"The complete source contains every named role and lifecycle edge and cannot be reduced to an if-warp sketch safely."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"role dispatch, pipeline creation/states, TMEM epilogue, and final tails/free","observation":"The complete source contains every named role and lifecycle edge and cannot be reduced to an if-warp sketch safely."}],
       "challenge": {"alternative":"A barrier arrive/wait around TMA is enough and the listed tails/empty states are optional optimization details.","check":"Trace stage ownership and termination in the official kernel.","outcome":"The full/empty pipelines protect reuse and tails drain outstanding work; omission changes lifetimes rather than only performance."}
     },
     {
@@ -70,7 +70,7 @@
       "covers": ["u013"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MMA construction, make_smem_layout_a/b, allocate_tensor, and pipeline creation","observation":"Helpers derive layouts from explicit inputs while the kernel author supplies all policy items named by the page."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"MMA construction, make_smem_layout_a/b, allocate_tensor, and pipeline creation","observation":"Helpers derive layouts from explicit inputs while the kernel author supplies all policy items named by the page."}],
       "challenge": {"alternative":"The helpers autonomously select the full layout/swizzle and pipeline for arbitrary inputs.","check":"Enumerate parameters and subsequent explicit allocation/pipeline calls in the example.","outcome":"Substantial policy remains explicit, so helper-assisted is the evidence-supported scope."}
     },
     {
@@ -90,7 +90,7 @@
       "covers": ["u024"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"artifacts/prs/cutlass/PR-3106/diff.patch","revision":"NVIDIA/cutlass PR 3106 merge 772fbb264e0fe823d62dec10a44a67e1503afdfc","locator":"fp16_gemm_0.py through fp16_gemm_6.py docstrings and implementations","observation":"The merged source spells out and implements each progression step."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/README.md","revision":"NVIDIA/cutlass v4.5.0 e406c186","locator":"directory and tutorial README","observation":"The tagged official tutorial occupies the page's stated renamed path and contains the same numbered series."}],
+      "evidence": [{"path":"artifacts/prs/cutlass/PR-3106/diff.patch","revision":"NVIDIA/cutlass PR 3106 merge 772fbb264e0fe823d62dec10a44a67e1503afdfc","locator":"fp16_gemm_0.py through fp16_gemm_6.py docstrings and implementations","observation":"The merged source spells out and implements each progression step."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/README.md","revision":"NVIDIA/cutlass v4.5.0 e406c186","locator":"directory and tutorial README","observation":"The tagged official tutorial occupies the page's stated renamed path and contains the same numbered series."}],
       "challenge": {"alternative":"The page conflates the older PR paths with current rolling locations or infers features from filenames.","check":"Compare PR merge paths/docstrings with the exact tag tree.","outcome":"The page labels both locations and derives steps from upstream descriptions/implementation, not filenames alone."}
     },
     {

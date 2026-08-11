@@ -20,7 +20,7 @@
       "covers": ["u001", "u006", "u013", "u014", "u025", "u032"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-layout","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 shared-memory descriptor swizzling modes and kind-specific constraints","observation":"PTX defines no-, 32B-, 64B-, and 128B-swizzled descriptors and constrains valid choices by MMA kind, datatype, shape, leading dimension, and layout. It does not impose one universal 128B mode or define 'silent garbage' for every mismatch."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-shared-memory-layout-swizzling","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 shared-memory descriptor swizzling modes and kind-specific constraints","observation":"PTX defines no-, 32B-, 64B-, and 128B-swizzled descriptors and constrains valid choices by MMA kind, datatype, shape, leading dimension, and layout. It does not impose one universal 128B mode or define 'silent garbage' for every mismatch."}]
     },
     {
       "claim_id": "hw-tma-original-c003",
@@ -105,7 +105,7 @@
       "covers": ["u015"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#phase-completion-of-the-mbarrier-object","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"arrive.expect_tx and phase-completion accounting","observation":"arrive.expect_tx performs an arrival as well as adding tx bytes. Calling the helper twice on one stage barrier performs two arrivals in addition to two expected-byte updates, but the page never initializes an arrival count that matches or protects the phase transition; it also relies on undefined TILE_* and descriptor helpers."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-phase-completion","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"arrive.expect_tx and phase-completion accounting","observation":"arrive.expect_tx performs an arrival as well as adding tx bytes. Calling the helper twice on one stage barrier performs two arrivals in addition to two expected-byte updates, but the page never initializes an arrival count that matches or protects the phase transition; it also relies on undefined TILE_* and descriptor helpers."}]
     },
     {
       "claim_id": "hw-tma-original-c012",
@@ -142,7 +142,7 @@
       "covers": ["u020"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"PipelineTmaUmma producer/consumer acquire/commit/wait/release loops","observation":"A real pipeline maintains full and empty state per stage, accounts all transaction bytes once, waits for load completion, and releases a stage only after asynchronous MMA has stopped reading it. The page has no empty/consumer-release barrier, mismatches mbarrier_wait's signature, double-arrives via two load helpers, and uses incomplete tcgen05 syntax and undefined helpers."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"PipelineTmaUmma producer/consumer acquire/commit/wait/release loops","observation":"A real pipeline maintains full and empty state per stage, accounts all transaction bytes once, waits for load completion, and releases a stage only after asynchronous MMA has stopped reading it. The page has no empty/consumer-release barrier, mismatches mbarrier_wait's signature, double-arrives via two load helpers, and uses incomplete tcgen05 syntax and undefined helpers."}]
     },
     {
       "claim_id": "hw-tma-original-c016",
@@ -207,7 +207,7 @@
       "covers": ["u028", "u029"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA load atoms, UMMA mainloop, TMEM accumulator retrieve, and TMA/store epilogue","observation":"The version-pinned Blackwell tutorial implements the page's core GMEM-SMEM-TMEM-register-output flow, with full pipeline synchronization omitted by the sketch."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA load atoms, UMMA mainloop, TMEM accumulator retrieve, and TMA/store epilogue","observation":"The version-pinned Blackwell tutorial implements the page's core GMEM-SMEM-TMEM-register-output flow, with full pipeline synchronization omitted by the sketch."}],
       "challenge": {"alternative":"tcgen05 accumulates directly into per-thread registers and bypasses TMEM.","check":"Inspect the MMA D operand and epilogue accumulator retrieval in the tutorial.","outcome":"The MMA D address is TMEM and the epilogue explicitly loads the accumulator from TMEM before output."}
     },
     {
@@ -236,7 +236,7 @@
       "covers": ["u035"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_tma/tma_v0.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"imports and TMA atom construction","observation":"The public API uses cutlass.cute, cute.nvgpu.cpasync.CopyBulkTensorTileG2SOp, and cpasync.make_tiled_tma_atom (or the nvgpu A/B helpers). Repository-wide searches find no make_tma_copy, SM100_TMA_LOAD_2D, SM100_TMA_LOAD_2D_MULTICAST, or the shown keyword signature."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_tma/tma_v0.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"imports and TMA atom construction","observation":"The public API uses cutlass.cute, cute.nvgpu.cpasync.CopyBulkTensorTileG2SOp, and cpasync.make_tiled_tma_atom (or the nvgpu A/B helpers). Repository-wide searches find no make_tma_copy, SM100_TMA_LOAD_2D, SM100_TMA_LOAD_2D_MULTICAST, or the shown keyword signature."}]
     }
   ],
   "commands": ["symbolically verify the two-CTA GEMM index sets", "inspect CUTLASS 4.5.0 TMA and GEMM tutorials", "repository-wide exact-token search for displayed CuTe DSL APIs"],

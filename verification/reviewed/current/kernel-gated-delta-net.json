@@ -10,7 +10,7 @@
       "covers": ["u001", "u002", "u003"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_gdn_decode_reference and gated_delta_rule_decode_trace","observation":"The reference forms g=exp(-exp(A_log)*softplus(a+dt_bias)) and beta=sigmoid(b), decays state, reads with k, applies beta*(v-read) as an outer-product correction, and computes output from the new state. Decode state is [B,H,V,K] with no context-length axis."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_gdn_decode_reference and gated_delta_rule_decode_trace","observation":"The reference forms g=exp(-exp(A_log)*softplus(a+dt_bias)) and beta=sigmoid(b), decays state, reads with k, applies beta*(v-read) as an outer-product correction, and computes output from the new state. Decode state is [B,H,V,K] with no context-length axis."}],
       "challenge": {"alternative":"The rule is additive-only, retrieves before decay, emits from the old state, or rereads all prior tokens during decode.","check":"Trace the reference operation order and input shapes, including the signs in the expanded remove/write expression.","outcome":"The subtraction, decay-first ordering, updated-state output, and fixed recurrent-state input reject each alternative; K*V work remains, so only context-length independence is claimed."}
     },
     {
@@ -50,7 +50,7 @@
       "covers": ["u022"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-gdn-pinned/README.md","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"repository overview and FAQ questions 1 and 2","observation":"The authors provide PyTorch/Triton code, state that FLA kernels are faster, identify FLA variable-length support, and strongly recommend it."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-gdn-pinned/README.md","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"repository overview and FAQ questions 1 and 2","observation":"The authors provide PyTorch/Triton code, state that FLA kernels are faster, identify FLA variable-length support, and strongly recommend it."}],
       "challenge": {"alternative":"FLA is an unendorsed fork and the authors' implementation already claims the same variable-length support.","check":"Use the authors' FAQ rather than a third-party comparison.","outcome":"The FAQ directly recommends FLA and distinguishes its faster and variable-length functionality."}
     },
     {
@@ -60,7 +60,7 @@
       "covers": ["u023"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/gdn_prefill.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"chunk_gated_delta_rule dispatch and SM100 import guard","observation":"The wrapper dispatches SM90 separately and SM100/SM103 to chunk_gated_delta_rule_sm100; its checks document CuTe DSL, CUDA >=13, and head_size 128 for the SM100 path."},{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"same commit","locator":"decode and prefill trace definitions","observation":"The file supplies the exact reference contracts summarized on the page."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/gdn_prefill.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"chunk_gated_delta_rule dispatch and SM100 import guard","observation":"The wrapper dispatches SM90 separately and SM100/SM103 to chunk_gated_delta_rule_sm100; its checks document CuTe DSL, CUDA >=13, and head_size 128 for the SM100 path."},{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"same commit","locator":"decode and prefill trace definitions","observation":"The file supplies the exact reference contracts summarized on the page."}],
       "challenge": {"alternative":"Blackwell prefill remains unimplemented or shares an unrestricted generic path with Hopper.","check":"Inspect architecture dispatch, imported implementation, and explicit runtime guards.","outcome":"A distinct SM100/103 implementation is dispatched and guarded by CUDA/head-size requirements, refuting both alternatives."}
     },
     {
@@ -80,7 +80,7 @@
       "covers": ["u025"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-mlstm-kernels/README.md","revision":"NX-AI/mlstm_kernels 5b98ff8e2bec189b3d3c249405bab5149564d6f8","locator":"TFLA overview and implementation list","observation":"The official repository describes TFLA for mLSTM, arbitrary large chunks, and PyTorch/JAX/Triton implementations. A pinned-tree search finds no GatedDeltaNet, wgmma, tcgen05, inline PTX, or asm implementation."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-mlstm-kernels/README.md","revision":"NX-AI/mlstm_kernels 5b98ff8e2bec189b3d3c249405bab5149564d6f8","locator":"TFLA overview and implementation list","observation":"The official repository describes TFLA for mLSTM, arbitrary large chunks, and PyTorch/JAX/Triton implementations. A pinned-tree search finds no GatedDeltaNet, wgmma, tcgen05, inline PTX, or asm implementation."}],
       "challenge": {"alternative":"A general linear-recurrence paper title or Hopper support is sufficient evidence of GDN-specific assembly.","check":"Inspect the published application and search the immutable implementation tree for GDN and instruction-family identifiers.","outcome":"The method and code are mLSTM-scoped and the claimed GDN/assembly identifiers are absent, supporting the explicit boundary."}
     },
     {
@@ -120,7 +120,7 @@
       "covers": ["u030", "u031", "u032", "u033", "u034", "u035", "u036", "u037", "u038", "u039"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <each of the ten Primary sources URLs>","environment":"KernelWiki host, 2026-08-08","reference":"HTTP success plus source identity and pinned revision in each target","result":"All ten targets returned HTTP 200; the implementation and model URLs retain the stated commit/revision paths.","negative_control":"https://mlsys26.flashinfer.ai/definitely-not-a-kernelwiki-page returned HTTP 404."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py urls-current-gated-delta-net","environment":"KernelWiki host, 2026-08-08","reference":"HTTP success plus source identity and pinned revision in each target","result":"All ten targets returned HTTP 200; the implementation and model URLs retain the stated commit/revision paths.","negative_control":"https://mlsys26.flashinfer.ai/definitely-not-a-kernelwiki-page returned HTTP 404."}],
       "challenge": {"alternative":"One or more citations are stale, redirect to a generic page, or lose the stated revision.","check":"Follow redirects for every target, inspect identity/revision, and compare a deliberately invalid same-site path.","outcome":"Each intended resource resolves and the invalid control is rejected; immutable code/model links preserve their revision identifiers."}
     },
     {

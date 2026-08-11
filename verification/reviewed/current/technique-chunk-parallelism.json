@@ -21,7 +21,7 @@
           "locator": "program instances and execution model",
           "observation": "Triton programs are independent grid instances; the model does not promise increasing program-ID scheduling or an implicit whole-grid synchronization point.",
           "revision": "Triton language documentation, retrieved 2026-08-09",
-          "url": "https://triton-lang.org/main/programming-guide/chapter-01/introduction.html"
+          "url": "https://triton-lang.org/main/programming-guide/chapter-1/introduction.html"
         }
       ],
       "oracle": "web-primary",

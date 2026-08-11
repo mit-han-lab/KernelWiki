@@ -38,7 +38,7 @@
       "covers": ["u004"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md","revision":"flashinfer-bench-starter-kit 75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"FlashInfer Baselines and MoE evaluation command","observation":"The official evaluation defines one FlashInfer wrapper baseline and measures submitted solution entry points; it records no framework launch-count decomposition."},{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe","observation":"One Python call enters a staged runner with routing and two separately tuned GEMM tactics; a call count is not a GPU launch count."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md","revision":"flashinfer-bench-starter-kit 75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"FlashInfer Baselines and MoE evaluation command","observation":"The official evaluation defines one FlashInfer wrapper baseline and measures submitted solution entry points; it records no framework launch-count decomposition."},{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe","observation":"One Python call enters a staged runner with routing and two separately tuned GEMM tactics; a call count is not a GPU launch count."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c005",
@@ -47,7 +47,7 @@
       "covers": ["u005"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The official trace reference computes G1=A@W13.T, splits G1 into X1/X2, and computes silu(X2)*(X1+beta) before W2."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The official trace reference computes G1=A@W13.T, splits G1 into X1/X2, and computes silu(X2)*(X1+beta) before W2."}],
       "challenge": {"alternative":"Gate and up must be two independently launched GEMMs with separate accumulator allocations.","check":"Inspect the reference's W13 tensor shape and GEMM1 expression.","outcome":"W13 is one [2I,H] tensor and the reference issues one logical matmul producing both halves; separate launches/allocations are not part of the contract."}
     },
     {
@@ -57,7 +57,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe wrapper and runner call","observation":"The first-party implementation uses compiled TensorRT-LLM/FlashInfer runners and explicit tensor contracts, not the displayed helpers or inline assembly."},{"path":"wiki/hardware/tcgen05-mma.md","revision":"KernelWiki page already verified against PTX ISA 9.2","locator":"Instruction Forms and Ownership","observation":"Real tcgen05 forms use architecture-defined descriptors, predicates, and allocation ownership. The displayed instruction string omits required form/operands and the function also references undefined storage, rows, columns, and helpers."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe wrapper and runner call","observation":"The first-party implementation uses compiled TensorRT-LLM/FlashInfer runners and explicit tensor contracts, not the displayed helpers or inline assembly."},{"path":"wiki/hardware/tcgen05-mma.md","revision":"KernelWiki page already verified against PTX ISA 9.2","locator":"Instruction Forms and Ownership","observation":"Real tcgen05 forms use architecture-defined descriptors, predicates, and allocation ownership. The displayed instruction string omits required form/operands and the function also references undefined storage, rows, columns, and helpers."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c007",
@@ -75,7 +75,7 @@
       "covers": ["u008"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"DeepSeek routing reference and _fp8_moe_run_experts","observation":"A correct path uses global expert IDs, a local expert offset, routing weights, all three FP32 scale tensors, bounds-safe gathering, W13 splitting, W2, and weighted accumulation. The displayed kernel leaves expert_ids and every scale pointer unused, lacks K/M/N masks and local offsets, and never performs W2 or combine."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"DeepSeek routing reference and _fp8_moe_run_experts","observation":"A correct path uses global expert IDs, a local expert offset, routing weights, all three FP32 scale tensors, bounds-safe gathering, W13 splitting, W2, and weighted accumulation. The displayed kernel leaves expert_ids and every scale pointer unused, lacks K/M/N masks and local offsets, and never performs W2 or combine."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c009",
@@ -93,7 +93,7 @@
       "covers": ["u012"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoERunner tactic enumeration and autotuner selection","observation":"The official implementation enumerates architecture/shape-valid GEMM1 and GEMM2 tactics and supplies token-bucketed runtime autotuning."},{"path":"/tmp/kernelwiki-flashinfer-pinned/benchmarks/bench_trtllm_gen_fused_moe_autotuner.py","revision":"same commit","locator":"bench_trtllm_gen_fused_moe_autotuner_fp8","observation":"A first-party B200-capable benchmark explicitly compares untuned and autotuned FP8-block tactics and passes tune_max_num_tokens."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoERunner tactic enumeration and autotuner selection","observation":"The official implementation enumerates architecture/shape-valid GEMM1 and GEMM2 tactics and supplies token-bucketed runtime autotuning."},{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/benchmarks/bench_trtllm_gen_fused_moe_autotuner.py","revision":"same commit","locator":"bench_trtllm_gen_fused_moe_autotuner_fp8","observation":"A first-party B200-capable benchmark explicitly compares untuned and autotuned FP8-block tactics and passes tune_max_num_tokens."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c011",
@@ -102,7 +102,7 @@
       "covers": ["u013"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe_ds_routing_trace axes and inputs","observation":"The source defines 128 as this DeepSeek-FP8 trace's scale granularity and receives already-quantized FP8 tensors plus FP32 scales; it does not compute scales or state a stability requirement."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"DeepSeek-V3 Technical Report v2 capture","locator":"Fine-Grained Quantization","observation":"The paper motivates smaller groups as better accommodating local outliers and documents phase-specific exceptions; it does not state that 128 is a universal overflow-stability threshold."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"trtllm_fp8_block_scale_moe_ds_routing_trace axes and inputs","observation":"The source defines 128 as this DeepSeek-FP8 trace's scale granularity and receives already-quantized FP8 tensors plus FP32 scales; it does not compute scales or state a stability requirement."},{"path":"sources/docs/deepseek-v3-fp8.md","revision":"DeepSeek-V3 Technical Report v2 capture","locator":"Fine-Grained Quantization","observation":"The paper motivates smaller groups as better accommodating local outliers and documents phase-specific exceptions; it does not state that 128 is a universal overflow-stability threshold."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c012",
@@ -120,7 +120,7 @@
       "covers": ["u015"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout)","observation":"The first-party documentation states that each expert may process a varying number of tokens and represents those expert problems with varying M segments."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (contiguous layout)","observation":"The first-party documentation states that each expert may process a varying number of tokens and represents those expert problems with varying M segments."}],
       "challenge": {"alternative":"A grouped or persistent scheduler makes expert imbalance disappear as a scheduling concern.","check":"Compare the logical per-group M sizes with the scheduler's finite assignment of tiles.","outcome":"Grouping can mitigate the tail, but it does not make unequal tile counts equal; the claim is conditional and does not say every implementation suffers the same magnitude."}
     },
     {
@@ -139,7 +139,7 @@
       "covers": ["u017"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The benchmark contract represents gate and up as one concatenated W13 tensor and one logical 2I-wide GEMM result, then splits it for SwiGLU. It does not require two independent accumulator allocations."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The benchmark contract represents gate and up as one concatenated W13 tensor and one logical 2I-wide GEMM result, then splits it for SwiGLU. It does not require two independent accumulator allocations."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c016",
@@ -166,7 +166,7 @@
       "covers": ["u020"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The reference contract permits one concatenated W13 matmul and immediate SwiGLU, so the candidate fusion preserves the logical operation; the page conditions use on an actual measured benefit rather than asserting one."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_fp8_moe_run_experts","observation":"The reference contract permits one concatenated W13 matmul and immediate SwiGLU, so the candidate fusion preserves the logical operation; the page conditions use on an actual measured benefit rather than asserting one."}],
       "challenge": {"alternative":"Combining gate and up always wins regardless of layout or workload.","check":"Read the conditional wording and compare it with the contract rather than an unqualified speed claim.","outcome":"The claim applies only after a matched measurement, so it does not assert universal benefit."}
     },
     {
@@ -176,7 +176,7 @@
       "covers": ["u021"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"DeepSeek routing reference and _fp8_moe_run_experts","observation":"The official reference spells out each of these dependent stages and their global/local expert mapping."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"DeepSeek routing reference and _fp8_moe_run_experts","observation":"The official reference spells out each of these dependent stages and their global/local expert mapping."}],
       "challenge": {"alternative":"The single public API call means the implementation contract is only one simple matrix operation.","check":"Inspect the reference implementation behind the wrapper.","outcome":"The call is a wrapper; the reference separately implements routing, two GEMMs, activation, and weighted accumulation."}
     },
     {
@@ -186,7 +186,7 @@
       "covers": ["u022"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoERunner tuning and separate GEMM1/GEMM2 tactic selection","observation":"The implementation selects shape- and architecture-valid tactics separately for the two GEMMs across token buckets, rather than encoding one universal primary bottleneck."},{"path":"/tmp/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md","revision":"commit 75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"MoE evaluation and scoring","observation":"The contest measures whole-operation latency across workloads and publishes no profile that ranks load imbalance as the primary cause."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"MoERunner tuning and separate GEMM1/GEMM2 tactic selection","observation":"The implementation selects shape- and architecture-valid tactics separately for the two GEMMs across token buckets, rather than encoding one universal primary bottleneck."},{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md","revision":"commit 75ccd05cafceb0fd1f86be4cd0f2117249463c66","locator":"MoE evaluation and scoring","observation":"The contest measures whole-operation latency across workloads and publishes no profile that ranks load imbalance as the primary cause."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c021",
@@ -195,7 +195,7 @@
       "covers": ["u023"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (masked layout)","observation":"DeepGEMM presents masked layout as one supported decoding case when CUDA graphs are enabled and the CPU does not know expert token counts, not as a universal CUDA-graph requirement."},{"path":"artifacts/kernels/fused-moe/full/flashinfer_cutedsl.py","revision":"SGLang c554dc5c64b661f2c53225b03a76359eaddc39e4; SHA-256 de6bd663...","locator":"ensure_cutedsl_wrapper and standard dispatch function","observation":"This exact upstream FP4-adjacent runner preallocates CUDA-graph buffers while accepting StandardDispatchOutput; it does not impose DeepGEMM's masked M-grouped ABI."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs (masked layout)","observation":"DeepGEMM presents masked layout as one supported decoding case when CUDA graphs are enabled and the CPU does not know expert token counts, not as a universal CUDA-graph requirement."},{"path":"artifacts/kernels/fused-moe/full/flashinfer_cutedsl.py","revision":"SGLang c554dc5c64b661f2c53225b03a76359eaddc39e4; SHA-256 de6bd663...","locator":"ensure_cutedsl_wrapper and standard dispatch function","observation":"This exact upstream FP4-adjacent runner preallocates CUDA-graph buffers while accepting StandardDispatchOutput; it does not impose DeepGEMM's masked M-grouped ABI."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c022",
@@ -234,7 +234,7 @@
       "covers": ["u027"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels 51e22db671d36c1c76091c43c36a44546ba324a1","locator":"task inputs and output","observation":"Problem 3 is an NVFP4 dual GEMM over A, B1, and B2; it contains no expert routing, local-expert offset, W2 down projection, or FP8 DeepSeek block-scale MoE contract."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels 51e22db671d36c1c76091c43c36a44546ba324a1","locator":"task inputs and output","observation":"Problem 3 is an NVFP4 dual GEMM over A, B1, and B2; it contains no expert routing, local-expert offset, W2 down projection, or FP8 DeepSeek block-scale MoE contract."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c026",
@@ -243,7 +243,7 @@
       "covers": ["u028"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs and Mega MoE sections","observation":"The repository supplies generic grouped GEMMs and a distributed FP8xFP4 Mega MoE path with symmetric memory; it does not define the contest's routing-logit ABI, fixed FP8 tensors, or FlashInfer wrapper."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md","revision":"DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"Grouped GEMMs and Mega MoE sections","observation":"The repository supplies generic grouped GEMMs and a distributed FP8xFP4 Mega MoE path with symmetric memory; it does not define the contest's routing-logit ABI, fixed FP8 tensors, or FlashInfer wrapper."}]
     },
     {
       "claim_id": "kernel-fused-moe-original-c027",

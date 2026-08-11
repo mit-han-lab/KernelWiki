@@ -1,0 +1,48 @@
+{
+  "files": [
+    {
+      "bytes": 1453,
+      "path": "verification/evidence/historical-artifacts/artifacts/kernels/flashmla/variants/01-mla-decode-inner-loop.cu",
+      "revision": "2777d18",
+      "sha256": "4f494dc2d282468966a1e2028bc50d0ef0c364b34d24f75ee881608ddef2df69",
+      "source_path": "artifacts/kernels/flashmla/variants/01-mla-decode-inner-loop.cu"
+    },
+    {
+      "bytes": 1451,
+      "path": "verification/evidence/historical-artifacts/artifacts/kernels/gated-delta-net/variants/01-chunk-parallel-prefill-reference-pytorch.py",
+      "revision": "2777d18",
+      "sha256": "d7e74b02df4974fb082cacbae8a5182dd2c40cb1c13fd1d74505b51cfb15481b",
+      "source_path": "artifacts/kernels/gated-delta-net/variants/01-chunk-parallel-prefill-reference-pytorch.py"
+    },
+    {
+      "bytes": 1610,
+      "path": "verification/evidence/historical-artifacts/artifacts/kernels/gated-delta-net/variants/02-triton-decode-step-kernel-streaming.py",
+      "revision": "2777d18",
+      "sha256": "d5eef14bdbc44e50784c0ca34e7041dcad2151960a85feddba62b097e20079ad",
+      "source_path": "artifacts/kernels/gated-delta-net/variants/02-triton-decode-step-kernel-streaming.py"
+    },
+    {
+      "bytes": 39691,
+      "path": "verification/evidence/historical-artifacts/artifacts/kernels/gated-dual-gemm/full/vllm-PR-23696-gated-dual-gemm.patch",
+      "revision": "2777d18",
+      "sha256": "033d30b15af4f2050189c2e76ba61959e1e5d4bd049dc901fd56f68890b891a0",
+      "source_path": "artifacts/kernels/gated-dual-gemm/full/vllm-PR-23696-gated-dual-gemm.patch"
+    },
+    {
+      "bytes": 1484,
+      "path": "verification/evidence/historical-artifacts/artifacts/kernels/gated-dual-gemm/full/blackwell-cutlass-schedules-and-tma.cu",
+      "revision": "2777d18",
+      "sha256": "e720037bbdb5ee5054259a331cdaf489e7135a44038d66d1fd9d9e5998b75255",
+      "source_path": "artifacts/kernels/gated-dual-gemm/full/blackwell-cutlass-schedules-and-tma.cu"
+    },
+    {
+      "bytes": 976,
+      "path": "verification/evidence/historical-artifacts/artifacts/kernels/gated-dual-gemm/variants/01-fused-epilogue-swiglu-skeleton.cu",
+      "revision": "2777d18",
+      "sha256": "85e158c184546912579ac5270451471a96f135efa3584bafbf45064e5fb7e223",
+      "source_path": "artifacts/kernels/gated-dual-gemm/variants/01-fused-epilogue-swiglu-skeleton.cu"
+    }
+  ],
+  "schema_version": "kernelwiki-historical-evidence/v1",
+  "source_revision": "2777d18"
+}

@@ -1,0 +1,1200 @@
+{
+  "format": "kernelwiki-local-evidence-v1",
+  "copy_policy": "Exact evidence files and named subtrees are copied without nested Git metadata; oversized whole-checkout searches use immutable upstream commit trees.",
+  "copied_unique_files": 908,
+  "copied_bytes": 19362141,
+  "entries": [
+    {
+      "source_key": "cutlass-audit.8aj07j/repo/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu",
+      "path": "verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu",
+      "kind": "file",
+      "files": 1,
+      "bytes": 24372,
+      "sha256": "92d348e998984d3c8a912ab63cbda547ac1c366c37c095c0d77b11b0e60eac7e",
+      "revisions": [
+        "NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3"
+      ]
+    },
+    {
+      "source_key": "cutlass-audit.8aj07j/repo/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu",
+      "path": "verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu",
+      "kind": "file",
+      "files": 1,
+      "bytes": 39692,
+      "sha256": "52f2966221fc4f9a2e4a6acfab487ce3860376fe769dc43789d6159ea3427965",
+      "revisions": [
+        "NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "cutlass-audit.8aj07j/repo/include/cutlass/gemm/dispatch_policy.hpp",
+      "path": "verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/include/cutlass/gemm/dispatch_policy.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 74799,
+      "sha256": "fcce5fffb3118b15fea5aa59e39bea15ddd18c28c858b434ced889045968117c",
+      "revisions": [
+        "NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "cutlass-audit.8aj07j/repo/include/cutlass/gemm/kernel/gemm_grouped.h",
+      "path": "verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/include/cutlass/gemm/kernel/gemm_grouped.h",
+      "kind": "file",
+      "files": 1,
+      "bytes": 14394,
+      "sha256": "fe46d9f4b0cd414674118f6c2e5460b5484e47d9e5909640fd56abc248fadf9b",
+      "revisions": [
+        "NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3"
+      ]
+    },
+    {
+      "source_key": "cutlass-audit.8aj07j/repo/media/docs/cpp/efficient_gemm.md",
+      "path": "verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/media/docs/cpp/efficient_gemm.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 20550,
+      "sha256": "44003151268090f0f1c3be9518164ec33eb04a030c9ed731a408f2f94886aaa5",
+      "revisions": [
+        "NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-amandeep-nvfp4.html",
+      "path": "verification/evidence/local-snapshots/kernelwiki-amandeep-nvfp4.html",
+      "kind": "file",
+      "files": 1,
+      "bytes": 85583,
+      "sha256": "66314df12ecfc8f18c4a2f234251e66a405a6e93160093e56e16e54a1ab002e8",
+      "revisions": [
+        "author URL fetched 2026-08-08",
+        "author post fetched 2026-08-08"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-amandeepsp-cuda/nvfp4/gemv",
+      "path": "verification/evidence/local-snapshots/kernelwiki-amandeepsp-cuda/nvfp4/gemv",
+      "kind": "directory",
+      "files": 15,
+      "bytes": 133940,
+      "sha256": "5fc0de14d7e01f069ab1968918b7ddd5987bfe7ecb92237b59d22fd619cd8ee3",
+      "revisions": [
+        "amandeepsp/cuda 44513ac7d5bbd1cf8109cab952844adac5b6c551"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0",
+      "resolution": "immutable-upstream-tree",
+      "url": "https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ],
+      "reason": "Complete checkout omitted by the repository size guard."
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue",
+      "kind": "directory",
+      "files": 132,
+      "bytes": 2460160,
+      "sha256": "045ce1a87f147ac148324ce23a84f1632e18f7d2ad416e286abafe22bfc038e9",
+      "revisions": [
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/collective/builders/sm100_builder.inl",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/collective/builders/sm100_builder.inl",
+      "kind": "file",
+      "files": 1,
+      "bytes": 80376,
+      "sha256": "f80c7d8bfb018e1011909f50e42c9941d0c5f502491871be43fa2b1e291173f6",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186",
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/collective/collective_builder.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/collective/collective_builder.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 4701,
+      "sha256": "6bc1b7415e6618eb9ec63bc3e23c7f0cc58b2e4a83aa904d156a4a9bb111aaf3",
+      "revisions": [
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 25127,
+      "sha256": "cff76a8ec17a778f2924d0b64d8686b084395d24b2bb8c98a31fb34b9a94784d",
+      "revisions": [
+        "CUTLASS 4.5.0 e406c186",
+        "CUTLASS v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+        "NVIDIA/cutlass v4.5.0 e406c186",
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/sm100_visitor_store_tma_warpspecialized.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/sm100_visitor_store_tma_warpspecialized.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 30229,
+      "sha256": "37d91bf3c2a34289062c36fec10804ad8f03af809b3a9482ecb6e8b630dd8a5a",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/thread/activation.h",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/thread/activation.h",
+      "kind": "file",
+      "files": 1,
+      "bytes": 25139,
+      "sha256": "4574c38e89158b4741aa2e698e7c99fd65f23a023ac777ee5becba298daf199e",
+      "revisions": [
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 42793,
+      "sha256": "847f884a93c82329fc0b3869473943361185baa47d7d3a10f3357c5dbe9e1c58",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_group.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_group.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 13018,
+      "sha256": "6e156e55cd75aea88def562b78859708efd50b934a7eb3b43a970bb40ba4b5f0",
+      "revisions": [
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/sm100_tile_scheduler_stream_k.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 39453,
+      "sha256": "31655341e689e4a28098089013980fa6a436f53b1d652773fbb5bd456f20867b",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 12395,
+      "sha256": "acc90548b9e2b19f944764ced57e1459d5c2ed7e118d6a1af476add26c3d5e73",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_detail.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_detail.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 3880,
+      "sha256": "2fcac9ce11418ddcfd5c4890516b97cdab3accca5f3715841ff1e8a6cf49efe4",
+      "revisions": [
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_params.h",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/gemm/kernel/tile_scheduler_params.h",
+      "kind": "file",
+      "files": 1,
+      "bytes": 97023,
+      "sha256": "ef48a12e8920183e88259d0b685279c2232fc2fb12c4fb4db7e8d0fbfdc019e9",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/CHANGELOG.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/CHANGELOG.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 121159,
+      "sha256": "fdff6cf6e305073ee71cac9219c200cbea2056f6b4a93c9a5fbb36ef34bd6d2f",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 33190,
+      "sha256": "5b52ccda5896f63381acd62a6fba378d86a311f50f0fdbeaaf6e2a8243d182e5",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186",
+        "NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ],
+      "restored_from_equivalent_checkout": "kernelwiki-cutlass-dRC5i4/cutlass/README.md"
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm",
+      "kind": "directory",
+      "files": 12,
+      "bytes": 296550,
+      "sha256": "119faba72d67ec09a4cc677dcbf6bc285a7d69fe70c70c5d14ae45d3297fd05f",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186",
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 913,
+      "sha256": "a49a9b0f9f9f0fcf182205c9ecd48fa8f8442060aec59cfec950007448509e34",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 14445,
+      "sha256": "68ba1aac829c07a9af7a9d09b180e4390d3d2b8a4cac0d61bf72aefadfd4cf8f",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186",
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+        "NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_1.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 18459,
+      "sha256": "aa3dd5358661e1730d25b425c7153384985d0e9f0fded19c860190b68bb8e50a",
+      "revisions": [
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_2.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 23703,
+      "sha256": "21044b5fca133ce0968777d1b042da4576ded18312e61d91789e8217d6f26d2d",
+      "revisions": [
+        "CUTLASS v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+        "NVIDIA/cutlass v4.5.0 e406c186",
+        "NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+        "NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5",
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/arch/tmem.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 7450,
+      "sha256": "5547791b19ee31b00a8d9c6eea42196e94412276fc97a35a5f7f263e8e0729db",
+      "revisions": [
+        "same tag"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/python/CuTeDSL/cutlass/cute/nvgpu/tcgen05/mma.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 61717,
+      "sha256": "682d33493a07f5aaf562956b7637647b0b6789ff7963355652d5a8103bc2f82b",
+      "revisions": [
+        "NVIDIA/cutlass v4.5.0 e406c186",
+        "NVIDIA/cutlass v4.5.0, e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass",
+      "resolution": "immutable-upstream-tree",
+      "url": "https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+        "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ],
+      "reason": "Complete checkout omitted by the repository size guard."
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/CMakeLists.txt",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/CMakeLists.txt",
+      "kind": "file",
+      "files": 1,
+      "bytes": 49341,
+      "sha256": "ef9a892eda0e4cbb93d2ed7e671cf4ed317c14f6c4e4b19cda6c4304336f8331",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/examples/70_blackwell_gemm/70_blackwell_fp16_gemm.cu",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/70_blackwell_gemm/70_blackwell_fp16_gemm.cu",
+      "kind": "file",
+      "files": 1,
+      "bytes": 17908,
+      "sha256": "cbf06d38b63b481965f5b4121a5ef562147f8b56a1888eaabb851b24754452d6",
+      "revisions": [
+        "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/cute/tutorial/blackwell/02_mma_tma_sm100.cu",
+      "kind": "file",
+      "files": 1,
+      "bytes": 35790,
+      "sha256": "4db6545363d1c9a81e13b7e187396306a3a6d58b3501c0f3cccaa429515c451e",
+      "revisions": [
+        "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 14445,
+      "sha256": "68ba1aac829c07a9af7a9d09b180e4390d3d2b8a4cac0d61bf72aefadfd4cf8f",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 35621,
+      "sha256": "8cb350408a7b163063ded5e05aa62fcb683265731c5dda59b56175f62dcf67e1",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_tma/tma_v0.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_tma/tma_v0.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 16836,
+      "sha256": "de96579e7434a3325345cca7d5e8380712ab9ceb41cf60b2b515bb8b0bbc3a57",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/include/cute/arch/mma_sm90_gmma.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 969217,
+      "sha256": "3c7eb20a05841cb2e8ebf6de16c1c2451b1a315e9398a66f9ef45f5b69639108",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
+        "CUTLASS commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/include/cutlass/arch/grid_dependency_control.h",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/include/cutlass/arch/grid_dependency_control.h",
+      "kind": "file",
+      "files": 1,
+      "bytes": 4565,
+      "sha256": "2f07b329ba4282fd200ff4bf7fe00343ca2b9b5b026db2eea49bc209281367c8",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-cutlass-dRC5i4/cutlass/python/CuTeDSL/cutlass/utils/tmem_allocator.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/python/CuTeDSL/cutlass/utils/tmem_allocator.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 26259,
+      "sha256": "21a8c121828499e7b1b08235f25a10a23f0f5aa587ce5c4266738baaf5b5201f",
+      "revisions": [
+        "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 12644,
+      "sha256": "df82e7d6979e49e864cd0c8b2389648ebfa226b9f4b331646d7d5cdc4951ee63",
+      "revisions": [
+        "891d57b4",
+        "891d57b4db1071624b5c8fa0d1e51cb317fa709f",
+        "DeepGEMM 891d57b4",
+        "DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f",
+        "DeepGEMM commit 891d57b4",
+        "DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f",
+        "DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f; SHA-256 tied to local clone",
+        "commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/csrc/apis/gemm.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 35851,
+      "sha256": "b8edecebf2b943faf85a5c3c5d70ed7e4e2ea27be8fa63013213964460a93776",
+      "revisions": [
+        "DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f",
+        "DeepGEMM commit 891d57b",
+        "DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/csrc/jit/compiler.hpp",
+      "kind": "file",
+      "files": 1,
+      "bytes": 15844,
+      "sha256": "aec70f54bffc693a935ef9775ee9b40bc8857dcb8b464e6732f39a86e3292d62",
+      "revisions": [
+        "DeepGEMM commit 891d57b",
+        "DeepGEMM commit 891d57b4db1071624b5c8fa0d1e51cb317fa709f"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_gemm_1d1d.cuh",
+      "kind": "file",
+      "files": 1,
+      "bytes": 33297,
+      "sha256": "84ecd247b5fb6500fd31e464388b281b1425d105451dbf8dd3c189945dcf9384",
+      "revisions": [
+        "891d57b4",
+        "DeepGEMM commit 891d57b4",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_mqa_logits.cuh",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm100_fp8_mqa_logits.cuh",
+      "kind": "file",
+      "files": 1,
+      "bytes": 19667,
+      "sha256": "66629c2eeca18e419edc76d57fc5c50f761db8de52bbc3f80c747b8bd873b464",
+      "revisions": [
+        "DeepGEMM 891d57b4",
+        "DeepGEMM 891d57b4db1071624b5c8fa0d1e51cb317fa709f"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh",
+      "kind": "file",
+      "files": 1,
+      "bytes": 18701,
+      "sha256": "4a3e39d4a1dd25c0be2bc2ff586c5f50192a91d5a0d1bcda5e03e20ef094e2db",
+      "revisions": [
+        "891d57b4",
+        "DeepGEMM commit 891d57b4",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/ptx/tcgen05.cuh",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/deep_gemm/include/deep_gemm/ptx/tcgen05.cuh",
+      "kind": "file",
+      "files": 1,
+      "bytes": 5412,
+      "sha256": "5fc33904690100c4330442a4564a68447cacf362df2299063cebed245a6aed55",
+      "revisions": [
+        "891d57b4",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/tests/generators.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/tests/generators.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 18594,
+      "sha256": "d8673d8c5ff8d0f457a033664389c3becba9b118d3156be793f735e08c80fa23",
+      "revisions": [
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepgemm-pinned/tests/test_fp8_fp4.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepgemm-pinned/tests/test_fp8_fp4.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 12567,
+      "sha256": "ff778e59c9428db29cf8681d2d1a432e5036e008a997ac2a4822a2371adb6448",
+      "revisions": [
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepseek-v32/DeepSeek_V3_2.pdf",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepseek-v32/DeepSeek_V3_2.pdf",
+      "kind": "file",
+      "files": 1,
+      "bytes": 526189,
+      "sha256": "f8ef04ddf50f924a7d251861d4453d7605ff5711f3941ae8320e1ea780dc3041",
+      "revisions": [
+        "87e509a2",
+        "DeepSeek-V3.2-Exp 87e509a2",
+        "DeepSeek-V3.2-Exp 87e509a2e5a100d221c97df52c6e8be7835f0057",
+        "same model commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepseek-v32/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepseek-v32/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 6899,
+      "sha256": "dffcdf358a42599945d49293a4f210dbe589141085207b76c081c9ace1f8fd74",
+      "revisions": [
+        "DeepSeek-V3.2-Exp 87e509a2",
+        "DeepSeek-V3.2-Exp 87e509a2e5a100d221c97df52c6e8be7835f0057"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepseek-v32/inference/config_671B_v3.2.json",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepseek-v32/inference/config_671B_v3.2.json",
+      "kind": "file",
+      "files": 1,
+      "bytes": 605,
+      "sha256": "f9fe074cdef8fdcc0feabbe635ff7c072a65d273a42a6bc207fe425439dff835",
+      "revisions": [
+        "87e509a2",
+        "DeepSeek-V3.2-Exp 87e509a2",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-deepseek-v32/inference/model.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-deepseek-v32/inference/model.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 38639,
+      "sha256": "bfe5b89186b579910b6d59fa7e0cf1f7a75ceb4ec5d0f5b54f0ccbe77cdb6a63",
+      "revisions": [
+        "DeepSeek-V3.2-Exp 87e509a2",
+        "same",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-cfx",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-cfx",
+      "kind": "directory",
+      "files": 64,
+      "bytes": 323571,
+      "sha256": "b47e74c1439c86a410424a9ccd65e600f82f84ceb80097efa8409e55861435f5",
+      "revisions": [
+        "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-cfx/streamk",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-cfx/streamk",
+      "kind": "directory",
+      "files": 14,
+      "bytes": 100419,
+      "sha256": "e1070b8506e453f756c93c06ca6a04e1deb18b8b9ff1778774a2a81c6ec3561d",
+      "revisions": [
+        "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-colfax-cutlass",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-colfax-cutlass",
+      "kind": "directory",
+      "files": 33,
+      "bytes": 230244,
+      "sha256": "5570f3e9adeb1bcdcef79389b0afb4058bc047ccf0043819dd1652136a6ba485",
+      "revisions": [
+        "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-colfax-cutlass/src/fmha-pipeline",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-colfax-cutlass/src/fmha-pipeline",
+      "kind": "directory",
+      "files": 16,
+      "bytes": 116387,
+      "sha256": "43c0da2e3c769bdee69a9907b05853cf45972b4985c6dc1f3809437fbadb1f36",
+      "revisions": [
+        "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-load-store",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-load-store",
+      "kind": "directory",
+      "files": 9,
+      "bytes": 12430,
+      "sha256": "6c52f9b07070f0b78cf9252e3f62421dfc89e8862b5e3a1e7791c5ed712c8c64",
+      "revisions": [
+        "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-load-store/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-load-store/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 68,
+      "sha256": "c6c0520e43374a9e63dfbe224bf155212a5dde6a7f045317bb4040e8c3bf478a",
+      "revisions": [
+        "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-nvidia-samples",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-nvidia-samples",
+      "kind": "directory",
+      "files": 355,
+      "bytes": 4862571,
+      "sha256": "c469dca084ed3f5d332f44efde8db249b2be91a26643956ff5788de81ff7624e",
+      "revisions": [
+        "NVIDIA-developer-blog/code-samples 3350d216083a902ccbf5b31665e3b82096a75b55"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ext-transpose",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ext-transpose",
+      "kind": "directory",
+      "files": 9,
+      "bytes": 40440,
+      "sha256": "5f41fb866c85850e3d807501b8de07ab487ec46e05ba7054ca1c36cb941ed31e",
+      "revisions": [
+        "simveit/effective_transpose 994b2b5acaa67f80e411df3e8274b6ae13fd1949"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-fa4-current/flash_attn/cute/utils.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-fa4-current/flash_attn/cute/utils.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 36954,
+      "sha256": "60eca870f3dcb80e3693428600c2a9b5c38db48109d230c2f83dc1bc6b1c6952",
+      "revisions": [
+        "a369df7"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flash-attention-pinned/flash_attn/cute/",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute",
+      "kind": "directory",
+      "files": 58,
+      "bytes": 2188345,
+      "sha256": "0001c3c88fcd7663b9ae43e18dff00d1d232b77ceeac4e97b8ba1eab4bbeb088",
+      "revisions": [
+        "Dao-AILab commit a369df707e1980fb328abcc1733e3457ec10155f",
+        "Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flash-attention-pinned/flash_attn/cute/flash_bwd_sm100.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_bwd_sm100.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 190166,
+      "sha256": "ff3549914cc41dd8cd7c05daa1334dfe674e81a170379676fb63847608456532",
+      "revisions": [
+        "Dao-AILab commit a369df707e1980fb328abcc1733e3457ec10155f",
+        "Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 165752,
+      "sha256": "f5928a15a7aa559084d14aa12cc2c95efdc89c7b3a1f0d20219b24103a32456f",
+      "revisions": [
+        "Dao-AILab commit a369df707e1980fb328abcc1733e3457ec10155f",
+        "Dao-AILab/flash-attention a369df707e1980fb328abcc1733e3457ec10155f",
+        "Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashinfer-bench-starter-kit/EVALUATION.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 6264,
+      "sha256": "79897fe80c0b857c49ee466a37ea91bbd5f131d553eb38a93fd9c02311881ccb",
+      "revisions": [
+        "75ccd05cafceb0fd1f86be4cd0f2117249463c66",
+        "commit 75ccd05cafceb0fd1f86be4cd0f2117249463c66",
+        "flashinfer-bench-starter-kit 75ccd05cafceb0fd1f86be4cd0f2117249463c66"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashinfer-pinned/benchmarks/bench_trtllm_gen_fused_moe_autotuner.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/benchmarks/bench_trtllm_gen_fused_moe_autotuner.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 23232,
+      "sha256": "690812f92e10f4a9dd9f7c9871ec95621513261f288aa704c00f9823063efff4",
+      "revisions": [
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/core.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 212449,
+      "sha256": "0509690184cfb3cf6f7ebb6d4f7ae26dbf5b5b7c254990848923e089432e4c76",
+      "revisions": [
+        "7f614b86470180bab2d22e36fd1775791c6bf3e6",
+        "FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashinfer-pinned/flashinfer/fused_moe/runners.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/fused_moe/runners.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 88239,
+      "sha256": "24b8395f47fc57a1978898036d507607095ddbae2815c16d6b70e77af842404f",
+      "revisions": [
+        "FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashinfer-pinned/flashinfer/gdn_prefill.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/gdn_prefill.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 23810,
+      "sha256": "e4475a2edc830b97d6bc27f13980e2f5951d7d97eb13547f539acf94e2a2132d",
+      "revisions": [
+        "FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 27184,
+      "sha256": "3fee96d66fc429bdafe10baefcf72a110da0c06ed3dd9cbb93db054d8c332aef",
+      "revisions": [
+        "FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 143394,
+      "sha256": "e41c50149adfc31448c6453b92eb50228a70034f3355393d776f50e20a94408e",
+      "revisions": [
+        "7f614b86470180bab2d22e36fd1775791c6bf3e6",
+        "FlashInfer 7f614b8",
+        "FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashmla-pinned/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 10657,
+      "sha256": "46c001c53800f47148918f4fc2969102492dd5164f710fc015db1622f6f9929a",
+      "revisions": [
+        "DeepSeek FlashMLA commit 71c7379",
+        "DeepSeek FlashMLA commit 71c737929f2567bd0a094ae140f8f60f390b1232; SHA-256 46c001c53800f47148918f4fc2969102492dd5164f710fc015db1622f6f9929a",
+        "DeepSeek commit 71c7379",
+        "DeepSeek commit 71c7379; SHA-256 46c001c53800f47148918f4fc2969102492dd5164f710fc015db1622f6f9929a",
+        "FlashMLA 71c7379",
+        "FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashmla-pinned/csrc/sm100",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/csrc/sm100",
+      "kind": "directory",
+      "files": 51,
+      "bytes": 633496,
+      "sha256": "b5dfb24085774dea62b94229e6dff78e62aca1ff1d5f83947e88cfda1096a1ff",
+      "revisions": [
+        "DeepSeek FlashMLA commit 71c7379"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashmla-pinned/csrc/sm90/decode",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/csrc/sm90/decode",
+      "kind": "directory",
+      "files": 16,
+      "bytes": 120822,
+      "sha256": "1d3aa508c0fd7151032f7ea4678ca3c200d31306640a78b6a21612633a71b4a5",
+      "revisions": [
+        "DeepSeek FlashMLA commit 71c7379",
+        "DeepSeek commit 71c7379"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/flash_mla/flash_mla_interface.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 19102,
+      "sha256": "802da6b2db58ca3455e4f48bb860e448fd16b12f817fbd94d900ea7a51334bd6",
+      "revisions": [
+        "DeepSeek FlashMLA commit 71c7379",
+        "DeepSeek commit 71c7379",
+        "FlashMLA 71c7379",
+        "FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashmla-pinned/tests/quant.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/tests/quant.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 8162,
+      "sha256": "84604c879bc69e715de334978b0d00a84d1d5feb3ed1a9407b504959f1368114",
+      "revisions": [
+        "DeepSeek commit 71c7379",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashmla-pinned/tests/ref.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/tests/ref.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 4556,
+      "sha256": "7634a9db7020552a3588f02959c4dbfbd124e3aaf07d369f2d3adc617e0b5069",
+      "revisions": [
+        "FlashMLA 71c737929f2567bd0a094ae140f8f60f390b1232",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-flashmla-pinned/tests/test_flash_mla_sparse_decoding.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-flashmla-pinned/tests/test_flash_mla_sparse_decoding.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 14317,
+      "sha256": "4380079dd6e0fabb4f8ed86522dc0f51054678930f7a728cf1fadf5e81bf6983",
+      "revisions": [
+        "same",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-gdn-pinned/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-gdn-pinned/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 10655,
+      "sha256": "6ea2aa74c32e739c7b1d20d97f43569effb1eed848d811c2576cb608546a3029",
+      "revisions": [
+        "NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-gdn-pinned/lit_gpt/gated_delta_net.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-gdn-pinned/lit_gpt/gated_delta_net.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 9514,
+      "sha256": "8aaee1dcff184742148bb694730e5c1da0d246bbba92d2a0a462e77963f35fbc",
+      "revisions": [
+        "NVlabs b53d6d3a161267432a79c1c04af69fa52bddc921",
+        "NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-gdn-pinned/lit_gpt/gated_delta_rule_ops/chunk.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-gdn-pinned/lit_gpt/gated_delta_rule_ops/chunk.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 28437,
+      "sha256": "f93055afdc7fcfaae212bbf4d2d81a17e86b28fed3f3266668953b240af8edfa",
+      "revisions": [
+        "NVlabs b53d6d3a161267432a79c1c04af69fa52bddc921",
+        "NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-learn-cuda-3b90ac9b",
+      "path": "verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b",
+      "kind": "directory",
+      "files": 86,
+      "bytes": 1424319,
+      "sha256": "ad1f3e22972360db67500b9b440666ff9431eeb8a2f161a9ed7fad10455335d0",
+      "revisions": [
+        "gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 3490,
+      "sha256": "c83c60fb74ee13fdf5f96537aa619767ecd2295a7e7ac3135719e61db3bb447c",
+      "revisions": [
+        "gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/common.h",
+      "path": "verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/common.h",
+      "kind": "file",
+      "files": 1,
+      "bytes": 4033,
+      "sha256": "48c596666a12be8a4e970449f91617bb8586b9c76eec7ecb94e8e61b3fc06018",
+      "revisions": [
+        "gau-nernst/learn-cuda 3b90ac9b",
+        "gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v3.cu",
+      "path": "verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v3.cu",
+      "kind": "file",
+      "files": 1,
+      "bytes": 9198,
+      "sha256": "f09baabed99b21a1b62a513ea5af00b3799ebee9f34fffbb8545fdcc43bad4d6",
+      "revisions": [
+        "gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v4.cu",
+      "path": "verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v4.cu",
+      "kind": "file",
+      "files": 1,
+      "bytes": 9319,
+      "sha256": "6cba13d44a3f8d64d63a8a8ce25ea6b0b2fcbc394e29afa19942e48f7a88fc56",
+      "revisions": [
+        "gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu",
+      "path": "verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu",
+      "kind": "file",
+      "files": 1,
+      "bytes": 16620,
+      "sha256": "d8ca43d1248cf60d39249a7cbff6cb1c9cb9ea89c0939ea68f71d40be360fb12",
+      "revisions": [
+        "gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573",
+        "gau-nernst/learn-cuda 3b90ac9b697a1180d06a0fba42431534410d1949"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-mlstm-kernels/README.md",
+      "path": "verification/evidence/local-snapshots/kernelwiki-mlstm-kernels/README.md",
+      "kind": "file",
+      "files": 1,
+      "bytes": 13792,
+      "sha256": "ba1bb55d7c7cc53fe98b4682f3d281fc2a13bc8a182aca5e9b30584f1dc30b2e",
+      "revisions": [
+        "NX-AI/mlstm_kernels 5b98ff8e2bec189b3d3c249405bab5149564d6f8"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-ptx-1302.html",
+      "path": "verification/evidence/local-snapshots/kernelwiki-ptx-1302.html",
+      "kind": "file",
+      "files": 1,
+      "bytes": 3313063,
+      "sha256": "4f2a4739fcd6c636cf2b8a59d3ab881b23c351ef2f3978eefc960ae23244b79d",
+      "revisions": [
+        "CUDA 13.0.2, PTX ISA 9.0 fetched 2026-08-08",
+        "PTX ISA 9.0"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 7900,
+      "sha256": "e344e0fc3ff88e2dff0ac69a8b3d41a500143007c0c76915e4e3d049aa90722f",
+      "revisions": [
+        "gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml",
+      "kind": "file",
+      "files": 1,
+      "bytes": 2520,
+      "sha256": "2bf4e5c04cc8a9c283e519437c8324ca9265d9c12d0dfe2b76dc9f0542ada051",
+      "revisions": [
+        "51e22db671d36c1c76091c43c36a44546ba324a1",
+        "gpu-mode/reference-kernels 51e22db671d36c1c76091c43c36a44546ba324a1",
+        "gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/template.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/template.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 1398,
+      "sha256": "7817d0aee927bc3a519515514ea651f63d1468eca6e9981c5b107dec9c8277c0",
+      "revisions": [
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/reference.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/reference.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 6185,
+      "sha256": "c212965ddb50681b6a01a34149f51e18a9bd07848baf4f98b954e3b305c17dbd",
+      "revisions": [
+        "gpu-mode/reference-kernels ae679486",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 327,
+      "sha256": "b92c1d0b37c31ec9fe5afe1f737f0cfa37e1f93381509d049de91a0c9b7659e1",
+      "revisions": [
+        "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.yml",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.yml",
+      "kind": "file",
+      "files": 1,
+      "bytes": 2246,
+      "sha256": "404ff2c9904789c822e248f3c9e83947a8c32a68a1692ed254a0c51b89edb5f9",
+      "revisions": [
+        "gpu-mode/reference-kernels ae679486",
+        "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/template.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/template.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 1008,
+      "sha256": "82bb6b5454889f5bce83f50776b9325339c2aed6e24647a8bea5e19357ea91e1",
+      "revisions": [
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 6425,
+      "sha256": "fdba0ac0f671dc6d7fb0581d37fb5c2a9b356f4ad65875c836fc5256fea4d69d",
+      "revisions": [
+        "gpu-mode/reference-kernels ae679486",
+        "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 317,
+      "sha256": "9ee8aa1f20dc1db4d8d3e7a900c6f8c9009ff3fe7a00ea5c7171c4ef5fb78e72",
+      "revisions": [
+        "gpu-mode/reference-kernels ae679486",
+        "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml",
+      "kind": "file",
+      "files": 1,
+      "bytes": 2083,
+      "sha256": "1316c0ab5ef0f7ed27d4310a89dbbdf8263694d8d876dfc2b019dc846af651fc",
+      "revisions": [
+        "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6",
+        "same commit"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/template.py",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/template.py",
+      "kind": "file",
+      "files": 1,
+      "bytes": 1075,
+      "sha256": "2d24e25aebcec8cb9ac0858d4a1025888e4bc7c3621e80ca4e58e4661c0aaba5",
+      "revisions": [
+        "gpu-mode/reference-kernels ae679486",
+        "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6"
+      ]
+    },
+    {
+      "source_key": "kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml",
+      "path": "verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_group_gemm/task.yml",
+      "kind": "file",
+      "files": 1,
+      "bytes": 3629,
+      "sha256": "9e3416d049a889464788573abf6ffafa0b5f9ead355cc2e5aed6f74d6d4d836d",
+      "revisions": [
+        "gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6"
+      ]
+    }
+  ]
+}

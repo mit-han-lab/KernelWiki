@@ -49,7 +49,7 @@
       "covers": ["u004"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"warp-role setup, TMA/MMA/softmax pipelines, kernel dispatch, and softmax_loop","observation":"The real CuTe DSL kernel uses explicit TMA/UMMA pipelines, fixed warp-role sets, TMEM allocation, barriers, and scheduler state. The page invents undefined warpgroup, Q_tile, S1, V_prev, and rescale_and_accumulate constructs and reverses data dependencies on the first iteration."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"warp-role setup, TMA/MMA/softmax pipelines, kernel dispatch, and softmax_loop","observation":"The real CuTe DSL kernel uses explicit TMA/UMMA pipelines, fixed warp-role sets, TMEM allocation, barriers, and scheduler state. The page invents undefined warpgroup, Q_tile, S1, V_prev, and rescale_and_accumulate constructs and reverses data dependencies on the first iteration."}]
     },
     {
       "claim_id": "kernel-flash-attention-4-original-c006",
@@ -113,7 +113,7 @@
       "covers": ["u011"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_bwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"_setup_tiled_mma, two-CTA dS exchange, dV/dK/dQ MMA loops and epilogues","observation":"The implementation creates two-CTA MMA atoms for all five GEMMs and coordinates both CTAs through shared pipelines and DSMEM exchange; it does not branch cluster rank into CTA-0-only dK and CTA-1-only dV roles. The page code also uses undefined placeholders and a non-source instruction shape."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_bwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"_setup_tiled_mma, two-CTA dS exchange, dV/dK/dQ MMA loops and epilogues","observation":"The implementation creates two-CTA MMA atoms for all five GEMMs and coordinates both CTAs through shared pipelines and DSMEM exchange; it does not branch cluster rank into CTA-0-only dK and CTA-1-only dV roles. The page code also uses undefined placeholders and a non-source instruction shape."}]
     },
     {
       "claim_id": "kernel-flash-attention-4-original-c013",
@@ -140,7 +140,7 @@
       "covers": ["u016", "u017", "u018"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"_setup_tiled_mma, tmem offsets/allocation, and Q/K/V copy-atom construction","observation":"The pinned code builds tcgen05 operations through make_trivial_tiled_mma and OperandSource, manages TMEM with TmemAllocator and explicit offsets, and conditionally uses non-TMA copies for Q or paged K/V. Repository search finds no SM100_MMA_SS or TMEM-locale API."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute/flash_fwd_sm100.py","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"_setup_tiled_mma, tmem offsets/allocation, and Q/K/V copy-atom construction","observation":"The pinned code builds tcgen05 operations through make_trivial_tiled_mma and OperandSource, manages TMEM with TmemAllocator and explicit offsets, and conditionally uses non-TMA copies for Q or paged K/V. Repository search finds no SM100_MMA_SS or TMEM-locale API."}]
     },
     {
       "claim_id": "kernel-flash-attention-4-original-c016",
@@ -158,7 +158,7 @@
       "covers": ["u020", "u021"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"README.md, interface.py, flash_fwd*.py, flash_bwd*.py, benchmark_flash_attention_fp8.py","observation":"The package exports forward/backward functions and accepts BF16. Its FP8 benchmark says the kernel call will raise until FP8 is implemented, discriminating planned scaffolding from supported execution."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute/","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"README.md, interface.py, flash_fwd*.py, flash_bwd*.py, benchmark_flash_attention_fp8.py","observation":"The package exports forward/backward functions and accepts BF16. Its FP8 benchmark says the kernel call will raise until FP8 is implemented, discriminating planned scaffolding from supported execution."}],
       "challenge": {"alternative":"An FP8 benchmark file proves usable FP8 support, or the package contains only forward inference.","check":"Trace public forward/backward dispatch and inspect the FP8 benchmark's actual kernel-call expectations.","outcome":"Both directions are dispatched; the FP8 script explicitly catches the not-yet-implemented call as a failure."}
     },
     {
@@ -168,7 +168,7 @@
       "covers": ["u022", "u023", "u024"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flash-attention-pinned/flash_attn/cute/","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"README.md, pyproject.toml, flash_fwd.py, flash_bwd.py, and architecture-specific modules","observation":"The package README identifies Hopper and Blackwell support, dispatches SM90/SM100/SM120 modules, and pins nvidia-cutlass-dsl==4.6.0.dev0 at this revision. Neither source establishes head dimension 128 as a universal ping-pong optimum; the implementation tunes multiple dimensions and modes."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flash-attention-pinned/flash_attn/cute/","revision":"Dao-AILab/flash-attention commit a369df707e1980fb328abcc1733e3457ec10155f","locator":"README.md, pyproject.toml, flash_fwd.py, flash_bwd.py, and architecture-specific modules","observation":"The package README identifies Hopper and Blackwell support, dispatches SM90/SM100/SM120 modules, and pins nvidia-cutlass-dsl==4.6.0.dev0 at this revision. Neither source establishes head dimension 128 as a universal ping-pong optimum; the implementation tunes multiple dimensions and modes."}]
     },
     {
       "claim_id": "kernel-flash-attention-4-original-c019",

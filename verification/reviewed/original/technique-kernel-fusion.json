@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"Track A reference operation","observation":"The operation includes routing and two grouped GEMMs but defines observable semantics, not a launch count or guarantee that every intermediate remains on chip."},{"path":"/tmp/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"CUTLASS v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"fusion operation graph types","observation":"Fusion describes in-kernel expression composition; whether a specific unfused baseline would materialize an intermediate and whether the fused schedule avoids all traffic are separate implementation facts."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"Track A reference operation","observation":"The operation includes routing and two grouped GEMMs but defines observable semantics, not a launch count or guarantee that every intermediate remains on chip."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0-full/include/cutlass/epilogue/fusion/operations.hpp","revision":"CUTLASS v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"fusion operation graph types","observation":"Fusion describes in-kernel expression composition; whether a specific unfused baseline would materialize an intermediate and whether the fused schedule avoids all traffic are separate implementation facts."}]
     },
     {
       "claim_id": "technique-kernel-fusion-original-c002",
@@ -19,7 +19,7 @@
       "covers": ["u002"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM allocation, address and capacity rules","observation":"TMEM allocation is collective, returns a shared result, must obey legal column counts and lifecycle rules, and the SM has 512 columns total. The sketch's tmem_alloc/tmem_load/tcgen05_mma calls are invented and omit completion/free semantics."},{"url":"https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"dual-GEMM correctness reference","observation":"The operation requires two scaled matrix products and SwiGLU but does not prescribe two TMEM allocations or this instruction schedule."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"TMEM allocation, address and capacity rules","observation":"TMEM allocation is collective, returns a shared result, must obey legal column counts and lifecycle rules, and the SM has 512 columns total. The sketch's tmem_alloc/tmem_load/tcgen05_mma calls are invented and omit completion/free semantics."},{"url":"https://github.com/gpu-mode/reference-kernels/blob/c5b2f7c062d5015f29c3a1043cfd04954397944c/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"dual-GEMM correctness reference","observation":"The operation requires two scaled matrix products and SwiGLU but does not prescribe two TMEM allocations or this instruction schedule."}]
     },
     {
       "claim_id": "technique-kernel-fusion-original-c003",
@@ -56,7 +56,7 @@
       "covers": ["u008"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"routing and local-expert reference","observation":"The logical operation includes cross-token/expert selection and accumulation; an implementation may use multiple CTAs, multiple launches, atomics, clusters or workspace. 'DAG-compatible with CTA scope' is neither defined nor a necessary universal fusion criterion."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/moe.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"routing and local-expert reference","observation":"The logical operation includes cross-token/expert selection and accumulation; an implementation may use multiple CTAs, multiple launches, atomics, clusters or workspace. 'DAG-compatible with CTA scope' is neither defined nor a necessary universal fusion criterion."}]
     },
     {
       "claim_id": "technique-kernel-fusion-original-c007",

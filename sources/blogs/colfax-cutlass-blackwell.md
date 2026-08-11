@@ -44,5 +44,5 @@ substitute for the ISA grammar:
   choose the atom from the version-pinned library rather than reconstructing a
   template signature from prose.
 
-For executable references, use the [PTX ISA 9.0 tcgen05 sections](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+For executable references, use the [PTX ISA 9.0 tcgen05 sections](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma)
 and the [CUTLASS 4.5.0 SM100 examples](https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/70_blackwell_gemm).

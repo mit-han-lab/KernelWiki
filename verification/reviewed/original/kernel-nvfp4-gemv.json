@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description and speed-of-light analysis","observation":"The task names batched NVFP4 GEMV on B200 and publishes a speed-of-light table based on max(FFMA math time, DRAM time); the author worklog independently identifies the submitted CUDA kernel as memory-bound."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description and speed-of-light analysis","observation":"The task names batched NVFP4 GEMV on B200 and publishes a speed-of-light table based on max(FFMA math time, DRAM time); the author worklog independently identifies the submitted CUDA kernel as memory-bound."}],
       "challenge": {"alternative":"The task is a general GEMM or its bound is necessarily tensor-core compute throughput.","check":"Inspect the pinned task operation, N dimension, and stated max-of-FFMA-and-DRAM model.","outcome":"The output N dimension is one and the task explicitly describes batched GEMV; its stated benchmark numbers use the DRAM side of the model."}
     },
     {
@@ -20,7 +20,7 @@
       "covers": ["u001"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"ref_kernel matrix multiplication and result-column selection","observation":"Each logical B value participates in every one of the M output rows, so not every FP4 value is used once; the task constrains results rather than prescribing PTX or register controls."},{"path":"/tmp/kernelwiki-amandeep-nvfp4.html","revision":"author URL fetched 2026-08-08","locator":"attempts 9-12 and takeaways","observation":"The author reports wider loads becoming 16-25 percent slower and a register-limit change having zero effect, contradicting the universal lever claims."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"ref_kernel matrix multiplication and result-column selection","observation":"Each logical B value participates in every one of the M output rows, so not every FP4 value is used once; the task constrains results rather than prescribing PTX or register controls."},{"path":"verification/evidence/local-snapshots/kernelwiki-amandeep-nvfp4.html","revision":"author URL fetched 2026-08-08","locator":"attempts 9-12 and takeaways","observation":"The author reports wider loads becoming 16-25 percent slower and a register-limit change having zero effect, contradicting the universal lever claims."}]
     },
     {
       "claim_id": "kernel-nvfp4-gemv-original-c003",
@@ -48,7 +48,7 @@
       "covers": ["u003"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description and benchmarks","observation":"The logical operation, block size, FP16 output, and all three benchmark dimensions match."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"description and benchmarks","observation":"The logical operation, block size, FP16 output, and all three benchmark dimensions match."}],
       "challenge": {"alternative":"The page copied the GEMM task or a prior benchmark set.","check":"Compare the pinned nvfp4_gemv directory's N=1 output and every benchmark row.","outcome":"The operation and all three rows match Problem 1's pinned task."}
     },
     {
@@ -58,7 +58,7 @@
       "covers": ["u003"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"input_t","observation":"The callable input is typed as a seven-tensor tuple."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py","revision":"same commit","locator":"generate_input return tuple and create_scale_factor_tensors","observation":"The harness returns A, B, logical SFA/SFB, reordered SFA/SFB, and C; B and both B-scale forms are padded to 128 rows, and no FP32 global-scale arguments exist. A conda-base host reconstruction matched all seven largest-row shapes, accepted K=64, and rejected K=63."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/task.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"input_t","observation":"The callable input is typed as a seven-tensor tuple."},{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py","revision":"same commit","locator":"generate_input return tuple and create_scale_factor_tensors","observation":"The harness returns A, B, logical SFA/SFB, reordered SFA/SFB, and C; B and both B-scale forms are padded to 128 rows, and no FP32 global-scale arguments exist. A conda-base host reconstruction matched all seven largest-row shapes, accepted K=64, and rejected K=63."}]
     },
     {
       "claim_id": "kernel-nvfp4-gemv-original-c007",
@@ -115,7 +115,7 @@
       "covers": ["u011"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/template.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"custom_kernel signature","observation":"The official entry receives seven tensors, including two reordered scale tensors; it receives no global FP32 scales."},{"path":"wiki/kernels/nvfp4-gemv.md","revision":"baseline body 55d84be3","locator":"u011","observation":"The listing contains undefined THREADS, MIN_BLOCKS, ELEMENTS_PER_LOAD, load_fp4, and conversion helpers, uses false global-scale parameters, and gives K dispatch values inconsistent with the official benchmark K values."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/template.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"custom_kernel signature","observation":"The official entry receives seven tensors, including two reordered scale tensors; it receives no global FP32 scales."},{"path":"wiki/kernels/nvfp4-gemv.md","revision":"baseline body 55d84be3","locator":"u011","observation":"The listing contains undefined THREADS, MIN_BLOCKS, ELEMENTS_PER_LOAD, load_fp4, and conversion helpers, uses false global-scale parameters, and gives K dispatch values inconsistent with the official benchmark K values."}]
     },
     {
       "claim_id": "kernel-nvfp4-gemv-original-c013",
@@ -143,7 +143,7 @@
       "covers": ["u014"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"n=1, n_padded_128, scaled_mm, and c_ref[:,0] assignment","observation":"The harness pads B to 128 for scaled_mm but stores only result column zero, so one logical B row contributes to each M output row."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/reference.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"n=1, n_padded_128, scaled_mm, and c_ref[:,0] assignment","observation":"The harness pads B to 128 for scaled_mm but stores only result column zero, so one logical B row contributes to each M output row."}],
       "challenge": {"alternative":"All 128 physical B rows contribute to an M-by-128 output contract.","check":"Trace the result slice copied into C.","outcome":"Only res[:,0] is copied into an M-by-1 output."}
     },
     {
@@ -285,7 +285,7 @@
       "covers": ["u035", "u036", "u037", "u038"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"curl -L -A 'Mozilla/5.0' -sS -o /dev/null -w '%{http_code}' <each of four URLs>","environment":"KernelWiki host, network fetched 2026-08-08","reference":"Each label should resolve to its named source.","result":"All official/pinned task and three author URLs returned HTTP 200.","negative_control":"Invented same-site Simon and Yue article slugs returned HTTP 404."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py urls-original-nvfp4-gemv","environment":"KernelWiki host, network fetched 2026-08-08","reference":"Each label should resolve to its named source.","result":"All official/pinned task and three author URLs returned HTTP 200.","negative_control":"Invented same-site Simon and Yue article slugs returned HTTP 404."}],
       "challenge": {"alternative":"A link redirects to an unrelated page or succeeds only for arbitrary missing slugs.","check":"Resolve with redirects and compare against same-site missing-page controls.","outcome":"The named pages returned 200 while both missing-page controls returned 404."}
     },
     {
@@ -305,7 +305,7 @@
       "covers": ["u039"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"artifacts/kernels/nvfp4-gemv/full/nvfp4_scaled_mm_kernels.cu","revision":"vLLM ed7a29d9; SHA-256 e8aed5ccb3dd9de26c3aeff159a242a46dcb7c7d8d0351b6c44ff1f8d2f7effa","locator":"Fp4GemmSm100, args_from_options, and runGemm","observation":"The file implements a general M,N,K CUTLASS NVFP4 GEMM adapter and does not implement the contest's seven-tensor N=1 callable or checker."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/template.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"custom_kernel contract","observation":"The contest entry point receives seven task tensors, which the vLLM source does not expose."}]
+      "evidence": [{"path":"artifacts/kernels/nvfp4-gemv/full/nvfp4_scaled_mm_kernels.cu","revision":"vLLM ed7a29d9; SHA-256 e8aed5ccb3dd9de26c3aeff159a242a46dcb7c7d8d0351b6c44ff1f8d2f7effa","locator":"Fp4GemmSm100, args_from_options, and runGemm","observation":"The file implements a general M,N,K CUTLASS NVFP4 GEMM adapter and does not implement the contest's seven-tensor N=1 callable or checker."},{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemv/template.py","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"custom_kernel contract","observation":"The contest entry point receives seven task tensors, which the vLLM source does not expose."}]
     },
     {
       "claim_id": "kernel-nvfp4-gemv-original-c033",

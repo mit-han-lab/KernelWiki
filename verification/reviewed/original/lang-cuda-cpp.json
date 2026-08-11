@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/README.md","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"benchmark table and environment","observation":"The pinned author source gives M=N=K=4096, Modal B200, PyTorch 2.9.1/CUDA 13, cuBLAS 1506.74, and v6 1475.93 TFLOP/s. A conda-base ratio check produced 97.955 percent and rejected a broken 1600-TFLOP/s baseline."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/README.md","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"benchmark table and environment","observation":"The pinned author source gives M=N=K=4096, Modal B200, PyTorch 2.9.1/CUDA 13, cuBLAS 1506.74, and v6 1475.93 TFLOP/s. A conda-base ratio check produced 97.955 percent and rejected a broken 1600-TFLOP/s baseline."}],
       "challenge": {"alternative":"The 98 percent compares with theoretical peak or another shape/environment.","check":"Use the exact cuBLAS and v6 rows and disclosed shape/software.","outcome":"The ratio rounds to 98 only against the stated same-table cuBLAS row; the claim is source-reported for that setup."}
     },
     {
@@ -20,7 +20,7 @@
       "covers": ["u002"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"cta_group::1 issue granularity","observation":"Allocation is warp-collective: all threads of one warp must execute the same sync.aligned instruction, and lane-0-only execution is undefined."},{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b","locator":"TMEM allocation branch","observation":"The pinned author code executes alloc in every lane of warp 1, not thread 0."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"cta_group::1 issue granularity","observation":"Allocation is warp-collective: all threads of one warp must execute the same sync.aligned instruction, and lane-0-only execution is undefined."},{"url":"https://github.com/gau-nernst/learn-cuda/blob/3b90ac9b3f624bdf1f6f78d02dcd533675d36573/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b","locator":"TMEM allocation branch","observation":"The pinned author code executes alloc in every lane of warp 1, not thread 0."}]
     },
     {
       "claim_id": "lang-cuda-cpp-original-c003",
@@ -29,7 +29,7 @@
       "covers": ["u002"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/common.h","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"tcgen05_mma_f16","observation":"The real wrapper takes one instruction descriptor and an enable-input-D integer, converts the latter to a local predicate, then passes idesc and predicate as the final operands."},{"path":"/tmp/kernelwiki-ptx-1302.html","revision":"CUDA 13.0.2, PTX ISA 9.0 fetched 2026-08-08","locator":"tcgen05.mma unscaled f16 grammar","observation":"The required final operands are idesc and enable-input-D predicate, optionally preceded by a lane-disable vector; there are no C/D immediate descriptors."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/common.h","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"tcgen05_mma_f16","observation":"The real wrapper takes one instruction descriptor and an enable-input-D integer, converts the latter to a local predicate, then passes idesc and predicate as the final operands."},{"path":"verification/evidence/local-snapshots/kernelwiki-ptx-1302.html","revision":"CUDA 13.0.2, PTX ISA 9.0 fetched 2026-08-08","locator":"tcgen05.mma unscaled f16 grammar","observation":"The required final operands are idesc and enable-input-D predicate, optionally preceded by a lane-disable vector; there are no C/D immediate descriptors."}]
     },
     {
       "claim_id": "lang-cuda-cpp-original-c004",
@@ -38,7 +38,7 @@
       "covers": ["u002"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation and deallocation grammar","observation":"The exact shared b32 allocation and taddr deallocation forms match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"32x32b repetition table","observation":"32x32b.x1.b32 is legal and produces one 32-bit register per participating thread."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation and deallocation grammar","observation":"The exact shared b32 allocation and taddr deallocation forms match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld","revision":"same archive","locator":"32x32b repetition table","observation":"32x32b.x1.b32 is legal and produces one 32-bit register per participating thread."}],
       "challenge": {"alternative":"The text strings themselves are fabricated even though wrapper participation is wrong.","check":"Separate instruction grammar from CUDA control flow and compare exact qualifiers.","outcome":"The instruction strings are valid; the allocation wrapper is wrong because of how it predicates them."}
     },
     {
@@ -67,7 +67,7 @@
       "covers": ["u004"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_WARPS and role branches around lines 227-297","observation":"The source declares one TMA warp, one MMA warp, four epilogue warps and uses elected single issuers for TMA/MMA while all epilogue lanes participate in TMEM loads."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_WARPS and role branches around lines 227-297","observation":"The source declares one TMA warp, one MMA warp, four epilogue warps and uses elected single issuers for TMA/MMA while all epilogue lanes participate in TMEM loads."}],
       "challenge": {"alternative":"Every lane in the TMA/MMA warps issues or the epilogue is lane-0-only.","check":"Inspect elect_sync predicates and warp-range branches.","outcome":"Only elected threads issue TMA/MMA; all warps at IDs 2 and above enter the epilogue path."}
     },
     {

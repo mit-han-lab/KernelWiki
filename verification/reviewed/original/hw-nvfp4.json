@@ -54,7 +54,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.mma block-scale syntax and valid scale/block combinations",
           "observation": "The normative forms require kind::mxf4 or kind::mxf4nvf4 plus a block16/block32 qualifier and scale-vector layout. kind::mxf4nvf4 supports more than one scale mode, so the abbreviated strings do not uniquely describe the operation. The ISA provides no universal 4x Hopper measurement."
@@ -119,7 +119,7 @@
           "observation": "The comparison states NVFP4 block size 16 with E4M3 scales versus MXFP4 block size 32 with E8M0 power-of-two scales."
         },
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "block-scaled type/scale compatibility tables",
           "observation": "At the ISA layer the NVFP4-compatible local scale element is named .ue4m3, while mxf4 uses .ue8m0; the valid pairings use block16 and block32 respectively."

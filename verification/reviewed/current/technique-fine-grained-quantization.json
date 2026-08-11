@@ -60,7 +60,7 @@
       "covers": ["u015", "u016", "u017"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"floating-point type with block scaling grammar and valid combination table","observation":"The exact qualifier/operand sequence is legal for mxf8f6f4 with UE8M0 scale_vec::1X, and the ISA separately defines descriptors, targets and asynchronous lifecycle requirements."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"floating-point type with block scaling grammar and valid combination table","observation":"The exact qualifier/operand sequence is legal for mxf8f6f4 with UE8M0 scale_vec::1X, and the ISA separately defines descriptors, targets and asynchronous lifecycle requirements."}],
       "challenge": {"alternative":"Scale operands are SMEM pointers or scale_d belongs before them as in unscaled tcgen05 forms.","check":"Compare block-scaled grammar with the unscaled floating-point grammar.","outcome":"Block-scaled syntax names TMEM SFA/SFB operands after idesc and does not use scale_d in that position."}
     },
     {
@@ -70,7 +70,7 @@
       "covers": ["u018", "u019", "u020", "u021"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"valid scale_vectorsize/type/MMA-kind combinations","observation":"The table lists both displayed rows and the additional mxf4nvf4 UE8M0 block16/block32 possibilities."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"valid scale_vectorsize/type/MMA-kind combinations","observation":"The table lists both displayed rows and the additional mxf4nvf4 UE8M0 block16/block32 possibilities."}],
       "challenge": {"alternative":"The mxf4nvf4 kind alone uniquely means NVFP4 UE4M3 block16.","check":"Enumerate every mxf4nvf4 row in the valid-combination table.","outcome":"UE8M0 rows also exist, so full qualifiers and types are selection-critical."}
     },
     {
@@ -83,7 +83,7 @@
       "evidence": [
         {"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"recipe, 1D/2D grouping and MXFP4 comparison","observation":"Payload, local/global scaling and geometry are independent contract dimensions, and documented accuracy advantages are recipe-scoped rather than universal."},
         {"url":"https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md","revision":"DeepGEMM 891d57b","locator":"interface notices","observation":"The project explicitly warns that transpose/cast preparation is separate and utility implementations may be slower, and it distinguishes SM90/SM100 factor formats."},
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"PTX ISA 9.0","locator":"block-scale grammar, combinations and target notes","observation":"Legality depends on kind, scale-vector, type and target; the ISA supplies no universal performance/accuracy ordering."}
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"PTX ISA 9.0","locator":"block-scale grammar, combinations and target notes","observation":"Legality depends on kind, scale-vector, type and target; the ISA supplies no universal performance/accuracy ordering."}
       ],
       "challenge": {"alternative":"Native instruction support and smaller groups alone are enough to choose the fastest and most accurate recipe.","check":"Check whether the sources hold preparation/layout/workload constant or define an input-independent ordering.","outcome":"They do not; the checklist explicitly identifies those uncontrolled variables and requests measurement rather than predicting results."}
     },
@@ -98,7 +98,7 @@
         {"url":"https://arxiv.org/abs/2412.19437v2","revision":"v2","locator":"document landing/PDF","observation":"The URL is revision-pinned to v2."},
         {"url":"https://github.com/deepseek-ai/DeepGEMM/tree/891d57b4db1071624b5c8fa0d1e51cb317fa709f","revision":"891d57b4db1071624b5c8fa0d1e51cb317fa709f","locator":"repository tree","observation":"The URL embeds the full commit."},
         {"url":"https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html","revision":"Transformer Engine 2.13","locator":"NVFP4 page","observation":"The version path and topic match."},
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma section","observation":"The archive and anchor match the label."}
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma section","observation":"The archive and anchor match the label."}
       ],
       "challenge": {"alternative":"At least one link is rolling or points to a summary rather than the asserted primary source.","check":"Inspect URL version/commit segments and resolved section titles.","outcome":"All four are direct primary, revision-specific targets."}
     }

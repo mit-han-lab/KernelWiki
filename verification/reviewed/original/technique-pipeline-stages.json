@@ -48,7 +48,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 MMA completion and operand lifetimes","observation":"The consumer releases SMEM immediately after an opaque asynchronous MMA issue without attaching/waiting for completion; syncwarp does not complete tcgen05."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"initialization, phase/tokens and transaction completion","observation":"The code omits async-proxy publication fencing, reusable barrier phase/token state, initial empty-stage seeding, and a correct tail protocol."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 MMA completion and operand lifetimes","observation":"The consumer releases SMEM immediately after an opaque asynchronous MMA issue without attaching/waiting for completion; syncwarp does not complete tcgen05."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"initialization, phase/tokens and transaction completion","observation":"The code omits async-proxy publication fencing, reusable barrier phase/token state, initial empty-stage seeding, and a correct tail protocol."}]
     },
     {
       "claim_id": "technique-pipeline-stages-original-c006",
@@ -67,7 +67,7 @@
       "covers": ["u008", "u009", "u010", "u011"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"pipeline construction and stage policies across tutorial variants","observation":"Stage counts derive from tile, shared-memory capacity and schedule; no tagged source defines the table's universal hiding classifications or thresholds."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"pipeline construction and stage policies across tutorial variants","observation":"Stage counts derive from tile, shared-memory capacity and schedule; no tagged source defines the table's universal hiding classifications or thresholds."}]
     },
     {
       "claim_id": "technique-pipeline-stages-original-c008",

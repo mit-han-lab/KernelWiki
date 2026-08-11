@@ -16,7 +16,7 @@
           "locator": "tcgen05 shared-memory descriptor swizzling modes",
           "observation": "PTX defines legal no-swizzle, 32B, 64B, and 128B descriptors, so 128B is not a universal correctness requirement.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         }
       ],
       "oracle": "web-primary",
@@ -47,8 +47,8 @@
         {
           "locator": "include/cute/swizzle.hpp Swizzle<BBits,MBase,SShift>",
           "observation": "CuTe defines swizzling over address bits, with BBits as mask width, MBase as invariant low bits, and SShift as mask distance. Mapping depends on byte address and alignment, not an arbitrary row parameter; Swizzle<3,4,3> XORs address bits 7:9 into 4:6.",
-          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
-          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/swizzle.hpp"
+          "revision": "CUTLASS 4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/swizzle.hpp"
         },
         {
           "locator": "CUtensorMapSwizzle enum",
@@ -81,7 +81,7 @@
           "locator": "shared-memory descriptor",
           "observation": "PTX encodes the tcgen05 shared-memory layout and mode in the consumer descriptor.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         }
       ],
       "oracle": "web-primary",
@@ -119,7 +119,7 @@
           "locator": "tcgen05 valid combinations of type, major-ness, and swizzling",
           "observation": "Legality is kind-, type-, shape-, major-mode-, and target-specific; no single 128B default covers all BF16/FP16 MMA operands.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         }
       ],
       "oracle": "web-primary",
@@ -134,14 +134,14 @@
         {
           "locator": "include/cute/swizzle.hpp lines 42-82",
           "observation": "The page reverses the parameter meanings: BBits is mask width and MBase is low invariant bits. CUTLASS also distinguishes position-independent swizzle layouts from the hardware's position-dependent swizzle pointers, so alignment/composition cannot be omitted.",
-          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
-          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/swizzle.hpp"
+          "revision": "CUTLASS 4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/swizzle.hpp"
         },
         {
           "locator": "include/cute/pointer_swizzle.hpp lines 39-56",
           "observation": "The source explicitly distinguishes position-independent swizzle_layout from position-dependent hardware swizzle pointers.",
-          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
-          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/pointer_swizzle.hpp"
+          "revision": "CUTLASS 4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/pointer_swizzle.hpp"
         }
       ],
       "oracle": "web-primary",
@@ -179,7 +179,7 @@
           "locator": "tcgen05 descriptor modes and valid combinations",
           "observation": "No-swizzle, 32B, 64B, and 128B layouts are legal for tcgen05 under their respective constraints.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         },
         {
           "locator": "shared-memory conflict definition",
@@ -206,8 +206,8 @@
         {
           "locator": "CuTe swizzle and pointer implementations",
           "observation": "CuTe expresses mappings but cannot guarantee the programmer composed the matching tensor map, alignment, layout, and consumer descriptor.",
-          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
-          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/swizzle.hpp"
+          "revision": "CUTLASS 4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/swizzle.hpp"
         }
       ],
       "oracle": "web-primary",

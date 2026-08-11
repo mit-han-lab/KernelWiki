@@ -177,7 +177,7 @@
       "covers": ["u038"],
       "verdict": "refuted",
       "oracle": "host-experiment",
-      "evidence": [{"command": "conda run -n base python -c <AST undefined-name audit over the two wiki Python blocks>", "environment": "Conda base, Python 3.13.14, host AST analysis", "reference": "A self-contained kernel must define every loaded local name or receive it as an argument.", "result": "gated_delta_net_decode loads undefined name offsets; its state/output address expressions are also inconsistent between load and store.", "negative_control": "A well-scoped control function taking offsets and d as arguments reports no undefined names."}],
+      "evidence": [{"command": "python3 verification/tools/check_verification_evidence.py triton-baseline-ast", "environment": "Conda base, Python 3.13.14, host AST analysis", "reference": "A self-contained kernel must define every loaded local name or receive it as an argument.", "result": "gated_delta_net_decode loads undefined name offsets; its state/output address expressions are also inconsistent between load and store.", "negative_control": "A well-scoped control function taking offsets and d as arguments reports no undefined names."}],
       "challenge": {"alternative": "offsets is an implicit Triton builtin.", "check": "Compare the function arguments and Triton language namespace with the AST load set.", "outcome": "offsets is neither an argument, assignment, nor tl builtin, so the displayed function cannot compile as written."}
     },
     {
@@ -187,7 +187,7 @@
       "covers": ["u039"],
       "verdict": "refuted",
       "oracle": "host-experiment",
-      "evidence": [{"command": "conda run -n base python -c <AST undefined-name audit over the two wiki Python blocks>", "environment": "Conda base, Python 3.13.14, host AST analysis", "reference": "A self-contained kernel must define every loaded local name or receive it as an argument and must write its promised output.", "result": "sparse_attention_fwd loads undefined d and offsets, stops at an unfinished softmax comment, and never stores Output.", "negative_control": "A well-scoped control function taking offsets and d as arguments reports no undefined names."}],
+      "evidence": [{"command": "python3 verification/tools/check_verification_evidence.py triton-baseline-ast", "environment": "Conda base, Python 3.13.14, host AST analysis", "reference": "A self-contained kernel must define every loaded local name or receive it as an argument and must write its promised output.", "result": "sparse_attention_fwd loads undefined d and offsets, stops at an unfinished softmax comment, and never stores Output.", "negative_control": "A well-scoped control function taking offsets and d as arguments reports no undefined names."}],
       "challenge": {"alternative": "d and offsets are compiler-provided names and the omitted store is outside the excerpt by design.", "check": "Inspect the complete fenced block, signature, and loaded names.", "outcome": "The block closes without defining the names or producing Output, so it is incomplete executable-looking code."}
     },
     {
@@ -211,7 +211,7 @@
       "covers": ["u047", "u048", "u049", "u050", "u051", "u052", "u053", "u054"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command": "conda run -n base python -c <resolve six paths and compare PROVENANCE.yaml SHA-256 entries>", "environment": "Conda base, Python 3.13.14, repository filesystem", "reference": "Each relative link must resolve and its hash must match a verbatim provenance entry.", "result": "All six paths exist; their five bundles declare asset_mode verbatim and exact upstream SHAs/hashes. Code inspection finds the described MLA, FP8-cache, format-conversion, normalization, GDN projection, and extend-attention roles.", "negative_control": "artifacts/prs/vllm/PR-00000/key-files/missing.py does not resolve."}],
+      "evidence": [{"command": "python3 verification/tools/check_verification_evidence.py triton-artifact-provenance", "environment": "Conda base, Python 3.13.14, repository filesystem", "reference": "Each relative link must resolve and its hash must match a verbatim provenance entry.", "result": "All six paths exist; their five bundles declare asset_mode verbatim and exact upstream SHAs/hashes. Code inspection finds the described MLA, FP8-cache, format-conversion, normalization, GDN projection, and extend-attention roles.", "negative_control": "artifacts/prs/vllm/PR-00000/key-files/missing.py does not resolve."}],
       "challenge": {"alternative": "At least one link is a summary, derived asset, or stale target.", "check": "Resolve paths, read bundle asset_mode/upstream_sha, verify hashes, and inspect the referenced symbols.", "outcome": "Every linked file is present and provenance marks it verbatim; the broken control fails as expected."}
     },
     {
@@ -221,7 +221,7 @@
       "covers": ["u055"],
       "verdict": "refuted",
       "oracle": "host-experiment",
-      "evidence": [{"command": "conda run -n base python -c <parse data/triton-universe.yaml and count prs>", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "The declared total and actual list length should equal the wiki's 42.", "result": "The file declares total=267 and contains 267 PR entries: 117 captured and 150 skipped.", "negative_control": "The equality check actual_count == 42 evaluates false while actual_count == declared total evaluates true."}],
+      "evidence": [{"command": "python3 verification/tools/check_verification_evidence.py triton-universe-baseline", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "The declared total and actual list length should equal the wiki's 42.", "result": "The file declares total=267 and contains 267 PR entries: 117 captured and 150 skipped.", "negative_control": "The equality check actual_count == 42 evaluates false while actual_count == declared total evaluates true."}],
       "challenge": {"alternative": "42 is a filtered sublist explicitly identified by the page.", "check": "Inspect the file's top-level lane, total, captured, skipped, and prs fields.", "outcome": "The page says full universe, while the canonical full list has 267 entries."}
     },
     {
@@ -231,7 +231,7 @@
       "covers": ["u047", "u055"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command": "conda run -n base python -c <parse capture flags for the five linked PR IDs>", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "Linked bundles should be captured and skipped entries should lack shipped bundles by policy.", "result": "All five linked PR IDs are captured:true; the universe has 150 captured:false entries and the table files all exist.", "negative_control": "A nonexistent PR ID has no universe entry or artifact path."}],
+      "evidence": [{"command": "python3 verification/tools/check_verification_evidence.py triton-capture-flags-baseline", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "Linked bundles should be captured and skipped entries should lack shipped bundles by policy.", "result": "All five linked PR IDs are captured:true; the universe has 150 captured:false entries and the table files all exist.", "negative_control": "A nonexistent PR ID has no universe entry or artifact path."}],
       "challenge": {"alternative": "The linked artifacts violate the capture ledger.", "check": "Join their source PR IDs against data/triton-universe.yaml.", "outcome": "Every linked bundle is marked captured:true."}
     },
     {
@@ -241,7 +241,7 @@
       "covers": ["u017", "u023", "u028", "u029", "u030", "u031", "u054"],
       "verdict": "refuted",
       "oracle": "host-experiment",
-      "evidence": [{"command": "conda run -n base python -c <parse data/refresh-cutoff.yaml and compare four PR dates>", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "The asserted manifest should exist and distinguish the named entries relative to the active cutoff.", "result": "The file contains only cutoff_date=2026-05-20 and no previous_pages_manifest; all four PR dates precede the active cutoff.", "negative_control": "A synthetic 2026-05-21 date is correctly classified after the cutoff."}],
+      "evidence": [{"command": "python3 verification/tools/check_verification_evidence.py triton-refresh-cutoff", "environment": "Conda base, Python 3.13.14, PyYAML", "reference": "The asserted manifest should exist and distinguish the named entries relative to the active cutoff.", "result": "The file contains only cutoff_date=2026-05-20 and no previous_pages_manifest; all four PR dates precede the active cutoff.", "negative_control": "A synthetic 2026-05-21 date is correctly classified after the cutoff."}],
       "challenge": {"alternative": "The manifest exists under another key and still supports the labels.", "check": "Parse every top-level key and compare the named PR dates to the sole cutoff.", "outcome": "There is no manifest field and no named PR is post-cutoff, so the administrative classifications are stale."}
     },
     {

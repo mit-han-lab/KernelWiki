@@ -48,7 +48,7 @@
       "covers": ["u004"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_gdn_decode_reference","observation":"The reference decays the state, retrieves old_v with k, interpolates toward v with beta, removes the old association, and writes the new one."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_gdn_decode_reference","observation":"The reference decays the state, retrieves old_v with k, interpolates toward v with beta, removes the old association, and writes the new one."}],
       "challenge": {"alternative":"The implementation only adds an outer product and never subtracts or corrects an existing association.","check":"Inspect old_v, state_remove, state_update, and their signs in the reference.","outcome":"The source explicitly subtracts k outer old_v before adding k outer new_v, rejecting the additive-only alternative."}
     },
     {
@@ -58,7 +58,7 @@
       "covers": ["u005"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_gdn_decode_reference","observation":"With state [K,V], the reference first forms old_state=g*S, retrieves k@old_state, and applies beta to v-old_v. The displayed function declares [d_k,d_v] but computes S@k, constructs a [d_v,d_k] outer product, and swaps beta/alpha roles."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"_gdn_decode_reference","observation":"With state [K,V], the reference first forms old_state=g*S, retrieves k@old_state, and applies beta to v-old_v. The displayed function declares [d_k,d_v] but computes S@k, constructs a [d_v,d_k] outer product, and swaps beta/alpha roles."}]
     },
     {
       "claim_id": "kernel-gated-delta-net-original-c007",
@@ -67,7 +67,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-gdn-pinned/lit_gpt/gated_delta_rule_ops/chunk.py","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"chunk_gated_delta_rule_fwd_kernel_h and chunk_linear_attn_fwd_kernel_o","observation":"The chunkwise algorithm uses WY-derived and matrix-product kernels; the state kernel loops over chunks for a given state tile, while other chunk-local products are launched across chunk IDs. The prose's scalar-recurrence/parallel-chunk description does not match this decomposition."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-gdn-pinned/lit_gpt/gated_delta_rule_ops/chunk.py","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"chunk_gated_delta_rule_fwd_kernel_h and chunk_linear_attn_fwd_kernel_o","observation":"The chunkwise algorithm uses WY-derived and matrix-product kernels; the state kernel loops over chunks for a given state tile, while other chunk-local products are launched across chunk IDs. The prose's scalar-recurrence/parallel-chunk description does not match this decomposition."}]
     },
     {
       "claim_id": "kernel-gated-delta-net-original-c008",
@@ -76,7 +76,7 @@
       "covers": ["u007"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"gdn_prefill_trace signature and _gdn_prefill_reference","observation":"The contract uses separate q/k head counts 4, value heads 8, per-head dimension 128, state [N,8,128,128], g and beta gates, cu_seqlens, and output from the updated state. The sketch flattens heads to 512/1024, omits g and variable-length inputs, references undefined NUM_HEADS, and has inconsistent outer-product orientation."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"gdn_prefill_trace signature and _gdn_prefill_reference","observation":"The contract uses separate q/k head counts 4, value heads 8, per-head dimension 128, state [N,8,128,128], g and beta gates, cu_seqlens, and output from the updated state. The sketch flattens heads to 512/1024, omits g and variable-length inputs, references undefined NUM_HEADS, and has inconsistent outer-product orientation."}]
     },
     {
       "claim_id": "kernel-gated-delta-net-original-c009",
@@ -85,7 +85,7 @@
       "covers": ["u008"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"gated_delta_rule_decode_trace and _gdn_decode_reference","observation":"seq_len is fixed to one; the input/output state shape depends on batch, heads, and head_size but not the number of prior tokens."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/trace/templates/gdn.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"gated_delta_rule_decode_trace and _gdn_decode_reference","observation":"seq_len is fixed to one; the input/output state shape depends on batch, heads, and head_size but not the number of prior tokens."}],
       "challenge": {"alternative":"Decode rereads all prior keys and values, so work or storage grows with context length.","check":"Inspect the trace signature and reference loop bounds.","outcome":"The reference receives only one q/k/v token and a fixed recurrent state; there is no prior-sequence axis."}
     },
     {
@@ -104,7 +104,7 @@
       "covers": ["u010"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-mlstm-kernels/README.md","revision":"NX-AI/mlstm_kernels 5b98ff8e2bec189b3d3c249405bab5149564d6f8","locator":"library overview and kernel lists","observation":"The official TFLA code is a PyTorch/JAX/Triton mLSTM library. Its README describes TFLA as an mLSTM method with a second level of sequence parallelism and arbitrarily large chunks; the pinned tree contains no GatedDeltaNet, wgmma, tcgen05, inline-PTX, or asm implementation."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-mlstm-kernels/README.md","revision":"NX-AI/mlstm_kernels 5b98ff8e2bec189b3d3c249405bab5149564d6f8","locator":"library overview and kernel lists","observation":"The official TFLA code is a PyTorch/JAX/Triton mLSTM library. Its README describes TFLA as an mLSTM method with a second level of sequence parallelism and arbitrarily large chunks; the pinned tree contains no GatedDeltaNet, wgmma, tcgen05, inline-PTX, or asm implementation."}]
     },
     {
       "claim_id": "kernel-gated-delta-net-original-c012",
@@ -122,7 +122,7 @@
       "covers": ["u012", "u013", "u014"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-gdn-pinned/README.md","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"FAQ questions 1 and 2","observation":"The official README links its Triton implementation, says FLA kernels are faster, supports varlen training, and strongly recommends FLA."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-gdn-pinned/README.md","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"FAQ questions 1 and 2","observation":"The official README links its Triton implementation, says FLA kernels are faster, supports varlen training, and strongly recommends FLA."}],
       "challenge": {"alternative":"FLA is merely a community fork with no recommendation or variable-length distinction from the authors.","check":"Read the authors' FAQ rather than a third-party comparison.","outcome":"The official NVlabs repository makes both statements directly."}
     },
     {
@@ -142,7 +142,7 @@
       "covers": ["u018"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-flashinfer-pinned/flashinfer/gdn_prefill.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"chunk_gated_delta_rule architecture dispatch","observation":"The current pinned implementation dispatches SM100/SM103 to chunk_gated_delta_rule_sm100 and documents CUDA 13 plus head_size 128 requirements, so Blackwell prefill is implemented rather than in progress."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-flashinfer-pinned/flashinfer/gdn_prefill.py","revision":"FlashInfer 7f614b86470180bab2d22e36fd1775791c6bf3e6","locator":"chunk_gated_delta_rule architecture dispatch","observation":"The current pinned implementation dispatches SM100/SM103 to chunk_gated_delta_rule_sm100 and documents CUDA 13 plus head_size 128 requirements, so Blackwell prefill is implemented rather than in progress."}]
     },
     {
       "claim_id": "kernel-gated-delta-net-original-c016",
@@ -198,7 +198,7 @@
       "covers": ["u024"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-gdn-pinned/lit_gpt/gated_delta_net.py","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"GatedDeltaNet projections, gates, convolutions, and forward","observation":"The layer owns learned q/k/v, decay, update, convolution, output-gate, norm, and output-projection parameters with a recurrence distinct from softmax attention."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-gdn-pinned/lit_gpt/gated_delta_net.py","revision":"NVlabs/GatedDeltaNet b53d6d3a161267432a79c1c04af69fa52bddc921","locator":"GatedDeltaNet projections, gates, convolutions, and forward","observation":"The layer owns learned q/k/v, decay, update, convolution, output-gate, norm, and output-projection parameters with a recurrence distinct from softmax attention."}],
       "challenge": {"alternative":"A serving framework can substitute GDN for an already-trained attention layer without changing weights or model behavior.","check":"Compare the required learned parameter set and recurrence with an attention layer's contract.","outcome":"The GDN-specific projections/gates and recurrent state have no weight-preserving drop-in mapping supplied by the source."}
     },
     {
@@ -217,7 +217,7 @@
       "covers": ["u026", "u027", "u028", "u029"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <each of four URLs>","environment":"KernelWiki host, 2026-08-08","reference":"HTTP success and page identity","result":"All four URLs returned HTTP 200 and exposed the named upstream resource.","negative_control":"https://mlsys26.flashinfer.ai/definitely-not-a-kernelwiki-page returned HTTP 404."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py urls-original-gated-delta-net","environment":"KernelWiki host, 2026-08-08","reference":"HTTP success and page identity","result":"All four URLs returned HTTP 200 and exposed the named upstream resource.","negative_control":"https://mlsys26.flashinfer.ai/definitely-not-a-kernelwiki-page returned HTTP 404."}],
       "challenge": {"alternative":"One or more links silently redirect to a generic landing page or missing resource.","check":"Follow redirects, inspect page identity, and compare with a deliberately invalid same-site path.","outcome":"Each target resolves to the intended resource while the invalid control is rejected."}
     },
     {
@@ -227,7 +227,7 @@
       "covers": ["u030"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"artifacts/kernels/gated-delta-net/full/gdn_fused_proj.py","revision":"SGLang 5bdc07d974f6cf236fa765a685453ea5e587a838; SHA-256 c4ef85167eb11065721e76dd5d63d6f346f309f84822578dd4a3874249acef89","locator":"module functions","observation":"The verbatim file only splits and reshapes QKVZBA projection outputs; it does not implement the GDN recurrence, prefill, or decode."},{"path":"artifacts/kernels/gated-delta-net/variants/01-chunk-parallel-prefill-reference-pytorch.py","revision":"original SHA-256 d7e74b02df4974fb082cacbae8a5182dd2c40cb1c13fd1d74505b51cfb15481b","locator":"gated_delta_net_prefill","observation":"The derived file applies cumulative decay repeatedly, uses an additive update rather than the delta rule, and falsely says a per-token state update is paid once per chunk."},{"path":"artifacts/kernels/gated-delta-net/variants/02-triton-decode-step-kernel-streaming.py","revision":"original SHA-256 d5eef14bdbc44e50784c0ca34e7041dcad2151960a85feddba62b097e20079ad","locator":"gdn_decode_step_kernel","observation":"The file implements additive gated linear attention, not the gated delta recurrence. Its Python comments use # rather than the page's claimed required // header."}]
+      "evidence": [{"path":"artifacts/kernels/gated-delta-net/full/gdn_fused_proj.py","revision":"SGLang 5bdc07d974f6cf236fa765a685453ea5e587a838; SHA-256 c4ef85167eb11065721e76dd5d63d6f346f309f84822578dd4a3874249acef89","locator":"module functions","observation":"The verbatim file only splits and reshapes QKVZBA projection outputs; it does not implement the GDN recurrence, prefill, or decode."},{"path":"verification/evidence/historical-artifacts/artifacts/kernels/gated-delta-net/variants/01-chunk-parallel-prefill-reference-pytorch.py","revision":"original SHA-256 d7e74b02df4974fb082cacbae8a5182dd2c40cb1c13fd1d74505b51cfb15481b","locator":"gated_delta_net_prefill","observation":"The derived file applies cumulative decay repeatedly, uses an additive update rather than the delta rule, and falsely says a per-token state update is paid once per chunk."},{"path":"verification/evidence/historical-artifacts/artifacts/kernels/gated-delta-net/variants/02-triton-decode-step-kernel-streaming.py","revision":"original SHA-256 d5eef14bdbc44e50784c0ca34e7041dcad2151960a85feddba62b097e20079ad","locator":"gdn_decode_step_kernel","observation":"The file implements additive gated linear attention, not the gated delta recurrence. Its Python comments use # rather than the page's claimed required // header."}]
     },
     {
       "claim_id": "kernel-gated-delta-net-original-c025",

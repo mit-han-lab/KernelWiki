@@ -44,7 +44,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "9.7.16.10.9.1 unscaled floating-point syntax",
           "observation": "The grammar takes one idesc, an eight-register disable-output-lane vector for cta_group::2, enable-input-d, and optionally scale-input-d. The wiki uses two invented descriptor operands plus ellipses and omits the required vector and predicate."
@@ -81,7 +81,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "operand access, data-path layouts, and tcgen05.commit",
           "observation": "The normative requirements are CTA-pair membership, peer lifetime, legal descriptors/layouts, consistent cta_group, and the applicable completion/ordering protocol. The ISA exposes multiple layouts including M=128 group-2 and does not state the three listed rules as universal MMA preconditions."

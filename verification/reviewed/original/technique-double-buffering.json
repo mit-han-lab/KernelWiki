@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_STAGES SMEM arrays, BLOCK_N*2 TMEM allocation, mainloop/epilogue barriers","observation":"The pinned kernel has multiple SMEM stages and two disjoint BLOCK_N-wide TMEM accumulator regions with producer, MMA, and epilogue handoffs."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"NUM_STAGES SMEM arrays, BLOCK_N*2 TMEM allocation, mainloop/epilogue barriers","observation":"The pinned kernel has multiple SMEM stages and two disjoint BLOCK_N-wide TMEM accumulator regions with producer, MMA, and epilogue handoffs."}],
       "challenge": {"alternative":"The two mechanisms cannot coexist because both consume the same storage or synchronization object.","check":"Trace the address spaces and barrier arrays in the pinned implementation.","outcome":"SMEM operand stages and TMEM accumulator regions are separately allocated and coordinated by distinct pipeline/barrier state."}
     },
     {
@@ -30,7 +30,7 @@
       "covers": ["u003"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"collective allocation/deallocation and lifetime rules","observation":"The block contains no TMEM allocation or mandatory deallocation and does not establish publication of a returned address."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"tcgen05.ld collective execution, completion, and address mapping","observation":"TMEM readback is a warp-collective asynchronous instruction followed by wait::ld, not a per-row scalar load callable independently by lanes."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"mbarrier phase and initialization semantics","observation":"Reusable barriers require correct expected-arrival counts and phase/parity tracking; the block initializes drained barriers to one despite claiming fourteen arrivals and reuses waits without tokens/phases."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"collective allocation/deallocation and lifetime rules","observation":"The block contains no TMEM allocation or mandatory deallocation and does not establish publication of a returned address."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld","revision":"same archive","locator":"tcgen05.ld collective execution, completion, and address mapping","observation":"TMEM readback is a warp-collective asynchronous instruction followed by wait::ld, not a per-row scalar load callable independently by lanes."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier","revision":"same archive","locator":"mbarrier phase and initialization semantics","observation":"Reusable barriers require correct expected-arrival counts and phase/parity tracking; the block initializes drained barriers to one despite claiming fourteen arrivals and reuses waits without tokens/phases."}]
     },
     {
       "claim_id": "technique-double-buffering-original-c004",
@@ -59,7 +59,7 @@
       "covers": ["u006"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"first Blackwell GEMM tutorial stage","observation":"The official tutorial progression includes valid Blackwell GEMMs before the later pipelined variants; neither exact stage count nor double-buffer policy is a universal optimization requirement."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"first Blackwell GEMM tutorial stage","observation":"The official tutorial progression includes valid Blackwell GEMMs before the later pipelined variants; neither exact stage count nor double-buffer policy is a universal optimization requirement."}]
     },
     {
       "claim_id": "technique-double-buffering-original-c007",
@@ -68,7 +68,7 @@
       "covers": ["u007"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"full kernel role loops, ready/empty barriers, parity, prologue and tail","observation":"The real implementation requires independent persistent role loops, phase-aware ready/empty handoffs, prologue seeding, read completion, final drain, and TMEM cleanup; the block leaves these as opaque helpers/comments and its per-warp common outer loop does not prove overlap."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-learn-cuda-3b90ac9b/02e_matmul_sm100/matmul_v6.cu","revision":"gau-nernst/learn-cuda 3b90ac9b3f624bdf1f6f78d02dcd533675d36573","locator":"full kernel role loops, ready/empty barriers, parity, prologue and tail","observation":"The real implementation requires independent persistent role loops, phase-aware ready/empty handoffs, prologue seeding, read completion, final drain, and TMEM cleanup; the block leaves these as opaque helpers/comments and its per-warp common outer loop does not prove overlap."}]
     },
     {
       "claim_id": "technique-double-buffering-original-c008",
@@ -96,7 +96,7 @@
       "covers": ["u010", "u013"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA D operand and fragments","observation":"D is a register operand distributed among threads."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"same archive","locator":"TMEM-to-register load","observation":"tcgen05.ld transfers a TMEM region into per-thread registers before ordinary scalar processing."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA D operand and fragments","observation":"D is a register operand distributed among threads."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld","revision":"same archive","locator":"TMEM-to-register load","observation":"tcgen05.ld transfers a TMEM region into per-thread registers before ordinary scalar processing."}],
       "challenge": {"alternative":"Both architectures expose D as an ordinary pointer-addressable buffer.","check":"Compare the operand classes and legal load operations.","outcome":"WGMMA names register fragments, while tcgen05 names a TMEM address and uses dedicated collective movement instructions."}
     },
     {
@@ -106,7 +106,7 @@
       "covers": ["u011"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.ld destination operands","observation":"TMEM readback places values in register vectors, so the resident D vector is absent but total register cost is not zero."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.ld destination operands","observation":"TMEM readback places values in register vectors, so the resident D vector is absent but total register cost is not zero."}]
     },
     {
       "claim_id": "technique-double-buffering-original-c012",
@@ -124,7 +124,7 @@
       "covers": ["u014"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA instruction shapes","observation":"An instruction fragment is not a universal kernel accumulator maximum; kernels may compose instructions and distribute output ownership."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"same archive","locator":"TMEM structure and packing","observation":"128 by 512 is the cell-address structure, not a universal count of logical accumulator elements; packing and descriptor shape depend on dtype/instruction kind."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA instruction shapes","observation":"An instruction fragment is not a universal kernel accumulator maximum; kernels may compose instructions and distribute output ownership."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory","revision":"same archive","locator":"TMEM structure and packing","observation":"128 by 512 is the cell-address structure, not a universal count of logical accumulator elements; packing and descriptor shape depend on dtype/instruction kind."}]
     },
     {
       "claim_id": "technique-double-buffering-original-c014",
@@ -142,7 +142,7 @@
       "covers": ["u016"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"numStages selections near kernel dispatch","observation":"One merged kernel selects three stages in one path and min(totalStages,4) in another, demonstrating shape/path-specific policy rather than the page's universal rule."},{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"tutorial progression and stage construction","observation":"Official examples derive or configure stages from tile and resource policy rather than declaring three universal."}]
+      "evidence": [{"path":"artifacts/prs/flashinfer/PR-2387/key-files/include/flashinfer/mamba/selective_state_update.cuh","revision":"flashinfer merge 18804cd51734cccf807356d017733bc757677f15","locator":"numStages selections near kernel dispatch","observation":"One merged kernel selects three stages in one path and min(totalStages,4) in another, demonstrating shape/path-specific policy rather than the page's universal rule."},{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"tutorial progression and stage construction","observation":"Official examples derive or configure stages from tile and resource policy rather than declaring three universal."}]
     },
     {
       "claim_id": "technique-double-buffering-original-c016",
@@ -151,7 +151,7 @@
       "covers": ["u017"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"multiple tutorial GEMM variants","observation":"CUTLASS supplies multiple Blackwell schedules and incremental examples; the sources establish concrete combined implementations, not universality across all kernels."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-4.5.0/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm","revision":"NVIDIA/cutlass v4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"multiple tutorial GEMM variants","observation":"CUTLASS supplies multiple Blackwell schedules and incremental examples; the sources establish concrete combined implementations, not universality across all kernels."}]
     },
     {
       "claim_id": "technique-double-buffering-original-c017",

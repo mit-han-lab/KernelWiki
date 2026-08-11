@@ -1,0 +1,60 @@
+files:
+  - {"name": "submission.py", "source": "@SUBMISSION@"}
+  - {"name": "task.py", "source": "task.py"}
+  - {"name": "utils.py", "source": "../utils.py"}
+  - {"name": "reference.py", "source": "reference.py"}
+  - {"name": "eval.py", "source": "../eval.py"}
+
+lang: "py"
+
+description: |
+  
+  You will implement a batched matrix-vector multiplication kernel optimized for NVIDIA B200.
+  To be explicit, you will be given a tuple of tensors:
+  ```
+  (a, b, sfa, sfb, c)
+  ```
+  where:
+  * `a` is M x K x L in K-major order in nvfp4(e2m1)
+  * `b` is 1 x K x L in K-major order in nvfp4(e2m1)
+  * `sfa` is M x (K // 16) x L in K-major order in fp8(e4m3fnuz)
+  * `sfb` is 1 x (K // 16) x L in K-major order in fp8(e4m3fnuz)
+  * `c` is M x 1 x L in fp16
+  
+  Matrix sizes `M` is divisible by mma_tiler_mn[0] defined in the kernel, `K` is divisible by 64.
+  The ranking criteria is the geometric mean of the benchmark results.
+  For the grand price, your kernel will be evaluated against the speed of light analysis
+  and the solution closest to the speed of light will be awarded the grand price.
+  ```
+  The speed of light analysis based on the max(FFMA math throughput, DRAM memory throughput) of B200 and tested under 1.5Ghz clock:
+  M    K     L time[us]
+  7168 16384 1 8.622
+  4096 7168  8 17.275
+  7168 2048  4 4.317
+  ```
+config:
+  main: "eval.py"
+
+templates:
+  Python: "template.py"
+  CuteDSL: "template_cute.py"
+
+tests:
+  - {"m": 128, "k": 256, "l": 1, "seed": 1111}
+  - {"m": 128, "k": 1536, "l": 1, "seed": 1111}
+  - {"m": 128, "k": 3072, "l": 1, "seed": 1111}
+  - {"m": 256, "k": 7168, "l": 1, "seed": 1111}
+  - {"m": 256, "k": 7168, "l": 1, "seed": 1111}
+  - {"m": 2432, "k": 4608, "l": 2, "seed": 1111}
+  - {"m": 384, "k": 7168, "l": 2, "seed": 1111}
+  - {"m": 512, "k": 512, "l": 2, "seed": 1111}
+  - {"m": 512, "k": 4096, "l": 2, "seed": 1111}
+  - {"m": 512, "k": 1536, "l": 2, "seed": 1111}
+
+
+benchmarks:
+  - {"m": 7168, "k": 16384, "l":1, "seed": 1111}
+  - {"m": 4096, "k": 7168, "l":8, "seed": 1111}
+  - {"m": 7168, "k": 2048, "l":4, "seed": 1111}
+
+ranking_by: "geom"

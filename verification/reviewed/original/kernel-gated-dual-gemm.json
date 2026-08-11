@@ -10,7 +10,7 @@
       "covers": ["u001"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description and submission interface","observation":"The official task fixes the tensor contract and target operation but does not require a particular launch count, memory-traffic implementation, or model list. The custom Python entry point can launch any conforming implementation."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel","observation":"The reference materializes two FP32 GEMM outputs before SiLU/multiply, demonstrating that observable correctness does not itself prove an in-kernel fusion or exact traffic reduction."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description and submission interface","observation":"The official task fixes the tensor contract and target operation but does not require a particular launch count, memory-traffic implementation, or model list. The custom Python entry point can launch any conforming implementation."},{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel","observation":"The reference materializes two FP32 GEMM outputs before SiLU/multiply, demonstrating that observable correctness does not itself prove an in-kernel fusion or exact traffic reduction."}]
     },
     {
       "claim_id": "kernel-gated-dual-gemm-original-c002",
@@ -29,7 +29,7 @@
       "covers": ["u003"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"ref_kernel","observation":"The official reference computes two torch._scaled_mm calls from a_ref with b1_ref and b2_ref, then returns silu(ref1) * ref2 as FP16."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"ref_kernel","observation":"The official reference computes two torch._scaled_mm calls from a_ref with b1_ref and b2_ref, then returns silu(ref1) * ref2 as FP16."}],
       "challenge": {"alternative":"SiLU applies after multiplying the two projections, or the second projection is the gated branch.","check":"Trace the exact reference expression and operand order.","outcome":"The reference applies SiLU only to ref1 before multiplying by ref2, matching the displayed algebra."}
     },
     {
@@ -39,7 +39,7 @@
       "covers": ["u003"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"files, description, and config","observation":"The benchmark calls a Python submission entry point and constrains result correctness/performance; it does not expose or require a one-launch decomposition."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel allocations","observation":"The correctness reference explicitly creates ref1 and ref2 tensors, so the operation contract cannot serve as evidence that intermediates are universally absent."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"files, description, and config","observation":"The benchmark calls a Python submission entry point and constrains result correctness/performance; it does not expose or require a one-launch decomposition."},{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel allocations","observation":"The correctness reference explicitly creates ref1 and ref2 tensors, so the operation contract cannot serve as evidence that intermediates are universally absent."}]
     },
     {
       "claim_id": "kernel-gated-dual-gemm-original-c005",
@@ -48,7 +48,7 @@
       "covers": ["u004"],
       "verdict": "refuted",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"PTX ISA 9.0 / CUDA 13.0.2","locator":"tcgen05.mma syntax for block-scaled floating-point types","observation":"NVFP4 MMA requires a qualified tcgen05.mma form with D TMEM address, A/B descriptors, instruction descriptor, SFA/SFB TMEM addresses, and enable-input-D. The sketch uses undefined helper calls with only two source placeholders and a destination."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"PTX ISA 9.0 / CUDA 13.0.2","locator":"allocation syntax and lifecycle","observation":"Allocation writes its base address into shared memory and must be issued/deallocated collectively with exact qualifiers; the sketch's scalar tmem_alloc/tmem_dealloc helpers and unqualified loads are not defined interfaces."}]
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"PTX ISA 9.0 / CUDA 13.0.2","locator":"tcgen05.mma syntax for block-scaled floating-point types","observation":"NVFP4 MMA requires a qualified tcgen05.mma form with D TMEM address, A/B descriptors, instruction descriptor, SFA/SFB TMEM addresses, and enable-input-D. The sketch uses undefined helper calls with only two source placeholders and a destination."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit","revision":"PTX ISA 9.0 / CUDA 13.0.2","locator":"allocation syntax and lifecycle","observation":"Allocation writes its base address into shared memory and must be issued/deallocated collectively with exact qualifiers; the sketch's scalar tmem_alloc/tmem_dealloc helpers and unqualified loads are not defined interfaces."}]
     },
     {
       "claim_id": "kernel-gated-dual-gemm-original-c006",
@@ -57,7 +57,7 @@
       "covers": ["u005", "u006", "u007", "u008"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description, inputs, and benchmarks","observation":"The task makes A and SFA logical shared inputs and supplies separate B1/B2 scales, but specifies no global-load count, TMEM partition, shared-memory policy, winning kernel, or required internal schedule."},{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel","observation":"The primary reference defines results, not an optimized Blackwell launch topology; it uses framework scaled GEMMs and separate intermediate tensors."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"description, inputs, and benchmarks","observation":"The task makes A and SFA logical shared inputs and supplies separate B1/B2 scales, but specifies no global-load count, TMEM partition, shared-memory policy, winning kernel, or required internal schedule."},{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/reference.py","revision":"same commit","locator":"ref_kernel","observation":"The primary reference defines results, not an optimized Blackwell launch topology; it uses framework scaled GEMMs and separate intermediate tensors."}]
     },
     {
       "claim_id": "kernel-gated-dual-gemm-original-c007",
@@ -66,7 +66,7 @@
       "covers": ["u009", "u010", "u011"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"input dtypes, shapes, divisibility rules, and operation","observation":"The contract is narrow: two same-shaped NVFP4 block-scaled products, FP8 per-16 scales, fixed operand layouts, SiLU on the first branch, FP16 output, and shape divisibility. Arbitrary dual outputs or grouped per-expert execution do not satisfy it automatically."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"input dtypes, shapes, divisibility rules, and operation","observation":"The contract is narrow: two same-shaped NVFP4 block-scaled products, FP8 per-16 scales, fixed operand layouts, SiLU on the first branch, FP16 output, and shape divisibility. Arbitrary dual outputs or grouped per-expert execution do not satisfy it automatically."}]
     },
     {
       "claim_id": "kernel-gated-dual-gemm-original-c008",
@@ -75,7 +75,7 @@
       "covers": ["u012"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"artifacts/kernels/gated-dual-gemm/full/vllm-PR-23696-gated-dual-gemm.patch","revision":"SHA-256 033d30b15af4f2050189c2e76ba61959e1e5d4bd049dc901fd56f68890b891a0","locator":"patch subjects and backend code","observation":"The patch implements vLLM MXFP4 fused-MoE backend changes, not the GPU Mode NVFP4 dual-GEMM task."},{"path":"artifacts/kernels/gated-dual-gemm/full/blackwell-cutlass-schedules-and-tma.cu","revision":"SHA-256 e720037bbdb5ee5054259a331cdaf489e7135a44038d66d1fd9d9e5998b75255","locator":"entire extracted fragment","observation":"The fragment is commentary plus one offset-padding assignment extracted from a third-party MoE blog, not a dual GEMM implementation."},{"path":"artifacts/kernels/gated-dual-gemm/variants/01-fused-epilogue-swiglu-skeleton.cu","revision":"SHA-256 85e158c184546912579ac5270451471a96f135efa3584bafbf45064e5fb7e223","locator":"gated_dual_gemm_epilogue","observation":"The derived file computes only an epilogue over already-produced float arrays; it has no NVFP4 inputs, scales, matrix multiplication, launch, bounds, or self-test."}]
+      "evidence": [{"path":"verification/evidence/historical-artifacts/artifacts/kernels/gated-dual-gemm/full/vllm-PR-23696-gated-dual-gemm.patch","revision":"SHA-256 033d30b15af4f2050189c2e76ba61959e1e5d4bd049dc901fd56f68890b891a0","locator":"patch subjects and backend code","observation":"The patch implements vLLM MXFP4 fused-MoE backend changes, not the GPU Mode NVFP4 dual-GEMM task."},{"path":"verification/evidence/historical-artifacts/artifacts/kernels/gated-dual-gemm/full/blackwell-cutlass-schedules-and-tma.cu","revision":"SHA-256 e720037bbdb5ee5054259a331cdaf489e7135a44038d66d1fd9d9e5998b75255","locator":"entire extracted fragment","observation":"The fragment is commentary plus one offset-padding assignment extracted from a third-party MoE blog, not a dual GEMM implementation."},{"path":"verification/evidence/historical-artifacts/artifacts/kernels/gated-dual-gemm/variants/01-fused-epilogue-swiglu-skeleton.cu","revision":"SHA-256 85e158c184546912579ac5270451471a96f135efa3584bafbf45064e5fb7e223","locator":"gated_dual_gemm_epilogue","observation":"The derived file computes only an epilogue over already-produced float arrays; it has no NVFP4 inputs, scales, matrix multiplication, launch, bounds, or self-test."}]
     },
     {
       "claim_id": "kernel-gated-dual-gemm-original-c009",
@@ -94,7 +94,7 @@
       "covers": ["u015"],
       "verdict": "refuted",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"benchmarks and speed-of-light table","observation":"The official benchmark M values are 256 or 512, not 1024. It publishes theoretical speed-of-light times 2.125-8.714 us at a stated 1.5 GHz model, not a measured 18.5 us result or compute-bound classification."}]
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_dual_gemm/task.yml","revision":"gpu-mode/reference-kernels c5b2f7c062d5015f29c3a1043cfd04954397944c","locator":"benchmarks and speed-of-light table","observation":"The official benchmark M values are 256 or 512, not 1024. It publishes theoretical speed-of-light times 2.125-8.714 us at a stated 1.5 GHz model, not a measured 18.5 us result or compute-bound classification."}]
     },
     {
       "claim_id": "kernel-gated-dual-gemm-original-c011",

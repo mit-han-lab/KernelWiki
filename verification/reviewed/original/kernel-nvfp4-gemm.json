@@ -11,7 +11,7 @@
       "verdict": "verified",
       "oracle": "web-primary",
       "evidence": [
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma block-scale syntax, semantics, and target notes","observation":"The ISA defines Blackwell architecture-specific block-scaled mxf4nvf4 MMA with shared-memory descriptors, scale-factor TMEM addresses, and a TMEM accumulator destination."},
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma block-scale syntax, semantics, and target notes","observation":"The ISA defines Blackwell architecture-specific block-scaled mxf4nvf4 MMA with shared-memory descriptors, scale-factor TMEM addresses, and a TMEM accumulator destination."},
         {"url":"https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"GEMM kernel configuration and collective builders","observation":"The official example instantiates nv_float4 E2M1 operands, block-scale factor layouts, a Blackwell collective mainloop, and a TMEM-backed universal kernel."}
       ],
       "challenge": {"alternative":"NVFP4 is merely a software decoding convention with no native Blackwell MMA path, or every implementation must use every listed mechanism.","check":"Inspect the ISA operand and target contract, then distinguish hardware availability from a universal implementation prescription.","outcome":"The native block-scaled instruction path is explicit; TMA and warp specialization are implementation choices rather than defining requirements."}
@@ -24,8 +24,8 @@
       "verdict": "refuted",
       "oracle": "local-primary-source",
       "evidence": [
-        {"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"speed-of-light analysis and benchmark rows","observation":"The official task models each benchmark by the maximum of FP4 math time and DRAM time, so the controlling resource is shape-dependent; it defines an output contract rather than mandating a kernel mechanism."},
-        {"path":"/tmp/cutlass-audit.8aj07j/repo/media/docs/cpp/efficient_gemm.md","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"threadblock rasterization, occupancy, and wave quantization discussion","observation":"The official guide makes achieved GEMM throughput conditional on problem shape, tiling, occupancy, and scheduling rather than datatype alone."}
+        {"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"speed-of-light analysis and benchmark rows","observation":"The official task models each benchmark by the maximum of FP4 math time and DRAM time, so the controlling resource is shape-dependent; it defines an output contract rather than mandating a kernel mechanism."},
+        {"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/media/docs/cpp/efficient_gemm.md","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"threadblock rasterization, occupancy, and wave quantization discussion","observation":"The official guide makes achieved GEMM throughput conditional on problem shape, tiling, occupancy, and scheduling rather than datatype alone."}
       ]
     },
     {
@@ -73,8 +73,8 @@
       "verdict": "verified",
       "oracle": "local-primary-source",
       "evidence": [
-        {"path":"/tmp/cutlass-audit.8aj07j/repo/include/cutlass/gemm/dispatch_policy.hpp","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"lines 842-848, schedule declarations","observation":"The exact symbol derives from the one-SM and pointer-array NVFP4 schedule marker types."},
-        {"path":"/tmp/cutlass-audit.8aj07j/repo/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu","revision":"same commit","locator":"MMA1SMConfig","observation":"The official grouped pointer-array example selects this schedule with an MmaTileShape of 128 by 256 by 256."}
+        {"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/include/cutlass/gemm/dispatch_policy.hpp","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"lines 842-848, schedule declarations","observation":"The exact symbol derives from the one-SM and pointer-array NVFP4 schedule marker types."},
+        {"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu","revision":"same commit","locator":"MMA1SMConfig","observation":"The official grouped pointer-array example selects this schedule with an MmaTileShape of 128 by 256 by 256."}
       ],
       "challenge": {"alternative":"The symbol is fabricated or is a general single-GEMM schedule independent of pointer arrays.","check":"Resolve the exact declaration and an upstream call site.","outcome":"Both the inheritance and representative call site identify it as the pointer-array grouped schedule."}
     },
@@ -86,8 +86,8 @@
       "verdict": "refuted",
       "oracle": "local-primary-source",
       "evidence": [
-        {"path":"/tmp/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"entire task contract","observation":"The task defines tensors, tests, benchmarks, and scoring but no canonical implementation or CUTLASS schedule."},
-        {"path":"/tmp/cutlass-audit.8aj07j/repo/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"problem-shape and schedule declarations","observation":"The schedule's direct official example is a pointer-array grouped GEMM, not the contest's standard seven-tensor task contract; the page's bundled sources contain no contestant solution."}
+        {"path":"verification/evidence/local-snapshots/kernelwiki-reference-kernels/problems/nvidia/nvfp4_gemm/task.yml","revision":"gpu-mode/reference-kernels ae67948685dfccf54ae8374dc9402addb7aae4f6","locator":"entire task contract","observation":"The task defines tensors, tests, benchmarks, and scoring but no canonical implementation or CUTLASS schedule."},
+        {"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"problem-shape and schedule declarations","observation":"The schedule's direct official example is a pointer-array grouped GEMM, not the contest's standard seven-tensor task contract; the page's bundled sources contain no contestant solution."}
       ]
     },
     {
@@ -98,7 +98,7 @@
       "verdict": "refuted",
       "oracle": "local-primary-source",
       "evidence": [
-        {"path":"/tmp/cutlass-audit.8aj07j/repo/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"lines 95-164, operand types, collective builders, kernel, and adapter","observation":"The official API wraps E2M1 in nv_float4_t, builds mainloop and epilogue collectives, instantiates cutlass::gemm::kernel::GemmUniversal with those collectives, then wraps it in device::GemmUniversalAdapter. The page instead passes obsolete scalar/layout arguments to device::GemmUniversal and omits the scale-factor interface."}
+        {"path":"verification/evidence/local-snapshots/cutlass-audit.8aj07j/repo/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"lines 95-164, operand types, collective builders, kernel, and adapter","observation":"The official API wraps E2M1 in nv_float4_t, builds mainloop and epilogue collectives, instantiates cutlass::gemm::kernel::GemmUniversal with those collectives, then wraps it in device::GemmUniversalAdapter. The page instead passes obsolete scalar/layout arguments to device::GemmUniversal and omits the scale-factor interface."}
       ]
     },
     {
@@ -110,7 +110,7 @@
       "oracle": "web-primary",
       "evidence": [
         {"url":"https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/include/cute/arch/mma_sm100_umma.hpp#L1647-L1659","revision":"NVIDIA/cutlass e05f953a5b3d38adc240df2ff928e0421c2abba3","locator":"lines 1647-1659, block16 NVFP4 asm wrapper","observation":"The exact form is kind::mxf4nvf4.block_scale.block16 and requires D, A/B descriptors, an instruction descriptor, separate SFA/SFB TMEM addresses, and a predicate. The page emits kind::f8f6f4 with a different and incomplete operand list."},
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma syntax and restrictions","observation":"The authoritative grammar contradicts the displayed instruction. The surrounding listing also contains undefined types, descriptors, helpers, barriers, and tile symbols and therefore is not executable code."}
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05.mma syntax and restrictions","observation":"The authoritative grammar contradicts the displayed instruction. The surrounding listing also contains undefined types, descriptors, helpers, barriers, and tile symbols and therefore is not executable code."}
       ]
     },
     {
@@ -132,7 +132,7 @@
       "verdict": "refuted",
       "oracle": "host-experiment",
       "evidence": [
-        {"command":"conda run -n base python -c '<evaluate official ten Problem 2 shapes against task storage shapes and both assertions>'","environment":"KernelWiki host; conda base standard-library Python","reference":"gpu-mode/reference-kernels ae679486 task.yml and reference.py shape construction","result":"PASS: all ten official shapes satisfy K modulo 256; nine valid tests, including K=256, are rejected by (K/16) modulo 128.","negative_control":"K=255 was rejected by the task-specific K-divisible-by-256 validator."}
+        {"command":"python3 verification/tools/check_verification_evidence.py nvfp4-gemm-shapes","environment":"KernelWiki host; conda base standard-library Python","reference":"gpu-mode/reference-kernels ae679486 task.yml and reference.py shape construction","result":"PASS: all ten official shapes satisfy K modulo 256; nine valid tests, including K=256, are rejected by (K/16) modulo 128.","negative_control":"K=255 was rejected by the task-specific K-divisible-by-256 validator."}
       ]
     },
     {
@@ -193,7 +193,7 @@
       "oracle": "web-primary",
       "evidence": [
         {"url":"https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/","revision":"NVIDIA technical blog fetched 2026-08-08","locator":"Blackwell Tensor Core support","observation":"NVIDIA attributes native NVFP4 processing to Blackwell's fifth-generation Tensor Cores."},
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"target ISA notes for block-scaled tcgen05.mma","observation":"The NVFP4 forms require architecture-specific Blackwell targets; Hopper's wgmma instruction family has no native FP4 form."}
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"target ISA notes for block-scaled tcgen05.mma","observation":"The NVFP4 forms require architecture-specific Blackwell targets; Hopper's wgmma instruction family has no native FP4 form."}
       ],
       "challenge": {"alternative":"The statement forbids all software emulation or future library support on non-Blackwell devices.","check":"Distinguish native tensor-core instruction support from software conversion or emulation.","outcome":"The evidence proves only the native hardware path boundary, which is the scope of the claim."}
     },
@@ -217,7 +217,7 @@
       "verdict": "verified",
       "oracle": "host-experiment",
       "evidence": [
-        {"command":"curl -L -sS -o /dev/null -w '%{http_code}' <four original source URLs>","environment":"KernelWiki host, 2026-08-08","reference":"link status and final document identity","result":"All four URLs returned HTTP 200 and resolved to the named resources.","negative_control":"A nonexistent sibling page under haroldbenoit.com returned HTTP 404."}
+        {"command":"python3 verification/tools/check_verification_evidence.py urls-original-nvfp4-gemm","environment":"KernelWiki host, 2026-08-08","reference":"link status and final document identity","result":"All four URLs returned HTTP 200 and resolved to the named resources.","negative_control":"A nonexistent file under the pinned GPU Mode nvfp4_gemm path returned HTTP 404; this avoids the Harold Benoit site's soft-404 behavior."}
       ],
       "challenge": {"alternative":"A URL succeeds only through a soft 404 or redirects to an unrelated landing page.","check":"Inspect final page titles/content and compare a same-site invalid path.","outcome":"Each positive target has the stated identity and the negative path is discriminated as 404."}
     },

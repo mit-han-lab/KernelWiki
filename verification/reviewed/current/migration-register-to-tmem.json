@@ -30,7 +30,7 @@
       "covers": ["u004", "u005", "u006", "u007", "u008", "u009", "u010", "u011"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-multiply-accumulate-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA D, scale-d, commit/wait","observation":"Register D and false scale-d D=A*B semantics match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"same archive","locator":"tcgen05 D, enable-input-d, commit, ld, waits, allocation","observation":"TMEM destination, false-predicate first write, completion/readback, and cleanup rows match the separate instruction contracts."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions-wgmma-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"WGMMA D, scale-d, commit/wait","observation":"Register D and false scale-d D=A*B semantics match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"same archive","locator":"tcgen05 D, enable-input-d, commit, ld, waits, allocation","observation":"TMEM destination, false-predicate first write, completion/readback, and cleanup rows match the separate instruction contracts."}],
       "challenge": {"alternative":"An instruction tile is always a CTA tile or two buffers can overlap the same TMEM columns safely.","check":"Inspect descriptor-defined instruction shapes and TMEM address/lifetime rules.","outcome":"The page explicitly rejects the tile equivalence and requires disjoint live regions."}
     },
     {
@@ -40,7 +40,7 @@
       "covers": ["u012", "u013"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation range/unit, issue granularity, shared result, peer and group rules","observation":"Every stated allocation and participation condition matches the normative section."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"allocation range/unit, issue granularity, shared result, peer and group rules","observation":"Every stated allocation and participation condition matches the normative section."}],
       "challenge": {"alternative":"One elected lane can allocate because only one shared taddr is returned, or peer allocation can launch the second CTA implicitly.","check":"Read mandatory sync/aligned warp granularity and cta_group::2 peer activity conditions.","outcome":"All lanes of the designated warp participate and the peer must already be launched/live."}
     },
     {
@@ -50,7 +50,7 @@
       "covers": ["u014", "u015", "u016"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"MMA grammar, issue granularity, D predicate and lifetimes","observation":"The descriptor/predicate/single-thread and D=A*B conditions match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"same archive","locator":"commit versus fence completion/ordering","observation":"Commit attaches completion to an mbarrier, while fences order execution without completing the asynchronous MMA."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"MMA grammar, issue granularity, D predicate and lifetimes","observation":"The descriptor/predicate/single-thread and D=A*B conditions match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit","revision":"same archive","locator":"commit versus fence completion/ordering","observation":"Commit attaches completion to an mbarrier, while fences order execution without completing the asynchronous MMA."}],
       "challenge": {"alternative":"Zero-storing all TMEM is mandatory or __syncthreads after a fence completes MMA.","check":"Use false enable-input-d semantics and the distinct commit/fence specifications.","outcome":"The predicate supplies first-write semantics and only the completion path licenses consumers/reuse."}
     },
     {
@@ -60,7 +60,7 @@
       "covers": ["u017", "u018"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ld collectivity, asynchronous completion, wait and lifetimes","observation":"The readback requirements match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc","revision":"same archive","locator":"matching deallocation and before-exit obligation","observation":"All allocated TMEM must be deallocated collectively with matching address/count/group before exit."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"ld collectivity, asynchronous completion, wait and lifetimes","observation":"The readback requirements match."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit","revision":"same archive","locator":"matching deallocation and before-exit obligation","observation":"All allocated TMEM must be deallocated collectively with matching address/count/group before exit."}],
       "challenge": {"alternative":"Lane 0 may deallocate after issuing loads because wait::ld is warp-local and kernel exit releases the rest.","check":"Combine load lifetime with deallocation issue granularity and explicit-exit rule.","outcome":"All readers must finish and all lanes of the designated warp must execute deallocation; exit is not implicit cleanup."}
     },
     {
@@ -80,7 +80,7 @@
       "covers": ["u021", "u022", "u023", "u024", "u025"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"completion and operand lifetime rules","observation":"The three edges follow directly from asynchronous completion, TMEM read lifetime, and safe destination reuse."},{"url":"https://arxiv.org/abs/2407.08608","revision":"FlashAttention-3 paper","locator":"Hopper warp specialization and matmul/softmax interleaving","observation":"FA3 is a primary counterexample to the claim that register accumulators make overlap impossible."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"completion and operand lifetime rules","observation":"The three edges follow directly from asynchronous completion, TMEM read lifetime, and safe destination reuse."},{"url":"https://arxiv.org/abs/2407.08608","revision":"FlashAttention-3 paper","locator":"Hopper warp specialization and matmul/softmax interleaving","observation":"FA3 is a primary counterexample to the claim that register accumulators make overlap impossible."}],
       "challenge": {"alternative":"Disjoint addresses alone make overlap safe or FA3 only overlaps TMA with MMA.","check":"Trace completion/reuse edges and read FA3's explicit matmul/softmax interleaving contribution.","outcome":"Disjoint storage does not supply completion, and FA3 explicitly overlaps tensor-core and non-matmul work on Hopper."}
     },
     {
@@ -100,7 +100,7 @@
       "covers": ["u027", "u028", "u029", "u030", "u031", "u032"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy APIs and resource dependence","observation":"Occupancy requires actual launch/resource inputs rather than tile inference."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld","revision":"PTX ISA 9.0","locator":"ld shape/semantics","observation":"The ISA defines legal collective mappings/completion but no universal latency."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-c-programming-guide/index.html#occupancy-calculator","revision":"CUDA 13.0.2 Programming Guide","locator":"occupancy APIs and resource dependence","observation":"Occupancy requires actual launch/resource inputs rather than tile inference."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld","revision":"PTX ISA 9.0","locator":"ld shape/semantics","observation":"The ISA defines legal collective mappings/completion but no universal latency."}],
       "challenge": {"alternative":"ISA legality plus TMEM capacity is sufficient to choose the fastest tile without compiling or timing.","check":"Compare architecture legality with documented multi-resource occupancy and absence of timing guarantees.","outcome":"Legality cannot establish allocation, residency, spills, or workload performance; the measurement workflow is necessary."}
     },
     {

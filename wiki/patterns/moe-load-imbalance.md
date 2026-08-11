@@ -110,7 +110,7 @@ and the later contest design.
 ## Primary references
 
 - [CUDA thread-block scheduling](https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/programming-model.html)
-- [PTX ISA 9.0 CLC request semantics](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel)
+- [PTX ISA 9.0 CLC request semantics](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel)
 - [CUTLASS 4.5.0 CLC scheduler](https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md)
 - [DeepGEMM grouped interfaces at `891d57b4`](https://github.com/deepseek-ai/DeepGEMM/blob/891d57b4db1071624b5c8fa0d1e51cb317fa709f/README.md)
 - [DeepSeek EPLB at `d52c72d`](https://github.com/deepseek-ai/EPLB/tree/d52c72d5b2f2fb4c41afbf8eb21366820239913d)

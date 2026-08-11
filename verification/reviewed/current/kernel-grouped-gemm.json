@@ -30,7 +30,7 @@
       "covers": ["u015", "u016", "u017"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"conda run -n base python -c '<exact grouped_reference function; two groups with shapes (2,1,2) and (1,2,3); expected outputs; wrong_shared_k control>'","environment":"KernelWiki host; conda base standard-library Python","reference":"Per-group C_i=A_i@B_i.T semantics from gpu-mode/reference-kernels reference.py at ae67948685dfccf54ae8374dc9402addb7aae4f6","result":"Exited 0 and printed 'grouped independent-shape semantic reference: PASS; shared-K control rejected'; outputs were [[[17],[39]],[[1,5]]].","negative_control":"A deliberately wrong wrapper requiring every group to share the first group's K rejected the valid K=3 second group."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py grouped-gemm-reference","environment":"KernelWiki host; conda base standard-library Python","reference":"Per-group C_i=A_i@B_i.T semantics from gpu-mode/reference-kernels reference.py at ae67948685dfccf54ae8374dc9402addb7aae4f6","result":"Exited 0 and printed 'grouped independent-shape semantic reference: PASS; shared-K control rejected'; outputs were [[[17],[39]],[[1,5]]].","negative_control":"A deliberately wrong wrapper requiring every group to share the first group's K rejected the valid K=3 second group."}],
       "challenge": {"alternative":"The nested loops accidentally compute A@B, reuse one group's dimensions, or imply that this is an NVFP4 implementation.","check":"Use non-square B row counts and different K across groups, compare exact expected products, and inspect the adjacent scope disclaimer.","outcome":"The asymmetric outputs require dotting each A row with each stored B row independently, the shared-K control fails, and the prose excludes packing/scales/GPU/performance."}
     },
     {
@@ -80,7 +80,7 @@
       "covers": ["u035", "u036", "u037", "u038", "u039", "u040", "u041", "u042", "u043", "u044"],
       "verdict": "verified",
       "oracle": "host-experiment",
-      "evidence": [{"command":"curl -L -sS -o /dev/null -w '%{http_code}' <each of ten Primary sources URLs>","environment":"KernelWiki host, 2026-08-08","reference":"HTTP success plus source identity and immutable repository revision","result":"All ten targets returned HTTP 200; GPU Mode, DeepGEMM, and CUTLASS repository paths retain the claimed full commit IDs.","negative_control":"A nonexistent file under the same pinned GPU Mode grouped-GEMM path returned HTTP 404."}],
+      "evidence": [{"command":"python3 verification/tools/check_verification_evidence.py urls-current-grouped-gemm","environment":"KernelWiki host, 2026-08-08","reference":"HTTP success plus source identity and immutable repository revision","result":"All ten targets returned HTTP 200; GPU Mode, DeepGEMM, and CUTLASS repository paths retain the claimed full commit IDs.","negative_control":"A nonexistent file under the same pinned GPU Mode grouped-GEMM path returned HTTP 404."}],
       "challenge": {"alternative":"One link is dead, mutable where it claims a pin, or points to a neighboring problem/project.","check":"Follow redirects, inspect host/path/commit for every target, and compare a same-path invalid control.","outcome":"Every positive target resolves to its intended source identity/revision while the invalid control fails distinctly."}
     },
     {

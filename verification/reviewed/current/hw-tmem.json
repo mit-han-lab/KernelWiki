@@ -60,7 +60,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "alloc/dealloc syntax, issue granularity, constraints, and lifecycle",
           "observation": "The section specifies the shared b32 result, group-specific warp collectives, same-group invariant, 32-512 power-of-two nCols, blocking availability behavior, and before-exit deallocation rule."
@@ -81,7 +81,7 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "nCols power-of-two constraint and 512-column maximum",
           "observation": "Legal sizes are powers of two in [32,512]. Division of the single 512-column pool yields the displayed stage counts, and 192 itself is excluded."
@@ -102,13 +102,13 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-wait",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-wait",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "wait::ld/wait::st semantics and asynchronous-operation table",
           "observation": "The wait variants block on prior ld/st operations from the executing thread."
         },
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "commit completion and fence ordering sections",
           "observation": "Commit attaches prior MMA/cp/shift completion to an mbarrier; fences compose around execution-ordering operations and provide no completion promise."
@@ -129,13 +129,13 @@
       "oracle": "web-primary",
       "evidence": [
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.ld/st shape grammar",
           "observation": "The five listed shapes appear in the grammar and .32x1b does not."
         },
         {
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-cp",
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-cp",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
           "locator": "tcgen05.cp syntax, operand descriptions, and Example 1",
           "observation": "The exact displayed instruction appears in the vendor example; taddr is the destination, sdesc is a b64 SMEM descriptor, and cp is asynchronous."
@@ -156,7 +156,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "TMEM allocation; PipelineUmmaAsync stages; producer/consumer acquire, commit, wait, and release",
           "observation": "The pinned complete implementation allocates the shared TMEM pool and coordinates distinct accumulator producers/consumers with explicit stage barriers and completion state."
@@ -177,13 +177,13 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_0.py",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "TmemAllocator construction and allocate/wait/retrieve/make_tensor/load/free flow",
           "observation": "Every named operation and its ordering appears in the official tutorial."
         },
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass/python/CuTeDSL/cutlass/utils/tmem_allocator.py",
+          "path": "verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/python/CuTeDSL/cutlass/utils/tmem_allocator.py",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "TmemAllocator methods allocate, wait_for_alloc, retrieve_ptr, and free",
           "observation": "The library implementation defines the exact high-level allocation API and collective allocator-warp behavior summarized."
@@ -201,10 +201,10 @@
       "claim_type": "compatibility",
       "covers": ["u050"],
       "verdict": "verified",
-      "oracle": "local-primary-source",
+      "oracle": "web-primary",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-cutlass-dRC5i4/cutlass",
+          "url": "https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5",
           "revision": "CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5",
           "locator": "repository-wide exact-token search; linked tutorial and allocator paths",
           "observation": "The two linked files exist and implement the described API. Exact searches for MemorySpace.TMEM, tcgen05_mma, tcgen05_fence, and tmem_load as displayed API names return no definitions or uses."

@@ -38,7 +38,7 @@
       "oracle": "web-primary",
       "evidence": [
         {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#data-movement-and-conversion-instructions-cp-async-bulk-tensor","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"global-to-shared grammar and mbarrier::complete_tx::bytes semantics","observation":"The shown instruction qualifier order/operands are accepted, the default load mode is tile, and completion decrements tx-count by copied bytes."},
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#phase-completion-of-the-mbarrier-object","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"arrive.expect_tx, phase completion, and wait ordering","observation":"The page's separate arrival/expected-byte/complete-byte accounting and requirement for both counters to reach zero match the object lifecycle."}
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-mbarrier-phase-completion","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"arrive.expect_tx, phase completion, and wait ordering","observation":"The page's separate arrival/expected-byte/complete-byte accounting and requirement for both counters to reach zero match the object lifecycle."}
       ],
       "challenge": {"alternative":"Each TMA completion supplies a software arrival, or zero tx-count alone releases the consumer.","check":"Trace complete-tx and arrive-on to their separate object fields and inspect the phase-completion conjunction.","outcome":"TMA changes only tx-count, and completion requires both tx-count and pending arrivals to be zero."}
     },
@@ -71,7 +71,7 @@
       "oracle": "web-primary",
       "evidence": [
         {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html","revision":"CUDA Driver API 13.0.97","locator":"CUtensorMapSwizzle enum and swizzle constraints","observation":"The tensor map supports none, 32B, 64B, 128B, and additional variants with inner-span/alignment/type rules."},
-        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-shared-memory-layout","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 descriptor swizzling modes","observation":"tcgen05 descriptors likewise encode multiple modes and interpret addresses/layout accordingly; legal modes vary by instruction configuration."}
+        {"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-shared-memory-layout-swizzling","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"tcgen05 descriptor swizzling modes","observation":"tcgen05 descriptors likewise encode multiple modes and interpret addresses/layout accordingly; legal modes vary by instruction configuration."}
       ],
       "challenge": {"alternative":"128B is the one canonical tcgen05 layout and automatically makes any consumer conflict-free.","check":"Enumerate legal descriptor modes and apply a mismatched/alternate consumer access pattern.","outcome":"Non-128B modes are normative, and bank mapping still depends on consumer addresses; only a matched pattern can obtain the intended conflict behavior."}
     },
@@ -82,7 +82,7 @@
       "covers": ["u046", "u047", "u048", "u049", "u050", "u051"],
       "verdict": "verified",
       "oracle": "local-primary-source",
-      "evidence": [{"path":"/tmp/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA atoms, PipelineTmaUmma full/empty producer-consumer loops, UMMA, TMEM retrieve, and epilogue","observation":"The complete implementation follows the stated data path and explicitly acquires/releases per-stage pipeline state around asynchronous TMA and UMMA lifetimes."}],
+      "evidence": [{"path":"verification/evidence/local-snapshots/kernelwiki-cutlass-dRC5i4/cutlass/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm/fp16_gemm_6.py","revision":"CUTLASS 4.5.0 commit e406c186f510a15091cce01f782020ceb7ba8eb5","locator":"TMA atoms, PipelineTmaUmma full/empty producer-consumer loops, UMMA, TMEM retrieve, and epilogue","observation":"The complete implementation follows the stated data path and explicitly acquires/releases per-stage pipeline state around asynchronous TMA and UMMA lifetimes."}],
       "challenge": {"alternative":"tcgen05 consumes shared operands at issue, so only a full barrier is needed and producers may overwrite immediately afterward.","check":"Trace the official pipeline's consumer release relative to asynchronous MMA issue/completion.","outcome":"Stage release is delayed through the consumer lifecycle; the implementation retains separate producer and consumer state, discriminating asynchronous operand lifetime."}
     },
     {

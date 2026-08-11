@@ -153,7 +153,7 @@ The documented native tensor-core path is Blackwell-specific; Hopper has no nati
 - [Public Popcorn leaderboard API](https://site--bot--dxfjds728w5v.code.run/submissions/nvfp4_gemm/NVIDIA?limit=12)
 - [Transformer Engine 2.13 NVFP4 recipe](https://docs.nvidia.com/deeplearning/transformer-engine-releases/release-2.13/user-guide/features/low_precision_training/nvfp4/nvfp4.html)
 - [cuBLAS block-scaling formats](https://docs.nvidia.com/cuda/cublas/index.html#element-1d-block-scaling-for-fp8-and-fp4-data-types)
-- [PTX ISA 9.0 block-scaled `tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma)
+- [PTX ISA 9.0 block-scaled `tcgen05.mma`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma)
 - [Pinned CUTLASS NVFP4 example](https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/examples/72_blackwell_narrow_precision_gemm/72b_blackwell_nvfp4_nvfp4_gemm.cu)
 - [Pinned CUTLASS grouped NVFP4 example](https://github.com/NVIDIA/cutlass/blob/e05f953a5b3d38adc240df2ff928e0421c2abba3/examples/75_blackwell_grouped_gemm/75_blackwell_grouped_gemm_block_scaled.cu)
 - [CUDA 13.2.1 tensor-map constraints](https://docs.nvidia.com/cuda/archive/13.2.1/cuda-driver-api/group__CUDA__TENSOR__MEMORY.html)

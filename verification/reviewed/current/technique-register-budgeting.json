@@ -123,7 +123,7 @@
           "locator": "tcgen05.mma and Tensor Memory",
           "observation": "The ISA defines D as a TMEM address and tcgen05.ld as the transfer from TMEM to registers.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         },
         {
           "locator": "epilogue path around lines 455-463",
@@ -134,8 +134,8 @@
         {
           "locator": "SM90 m64n256k16 FP32 WGMMA wrapper accumulator operand list",
           "observation": "The wrapper exposes 128 float D registers per participating thread for this exact N=256 shape.",
-          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
-          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/arch/mma_sm90_gmma.hpp"
+          "revision": "CUTLASS 4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/arch/mma_sm90_gmma.hpp"
         }
       ],
       "oracle": "web-primary",

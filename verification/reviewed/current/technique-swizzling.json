@@ -42,7 +42,7 @@
           "locator": "tcgen05 shared-memory descriptor and valid combinations",
           "observation": "PTX defines the descriptor fields, layout values, invalid values, and type/major/shape constraints quoted by the page.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         }
       ],
       "oracle": "web-primary",
@@ -62,14 +62,14 @@
         {
           "locator": "Swizzle definition and apply",
           "observation": "The header defines parameter meanings, mask positions, and XOR application exactly as summarized.",
-          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
-          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/swizzle.hpp"
+          "revision": "CUTLASS 4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/swizzle.hpp"
         },
         {
           "locator": "pointer_swizzle position dependence",
           "observation": "CUTLASS states that hardware chose position-dependent swizzles and distinguishes swizzle_ptr from composed swizzle_layout.",
-          "revision": "CUTLASS 4.5.0 e406c186d2cae5782a846f7280af282ca4fecec2",
-          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186d2cae5782a846f7280af282ca4fecec2/include/cute/pointer_swizzle.hpp"
+          "revision": "CUTLASS 4.5.0 e406c186f510a15091cce01f782020ceb7ba8eb5",
+          "url": "https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/include/cute/pointer_swizzle.hpp"
         }
       ],
       "oracle": "web-primary",
@@ -96,7 +96,7 @@
           "locator": "tcgen05 shared-memory descriptor",
           "observation": "The consumer descriptor independently supplies base, leading/stride dimensions, offset, major mode, and swizzle layout.",
           "revision": "CUDA 13.0.2, PTX ISA 9.0",
-          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-mma"
+          "url": "https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-mma-instructions-mma"
         }
       ],
       "oracle": "web-primary",

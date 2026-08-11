@@ -12,13 +12,13 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-ext-cfx",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-cfx",
           "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
           "locator": "tma/tma_copy.h, pipeline-gemm/sm90_gemm_multistage.cu, streamk/tile_scheduler.hpp, transpose-cute/",
           "observation": "The pinned repository contains compact, mechanism-specific examples whose exact paths can be inspected after a profiler has narrowed the candidate class."
         },
         {
-          "path": "/tmp/kernelwiki-ext-load-store",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-load-store",
           "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
           "locator": "ld_matrix_x{1,2,4}.cu and st_matrix_x{1,2,4}.cu",
           "observation": "The repository is a small set of direct ldmatrix/stmatrix instruction examples rather than a general optimization authority."
@@ -39,13 +39,13 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-ext-cfx",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-cfx",
           "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
           "locator": "git revision and repository tree",
           "observation": "The snippet clones the moving default branch and records neither this immutable revision nor an exact file; future results can change."
         },
         {
-          "path": "/tmp/kernelwiki-ext-load-store/README.md",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-load-store/README.md",
           "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
           "locator": "repository scope and six .cu files",
           "observation": "This repository only demonstrates ldmatrix/stmatrix, so the shared broad regular expression does not establish the page's wider TMA, swizzle, Stream-K, or vector-width scope."
@@ -61,13 +61,13 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-ext-transpose",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-transpose",
           "revision": "simveit/effective_transpose 994b2b5acaa67f80e411df3e8274b6ae13fd1949",
           "locator": "transpose_naive.cu, transpose_swizzle.cu and transpose_swizzle_batched.cu",
           "observation": "The pinned SM90a examples compare TMA transpose variants and explicitly encode 128-byte tensor-map swizzling."
         },
         {
-          "path": "/tmp/kernelwiki-ext-nvidia-samples",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-nvidia-samples",
           "revision": "NVIDIA-developer-blog/code-samples 3350d216083a902ccbf5b31665e3b82096a75b55",
           "locator": "series/cuda-cpp/coalescing-global/coalescing.cu and series/cuda-cpp/transpose/transpose.cu",
           "observation": "The source tree contains direct coalescing and shared-memory transpose examples, including a bank-conflict-free padded layout."
@@ -88,13 +88,13 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-ext-cfx",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-cfx",
           "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
           "locator": "pipeline-gemm/README.md, pipeline-gemm/sm90_gemm_multistage.cu and tma/tma_copy.h",
           "observation": "The pinned files implement SM90 TMA copies, transaction barriers, multistage GEMM, and a warp-specialized alternative."
         },
         {
-          "path": "/tmp/kernelwiki-ext-colfax-cutlass/src/fmha-pipeline",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-colfax-cutlass/src/fmha-pipeline",
           "revision": "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a",
           "locator": "README.md and fmha_pipe_ws.h",
           "observation": "The source documents and implements SM90a software pipelining with optional warp specialization and CUTLASS PipelineTmaAsync."
@@ -115,7 +115,7 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-ext-cfx/streamk",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-cfx/streamk",
           "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
           "locator": "tile_scheduler.hpp classes and cli_options.h scheduler values",
           "observation": "The source implements SingleTileScheduler, DataParallelPersistentTileScheduler, and StreamKPersistentTileScheduler, selectable as non-persistent, persistent, Stream-K, or heuristic modes."
@@ -158,25 +158,25 @@
       "oracle": "local-primary-source",
       "evidence": [
         {
-          "path": "/tmp/kernelwiki-ext-cfx",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-cfx",
           "revision": "ColfaxResearch/cfx-article-src fbecfed88de2e4246f104a023188ba722937c5fc",
           "locator": "pipeline-gemm, streamk, tma and transpose-cute build files/source symbols",
           "observation": "The relevant modern examples compile for SM90a and use SM90 TMA/GMMA facilities; no SM100 target or tcgen05 implementation appears."
         },
         {
-          "path": "/tmp/kernelwiki-ext-colfax-cutlass",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-colfax-cutlass",
           "revision": "ColfaxResearch/cutlass-kernels 84f0802e2b4a1bf068ac70359f20ffdb368c8f6a",
           "locator": "FMHA READMEs, compile scripts and CUTLASS GEMM source",
           "observation": "The repository explicitly targets Hopper SM90/SM90a with CUDA 12.2/12.3 and SM90 TMA/WGMMA."
         },
         {
-          "path": "/tmp/kernelwiki-ext-transpose",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-transpose",
           "revision": "simveit/effective_transpose 994b2b5acaa67f80e411df3e8274b6ae13fd1949",
           "locator": "README.md and Makefile",
           "observation": "The repository calls itself a Hopper transpose example and compiles with -arch=sm_90a."
         },
         {
-          "path": "/tmp/kernelwiki-ext-load-store",
+          "path": "verification/evidence/local-snapshots/kernelwiki-ext-load-store",
           "revision": "simveit/load_and_store 05d828cf910dd43f0053ddbbe4744218a06e9d7f",
           "locator": "README.md and Makefile",
           "observation": "The repository is six ldmatrix/stmatrix examples compiled for sm_90a, not a Blackwell source map."

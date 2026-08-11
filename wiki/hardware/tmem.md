@@ -120,7 +120,7 @@ See the pinned [CUTLASS 4.5.0 FP16 GEMM tutorial](https://github.com/NVIDIA/cutl
 ## Primary references
 
 - [PTX ISA 9.0: Tensor Memory](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensor-memory)
-- [PTX ISA 9.0: `tcgen05.alloc`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-alloc)
-- [PTX ISA 9.0: `tcgen05.ld`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-ld)
-- [PTX ISA 9.0: `tcgen05.commit`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions-tcgen05-commit)
+- [PTX ISA 9.0: `tcgen05.alloc`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-alloc-dealloc-relinquish-alloc-permit)
+- [PTX ISA 9.0: `tcgen05.ld`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen05-instructions-tcgen05-ld)
+- [PTX ISA 9.0: `tcgen05.commit`](https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#tcgen-async-sync-operations-commit)
 - [CUTLASS 4.5.0 SM100 Python tutorial](https://github.com/NVIDIA/cutlass/tree/e406c186f510a15091cce01f782020ceb7ba8eb5/examples/python/CuTeDSL/cute/blackwell/tutorial/tutorial_gemm)

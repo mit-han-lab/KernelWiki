@@ -30,7 +30,7 @@
       "covers": ["u006", "u007", "u008", "u009", "u010"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel/query grammars, transaction, ordering, failure and cluster semantics","observation":"All three displayed forms and every stated lifecycle/failure/cluster condition match the normative section."}],
+      "evidence": [{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"CUDA 13.0.2, PTX ISA 9.0","locator":"try_cancel/query grammars, transaction, ordering, failure and cluster semantics","observation":"All three displayed forms and every stated lifecycle/failure/cluster condition match the normative section."}],
       "challenge": {"alternative":"A failed response may be retried or get_first_ctaid decoded regardless of is_canceled.","check":"Read the explicit undefined-behavior restrictions after request failure.","outcome":"Both operations are prohibited as described, and the page makes failure terminal."}
     },
     {
@@ -70,7 +70,7 @@
       "covers": ["u018", "u019", "u020"],
       "verdict": "verified",
       "oracle": "web-primary",
-      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"motivation, ClcID rules and software scheduler scope","observation":"Uneven availability, initial/returned coordinate consistency and finite launched ClcIDs motivate exactly the proposed controls."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#clusterlaunchcontrol-try-cancel","revision":"PTX ISA 9.0","locator":"failure/query restrictions","observation":"The negative controls intentionally violate explicit normative requirements and should be detected."}],
+      "evidence": [{"url":"https://github.com/NVIDIA/cutlass/blob/e406c186f510a15091cce01f782020ceb7ba8eb5/media/docs/cpp/blackwell_cluster_launch_control.md","revision":"CUTLASS 4.5.0 e406c186","locator":"motivation, ClcID rules and software scheduler scope","observation":"Uneven availability, initial/returned coordinate consistency and finite launched ClcIDs motivate exactly the proposed controls."},{"url":"https://docs.nvidia.com/cuda/archive/13.0.2/parallel-thread-execution/index.html#parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel","revision":"PTX ISA 9.0","locator":"failure/query restrictions","observation":"The negative controls intentionally violate explicit normative requirements and should be detected."}],
       "challenge": {"alternative":"CLC alone can fill unused SMs by splitting K or generating coordinates.","check":"Compare raw request results with scheduler decomposition state.","outcome":"CLC returns only existing ClcIDs; Stream-K is correctly identified as a separate transformation."}
     },
     {
