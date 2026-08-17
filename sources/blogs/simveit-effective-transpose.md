@@ -6,19 +6,14 @@ url: https://github.com/simveit/effective_transpose
 source_category: community-note
 architectures:
 - sm90
-- sm100
 tags:
-- cute-dsl
-- gemm
-- tma
 - swizzling
-- vectorized-loads
 - shared-memory-optimization
 retrieved_at: '2026-05-20'
-description: Source-map entry imported from KernelPilot for CuTe transpose, swizzle, and memory-layout examples.
+description: Hopper CUDA transpose and swizzle examples compiled for sm_90a.
 ---
 
-The effective_transpose repository provides compact CuTe-oriented transpose and
-layout examples. Use it when a kernel profile indicates poor sector utilization,
-shared-memory bank conflicts, or a need to reason about tiled load/store
-layouts.
+The repository provides CUDA transpose and swizzle examples. Its Makefile pins
+`-arch=sm_90a`, and its README reports Hopper measurements. It can inform a
+layout experiment, but neither those measurements nor the code are direct B200
+evidence.

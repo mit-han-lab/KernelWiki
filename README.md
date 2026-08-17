@@ -7,7 +7,7 @@
 > For bug reports, feature requests, and discussions, please use the main KDA repository:
 > https://github.com/mit-han-lab/kernel-design-agents
 
-> **Last repository update: 2026-06-09.** Information after this date is not included in KernelWiki yet.
+> **PR-corpus refresh cutoff: 2026-05-20. Factual-audit access date: 2026-08-16.** Selected official documents were rechecked during the audit without extending the candidate-PR cutoff.
 
 A structured knowledge base of NVIDIA Blackwell (SM100, B200) and Hopper (SM90, H100) GPU kernel optimization, packaged as a Claude Code skill. The repository root **is** the skill directory — clone it directly into `~/.claude/skills/` and it works out of the box.
 
@@ -37,7 +37,7 @@ export BLACKWELL_WIKI_ROOT=/path/to/KernelWiki
 ## What's Here
 
 - Source PR pages, synthesized wiki pages, blog/doc/contest summaries, candidate ledgers, query indices, and artifact bundles.
-- Verbatim/extracted/derived asset bundles under `artifacts/` (PR diffs, kernel files, blog code) — pinned to upstream SHAs via `PROVENANCE.yaml`.
+- Verbatim upstream asset bundles under `artifacts/` (PR diffs and kernel files), pinned to upstream SHAs via `PROVENANCE.yaml`; prose-only blog manifests explicitly record that no code was extracted.
 - Auto-generated cross-reference indices — by problem / technique / hardware feature / repo / kernel type / language.
 - Reviewed candidate ledgers with include/defer/exclude decisions.
 - **Hybrid version-claim registry** ([`data/version-claims.yaml`](data/version-claims.yaml)) — per-page `version_sensitive: <id>` pointers + central registry, validated for bidirectional consistency
@@ -76,7 +76,7 @@ python3 scripts/grep_wiki.py "tcgen05\\.fence" --only wiki
 
 Three layers (inspired by [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)):
 
-1. **`sources/`** — Raw data. Immutable summaries of PRs, blogs, docs, contests.
+1. **`sources/`** — Audited records of PRs, blogs, docs, and contests.
 2. **`wiki/`** — Synthesized knowledge pages. Cross-referenced by `id`. All have YAML frontmatter.
 3. **`queries/`** — Auto-generated cross-reference indices. Do not edit manually; regenerate via `scripts/generate-indices.py`.
 
@@ -88,7 +88,7 @@ Supporting files:
 - `data/tool-versions.yaml` — Snapshot of tracked tool releases (Triton, CUTLASS, CUDA, PTX, …)
 - `data/refresh-cutoff.yaml` — Internal refresh-round metadata used by validators
 - `candidates/` — Reviewed PR candidate ledgers (per repo)
-- `artifacts/` — Verbatim / extracted / derived asset bundles, each with `PROVENANCE.yaml`
+- `artifacts/` — Verbatim upstream asset bundles with `PROVENANCE.yaml`, plus generated prose-only blog manifests
 
 ## Maintenance Tooling
 
@@ -114,7 +114,7 @@ python3 scripts/generate-indices.py    # regenerate query indices
 - `scripts/repo_size_check.py` enforces the repository size budget
 - 0 broken links across all internal references
 - All `verified` wiki pages have official-doc + upstream-code evidence (enforced by `evidence_basis` field)
-- All technique/kernel/language pages have compilable code snippets (`reproducibility >= snippet`)
+- All technique/kernel/language pages with `reproducibility >= snippet` have a fenced fragment; surrounding text identifies executable code, logical reference code, or pseudocode (the validator does not compile fragments)
 - All Hopper-inclusive pages explain their `blackwell_relevance`
 - Version-sensitive claims (Triton 3.6, CUTLASS 4.5, etc.) carry `version_sensitive: <id>` pointers resolving to the central registry
 
@@ -162,7 +162,7 @@ KernelWiki/                             (= ~/.claude/skills/KernelWiki/)
 │   ├── pytorch.yaml
 │   └── deepgemm.yaml
 │
-├── sources/                           # Layer 1: raw data
+├── sources/                           # Layer 1: audited source records
 │   ├── prs/{repo}/PR-{N}.md
 │   ├── contests/{contest}/
 │   ├── docs/

@@ -4,368 +4,63 @@ title: "Tensor Memory Accelerator (TMA)"
 type: hardware
 architectures: [sm100, sm100a, sm90, sm90a]
 tags: [tma, mbarrier]
-confidence: source-reported
+confidence: verified
+evidence_basis:
+  - {source_id: doc-ptx-isa-sm100, evidence_type: official-doc}
+  - {source_id: pr-flashinfer-2387, evidence_type: upstream-code}
 related: [hw-tcgen05-mma, technique-pipeline-stages, technique-swizzling]
-sources: [doc-nvidia-tuning-guide, blog-tcgen05-tutorial, pr-flashinfer-2387]
+sources: [doc-nvidia-tuning-guide, doc-ptx-isa-sm100, pr-flashinfer-2387]
 aliases: [TMA, "tensor memory accelerator", "cp.async.bulk"]
-blackwell_relevance: "TMA is shared with Hopper but enhanced on Blackwell. 128-byte swizzling mandatory for tcgen05 inputs."
+blackwell_relevance: "TMA provides asynchronous tensor copies and cluster multicast used by many SM100 pipelines; its swizzle is a descriptor choice constrained by the consumer layout, not universally 128 bytes."
 ---
 
 # Tensor Memory Accelerator (TMA)
 
-## Overview
+## What TMA does
 
-The Tensor Memory Accelerator (TMA) is a hardware unit that performs **asynchronous bulk data transfers** between global memory and shared memory. First introduced on Hopper (SM90), TMA carries forward to Blackwell (SM100) with stricter requirements for tcgen05 compatibility.
+TMA is the tensor form of CUDA's asynchronous bulk-copy machinery. A thread issues a copy described by a tensor map; hardware performs the multidimensional address generation and data movement. Global-to-shared tensor loads complete through an `mbarrier`. Shared-to-global stores use bulk async-group commit and wait operations. Cluster-scoped loads can multicast a tile to selected CTAs in a cluster.
 
-TMA offloads data movement from CUDA cores entirely -- a single thread issues the transfer, and the TMA hardware engine handles the multi-dimensional copy, address calculation, out-of-bounds clamping, and format conversion.
+The tensor map describes the global tensor, box dimensions, element strides, interleave, shared-memory swizzle, L2-promotion hint, and out-of-bounds behavior. The CUDA Driver API documents ranks 1 through 5 and validates descriptor constraints when the map is encoded. Tile-size limits are therefore descriptor- and datatype-specific; there is no general "128x256 tile" limit or in-transfer FP32-to-FP16 conversion guarantee.
 
-## Key Properties
+## Swizzle is a layout choice
 
-| Property | Detail |
-|---|---|
-| Transfer direction | GMEM <-> SMEM (bidirectional) |
-| Dimensionality | 1D to 5D tensor copies |
-| Max transfer size | Up to 256 bytes per element, tiles up to 128x256 |
-| Swizzle modes | None, 32B, 64B, 128B (128B required for tcgen05) |
-| Format conversion | FP32<->BF16, FP32<->FP16 during transfer |
-| Multicast | Single GMEM tile -> multiple CTAs in a cluster |
-| Synchronization | mbarrier-based (arrive/wait) |
-| Thread requirement | Single thread issues the operation |
+The driver exposes no swizzle and 32-, 64-, and several 128-byte swizzle modes. These rearrange chunks within a span to reduce shared-memory bank conflicts. Each mode imposes alignment and bounding-box constraints. A TMA producer and its consumer must agree on the actual shared-memory layout.
 
-## TMA Descriptor
+`tcgen05.mma` does **not** impose a universal 128-byte-swizzle rule. Its matrix descriptor encodes a documented leading-dimension/stride layout. Depending on matrix orientation and datatype, the PTX ISA permits no swizzle or one of multiple swizzle modes. A wrong descriptor/layout pairing can produce wrong values, but an unswizzled operand is not intrinsically invalid.
 
-TMA operations are driven by a **descriptor** that encodes the tensor layout, addressing, and transfer parameters. The descriptor is created on the host and passed to the kernel.
+## Synchronization pattern
 
-### Host-Side Descriptor Creation
+This PTX-shaped sketch shows the ordering relationships; exact opcodes, scopes, addresses, and phase handling must match the selected PTX ISA version:
 
-```cuda
-#include <cuda.h>
+```ptx
+// Initialize an mbarrier before use.
+mbarrier.init.shared::cta.b64 [bar], 1;
 
-// Create a 2D TMA descriptor for a row-major FP16 matrix
-CUtensorMap create_tma_descriptor_2d(
-    const half* global_ptr,
-    int M, int N,           // Global tensor dimensions
-    int tile_m, int tile_n, // Tile dimensions for each transfer
-    int swizzle_bytes       // Swizzle mode: 0, 32, 64, 128
-) {
-    CUtensorMap tensor_map;
+// The issuing thread declares the expected bytes and starts the tensor load.
+mbarrier.arrive.expect_tx.shared::cta.b64 state, [bar], bytes;
+cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes
+    [dst_smem], [tensor_map, {x, y}], [bar];
 
-    // Tensor dimensions (outermost to innermost)
-    uint64_t global_dims[2] = {(uint64_t)N, (uint64_t)M};
-    uint64_t global_strides[1] = {(uint64_t)(N * sizeof(half))};
-
-    // Tile box dimensions
-    uint32_t box_dims[2] = {(uint32_t)tile_n, (uint32_t)tile_m};
-
-    // Element strides (1 = contiguous)
-    uint32_t elem_strides[2] = {1, 1};
-
-    CUtensorMapSwizzle swizzle;
-    switch (swizzle_bytes) {
-        case 0:   swizzle = CU_TENSOR_MAP_SWIZZLE_NONE; break;
-        case 32:  swizzle = CU_TENSOR_MAP_SWIZZLE_32B; break;
-        case 64:  swizzle = CU_TENSOR_MAP_SWIZZLE_64B; break;
-        case 128: swizzle = CU_TENSOR_MAP_SWIZZLE_128B; break;
-    }
-
-    cuTensorMapEncodeTiled(
-        &tensor_map,
-        CU_TENSOR_MAP_DATA_TYPE_FLOAT16,  // Element type
-        2,                                  // Dimensionality
-        (void*)global_ptr,                 // Global pointer
-        global_dims,                       // Tensor dimensions
-        global_strides,                    // Byte strides (exclude innermost)
-        box_dims,                          // Tile/box dimensions
-        elem_strides,                      // Element strides
-        CU_TENSOR_MAP_INTERLEAVE_NONE,
-        swizzle,
-        CU_TENSOR_MAP_L2_PROMOTION_NONE,
-        CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE
-    );
-
-    return tensor_map;
-}
+// Consumers wait for the appropriate phase before reading dst_smem.
+mbarrier.try_wait.parity.shared::cta.b64 ready, [bar], phase;
 ```
 
-### Blackwell Requirement: 128-Byte Swizzle
+The barrier must be initialized and made visible before the copy. Reusing a pipeline stage requires correct phase tracking and a consumer-release protocol; a single wait without stage ownership is not a complete reusable pipeline.
 
-On Blackwell, `tcgen05.mma` requires operands in **128-byte swizzled** SMEM layout. If TMA loads data without 128B swizzling, the MMA will produce incorrect results.
+For a shared-to-global tensor store, the producer must make prior shared-memory writes visible to the async proxy, issue the store, commit the bulk group, and wait before reusing the source buffer when required by the algorithm.
 
-```cuda
-// CORRECT for Blackwell tcgen05:
-CUtensorMap desc = create_tma_descriptor_2d(ptr, M, N, 128, 64, 128);
-//                                                     swizzle=128 ^^^
+## Multicast
 
-// WRONG for tcgen05 (will silently produce garbage):
-CUtensorMap desc = create_tma_descriptor_2d(ptr, M, N, 128, 64, 0);
-//                                                     swizzle=0 ^^^
-```
+A cluster multicast performs one global-memory transaction stream and deposits the result in the shared memory of CTAs selected by a multicast mask. This can reduce redundant traffic when cluster peers need the same operand, but the reduction is workload- and cache-dependent. Every receiving CTA needs a compatible destination and completion barrier.
 
-## Asynchronous Copy Operations
+## Practical rules
 
-### GMEM to SMEM (Load)
+- Build tensor maps with the current CUDA Driver API and check every returned error.
+- Choose swizzle from the consumer's documented layout, then satisfy its alignment and box constraints.
+- Treat the tensor map as immutable while an operation using it may be in flight unless the documented proxy-fence protocol is followed.
+- Verify `mbarrier` phase ownership, expected-byte counts, and stage reuse with boundary shapes.
+- Measure multicast and pipeline-depth choices; they trade bandwidth against shared memory, barrier traffic, and occupancy.
 
-```cuda
-// TMA load: single thread issues, hardware executes asynchronously
-__device__ void tma_load_tile(
-    const CUtensorMap* desc,
-    void* smem_ptr,
-    uint64_t* mbar_ptr,  // mbarrier for synchronization
-    int coord_x, int coord_y
-) {
-    if (threadIdx.x == 0) {
-        // Set expected bytes on the mbarrier
-        uint32_t expected_bytes = TILE_M * TILE_N * sizeof(half);
-        asm volatile(
-            "mbarrier.arrive.expect_tx.shared.b64 _, [%0], %1;"
-            :
-            : "r"((uint32_t)__cvta_generic_to_shared(mbar_ptr)),
-              "r"(expected_bytes)
-        );
+## Evidence basis
 
-        // Issue TMA copy
-        asm volatile(
-            "cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes "
-            "[%0], [%1, {%2, %3}], [%4];"
-            :
-            : "r"((uint32_t)__cvta_generic_to_shared(smem_ptr)),
-              "l"(desc),
-              "r"(coord_x), "r"(coord_y),
-              "r"((uint32_t)__cvta_generic_to_shared(mbar_ptr))
-        );
-    }
-}
-```
-
-### SMEM to GMEM (Store)
-
-```cuda
-// TMA store: write a tile from shared memory back to global memory
-__device__ void tma_store_tile(
-    const CUtensorMap* desc,
-    const void* smem_ptr,
-    int coord_x, int coord_y
-) {
-    if (threadIdx.x == 0) {
-        asm volatile(
-            "cp.async.bulk.tensor.2d.global.shared::cta "
-            "[%0, {%1, %2}], [%3];"
-            :
-            : "l"(desc),
-              "r"(coord_x), "r"(coord_y),
-              "r"((uint32_t)__cvta_generic_to_shared(smem_ptr))
-        );
-
-        // Commit the store
-        asm volatile("cp.async.bulk.commit_group;");
-    }
-}
-```
-
-## mbarrier Synchronization
-
-TMA uses mbarriers (memory barriers) for producer-consumer synchronization. The pattern is:
-
-1. **Producer** (TMA): arrives at the barrier when the transfer completes, decrementing the expected transaction count.
-2. **Consumer** (compute warps): waits on the barrier before reading the loaded data.
-
-### Pipeline Stage Pattern
-
-```cuda
-// Multi-stage pipeline with TMA + mbarrier
-__device__ void pipelined_mainloop(
-    const CUtensorMap* desc_a,
-    const CUtensorMap* desc_b,
-    void* smem_a_stages[NUM_STAGES],
-    void* smem_b_stages[NUM_STAGES],
-    uint64_t* mbar[NUM_STAGES],
-    int num_k_tiles
-) {
-    // Prologue: fill the first NUM_STAGES-1 stages
-    for (int s = 0; s < NUM_STAGES - 1 && s < num_k_tiles; ++s) {
-        tma_load_tile(desc_a, smem_a_stages[s], mbar[s], 0, s);
-        tma_load_tile(desc_b, smem_b_stages[s], mbar[s], s, 0);
-    }
-
-    // Mainloop
-    for (int k = 0; k < num_k_tiles; ++k) {
-        int stage = k % NUM_STAGES;
-
-        // Wait for data to arrive in this stage
-        mbarrier_wait(mbar[stage]);
-
-        // Issue MMA using this stage's SMEM buffers
-        if (threadIdx.x == 0) {
-            asm volatile(
-                "tcgen05.mma.cta_group::1.kind::f16 "
-                "[%0], %1, %2, %3, 1;"
-                :
-                : "r"(tmem_acc),
-                  "l"(make_desc(smem_a_stages[stage])),
-                  "l"(make_desc(smem_b_stages[stage])),
-                  "r"(0)
-            );
-        }
-
-        // Prefetch next stage
-        int next_k = k + NUM_STAGES - 1;
-        if (next_k < num_k_tiles) {
-            int next_stage = next_k % NUM_STAGES;
-            tma_load_tile(desc_a, smem_a_stages[next_stage],
-                         mbar[next_stage], 0, next_k);
-            tma_load_tile(desc_b, smem_b_stages[next_stage],
-                         mbar[next_stage], next_k, 0);
-        }
-    }
-}
-```
-
-### mbarrier Operations
-
-```cuda
-// Initialize an mbarrier
-__device__ void mbarrier_init(uint64_t* mbar, int arrive_count) {
-    if (threadIdx.x == 0) {
-        asm volatile(
-            "mbarrier.init.shared.b64 [%0], %1;"
-            :
-            : "r"((uint32_t)__cvta_generic_to_shared(mbar)),
-              "r"(arrive_count)
-        );
-    }
-}
-
-// Wait for an mbarrier to complete (phase-based)
-__device__ void mbarrier_wait(uint64_t* mbar, int phase) {
-    uint32_t mbar_addr = (uint32_t)__cvta_generic_to_shared(mbar);
-    asm volatile(
-        "{\n"
-        ".reg .pred p;\n"
-        "WAIT_LOOP:\n"
-        "mbarrier.try_wait.parity.shared.b64 p, [%0], %1;\n"
-        "@!p bra WAIT_LOOP;\n"
-        "}\n"
-        :
-        : "r"(mbar_addr), "r"(phase)
-    );
-}
-```
-
-## TMA Multicast
-
-TMA multicast sends a single GMEM tile to **multiple CTAs within a cluster** simultaneously. This is critical for GEMM where the B operand is shared across M-axis tiles.
-
-```cuda
-// Multicast TMA: load B tile to all CTAs in the cluster
-__device__ void tma_multicast_load(
-    const CUtensorMap* desc,
-    void* smem_ptr,
-    uint64_t* mbar_ptr,
-    int coord_x, int coord_y,
-    uint16_t multicast_mask  // bitmask: which CTAs in cluster receive the data
-) {
-    if (threadIdx.x == 0) {
-        uint32_t expected_bytes = TILE_K * TILE_N * sizeof(half);
-        asm volatile(
-            "mbarrier.arrive.expect_tx.shared.b64 _, [%0], %1;"
-            :
-            : "r"((uint32_t)__cvta_generic_to_shared(mbar_ptr)),
-              "r"(expected_bytes)
-        );
-
-        asm volatile(
-            "cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes.multicast::cluster "
-            "[%0], [%1, {%2, %3}], [%4], %5;"
-            :
-            : "r"((uint32_t)__cvta_generic_to_shared(smem_ptr)),
-              "l"(desc),
-              "r"(coord_x), "r"(coord_y),
-              "r"((uint32_t)__cvta_generic_to_shared(mbar_ptr)),
-              "h"(multicast_mask)
-        );
-    }
-}
-```
-
-### Multicast in GEMM
-
-```
-Cluster: 2 CTAs (CTA0 and CTA1) each computing different M-tiles of the same N column
-
-CTA0: computes C[0:128, 0:256]   -- needs A[0:128, :] and B[:, 0:256]
-CTA1: computes C[128:256, 0:256] -- needs A[128:256, :] and B[:, 0:256]
-
-B[:, 0:256] is SHARED -- multicast it once from GMEM to both CTAs
-A tiles are UNIQUE -- each CTA loads its own A tile
-
-Result: B bandwidth is halved (1 GMEM read serves 2 CTAs)
-```
-
-## Blackwell-Specific Enhancements
-
-### 128-Byte Swizzle for tcgen05
-
-All TMA loads feeding `tcgen05.mma` must use 128-byte swizzling. The swizzle pattern rearranges bytes within each 128-byte line to match the tensor core's internal data layout:
-
-```
-Without swizzle (linear):
-  Row 0: bytes [0, 1, 2, ..., 127]
-  Row 1: bytes [128, 129, ..., 255]
-
-With 128B swizzle:
-  Row 0: bytes [0, 1, ..., 127]     (unchanged)
-  Row 1: bytes [128, 129, ..., 255] XOR pattern applied
-  Row 2: bytes [256, ...] XOR pattern applied differently
-  ...
-```
-
-The swizzle eliminates bank conflicts when the tensor core reads operand tiles from SMEM.
-
-### TMA + TMEM Integration
-
-On Blackwell, data flows through a characteristic pipeline:
-
-```
-GMEM --[TMA]--> SMEM --[tcgen05.mma]--> TMEM --[tcgen05.ld]--> Registers --[st.global]--> GMEM
-                  ^                        |
-                  |                        v
-                  +---- (epilogue) --------+
-                        (bias, activation, etc.)
-```
-
-## Performance Considerations
-
-| Tip | Detail |
-|---|---|
-| Maximize TMA utilization | Keep the TMA unit busy with back-to-back loads across pipeline stages |
-| Use multicast for shared operands | Reduces GMEM bandwidth by cluster_size x for shared tiles |
-| Always use 128B swizzle on Blackwell | Non-128B swizzle produces incorrect tcgen05 results |
-| Prefer 2D TMA over manual addressing | TMA handles out-of-bounds clamping, padding, and strided access |
-| Pipeline depth | 3-5 stages typically optimal; more stages increase SMEM usage |
-
-## CuTe-DSL Example
-
-```python
-# CuTe-DSL TMA copy setup for Blackwell GEMM
-from cute import *
-
-# Define TMA copy atom for operand A (BF16, 128x64 tile)
-tma_a = make_tma_copy(
-    SM100_TMA_LOAD_2D,
-    tensor_a,                      # global tensor
-    smem_layout_a,                 # shared memory layout
-    tile_shape=(128, 64),          # tile dimensions
-    swizzle=Swizzle(7, 0, 4),     # 128-byte swizzle
-    multicast_mask=None            # no multicast for A
-)
-
-# Define TMA copy atom for operand B with multicast
-tma_b = make_tma_copy(
-    SM100_TMA_LOAD_2D_MULTICAST,
-    tensor_b,
-    smem_layout_b,
-    tile_shape=(64, 256),
-    swizzle=Swizzle(7, 0, 4),     # 128-byte swizzle
-    multicast_mask=cluster_mask    # multicast B to all CTAs in cluster
-)
-```
+The descriptor fields and swizzle constraints come from the CUDA Driver API tensor-memory documentation. Instruction forms and completion rules come from the PTX ISA. CUTLASS/CuTe code is useful as a concrete implementation, but its selected swizzle and stage count are kernel configurations rather than architecture-wide requirements.

@@ -3,3 +3,7 @@
 .claude/
 __pycache__/
 *.pyc
+
+# audit
+plan.md
+audit/

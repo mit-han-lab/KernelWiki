@@ -11,7 +11,7 @@ sources: [doc-nvidia-tuning-guide, blog-tcgen05-tutorial, blog-flash-attention-4
 
 ## Symptom
 
-Tensor core utilization below 70%. Memory bandwidth is not saturated. Kernel is compute-bound but not reaching peak FLOPS.
+Measured arithmetic throughput is well below the relevant roof while global-memory bandwidth is not the limiting resource. “Below 70%” is not a universal cutoff: attainable utilization depends on dtype, instruction shape, sparsity, clocking, and the non-MMA work in the kernel.
 
 ## Likely Causes
 
@@ -24,9 +24,9 @@ Tensor core utilization below 70%. Memory bandwidth is not saturated. Kernel is 
 
 | Technique | Effect |
 |---|---|
-| [2-SM cooperative](../hardware/2sm-cooperative.md) | Double effective MMA tile (m256×n256), 2× compute per cycle |
+| [2-SM cooperative](../hardware/2sm-cooperative.md) | Change operand staging and tile partition across a CTA pair; may reduce shared-memory traffic for suitable shapes |
 | [Pipeline stages](../techniques/pipeline-stages.md) | Overlap TMA load with MMA compute |
-| [Warp specialization](../techniques/warp-specialization.md) | Dedicated warps for TMA/MMA/epilogue, no stalls |
+| [Warp specialization](../techniques/warp-specialization.md) | Separate pipeline roles so independent stages can overlap; synchronization stalls can remain |
 | [Epilogue fusion](../techniques/epilogue-fusion.md) | Overlap epilogue with next tile's MMA |
 | [Software exponential](../techniques/software-exp.md) | Distribute non-matmul ops across FMA units (FA4) |
 
@@ -37,11 +37,11 @@ Tensor core utilization below 70%. Memory bandwidth is not saturated. Kernel is 
 // SFU bottleneck: exp() for softmax
 //
 // Solution: Software 2^x via Cody-Waite + Horner polynomial
-// Distributes across FMA units, multiplying exponential throughput
-// Result: 1605 TFLOPS (71% utilization) on B200
+// Uses FMA capacity for a tuned subset of exp2 evaluations while the rest use MUFU
+// FA4 paper result for its full kernel: up to 1613 TFLOP/s (~71%) on B200.
 ```
 
 ## Caveats
 - 2-SM cooperative requires cluster configuration and identical SMEM layouts
-- Pipeline depth tuning is workload-dependent (3-5 stages typical)
+- Pipeline depth tuning is workload- and resource-dependent; this page does not prescribe a universal stage count
 - Software-emulated transcendentals trade accuracy for throughput

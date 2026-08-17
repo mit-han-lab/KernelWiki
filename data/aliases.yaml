@@ -60,14 +60,33 @@ block-scale:
   - MX
 
 # Architecture names
+blackwell:
+  - "Blackwell family"
+  - "NVIDIA Blackwell"
+
 sm100:
-  - Blackwell
-  - blackwell
   - B200
   - B100
   - GB200
-  - GB300
   - "SM100"
+
+sm103:
+  - B300
+  - GB300
+  - "SM103"
+
+sm110:
+  - "SM110"
+
+sm120:
+  - "SM120"
+  - "RTX 50"
+  - RTX50
+
+sm121:
+  - "SM121"
+  - GB10
+  - "DGX Spark"
 
 sm90:
   - Hopper
@@ -116,6 +135,6 @@ fine-grained-quantization:
   - "per-tile quantization"
 
 cuda-core-promotion:
-  - "Nc=128 promotion"
-  - "FP22 accumulator fix"
+  - "WGMMA or CUDA promotion"
+  - "promote with scales"
   - "accumulation promotion"

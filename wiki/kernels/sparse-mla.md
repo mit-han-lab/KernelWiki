@@ -12,107 +12,51 @@ related: [kernel-flashmla, kernel-nsa, hw-tcgen05-mma]
 sources: [blog-flashmla, blog-vllm-deepseek-v3-sparse, blog-nsa]
 performance_claims:
   - gpu: B200
-    dtype: fp8
-    shape: "sparse prefill, seqlen=32k, topk=2048"
+    software: "FlashMLA README sparse MLA prefill path with CUDA 12.9; exact library revision not stated"
+    dtype: not stated in README
+    shape: unspecified peak case for sparse MLA prefill; CUDA 12.9
+    workload: "sparse MLA prefill"
     metric: TFLOPS
     value: 1450
-    utilization: "FP8 sparse compute bound"
+    measurement_method: "source-reported upstream README headline; method not stated"
+    baseline: "none; absolute throughput headline"
+    limitations: "shape, dtype, clocks, and exact library revision are not stated in the headline"
     source_id: blog-flashmla
-blackwell_relevance: "SM100 tcgen05.mma with FP8 block-scale MMA enables DeepSeek V3.2's Lightning Indexer + sparse attention two-stage pipeline."
+blackwell_relevance: "FlashMLA supplies SM100 sparse MLA prefill/decode kernels; an external indexer provides token indices, and attention executes only the selected positions."
 ---
 
-# Sparse MLA (DeepSeek V3.2 Sparse Attention)
+# Sparse MLA
 
-## Overview
+## Interface boundary
 
-Sparse Multi-head Latent Attention introduced in DeepSeek V3.2. Two-stage pipeline: (1) Lightning Indexer selects top-K tokens per query via FP8 scorer, (2) MLA runs only over selected tokens. This reduces decode attention compute from O(seqlen) to O(topk=2048) tokens, critical for long-context serving.
+DeepSeek V3.2's sparse-attention system has an index-selection stage and a sparse MLA stage. FlashMLA's sparse kernels consume an `indices` tensor; they do not, by themselves, implement the Lightning Indexer/top-k scorer described in serving-system sources.
 
-## Architecture
+For decoding, `indices[batch, seq_q, topk]` identifies token positions in the paged cache. Invalid entries are `-1`. For sparse prefill, the documented interface uses `indices[s_q, h_kv, topk]`, requires `h_kv = 1` in the equivalent reference, and accepts `-1` or values `>= s_kv` as invalid. The current README says this prefill interface has no batch dimension.
 
-```
-Query q_t (new token embedding)
-   │
-   ▼
-┌────────────────────────┐
-│ Lightning Indexer      │   FP8 scorer, per-query top-K selection
-│ - FP8 KV cache          │   h64, d128, topk=2048, page_size=64
-│ - Compute q·k_i scores  │
-│ - Select top-2048 i     │
-└────────────────────────┘
-   │ selected_indices [2048]
-   ▼
-┌────────────────────────┐
-│ Sparse MLA              │   Standard MLA but only over selected
-│ - Gather selected K,V   │   h16, ckv512, kpe64, topk=2048
-│ - Attention compute     │
-│ - Output y_t            │
-└────────────────────────┘
+## Logical reference
+
+```python
+def sparse_mla_reference(q, kv, indices, sm_scale):
+    selected = gather_valid_tokens(kv, indices)
+    logits = matmul(q, transpose_last_two(selected)) * sm_scale
+    probabilities = softmax(logits, axis=-1)
+    return matmul(probabilities, selected)
 ```
 
-## Token Layout
+The production implementation uses tiled online-softmax and layout-specific gathers. It must preserve invalid-index masking and return the documented output/LSE (and, for prefill, max-logit) semantics.
 
-Each KV cache entry is 656 bytes:
-- 512 bytes: FP8 compressed KV data
-- 16 bytes: FP32 per-block scale factors
-- 128 bytes: BF16 RoPE embeddings (for indexer positional encoding)
+## FP8 decode cache
 
-Block size fixed at 64 (FlashMLA requirement).
+FlashMLA documents a 656-byte per-token cache format for the FP8 decode path:
 
-## Kernel Patterns
+- 512 E4M3 values (512 bytes) for the quantized NoPE part;
+- four FP32 scales (16 bytes), each covering 128 values;
+- 64 BF16 RoPE values (128 bytes).
 
-### Lightning Indexer (FP8 Score Compute)
-```cuda
-// Score each KV block against query using FP8 block-scale MMA
-// Reduce to per-block max, then top-K selection across blocks
+The kernel dequantizes this cache to BF16 and performs attention computation in BF16. Thus describing its 350-TFLOP/s B200 sparse-decode result as “FP8 compute” is misleading.
 
-__global__ void lightning_indexer_kernel(
-    const fp8_t* q_fp8,           // [h, d] query (FP8 quantized)
-    const fp8_t* kv_cache_fp8,    // [num_blocks, 64, d] paged
-    const fp8_t* kv_scales,
-    float* scores_out,            // [num_blocks] per-block max score
-    int num_blocks
-) {
-    // Each threadblock handles one KV block's score
-    uint32_t tmem = tmem_alloc(64);
-    tcgen05_mma_f8(q_smem, k_block_smem, tmem);
-    // Reduce inside block to max score
-    // Write per-block score
-}
+## Performance boundary
 
-// Separate top-K selection kernel across the num_blocks score array
-```
+The upstream FlashMLA README reports peaks of 410 TFLOP/s for H800 sparse decode, up to 350 TFLOP/s for a then-unoptimized B200 sparse decode, 640 TFLOP/s for H800/CUDA 12.8 sparse prefill, and 1,450 TFLOP/s for B200/CUDA 12.9 sparse prefill. The sparse-prefill headline states neither its dtype nor its shape, so this page does not attach BF16, `seqlen=32k`, or `topk=2048` to the 1,450 figure.
 
-### Sparse Attention Gather
-```cuda
-// After top-K selection gives indices, gather K,V from paged cache
-// Then run standard MLA on the gathered subset
-
-__global__ void sparse_mla_decode_kernel(
-    const int* topk_indices,      // [2048] selected block indices
-    const fp8_t* kv_cache,        // paged KV (656 bytes/token)
-    const half* q,                // [16, 576] MLA query
-    half* output
-) {
-    // Load q into registers/SMEM
-    // For each selected block:
-    //   gather K,V block (FP8) → dequant to BF16 → MMA
-    // Online softmax accumulation
-    // Final weighted sum
-}
-```
-
-## Performance
-
-| Variant | GPU | TFLOPS | Notes |
-|---------|-----|--------|-------|
-| Dense MLA decode | H800 | 660 (BF16) | 3000 GB/s, compute-bound |
-| Sparse MLA decode | H800 | 410 (FP8) | Token-level sparsity |
-| Sparse MLA decode | B200 | 350 (FP8) | Lower because bandwidth dominates decode |
-| Dense prefill | B200 | 1460 (BF16) | tcgen05 peak |
-| Sparse prefill | B200 | 1450 (FP8) | FP8 sparse matches BF16 dense |
-
-## When To Use
-
-- Long-context LLM serving (32K+)
-- DeepSeek V3.2 and similar MLA architectures
-- Serving workloads where per-token decode latency matters
+Sparse attention reduces arithmetic only relative to the selected set and can worsen gather locality. Benchmark index generation, gather, attention, and end-to-end serving separately.

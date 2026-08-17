@@ -9,10 +9,10 @@ keywords_used:
 - tilelang
 - tma
 - cute
-total_candidates: 215
+total_candidates: 216
 included: 53
 excluded: 1
-deferred: 161
+deferred: 162
 prs:
 - number: 1945
   pr: 1945
@@ -9465,3 +9465,9 @@ prs:
   deletions: 14
   changed_file_count: 20
   artifact_dir: evidence/pull-bundles/tilelang/gh-1908
+- number: 1645
+  title: '[Example] Add attention sink varlen examples'
+  date: '2026-01-09'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

@@ -8,6 +8,8 @@ import sys
 import yaml
 from pathlib import Path
 
+from pr_architectures import infer_architectures
+
 REPO_ROOT = Path(__file__).parent.parent
 SOURCES_DIR = REPO_ROOT / "sources"
 WIKI_DIR = REPO_ROOT / "wiki"
@@ -68,6 +70,34 @@ def read_body(filepath):
     if match:
         return content[match.end():]
     return content
+
+
+def validate_pr_architecture_evidence():
+    """Check locally reproducible PR architecture metadata.
+
+    This is a deterministic drift guard, not authoritative verification: the
+    factual-audit verifier separately re-fetches full upstream title/body/path
+    evidence and checks stored hashes and architecture metadata.
+    """
+    errors = []
+    pr_root = SOURCES_DIR / "prs"
+    for path in sorted(pr_root.rglob("*.md")) if pr_root.exists() else []:
+        fm = extract_frontmatter(path)
+        if not isinstance(fm, dict):
+            continue
+        actual = fm.get("architectures", [])
+        expected = infer_architectures(
+            str(fm.get("title", "")),
+            read_body(path),
+            [str(item) for item in fm.get("changed_paths", [])],
+        )
+        if not set(expected).issubset(actual):
+            errors.append(
+                f"{path.relative_to(REPO_ROOT)}: architectures {actual!r} do not "
+                f"contain locally reproducible title/excerpt/path signals {expected!r}; "
+                "run the upstream PR verifier for an authoritative verdict"
+            )
+    return errors
 
 
 def detect_page_type(filepath, fm):
@@ -200,6 +230,13 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
     for field in schema.get("required", []):
         if field not in fm or fm[field] is None:
             errors.append(f"{rel}: missing required field '{field}'")
+
+    # Reject undeclared frontmatter fields. Keeping the schema vocabulary
+    # explicit prevents misspellings and unvalidated metadata from silently
+    # acquiring contract status.
+    allowed_fields = set(schema.get("required", [])) | set(schema.get("optional", []))
+    for field in sorted(set(fm) - allowed_fields):
+        errors.append(f"{rel}: unknown frontmatter field '{field}' for {page_type}")
 
     # Validate id_prefix
     id_prefix = constraints.get("id_prefix")
@@ -337,16 +374,24 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
     if page_type.startswith("wiki-"):
         archs = set(fm.get("architectures", []) if isinstance(fm.get("architectures"), list) else [])
         hopper_archs = archs & {"sm90", "sm90a"}
-        blackwell_archs = archs & {"sm100", "sm100a", "sm120"}
+        blackwell_archs = archs & {
+            "blackwell",
+            "sm100", "sm100a", "sm103", "sm103a", "sm110", "sm110a",
+            "sm120", "sm120a", "sm121", "sm121a",
+        }
         if hopper_archs and not blackwell_archs and "blackwell_relevance" not in fm:
             errors.append(
                 f"{rel}: page targets only Hopper {hopper_archs} without Blackwell arch; "
                 f"add 'blackwell_relevance' to justify inclusion in Blackwell-first scope"
             )
 
-    # Check performance_claims structure (including shape and numeric value)
+    # Check performance_claims structure and benchmark-context contract.
     if "performance_claims" in fm:
         pc = fm["performance_claims"]
+        pc_schema = schemas.get("performance-claim", {})
+        pc_required = set(pc_schema.get("required", []))
+        pc_allowed = pc_required | set(pc_schema.get("optional", []))
+        valid_metrics = set((pc_schema.get("constraints") or {}).get("metric", []))
         if not isinstance(pc, list):
             errors.append(f"{rel}: performance_claims must be a list, got {type(pc).__name__}")
         else:
@@ -354,13 +399,38 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
                 if not isinstance(claim, dict):
                     errors.append(f"{rel}: performance_claims[{i}] must be a mapping, got {type(claim).__name__}")
                     continue
-                for req in ["gpu", "dtype", "shape", "metric", "value", "source_id"]:
+                for req in sorted(pc_required):
                     if req not in claim:
                         errors.append(f"{rel}: performance_claims[{i}] missing '{req}'")
+                    elif req != "value" and not isinstance(claim[req], str):
+                        errors.append(
+                            f"{rel}: performance_claims[{i}].{req} must be a string, "
+                            f"got {type(claim[req]).__name__}"
+                        )
+                    elif req != "value" and not claim[req].strip():
+                        errors.append(f"{rel}: performance_claims[{i}].{req} must not be empty")
+                for field in sorted(set(claim) - pc_allowed):
+                    errors.append(f"{rel}: performance_claims[{i}] has unknown field '{field}'")
                 if "value" in claim and not isinstance(claim["value"], (int, float)):
                     errors.append(
                         f"{rel}: performance_claims[{i}].value must be numeric, "
                         f"got {type(claim['value']).__name__}: {claim['value']}"
+                    )
+                metric = claim.get("metric")
+                if metric is not None and valid_metrics and metric not in valid_metrics:
+                    errors.append(
+                        f"{rel}: performance_claims[{i}].metric {metric!r} "
+                        f"not in {sorted(valid_metrics)}"
+                    )
+                utilization = claim.get("utilization")
+                if utilization is not None and not (
+                    isinstance(utilization, (int, float))
+                    or (isinstance(utilization, str)
+                        and re.fullmatch(r"~?\d+(?:\.\d+)?%", utilization.strip()))
+                ):
+                    errors.append(
+                        f"{rel}: performance_claims[{i}].utilization must be a numeric "
+                        f"percentage, got {utilization!r}"
                     )
                 # Cross-check source_id against known source IDs
                 sid = claim.get("source_id", "")
@@ -771,8 +841,27 @@ def validate_skip_audit_coverage():
             audit_rows = (data or {}).get("rows") or []
         except yaml.YAMLError as e:
             return [f"data/pr-page-skipped.yaml: invalid YAML ({e})"]
-    audit_keys = {(row["repo"], row["pr_number"]) for row in audit_rows
-                  if isinstance(row, dict) and "repo" in row and "pr_number" in row}
+    stage_schema = (((load_yaml_file(DATA_DIR / "schemas.yaml") or {})
+                     .get("pr-page-skipped-audit") or {})
+                    .get("row_schema") or {})
+    allowed_stages = set((stage_schema.get("constraints") or {}).get("stage") or [])
+    audit_keys = set()
+    for index, row in enumerate(audit_rows):
+        if not isinstance(row, dict):
+            errors.append(f"data/pr-page-skipped.yaml: rows[{index}] must be a mapping")
+            continue
+        missing = {"pr_id", "repo", "pr_number", "stage", "reason", "recorded_at"} - set(row)
+        if missing:
+            errors.append(
+                f"data/pr-page-skipped.yaml: rows[{index}] missing {sorted(missing)}"
+            )
+            continue
+        if row["stage"] not in allowed_stages:
+            errors.append(
+                f"data/pr-page-skipped.yaml: rows[{index}].stage {row['stage']!r} "
+                f"not in {sorted(allowed_stages)}"
+            )
+        audit_keys.add((row["repo"], row["pr_number"]))
 
     if not CANDIDATES_DIR.exists():
         return errors
@@ -1476,6 +1565,10 @@ def main():
 
     # AC-2 hybrid version-claim registry consistency.
     all_errors.extend(validate_version_claims_registry(all_source_ids))
+
+    # Factual-audit guard: PR architectures must be evidence-derived, never a
+    # corpus-wide default.
+    all_errors.extend(validate_pr_architecture_evidence())
 
     # AC-11 inclusion-policy YAML scalar guard.
     all_errors.extend(validate_inclusion_policy_scalars())

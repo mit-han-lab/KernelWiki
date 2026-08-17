@@ -7,10 +7,10 @@ asset_mode: verbatim
 size_cap_truncated: false
 generated_by: Phase 3 Round 3 task12 (fused-moe anchor)
 source_pr_id: pr-vllm-23696
-notes: 'Mixed-source bundle: vllm gated-dual-GEMM patch + sglang flashinfer-cutedsl
-  MoE runner + DeepGEMM grouped-GEMM extract.'
+notes: 'Mixed-source fused-MoE evidence: the vLLM MXFP4 fused CUTLASS MoE PR
+  patch plus the SGLang FlashInfer CuTe DSL MoE runner.'
 files:
-- local_path: vllm-PR-23696-dual-gemm.patch
+- local_path: vllm-PR-23696-fused-moe.patch
   sha256: 033d30b15af4f2050189c2e76ba61959e1e5d4bd049dc901fd56f68890b891a0
   role: pr-diff
   mode: upstream-patch
@@ -21,9 +21,3 @@ files:
   upstream_repo: sgl-project/sglang
   upstream_sha: c554dc5c
   upstream_path: python/sglang/srt/layers/moe/moe_runner/flashinfer_cutedsl.py
-- local_path: moe-grouped-gemm-launch.cpp
-  sha256: e4d1af249fb7054fa2df64b89e24f63735c9daa2c51d4e1af87e3f27b71b7f97
-  role: extracted-block
-  mode: extracted
-  upstream_path: sources/blogs/deepgemm.md
-  heading_path: '## Key Code > ### MoE grouped-GEMM launch'

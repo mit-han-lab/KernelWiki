@@ -1,5 +1,5 @@
 diff --git a/cub/benchmarks/bench/scan/exclusive/base.cuh b/cub/benchmarks/bench/scan/exclusive/base.cuh
-index f58f1f146bc..534d497b7c0 100644
+index f58f1f146bc6..534d497b7c03 100644
 --- a/cub/benchmarks/bench/scan/exclusive/base.cuh
 +++ b/cub/benchmarks/bench/scan/exclusive/base.cuh
 @@ -87,17 +87,18 @@ struct policy_hub_t
@@ -47,7 +47,7 @@ index f58f1f146bc..534d497b7c0 100644
        launch.get_stream());
    });
 diff --git a/cub/cub/device/device_scan.cuh b/cub/cub/device/device_scan.cuh
-index 63129dec5a6..0a4ecfb8ba5 100644
+index 63129dec5a63..0a4ecfb8ba53 100644
 --- a/cub/cub/device/device_scan.cuh
 +++ b/cub/cub/device/device_scan.cuh
 @@ -1165,7 +1165,8 @@ struct DeviceScan
@@ -61,7 +61,7 @@ index 63129dec5a6..0a4ecfb8ba5 100644
                                       temp_storage_bytes,
                                       d_in,
 diff --git a/cub/cub/device/dispatch/dispatch_scan.cuh b/cub/cub/device/dispatch/dispatch_scan.cuh
-index 81382db9f28..c910a67b1d7 100644
+index 81382db9f28f..c910a67b1d7c 100644
 --- a/cub/cub/device/dispatch/dispatch_scan.cuh
 +++ b/cub/cub/device/dispatch/dispatch_scan.cuh
 @@ -133,29 +133,30 @@ struct DeviceScanKernelSource
@@ -119,7 +119,7 @@ index 81382db9f28..c910a67b1d7 100644
  {
    //---------------------------------------------------------------------
 diff --git a/cub/cub/device/dispatch/tuning/tuning_scan.cuh b/cub/cub/device/dispatch/tuning/tuning_scan.cuh
-index 5eeb16e09e4..8f270fcc416 100644
+index 5eeb16e09e47..8f270fcc416d 100644
 --- a/cub/cub/device/dispatch/tuning/tuning_scan.cuh
 +++ b/cub/cub/device/dispatch/tuning/tuning_scan.cuh
 @@ -46,6 +46,7 @@
@@ -402,7 +402,7 @@ index 5eeb16e09e4..8f270fcc416 100644
  
  CUB_NAMESPACE_END
 diff --git a/thrust/testing/scan.cu b/thrust/testing/scan.cu
-index 8e8985dde1c..2de233d7eaf 100644
+index 8e8985dde1c2..2de233d7eaf2 100644
 --- a/thrust/testing/scan.cu
 +++ b/thrust/testing/scan.cu
 @@ -574,6 +574,16 @@ struct iterator_traits<only_set_when_expected_it>
@@ -423,7 +423,7 @@ index 8e8985dde1c..2de233d7eaf 100644
  {
    thrust::constant_iterator<long long> begin(1);
 diff --git a/thrust/thrust/system/cuda/detail/async/inclusive_scan.h b/thrust/thrust/system/cuda/detail/async/inclusive_scan.h
-index 904d3c2a793..a5a27295828 100644
+index 904d3c2a7931..a5a272958286 100644
 --- a/thrust/thrust/system/cuda/detail/async/inclusive_scan.h
 +++ b/thrust/thrust/system/cuda/detail/async/inclusive_scan.h
 @@ -135,24 +135,26 @@ unique_eager_event async_inclusive_scan_n(
@@ -472,7 +472,7 @@ index 904d3c2a793..a5a27295828 100644
    InputValueT init_value(init);
  
 diff --git a/thrust/thrust/system/cuda/detail/scan.h b/thrust/thrust/system/cuda/detail/scan.h
-index ff7c0111343..49c00179b00 100644
+index ff7c01113434..49c00179b009 100644
 --- a/thrust/thrust/system/cuda/detail/scan.h
 +++ b/thrust/thrust/system/cuda/detail/scan.h
 @@ -119,8 +119,10 @@ _CCCL_HOST_DEVICE OutputIt inclusive_scan_n_impl(

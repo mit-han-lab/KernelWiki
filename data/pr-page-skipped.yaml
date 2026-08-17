@@ -4,6 +4,7 @@
 ##
 ## Stages owned by scripts/generate-pr-pages.py:
 ##   pre-fetch         -> gh PR fetch returned no data
+##   bodyText-fetch    -> GitHub GraphQL bodyText fetch returned no data
 ##   is-kernel-related -> file-allowlist check excluded the PR
 ##
 rows:

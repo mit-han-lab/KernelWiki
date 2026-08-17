@@ -6,10 +6,10 @@ keywords_used:
 - gemm
 - hopper
 - blackwell
-total_candidates: 13
+total_candidates: 18
 included: 0
 excluded: 0
-deferred: 13
+deferred: 18
 prs:
 - number: 172
   pr: 172
@@ -444,3 +444,33 @@ prs:
   - src/ops/warp/shared/maps.cuh
   - src/ops/warpgroup/wgmma/wgmma.cuh
   artifact_dir: evidence/pull-bundles/thunderkittens/gh-11
+- number: 161
+  title: ThunderKittens 2.0
+  date: '2026-01-12'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 144
+  title: 'Fix Clang frontend parsing errors for ThunderKittens CUDA Headers '
+  date: '2025-08-26'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 78
+  title: Improve TK's custom kernel binding utilities
+  date: '2025-01-02'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 72
+  title: non expiring discord link
+  date: '2024-11-28'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 53
+  title: Fix typos.
+  date: '2024-09-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

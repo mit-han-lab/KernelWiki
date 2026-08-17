@@ -14,10 +14,26 @@
 ## replace them. The validator (task5) does not reject
 ## needs-verification entries, but check_version_freshness.py
 ## flags them as advisory warnings.
+##
+## Date convention: `released_at` is the GitHub release object's UTC
+## `published_at` calendar date for GitHub-hosted tools. A changelog heading
+## date is content metadata and is recorded separately in notes/source pages;
+## it is not substituted for the release publication date.
 
 tools:
   - tool: triton
     releases:
+      - name: "3.7.0"
+        released_at: "2026-05-07"
+        channel: stable
+        release_notes_url: "https://github.com/triton-lang/triton/releases/tag/v3.7.0"
+        evidence_source_ids:
+          - doc-triton-3.7-blackwell
+        notes: |
+          Latest stable Triton release before the 2026-05-20 refresh cutoff.
+          Continues Blackwell support with end-to-end 2CTA work, TMA/tcgen05
+          multicast, tcgen05 verifier and MMAv5 fixes, and warp-specialization
+          hardening. Release commit 5f3f125.
       - name: "3.6.0"
         released_at: "2026-01-21"
         channel: stable
@@ -27,8 +43,9 @@ tools:
           - pr-sglang-22079
           - pr-sglang-21019
         notes: |
-          First Triton release with native Blackwell tcgen05 + TMEM lowering
-          infrastructure. Strongest user-visible Blackwell paths: descriptor/TMA
+          Registry milestone that materially generalized and hardened Blackwell
+          tcgen05 + TMEM lowering; source-defined operations existed by 3.3.
+          Strongest user-visible Blackwell paths: descriptor/TMA
           warp-specialized matmul, Gluon multi-CTA / 2CTA, tl.dot_scaled / block
           scaled. See data/triton-3.6-evidence.md for the per-pathway breakdown.
       - name: "3.5.1"
@@ -43,77 +60,85 @@ tools:
   - tool: cutlass
     releases:
       - name: "4.5.0"
-        released_at: "2026-03-27"
+        released_at: "2026-05-13"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.5.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          Most recent CUTLASS stable release as of 2026-04-27. Wiki pages
+          Latest CUTLASS stable release before the 2026-05-20 cutoff. The
+          date is the GitHub release object's publication date; the v4.5.0
+          changelog heading is dated 2026-05-01. Wiki pages
           with confidence: verified that mention CUTLASS 4.x SHOULD pin to
           4.5.0 unless they specifically depend on a feature that arrived
           in a later patch.
       - name: "4.4.2"
-        released_at: "2026-03-13"
+        released_at: "2026-03-17"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.4.2"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          Last 4.4.x patch before 4.5.0.
+          Last 4.4.x patch before 4.5.0. GitHub published the release object
+          on 2026-03-17; its changelog heading is dated 2026-03-13.
       - name: "4.4.0"
-        released_at: "2026-02-14"
+        released_at: "2026-02-26"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.4.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          4.4.0 minor release.
+          4.4.0 minor release. GitHub published the release object on
+          2026-02-26; its changelog heading is dated 2026-02-14.
       - name: "4.3.0"
-        released_at: "2025-11-21"
+        released_at: "2025-11-24"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.3.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          Pre-Blackwell-tutorial-rewrite era reference release.
+          Pre-Blackwell-tutorial-rewrite era reference release. GitHub
+          published the release object on 2025-11-24; its changelog heading is
+          dated 2025-11-21.
       - name: "3.8.0"
-        released_at: "2025-01-15"
+        released_at: "2025-02-21"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v3.8.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
           First CUTLASS release with Blackwell support. Some legacy wiki
           pages reference "CUTLASS 3.x for SM100" (e.g. wiki/hardware/clc.md);
           those should be reconciled to a current 4.x stable release in task12.
-          Date approximate from doc-cutlass-changelog-sm100 ("January 2025,
-          first Blackwell support").
+          Date is the GitHub release object's publication date; the v3.8.0
+          changelog heading is dated 2025-01-25.
 
   - tool: cuda
     releases:
       - name: "13.1"
-        released_at: "needs-verification"
+        released_at: "2025-12-04"
         channel: stable
         evidence_source_ids:
           - doc-cuda-13
           - doc-cutile-python-dsl
         notes: |
           Introduced cuTile Python DSL (see sources/docs/cutile-python-dsl.md).
-          Driver requirement R580 minimum, R590 for tile profiling. Exact
-          release date pending future refresh-round capture.
+          Release date is the date of NVIDIA's CUDA 13.1 launch post.
       - name: "13.0"
-        released_at: "needs-verification"
+        released_at: "2025-08-06"
         channel: stable
         evidence_source_ids:
           - doc-cuda-13
-          - pr-pytorch-175826
         notes: |
-          PyTorch inductor B200/SM100 lane was moved to 13.0 in pr-pytorch-175826
-          (cited as ecosystem-readiness anchor in data/triton-3.6-evidence.md).
-          Exact release date pending future refresh-round capture.
+          Release date is the date of NVIDIA's CUDA 13.0 launch post. The
+          former PyTorch PR 175826 evidence was removed because that PR was
+          closed without merge and therefore does not establish a CI move.
       - name: "12.8"
-        released_at: "needs-verification"
+        released_at: "2025-01-31"
         channel: stable
         evidence_source_ids:
           - doc-cuda-13
-          - pr-pytorch-150705
         notes: |
-          First CUDA toolkit with full Blackwell/sm100 support. Required for
-          PyTorch's vec128 vectorized loads (pr-pytorch-150705). Exact
-          release date pending future refresh-round capture.
+          First CUDA toolkit release with Blackwell support. Release date is
+          the date of NVIDIA's CUDA 12.8 launch post. Closed, unmerged PyTorch
+          PR 150705 is not used as evidence for downstream adoption.

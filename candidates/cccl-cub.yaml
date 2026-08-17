@@ -9,10 +9,10 @@ keywords_used:
 - b200
 - sm100
 - cuda
-total_candidates: 239
+total_candidates: 246
 included: 73
 excluded: 0
-deferred: 166
+deferred: 173
 prs:
 - number: 6152
   pr: 6152
@@ -9225,3 +9225,45 @@ prs:
   deletions: 180
   changed_file_count: 6
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8190
+- number: 8892
+  title: Variable segment size TopK benchmark
+  date: '2026-05-13'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5582
+  title: Add docstrings for all single-phase APIs in CUDA CCCL parallel algorithms
+  date: '2025-08-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 3719
+  title: '[Backport branch/2.8.x] Add b200 tunings for scan.exclusive.by_key'
+  date: '2025-02-06'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8418
+  title: Warpspeed micro optimizations
+  date: '2026-04-15'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7391
+  title: Add DeviceTransform benchmarks from pytorch
+  date: '2026-01-30'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6196
+  title: Refactor `agent_histogram.cuh` Part 2
+  date: '2025-10-31'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6711
+  title: Avoid scaling twice in `ReduceNondeterministicPolicy`
+  date: '2025-11-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

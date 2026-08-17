@@ -71,7 +71,14 @@ def gh_search_prs(repo_full, keywords, cutoff_date, per_keyword_limit=30,
     GitHub Search API rate limit is 30/min. Sleeping ~2.5s between
     keyword queries keeps the script comfortably under that ceiling.
 
-    Filters to merged PRs whose closedAt is on or before cutoff_date."""
+    Filters to merged PRs whose closedAt is on or before cutoff_date.
+
+    This is a capped discovery query, not an exhaustive or monotonic history:
+    GitHub returns at most ``per_keyword_limit`` hits for each keyword, so an
+    older hit can fall out when newer relevant hits enter the capped result.
+    candidates/*.yaml is the cumulative decision ledger; the generated
+    refresh-search-results file records only this invocation's query snapshot.
+    """
     if not keywords:
         return []
     cutoff_str = cutoff_date.isoformat()
@@ -163,7 +170,7 @@ def write_cutoff(cutoff_date):
 
 
 def write_search_results(cutoff_date, per_repo):
-    """Write data/refresh-search-results.yaml byte-stably."""
+    """Write the capped, non-cumulative query snapshot byte-stably."""
     repos = []
     for repo_slug in sorted(per_repo.keys()):
         rows = per_repo[repo_slug]
@@ -183,6 +190,8 @@ def write_search_results(cutoff_date, per_repo):
         "## scripts/refresh_candidate_ledger.py. Byte-stable for identical\n"
         "## query inputs (pr_numbers_seen sorted ascending; repos keyed by\n"
         "## repo_slug ascending).\n"
+        "## This is a capped discovery snapshot, not an exhaustive or monotonic\n"
+        "## candidate history; candidates/*.yaml is the cumulative ledger.\n"
     )
     out += yaml.safe_dump(payload, sort_keys=False, default_flow_style=False, width=200, allow_unicode=True)
     REFRESH_RESULTS_PATH.write_text(out, encoding="utf-8")

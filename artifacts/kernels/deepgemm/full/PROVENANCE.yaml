@@ -9,7 +9,9 @@ generated_by: Phase 3 Round 3 task49 (DeepGEMM verbatim anchor); re-pinned to cu
 source_pr_id: pr-sglang-21239
 notes: |
   Bundle contains the verbatim DeepGEMM SM90 + SM100 FP8 GEMM kernel templates
-  (with Nc=128 CUDA-core promotion on SM90) plus the sglang PR that integrates
+  (with per-128-K scaling blocks and a CUDA-promotion step after the four
+  K=32 WGMMA operations in each SM90 block)
+  plus the sglang PR that integrates
   DeepGEMM into SGLang. Re-pinned in Phase 4 Round 6 R6-4 from the original
   Phase 3 SHA 7f2a703e (2026-04-17) to current HEAD 891d57b4 (2026-04-27).
   The two .cuh files are byte-identical between those SHAs (SHA-256 unchanged):

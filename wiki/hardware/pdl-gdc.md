@@ -6,37 +6,43 @@ architectures: [sm100, sm100a, sm90]
 tags: [pdl, gdc]
 confidence: source-reported
 related: [technique-persistent-kernels, hw-clc]
-sources: [doc-nvidia-tuning-guide, pr-cutlass-2161, doc-cutlass-changelog-sm100]
+sources: [pr-cutlass-2161, doc-cutlass-changelog-sm100]
 aliases: [PDL, GDC, "programmatic dependent launch", "grid dependency control"]
-blackwell_relevance: "PDL available on Hopper but enabled by default on Blackwell SM100."
+blackwell_relevance: "PDL is available from compute capability 9.0 onward and remains an explicit launch/dependency protocol on SM100."
 ---
+
+# Programmatic Dependent Launch
 
 ## Overview
 
-PDL/GDC allows overlapping execution of dependent kernel launches. The primary kernel signals it is finishing; the secondary kernel begins before the primary fully completes.
+PDL allows a secondary kernel in the same stream to begin before its primary kernel has fully completed. The overlap is opportunistic and safe only when the secondary separates independent work from work that consumes primary results.
 
-## How It Works
+## Correct roles
 
 ```cuda
-// Primary kernel signals near completion
-cudaGridDependencySynchronize();  // or PTX equivalent
+__global__ void primary_kernel(/* ... */) {
+    produce_launch-safe_state();
+    cudaTriggerProgrammaticLaunchCompletion();
+    finish_work_that_may_overlap();
+}
 
-// Secondary kernel can start overlapping with primary's tail
-// Enabled by default on SM100 (opt-in on SM90)
+__global__ void secondary_kernel(/* ... */) {
+    do_work_independent_of_primary_results();
+    cudaGridDependencySynchronize();
+    consume_primary_results();
+}
 ```
 
-## Blackwell Default Behavior
+The host opts the secondary launch into programmatic stream serialization with the extensible launch API (`cudaLaunchAttributeProgrammaticStreamSerialization`). It is not enabled automatically for all back-to-back SM100 launches.
 
-On SM100, PDL is **enabled by default** — no opt-in needed. This means:
-- Back-to-back kernel launches naturally overlap
-- Memory fences ensure correctness for dependent data
-- Reduces kernel launch gaps in compute-heavy pipelines
+If the primary does not explicitly trigger, launch completion is implicitly triggered after all its blocks exit. Even after an early launch, the secondary must synchronize before consuming dependent data.
 
-## When It Matters
-- Chains of small kernels (e.g., MoE dispatch → compute → combine)
-- Pipeline-parallel training with many sequential kernel launches
-- Reduces overall wall-clock time without code changes on Blackwell
+## Limits
 
-## Related
-- [persistent-kernels](../techniques/persistent-kernels.md) — Alternative approach to reducing launch overhead
-- [clc](clc.md) — Dynamic scheduling within persistent kernels
+- Available starting at compute capability 9.0, not Blackwell-only.
+- Concurrency is not guaranteed; code must remain correct if execution serializes.
+- PDL does not remove ordinary data-dependency synchronization.
+- Relying on concurrent progress can deadlock.
+- It can reduce an exposed inter-kernel gap only when meaningful independent secondary work exists.
+
+CUTLASS may expose policy defaults or global GDC configuration for particular kernels, but those library choices must not be generalized to CUDA launches as a whole.

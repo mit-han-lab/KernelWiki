@@ -9,43 +9,35 @@ reproducibility: snippet
 prerequisites: []
 related: [technique-vectorized-loads, kernel-nvfp4-gemv, pattern-memory-bound]
 sources: [blog-yue-nvfp4, blog-amandeep-nvfp4, blog-simon-nvfp4-gemv, doc-ptx-isa-sm100]
-blackwell_relevance: "Same PTX cache hints on both archs; higher B200 bandwidth (8TB/s) amplifies the impact of correct cache policy selection."
+blackwell_relevance: "Applicable PTX cache and eviction hints can distinguish streaming and reused accesses on SM100, but remain non-binding performance hints."
 ---
 
 # Cache Policy Differentiation
 
 ## Overview
 
-PTX cache qualifiers (`L1::no_allocate`, `L1::evict_last`, `L1::evict_first`) let kernels hint to hardware how to handle cache admission for specific loads. Critical for memory-bound kernels where the L1 working set matters more than the compute.
+PTX supplies cache operators and eviction-priority hints for eligible memory operations. Examples include `L1::no_allocate`, `L1::evict_first`, and `L1::evict_last`. They affect cache-management policy but do not change value semantics or guarantee residency/bypass behavior.
 
-## Pattern
-
-```asm
-; Matrix A (streamed once per row, never reused): bypass L1
-; Avoids polluting L1 with one-shot data
-ld.global.L1::no_allocate.v4.u64 {a0,a1,a2,a3}, [addr_a];
-
-; Vector B (reused across BLOCK_M rows): keep in L1
-ld.global.L1::evict_last.v4.u64 {b0,b1,b2,b3}, [addr_b];
-
-; Streaming output: evict immediately after write
-st.global.L1::evict_first.v2.u64 [addr_c], {c0, c1};
+```ptx
+// Four adjacent 32-bit words; required alignment must be satisfied.
+ld.global.L1::no_allocate.v4.u32 {a0,a1,a2,a3}, [streaming_addr];
+ld.global.L1::evict_last.v4.u32  {b0,b1,b2,b3}, [reused_addr];
+st.global.v4.u32 [sink], {a0,a1,a2,a3};
 ```
 
-## GPU Mode NVFP4 GEMV Winner Technique
+Use exact instruction forms supported by the target PTX ISA. A wider vector form changes alignment and register demand, so cache-policy experiments should keep width and work constant.
 
-Rank 1 submission used **different qualifiers per K-dimension variant**:
-- K=16384 (large): aggressive `L1::no_allocate` on A (huge streaming matrix)
-- K=2048 (small): relaxed balance since B is smaller relative to cache
+## Selection logic
 
-## Measurable Impact
+- `no_allocate` can reduce L1 admission pressure for a stream with little reuse.
+- `evict_last` gives a line lower eviction priority when reuse is expected.
+- `evict_first` gives a line higher eviction priority after the access.
+- L2 prefetch-size hints change fetch behavior and can over-fetch.
 
-- NVFP4 GEMV: 443μs → 27μs (16x improvement) came partly from cache policy + PTX byte unpacking
-- On memory-bound kernels, cache policy can be the dominant lever
+These choices interact with access order across warps/CTAs, sector utilization, L2 reuse, and other kernels. “Input A streams, vector B reuses” is a hypothesis to profile, not a universal GEMV policy.
 
-## When To Use
+## Evidence boundary
 
-- Memory-bound kernels (profile with Nsight Compute first)
-- Tensor with clear "streaming" vs "reused" access patterns
-- Inputs > L2 cache size (B200: 126MB)
-- Separate M and N tile loading patterns in GEMM
+The GPU Mode NVFP4 write-ups describe progressions that also changed coalescing, decoding, vector width, inline PTX, unrolling, and register allocation. Their large end-to-end deltas cannot be attributed to cache qualifiers alone.
+
+Benchmark default and candidate hints for every representative K/shape class. Keep a hint only when profiler traffic and repeated timing agree, and re-check after layout or block-size changes.

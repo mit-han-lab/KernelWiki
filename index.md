@@ -27,9 +27,9 @@ See [references/examples.md](references/examples.md) for 10 worked query pattern
 
 ## Hardware Features
 
-- [hw-tcgen05-mma](wiki/hardware/tcgen05-mma.md) — Blackwell MMA instruction (replaces wgmma)
+- [hw-tcgen05-mma](wiki/hardware/tcgen05-mma.md) — SM100 MMA family, with a different execution/storage contract from Hopper WGMMA
 - [hw-tmem](wiki/hardware/tmem.md) — Tensor Memory (256KB dedicated accumulator storage)
-- [hw-clc](wiki/hardware/clc.md) — Cluster Launch Control (dynamic tile scheduling)
+- [hw-clc](wiki/hardware/clc.md) — Cluster Launch Control (unlaunched-cluster cancellation for persistent scheduling)
 - [hw-tma](wiki/hardware/tma.md) — Tensor Memory Accelerator (async bulk loads)
 - [hw-2sm-cooperative](wiki/hardware/2sm-cooperative.md) — Two-SM cooperative MMA
 - [hw-nvfp4](wiki/hardware/nvfp4.md) — NVFP4 and block-scaled narrow precision
@@ -45,20 +45,20 @@ See [references/examples.md](references/examples.md) for 10 worked query pattern
 - [technique-tile-scheduling](wiki/techniques/tile-scheduling.md) — Tile scheduling strategies
 - [technique-double-buffering](wiki/techniques/double-buffering.md) — Double/multi-buffering
 - [technique-software-exp](wiki/techniques/software-exp.md) — Software-emulated exponential
-- [technique-fine-grained-quant](wiki/techniques/fine-grained-quantization.md) — Fine-grained FP8/FP4 quantization
+- [technique-fine-grained-quantization](wiki/techniques/fine-grained-quantization.md) — Fine-grained FP8/FP4 quantization
 - [technique-vectorized-loads](wiki/techniques/vectorized-loads.md) — Wide vectorized loads and cache policies
 
 ## Kernel Case Studies
 
-- [kernel-flash-attention-4](wiki/kernels/flash-attention-4.md) — FlashAttention-4 (1605 TFLOPS on B200)
-- [kernel-deepgemm](wiki/kernels/deepgemm.md) — DeepGEMM FP8 GEMM (1550 TFLOPS on H800)
+- [kernel-flash-attention-4](wiki/kernels/flash-attention-4.md) — FlashAttention-4 (paper-reported up to 1613 TFLOP/s for BF16 attention on B200)
+- [kernel-deepgemm](wiki/kernels/deepgemm.md) — DeepGEMM FP8 GEMM (historical README headline: unspecified H800 peak up to 1,550 TFLOP/s)
 - [kernel-flashmla](wiki/kernels/flashmla.md) — FlashMLA sparse/dense MLA decoding
-- [kernel-nsa](wiki/kernels/nsa.md) — Native Sparse Attention (9x fwd speedup)
+- [kernel-nsa](wiki/kernels/nsa.md) — Native Sparse Attention (paper-reported up to 9x forward at 64K on A100 versus Triton FlashAttention-2)
 - [kernel-gated-delta-net](wiki/kernels/gated-delta-net.md) — Gated Delta Net linear attention
 - [kernel-nvfp4-gemm](wiki/kernels/nvfp4-gemm.md) — NVFP4 GEMM from GPU Mode hackathon
 - [kernel-nvfp4-gemv](wiki/kernels/nvfp4-gemv.md) — NVFP4 batched GEMV optimization
 - [kernel-grouped-gemm](wiki/kernels/grouped-gemm.md) — Grouped GEMM for MoE
-- [kernel-fused-moe](wiki/kernels/fused-moe.md) — Fused MoE with FP8
+- [kernel-fused-moe](wiki/kernels/fused-moe.md) — Fused MoE with NVFP4
 
 ## Problem → Solution Patterns
 

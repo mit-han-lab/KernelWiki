@@ -2,268 +2,65 @@
 id: kernel-nvfp4-gemv
 title: NVFP4 Batched GEMV
 type: kernel
-architectures:
-- sm100
-- sm100a
-tags:
-- gemv
-- nvfp4
-- fp4
-- block-scale
-- cache-policy
-- register-budgeting
-- vectorized-loads
+architectures: [sm100, sm100a]
+tags: [gemv, nvfp4, fp4, block-scale, cache-policy, register-budgeting, vectorized-loads]
 confidence: source-reported
 reproducibility: snippet
-kernel_types:
-- gemv
-- batched-gemv
-languages:
-- cuda-cpp
-- ptx
-related:
-- hw-nvfp4
-- kernel-nvfp4-gemm
-- pattern-memory-bound
-sources:
-- contest-gpumode-p1
-- blog-yue-nvfp4
-- blog-amandeep-nvfp4
+kernel_types: [gemv, batched-gemv]
+languages: [cuda-cpp, ptx]
+related: [hw-nvfp4, kernel-nvfp4-gemm, pattern-memory-bound]
+sources: [contest-gpumode-p1, blog-yue-nvfp4, blog-amandeep-nvfp4, blog-simon-nvfp4-gemv]
 performance_claims:
-- gpu: B200
-  dtype: nvfp4
-  shape: M=7168, K=16384, L=1
-  metric: latency_us
-  value: 22.4
-  utilization: ~2.6x of SOL (8.6us)
-  source_id: contest-gpumode-p1
+  - gpu: B200
+    software: "Yue participant implementation/write-up; CUDA/toolchain versions not stated in the retained result"
+    dtype: nvfp4
+    shape: geometric mean across the three contest configurations
+    workload: "GPU Mode NVIDIA Problem 1 batched NVFP4 GEMV across all three official configurations"
+    metric: latency_us_geomean
+    value: 22.392
+    measurement_method: "participant-reported geometric mean, cross-checked against the ended public leaderboard snapshot"
+    baseline: "none; absolute latency geometric mean"
+    limitations: "account/result attribution does not expose private submission code; exact toolchain and timing protocol are not stated"
+    source_id: blog-yue-nvfp4
 artifact_dir: artifacts/kernels/nvfp4-gemv
 ---
 
 # NVFP4 Batched GEMV
 
-## Overview
+## Contest operation
 
-NVFP4 Batched GEMV is a memory-bound kernel computing batched matrix-vector products with NVFP4 (E2M1) block-scaled inputs on B200 GPUs. Unlike compute-bound GEMM, GEMV is dominated by memory bandwidth utilization (each FP4 element is used only once in the dot product), making PTX-level memory access control, cache policy differentiation, and register budgeting the critical optimization levers.
+The GPU Mode Problem 1 workload computes batched matrix-vector products from NVFP4 E2M1 inputs. Each group of 16 input values has an E4M3 block scale. The FP16 output has shape `M × 1 × L`; this task interface does not supply a separate tensor-level FP32 scale.
 
-This was Problem 1 of the GPU Mode NVFP4 Hackathon (Nov 2025). The theoretical speed-of-light is ~8.6us for the largest config, limited by B200's 8 TB/s HBM3e bandwidth. Top performers achieved ~22.4us (2.6x off SOL), reflecting the overhead of FP4 decoding and scale factor application.
+The three recorded configurations are `(M,K,L) = (7168,16384,1)`, `(4096,7168,8)`, and `(7168,2048,4)`. Yue's public write-up reports a final 22.392-microsecond geometric mean across all three—not the latency of the first shape. The ended public API snapshot retrieved on 2026-08-16 showed `yue` 11th at 22.392218 us and an account named `Simon` 25th at 25.112154 us. Simon Veitner's articles do not establish that the latter account is his.
 
-## Problem Specification
-
-```
-Inputs:
-  a: (M x K x L) NVFP4 packed matrix
-  b: (1 x K x L) NVFP4 packed vector
-  sfa: (M x K/16 x L) FP8 E4M3 scale factors for a
-  sfb: (1 x K/16 x L) FP8 E4M3 scale factors for b
-  sf_a_global, sf_b_global: FP32 per-tensor global scales
-
-Output:
-  c: (M x 1 x L) FP16
-
-Computation per element:
-  c[m][l] = sum_k( sf_a_global * sfa[m][k/16][l] * deq(a[m][k][l])
-                  * sf_b_global * sfb[0][k/16][l] * deq(b[0][k][l]) )
-
-Benchmark configs:
-  Config 1: M=7168, K=16384, L=1
-  Config 2: M=4096, K=7168,  L=8
-  Config 3: M=7168, K=2048,  L=4
+```python
+def nvfp4_dot(a_codes, b_codes, a_scales, b_scales):
+    a = decode_e2m1(a_codes) * expand_blocks(a_scales, block=16)
+    b = decode_e2m1(b_codes) * expand_blocks(b_scales, block=16)
+    return sum(a * b)
 ```
 
-## Key Optimization: PTX-Level Control
+This is the numerical contract, not a performance implementation.
 
-Raw PTX provides critical performance gains over C intrinsics for FP4 decoding and memory access:
+## Optimization evidence
 
-```asm
-; FP4 to FP16 conversion: hardware instruction
-; Converts two packed E2M1 values to a pair of FP16 values
-cvt.rn.f16x2.e2m1x2 %result, %fp4_packed;
+The collected participant reports describe:
 
-; Byte unpacking: PTX mov.b32 is faster than manual bitwise ops
-; Instead of: val = (packed >> (i*4)) & 0xF  (multiple shifts + masks)
-; Use: direct byte decomposition
-mov.b32 {tmp0, tmp1, tmp2, tmp3}, %packed_word;
+- shape-specialized compilation and loop structure;
+- different cache hints for streamed matrix data and reused vector data;
+- packed loads and PTX conversion/unpacking sequences;
+- register-limit and instruction-level-parallelism tuning;
+- sharing vector values across multiple matrix rows.
 
-; This eliminates the shift-mask chain entirely
-; Key insight: PTX byte unpacking leverages hardware byte decomposition
-```
+Simon Veitner's public follow-up also compares K-parallel reductions using extra blocks,
+more threads, and variants with or without FP32 atomics. Its best reported first-
+shape comparison is about 6.36× from the article's raw, unitless values; that experiment
+is not the current leaderboard submission score.
 
-## Cache Policy Differentiation
+These are source-reported choices, not universal prescriptions. A lower register cap can increase occupancy but can also spill; a cache hint depends on the working set; and wider memory instructions help only when alignment and the surrounding access pattern permit them.
 
-Different data access patterns require different cache strategies:
+The task file's 8.622-microsecond “speed of light” is an estimate for the first configuration; the largest listed estimate is 17.275 microseconds for the second. Comparing a per-shape estimate with a suite geometric mean mixes different quantities, so this page does not publish the former “2.6× of SOL” utilization label or attribute the whole gap to decoding and scale application.
 
-```asm
-; Matrix A: streamed once per row, never reused across thread blocks
-; Bypass L1 to avoid polluting cache with one-shot data
-ld.global.L1::no_allocate.v4.u64 {a0,a1,a2,a3}, [addr_a];
+## Reproduction
 
-; Vector B: reused across all M rows in a thread block
-; Keep hot in L1 for fast reuse
-ld.global.L1::evict_last.v4.u64 {b0,b1,b2,b3}, [addr_b];
-
-; Rank 1 solution: used different qualifiers depending on K-dimension variant
-; K=16384 (large): aggressive L1 bypass for A
-; K=2048 (small): different balance since B is smaller relative to cache
-```
-
-## Register Budgeting
-
-Lower register counts force higher occupancy, which is critical for memory-bound kernels where latency hiding dominates:
-
-```cpp
-// Rank 1: aggressive register limit for maximum occupancy
-// nvcc -maxrregcount=32
-// Fewer registers -> more warps/SM -> better memory latency hiding
-
-// Rank 3: slightly relaxed for more ILP
-// nvcc -maxrregcount=45
-
-// Launch bounds to complement register budgeting
-__launch_bounds__(256, 4)  // 256 threads/block, 4+ blocks per SM
-__global__ void nvfp4_gemv_kernel(...) {
-    // ...
-}
-
-// The measurable difference between 32 and 45 registers shows
-// that occupancy is the dominant factor for memory-bound kernels
-```
-
-## Per-K Specialization
-
-Compile separate kernels per K dimension, each with full loop unrolling and tuned configs:
-
-```cpp
-// Each K variant compiled separately with optimal configuration
-template <int K_SIZE, int BLOCK_M, int MAX_REG>
-__global__ __launch_bounds__(THREADS, MIN_BLOCKS)
-void nvfp4_gemv_specialized(
-    const uint8_t* __restrict__ a,
-    const uint8_t* __restrict__ b,
-    const uint8_t* __restrict__ sfa,
-    const uint8_t* __restrict__ sfb,
-    half* __restrict__ c,
-    float sf_a_global, float sf_b_global,
-    int M
-) {
-    float acc = 0.0f;
-
-    // Full unroll: compiler knows K_SIZE at compile time
-    #pragma unroll
-    for (int k = 0; k < K_SIZE / ELEMENTS_PER_LOAD; k++) {
-        // Load FP4 packed data
-        uint64_t a_packed = load_fp4(a, row, k);
-        uint64_t b_packed = load_fp4(b, 0, k);
-
-        // Dequantize via PTX
-        half2 a_vals = cvt_e2m1x2(a_packed);
-        half2 b_vals = cvt_e2m1x2(b_packed);
-
-        // Apply block scales
-        float sa = sfa[row * (K_SIZE/16) + k/2];
-        float sb = sfb[k/2];
-
-        // Accumulate
-        acc += (float)a_vals.x * (float)b_vals.x * sa * sb;
-        acc += (float)a_vals.y * (float)b_vals.y * sa * sb;
-    }
-
-    // Apply global scales and store
-    c[row] = __float2half(acc * sf_a_global * sf_b_global);
-}
-
-// Dispatch: K=2048 uses BLOCK_M=8, maxreg=32
-//           K=7168 uses BLOCK_M=4, maxreg=40
-//           K=16384 uses BLOCK_M=2, maxreg=32
-```
-
-## Vectorized Loads
-
-128-bit and 256-bit vector loads maximize bandwidth utilization:
-
-```asm
-; 128-bit vector load (16 bytes = 32 FP4 elements)
-ld.global.v2.u64 {r0, r1}, [addr];
-
-; 256-bit vector load (32 bytes = 64 FP4 elements)
-ld.global.v4.u64 {r0, r1, r2, r3}, [addr];
-
-; Only effective when combined with PTX byte unpacking
-; to avoid bitwise overhead in the subsequent unpack stage
-; Without proper unpacking, wide loads just move the bottleneck
-```
-
-## Data Reuse (Rank 2 Approach)
-
-Since B is shape (1 x K x L), all M rows multiply against the same B vector:
-
-```cpp
-// Load B vector into shared memory once per thread block
-// All BLOCK_M rows reuse the same B data
-__shared__ half b_shared[K_TILE];
-
-// Cooperative load: all threads in block load a portion of B
-for (int i = threadIdx.x; i < K_TILE; i += blockDim.x) {
-    b_shared[i] = dequant_fp4(b[i], sfb[i/16]) * sf_b_global;
-}
-__syncthreads();
-
-// Each thread computes dot product of its A row with shared B
-float acc = 0.0f;
-for (int k = 0; k < K_TILE; k++) {
-    acc += (float)a_dequant[k] * (float)b_shared[k];
-}
-
-// Reduces global memory traffic by BLOCK_M ratio
-```
-
-## Performance Progression
-
-Documented progression from Yue's hackathon blog:
-
-| Stage | Technique | Latency |
-|-------|-----------|---------|
-| CuTe DSL baseline | Basic CuTe partition/copy | ~100us |
-| Coalesced access | Fix memory access patterns | 443us -> 39us |
-| Hardware intrinsics | cvt.rn.f16x2.e2m1x2 | ~39us |
-| PTX assembly | Full PTX with byte unpacking | ~27us |
-| ILP optimization | Instruction-level parallelism | ~22.9us |
-| Final submission | All combined | 22.392us |
-
-## Key Lessons
-
-1. **Memory-bound kernels need bandwidth-first thinking**: Arithmetic optimizations have minimal impact; focus on memory access patterns, cache policies, and vectorized loads
-2. **PTX gives real control on Blackwell**: The gap between C intrinsics and hand-written PTX was substantial (443us to 27us in one journey)
-3. **Profile first**: "Run Nsight Compute to confirm memory-bound behavior" (Amandeep's lesson after 12 attempts)
-4. **Register budgeting matters**: Lower registers -> higher occupancy -> better memory latency hiding
-5. **TMEM is irrelevant**: Memory-bound kernels do not benefit from TMEM (it helps compute-bound only)
-
-## When to Use
-
-- Decode-time MLP with batch size 1 (matrix-vector product)
-- Any NVFP4 workload where arithmetic intensity is too low for tensor cores
-- Memory-bound operations with FP4 quantized weights
-
-## Caveats
-
-- SM100/SM100a only (native FP4 decode instructions)
-- PTX-level optimizations are fragile across CUDA toolkit versions
-- Per-K specialization increases binary size (one kernel per K variant)
-- Speed-of-light is bounded by B200 memory bandwidth (8 TB/s)
-
-## Sources
-
-- [GPU Mode NVFP4 Hackathon](https://github.com/gpu-mode/reference-kernels)
-- [Yue's Hackathon Journey](https://yue-zhang-2025.github.io/2025/12/02/blackwell-nvfp4-kernel-hackathon-journey.html)
-- [Twelve Attempts (Amandeep)](https://amandeepsp.github.io/blog/nvfp4-blackwell-gemv/)
-- [Simon's NVFP4 GEMV Blog](https://veitner.bearblog.dev/nvfp4-gemv/)
-
-## Full Reference Implementation
-
-Local verbatim upstream code lives in [`artifacts/kernels/nvfp4-gemv/full/`](../../artifacts/kernels/nvfp4-gemv/full/) (see its `PROVENANCE.yaml` for the pinned upstream SHA and byte-verified SHA-256). Labeled derived variants — including a naive/teaching skeleton — live in [`artifacts/kernels/nvfp4-gemv/variants/`](../../artifacts/kernels/nvfp4-gemv/variants/).
-
-Query via:
-
-```bash
-python3 scripts/get_page.py kernel-nvfp4-gemv --include-code
-```
+The `full/` bundle contains a byte-pinned upstream vLLM NVFP4 scaled-matrix-multiplication source file. It is implementation evidence for NVFP4 handling, not the unavailable contest GEMV submission. No reconstructed contestant code is retained.

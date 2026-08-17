@@ -14,10 +14,10 @@ keywords_used:
 - fmha
 - sdpa
 - tcgen05
-total_candidates: 1083
+total_candidates: 1086
 included: 683
 excluded: 188
-deferred: 212
+deferred: 215
 prs:
 - number: 714
   title: 'perf: fix the iteration bound of SWA in FA2 prefill template'
@@ -8669,3 +8669,21 @@ prs:
   deletions: 2
   changed_file_count: 1
   artifact_dir: evidence/pull-bundles/flashinfer/gh-3180
+- number: 3173
+  title: 'fix: add sm_121 to TMEM column fallback map'
+  date: '2026-05-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 3179
+  title: bump version to 0.6.10
+  date: '2026-05-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 3365
+  title: 'fix(trace): repair TGV and XQA MLA reference tests'
+  date: '2026-05-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

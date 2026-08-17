@@ -9,7 +9,12 @@ tags:
 - warp-specialization
 - tcgen05
 - tmem
-confidence: source-reported
+confidence: verified
+evidence_basis:
+  - source_id: doc-ptx-isa-sm100
+    evidence_type: official-doc
+  - source_id: pr-cutlass-2139
+    evidence_type: upstream-code
 reproducibility: snippet
 prerequisites:
 - hw-tmem
@@ -19,241 +24,103 @@ related:
 - technique-pipeline-stages
 - hw-tcgen05-mma
 sources:
+- doc-ptx-isa-sm100
+- pr-cutlass-2139
 - doc-nvidia-tuning-guide
 - blog-tcgen05-tutorial
 - blog-colfax-cutlass
-blackwell_relevance: Blackwell uses 16-warp single-thread MMA model (vs Hopper's 4-warp
-  warp-group); fundamentally different structure.
+blackwell_relevance: Blackwell tcgen05 uses single-thread MMA issuance and TMEM accumulators,
+  enabling kernel-specific warp roles for scheduling, TMA, MMA control, and epilogues.
 artifact_dir: artifacts/kernels/warp-specialization
 ---
 
 ## Overview
 
-Warp specialization assigns distinct functional roles to warps within a CTA, allowing each warp to focus on a single pipeline stage (data loading, MMA computation, or epilogue writeback). On Blackwell (SM100), the 16-warp CTA structure replaces Hopper's 4-warp warpgroup model. Because tcgen05.mma is a single-thread instruction that operates on TMEM rather than registers, only one warp needs to issue MMA operations, freeing the remaining warps for producer and consumer roles.
+Warp specialization assigns different warps in one CTA to different pipeline roles. On SM100, `tcgen05.mma` is issued by one thread and accumulates in TMEM, so a warp can serve as an MMA-control role while other warps schedule tiles, move operands with TMA, or run the epilogue.
 
-## Blackwell 16-Warp Kernel Structure
+Single-thread issuance does not define a fixed CTA size or warp map. The earlier “canonical 16 warps: 1 TMA + 1 MMA + 14 epilogue” description was not a CUTLASS invariant.
 
-The canonical Blackwell GEMM kernel uses 16 warps (512 threads) per CTA with the following role assignment:
+## A concrete CUTLASS 4.5.0 mapping
 
-| Warp ID | Role | Responsibility |
-|---------|------|----------------|
-| 0 | TMA Producer | Issues TMA bulk-copy from global to shared memory, signals mbarrier |
-| 1 | MMA Consumer | Issues tcgen05.mma on SMEM operands, writes results to TMEM |
-| 2-15 | Epilogue | Reads TMEM accumulator, applies scale/bias/activation, writes to global memory |
+The official `sm100_gemm_tma_warpspecialized.hpp` kernel defines these thread counts:
 
-This contrasts with Hopper where a warpgroup (4 warps, 128 threads) collectively issues wgmma.mma_async, and all threads in the warpgroup participate in the MMA. On Blackwell, the MMA warp dispatches the instruction from a single thread while the hardware handles the data movement internally.
+| Role | Threads in the kernel header |
+|---|---:|
+| Tile scheduler / CLC | 32 (one warp) |
+| MMA control | 32 (one warp) |
+| Mainloop TMA load | 32 (one warp) |
+| Epilogue TMA load | 32 (one warp) |
+| Epilogue compute/store | `CollectiveEpilogue::ThreadCount` (configuration-dependent) |
 
-## Comparison with Hopper Warpgroup Model
+Its `WarpCategory` assigns warp indices 0–3 to MMA, scheduler, mainloop load, and epilogue load respectively; indices 4 and above are epilogue warps. Consequently the total is `4 + NumEpilogueWarps`, not universally 16. Other CUTLASS schedules and attention kernels can choose other decompositions.
 
-| Aspect | Hopper (SM90) | Blackwell (SM100) |
-|--------|---------------|-------------------|
-| MMA granularity | 4-warp warpgroup (128 threads) | Single thread in 1 warp |
-| MMA output destination | Registers (shared across warpgroup) | TMEM (256KB, CTA-visible) |
-| Producer warps | Separate warp(s) for TMA loads | Warp 0 dedicated to TMA |
-| Epilogue execution | Same warpgroup or separate warps | 14 dedicated warps (2-15) |
-| Synchronization | warpgroup barriers, arrive/wait | mbarrier pairs (producer/consumer) |
-| Register pressure | High (accumulators in registers) | Low (accumulators in TMEM) |
+Source: [CUTLASS v4.5.0 SM100 warp-specialized GEMM kernel](https://github.com/NVIDIA/cutlass/blob/v4.5.0/include/cutlass/gemm/kernel/sm100_gemm_tma_warpspecialized.hpp).
 
-## Warp Role Assignment
+## Pipeline dependencies
 
-The kernel entry point assigns each warp its role based on `threadIdx.x`:
+A typical SM100 GEMM has several distinct handoffs:
+
+1. The scheduler supplies a work tile, optionally using Cluster Launch Control for persistent scheduling.
+2. The mainloop-load warp waits until a shared-memory stage is empty, sets the transaction expectation, and launches TMA copies.
+3. The MMA warp waits for the stage-full condition, orders its `tcgen05` access after that synchronization, and issues MMA operations.
+4. The MMA completion path uses `tcgen05.commit` and an mbarrier; an ordering fence alone is not an MMA completion event.
+5. Epilogue warps wait for an accumulator subtile, collectively load from TMEM, apply the output operation, and store. The epilogue-load warp exists only when source-C data must be loaded.
+
+The stage-full and stage-empty barriers form a ring. Phase/parity state must be advanced according to the pipeline implementation so a later reuse cannot be mistaken for an earlier arrival.
+
+## Illustrative role dispatch
+
+This pseudocode conveys role ownership only. It is not a drop-in kernel and intentionally delegates the barrier protocol to checked pipeline objects:
 
 ```cuda
-// Blackwell 16-warp specialized GEMM kernel skeleton
-// 16 warps = 512 threads per CTA
-__global__ void __launch_bounds__(512)
-blackwell_gemm_warp_specialized(
-    const __grid_constant__ GemmParams params)
-{
-    const int warp_id = threadIdx.x / 32;
-    const int lane_id = threadIdx.x % 32;
+int warp = cutlass::canonical_warp_idx_sync();
 
-    // Shared memory for A/B tiles and mbarrier objects
-    extern __shared__ char smem[];
-    half* smem_A = reinterpret_cast<half*>(smem);
-    half* smem_B = reinterpret_cast<half*>(smem + SMEM_A_SIZE);
-
-    // mbarrier pairs: TMA hardware signals "data ready", MMA signals "buffer free"
-    __shared__ uint64_t mbar_data_ready[NUM_STAGES];
-    __shared__ uint64_t mbar_buffer_free[NUM_STAGES];
-    // MMA→epilogue handoff barrier
-    __shared__ uint64_t mbar_acc_complete;
-    // Phase tracking: mbarriers alternate parity on each reuse cycle
-    int phase_data[NUM_STAGES];
-    int phase_free[NUM_STAGES];
-
-    if (warp_id == 0) {
-        if (lane_id == 0) {
-            for (int s = 0; s < NUM_STAGES; s++) {
-                // TMA expects arrive.expect_tx → hardware completes
-                mbarrier_init(&mbar_data_ready[s], 1);
-                mbarrier_init(&mbar_buffer_free[s], 1);
-            }
-            mbarrier_init(&mbar_acc_complete, 1);
-        }
-    }
-    // Initialize phase counters (all start at 0)
-    for (int s = 0; s < NUM_STAGES; s++) {
-        phase_data[s] = 0;
-        phase_free[s] = 0;
-    }
-    __syncthreads();
-
-    if (warp_id == 0) {
-        // === TMA PRODUCER WARP ===
-        for (int k_tile = 0; k_tile < num_k_tiles; k_tile++) {
-            int stage = k_tile % NUM_STAGES;
-
-            // Wait for consumer to release this buffer (with phase tracking)
-            if (k_tile >= NUM_STAGES) {
-                mbarrier_wait_parity(&mbar_buffer_free[stage], phase_free[stage]);
-                phase_free[stage] ^= 1;  // flip parity for next reuse
-            }
-
-            // Set expected TX bytes, then issue TMA. TMA hardware will
-            // signal mbar_data_ready upon transfer completion.
-            // Do NOT manually arrive — that races with the async transfer.
-            if (lane_id == 0) {
-                uint32_t tx_bytes = TILE_A_BYTES + TILE_B_BYTES;
-                mbarrier_arrive_expect_tx(&mbar_data_ready[stage], tx_bytes);
-                tma_copy_async(smem_A + stage * TILE_A_SIZE,
-                               &params.A[k_tile * TILE_K], TILE_A_SIZE,
-                               &mbar_data_ready[stage]);
-                tma_copy_async(smem_B + stage * TILE_B_SIZE,
-                               &params.B[k_tile * TILE_K], TILE_B_SIZE,
-                               &mbar_data_ready[stage]);
-                // TMA hardware arrives on mbar_data_ready when transfer completes
-            }
-        }
-
-    } else if (warp_id == 1) {
-        // === MMA CONSUMER WARP ===
-        for (int k_tile = 0; k_tile < num_k_tiles; k_tile++) {
-            int stage = k_tile % NUM_STAGES;
-
-            // Wait for TMA to complete this stage (with phase tracking)
-            mbarrier_wait_parity(&mbar_data_ready[stage], phase_data[stage]);
-            phase_data[stage] ^= 1;
-
-            // Critical fence: ensure TMA data visible before MMA reads SMEM
-            tcgen05_fence_after_thread_sync();
-
-            if (lane_id == 0) {
-                tcgen05_mma(smem_A + stage * TILE_A_SIZE,
-                            smem_B + stage * TILE_B_SIZE);
-            }
-            __syncwarp();
-
-            // Signal buffer is free for reuse
-            if (lane_id == 0) {
-                mbarrier_arrive(&mbar_buffer_free[stage]);
-            }
-        }
-
-        // Signal epilogue warps that accumulation is complete
-        if (lane_id == 0) {
-            mbarrier_arrive(&mbar_acc_complete);
-        }
-
-    } else {
-        // === EPILOGUE WARPS (2-15) ===
-        // Wait for MMA completion via dedicated mbarrier (not __syncthreads,
-        // which would deadlock since producer/MMA warps don't reach it)
-        mbarrier_wait(&mbar_acc_complete);
-
-        // Each epilogue warp handles a partition of the TMEM output.
-        // Use ceiling division to cover tail rows when TILE_M % 14 != 0.
-        constexpr int NUM_EPI_WARPS = 14;  // warps 2-15
-        int epi_warp = warp_id - 2;  // 0..13
-        int rows_per_warp = (TILE_M + NUM_EPI_WARPS - 1) / NUM_EPI_WARPS;
-        int my_row_start = epi_warp * rows_per_warp;
-        int my_row_end = min(my_row_start + rows_per_warp, TILE_M);
-
-        for (int r = my_row_start; r < my_row_end; r++) {
-            for (int c = lane_id; c < TILE_N; c += 32) {
-                // Read accumulator from TMEM
-                float acc = tmem_load(r, c);
-                // Apply epilogue: scale + bias + activation
-                float result = epilogue_op(acc, params.scale, params.bias[c]);
-                // Write to global memory
-                params.C[r * params.N + c] = __float2half(result);
-            }
-        }
-    }
+if (warp == 0) {
+  mma_consumer.run(mainloop_full, accumulator_full);
+} else if (warp == 1) {
+  scheduler.run(clc_pipeline);
+} else if (warp == 2) {
+  mainloop_loader.run(mainloop_empty, mainloop_full);
+} else if (warp == 3) {
+  epilogue_loader.run(epilogue_load_pipeline);  // when source C is needed
+} else {
+  epilogue.run(accumulator_full, epilogue_store_pipeline);
 }
 ```
 
-## mbarrier Synchronization Pattern
+In real CUTLASS code the pipeline objects carry producer/consumer roles, arrival counts, stage state, and cluster semantics. Copying only the branch structure without those invariants is not correct.
 
-The producer-consumer synchronization uses mbarrier pairs. Each pipeline stage has two barriers:
+## Hopper comparison
 
-1. **data_ready**: Producer (Warp 0) arrives after TMA completes. Consumer (Warp 1) waits before issuing MMA.
-2. **buffer_free**: Consumer (Warp 1) arrives after MMA consumes the data. Producer (Warp 0) waits before overwriting the buffer.
+| Aspect | Hopper SM90 | Blackwell SM100 |
+|---|---|---|
+| MMA issue model | Warpgroup executes `wgmma` | One thread issues `tcgen05.mma` |
+| Accumulator location | Registers | TMEM |
+| Mainloop overlap | Commonly warpgroup-specialized TMA/MMA | Warp roles can separately schedule, load, issue MMA, and run epilogue |
+| Completion primitive | WGMMA group commit/wait | `tcgen05.commit` plus mbarrier wait |
 
-At the PTX level, the mbarrier operations map to:
+TMEM reduces accumulator register pressure, but it does not automatically imply higher occupancy; threads, shared memory, barriers, and TMEM allocation remain residency constraints.
 
-```ptx
-// Producer: signal data is ready in stage %stage
-mbarrier.arrive.shared.b64  %dummy, [%mbar_data_ready + %stage_offset];
+## When it helps
 
-// Consumer: wait for data to be ready
-mbarrier.try_wait.parity.shared.b64  %pred, [%mbar_data_ready + %stage_offset], %phase;
+- TMA transfers and Tensor Core work have enough independent work to overlap.
+- Persistent scheduling can hide tail imbalance across work tiles.
+- The epilogue has enough work to overlap with later mainloop stages or tiles.
+- Attention pipelines need separate tensor-core, softmax, and data-movement roles.
 
-// Consumer: signal buffer is consumed
-mbarrier.arrive.shared.b64  %dummy, [%mbar_buffer_free + %stage_offset];
+It is not mandatory for every Blackwell kernel. Small or memory-bound kernels may not have enough pipeline work to repay extra warps and synchronization.
 
-// Producer: wait for buffer to be free
-mbarrier.try_wait.parity.shared.b64  %pred, [%mbar_buffer_free + %stage_offset], %phase;
-```
+## Correctness caveats
 
-## CUTLASS SM100 Warp Specialization
-
-In CUTLASS 4.5.0, the SM100 GEMM collective (`CollectiveMma_1SM`) implements this pattern with CuTe abstractions:
-
-```cuda
-// CUTLASS SM100 warp role dispatch (simplified from CollectiveMma)
-// Template parameter WarpCount = cute::Shape<1, 1, 14>
-// Warp 0 = producer, Warp 1 = math, Warps 2-15 = epilogue
-
-template <class TiledMma, class SmemLayout>
-struct CollectiveMma_1SM {
-    static constexpr int NumProducerWarps = 1;
-    static constexpr int NumMathWarps = 1;
-    static constexpr int NumEpilogueWarps = 14;
-
-    CUTLASS_DEVICE void operator()(
-        Params const& params,
-        char* smem_buf,
-        TiledMma& tiled_mma)
-    {
-        int warp_idx = cutlass::canonical_warp_idx_sync();
-
-        if (warp_idx == 0) {
-            producer_warp(params, smem_buf);
-        } else if (warp_idx == 1) {
-            math_warp(params, smem_buf, tiled_mma);
-        } else {
-            epilogue_warp(params, smem_buf);
-        }
-    }
-};
-```
-
-## When to Use
-
-- **Always on Blackwell GEMMs**: Warp specialization is the standard pattern for SM100 tensor core kernels. The tcgen05 instruction model assumes single-thread dispatch with TMEM output.
-- **Attention kernels**: FlashAttention-4 extends this to ping-pong scheduling with 2 query tile groups and dedicated softmax warps.
-- **Any kernel with producer-consumer pipeline**: When TMA loads and MMA compute can overlap, warp specialization provides the cleanest decomposition.
-
-## Caveats
-
-- The 14 epilogue warps may be underutilized for simple epilogues (e.g., pure store). Complex epilogues (scale, bias, activation, quantization) benefit more.
-- The single MMA warp means the kernel cannot overlap multiple independent MMA streams within a CTA. Use 2-SM cooperative mode for larger tiles instead.
-- mbarrier initialization must happen before any warp tries to wait; use `__syncthreads()` after init if needed.
+- Initialize shared pipeline state before any participant waits on it.
+- Match transaction-byte expectations to the actual TMA transfers.
+- Do not release a shared-memory stage merely because MMA was issued; use the pipeline's documented consumption/completion semantics.
+- Before a different thread performs dependent `tcgen05` work, use the required thread synchronization plus `tcgen05.fence::after_thread_sync` ordering.
+- Before epilogue reads, track MMA completion with `tcgen05.commit` and wait on its mbarrier. A plain CTA barrier is insufficient.
 
 ## Full Reference Implementation
 
-Local verbatim upstream code lives in [`artifacts/kernels/warp-specialization/full/`](../../artifacts/kernels/warp-specialization/full/) (see its `PROVENANCE.yaml` for the pinned upstream SHA and byte-verified SHA-256). Labeled derived variants — including a naive/teaching skeleton — live in [`artifacts/kernels/warp-specialization/variants/`](../../artifacts/kernels/warp-specialization/variants/).
+Local verbatim upstream code lives in [`artifacts/kernels/warp-specialization/full/`](../../artifacts/kernels/warp-specialization/full/) (see its `PROVENANCE.yaml` for the pinned upstream SHA and byte-verified SHA-256). The former teaching skeleton was removed because it did not preserve the upstream role and synchronization contract closely enough to serve as implementation evidence.
 
 Query via:
 

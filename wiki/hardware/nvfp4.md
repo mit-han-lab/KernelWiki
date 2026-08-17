@@ -4,56 +4,48 @@ title: "NVFP4 and Block-Scaled Narrow Precision"
 type: hardware
 architectures: [sm100, sm100a]
 tags: [nvfp4, fp4, block-scale, fp8, fp6]
-confidence: source-reported
+confidence: verified
+evidence_basis:
+  - {source_id: doc-ptx-isa-sm100, evidence_type: official-doc}
+  - {source_id: pr-cutlass-2139, evidence_type: upstream-code}
 related: [technique-fine-grained-quantization, kernel-nvfp4-gemm, kernel-nvfp4-gemv, hw-tcgen05-mma]
-sources: [doc-nvidia-tuning-guide, contest-gpumode-p1, contest-gpumode-p2, blog-yue-nvfp4]
+sources: [doc-ptx-isa-sm100, doc-cutlass-blackwell, doc-nvidia-tuning-guide, contest-gpumode-p1, contest-gpumode-p2, blog-yue-nvfp4, pr-cutlass-2139]
 aliases: [NVFP4, E2M1, "FP4 E2M1", "nv_float4"]
 ---
 
-## Overview
+# NVFP4 and Block-Scaled Narrow Precision
 
-NVFP4 is NVIDIA's 4-bit floating-point format (E2M1) with block scaling, native to Blackwell tensor cores.
+## Format
 
-## Format Details
+The SM100 NVFP4 operand pairs signed E2M1 data with an unsigned E4M3 scale-factor type (`ue4m3` in PTX/CUTLASS). One scale applies to 16 consecutive dense K elements (32 for the documented sparse case). E2M1 represents zero and signed magnitudes 0.5, 1, 1.5, 2, 3, 4, and 6; it has no infinity or NaN encoding.
 
+Applications often add a higher-level FP32 tensor/global scale as part of their quantization recipe. That extra scale is not itself part of the `tcgen05` NVFP4 instruction format.
+
+## Hardware operation
+
+The block-scaled MMA computes the equivalent of:
+
+```text
+D[i,j] = C[i,j] + sum_k
+    (decode(A[i,k]) * SFA[i,floor(k/16)]) *
+    (decode(B[j,k]) * SFB[j,floor(k/16)])
 ```
-E2M1: 1 sign bit, 2 exponent bits, 1 mantissa bit
-Representable values: 0, ±0.5, ±1, ±1.5, ±2, ±3, ±4, ±6
 
-Block scaling: every 16 FP4 elements share one FP8 E4M3 scale factor
-Two-level: per-block E4M3 scale × per-tensor FP32 global scale
+Scale tensors use a prescribed swizzled/basic-block physical layout. Use CUTLASS layout builders or the PTX tables rather than assuming a row-major matrix.
 
-Quantization:   q_i = cast_FP4(x_i / (s_global * s_block))
-Dequantization: x_hat_i = s_global * s_block * deq_FP4(q_i)
-```
+The associated PTX kind is `mxf4nvf4` (some CUTLASS text/API generations use `nvf4mxf4`). CUTLASS characterizes its peak tensor-core class as 4x Hopper FP8 Tensor Core throughput; this is a theoretical instruction-class comparison, not a guarantee that an application is 4x faster.
 
-## tcgen05 Variants for FP4
+## NVFP4 versus MXFP4
 
-| Variant | Description | Throughput vs Hopper |
+| Property | NVFP4 | MXFP4 |
 |---|---|---|
-| `tcgen05.mma.mxf4.block_scale` | MX FP4 with block scaling | **4×** |
-| `tcgen05.mma.mxf4nvf4.block_scale` | NVFP4 + MX FP4 flexible scaling | **4×** |
+| data | E2M1 | E2M1 |
+| scale | UE4M3 | UE8M0 |
+| dense K elements per scale | 16 | 32 |
+| OCP MX compliant | no | yes |
 
-## PTX for FP4 Conversion
+The finer, fractional NVFP4 scale can reduce quantization error for many distributions, but “always lower error” is not an architecture fact; clipping, scale selection, and data distribution determine the result.
 
-```ptx
-// Convert two FP4 values to two FP16 values
-cvt.rn.f16x2.e2m1x2 result, packed_fp4;
+## Conversion boundary
 
-// Byte unpacking (faster than bitwise extraction)
-mov.b32 {tmp0, tmp1, tmp2, tmp3}, packed_data;
-```
-
-## NVFP4 vs MXFP4
-
-| Aspect | NVFP4 | MXFP4 |
-|---|---|---|
-| Scale format | E4M3 (fractional) | UE8M0 (power-of-2 only) |
-| Block size | 16 elements | 32 elements |
-| Scale precision | Non-power-of-2 | Power-of-2 only |
-| Quantization error | Lower | Higher |
-
-## Related
-- [fine-grained-quantization](../techniques/fine-grained-quantization.md) — Scaling strategies
-- [nvfp4-gemm](../kernels/nvfp4-gemm.md) — NVFP4 GEMM kernel
-- [nvfp4-gemv](../kernels/nvfp4-gemv.md) — NVFP4 GEMV kernel
+PTX supports packed E2M1 conversion forms, with saturation/rounding qualifiers determined by direction and destination. Consult the exact `cvt` signature; a generic two-operand mnemonic without required qualifiers is not a portable code sample.

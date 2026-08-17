@@ -5,229 +5,132 @@ url: https://docs.nvidia.com/cuda/parallel-thread-execution/
 source_category: official-doc
 architectures: [sm100, sm100a]
 tags: [ptx, tcgen05, tmem, clc, tma, nvfp4, fp4, fp8, fp6, block-scale, mbarrier]
-retrieved_at: 2026-04-16
+retrieved_at: 2026-08-16
 ---
 
 # PTX ISA SM100 Instructions Reference
 
-## Overview
+## Scope and version
 
-PTX ISA 8.7+ introduces SM100-specific instructions for Blackwell's tensor core (tcgen05), tensor memory (TMEM), cluster launch control (CLC), and sub-byte data type conversions. This page summarizes the key new instructions relevant to kernel optimization.
+This page records the SM100 instruction families in the current PTX ISA 9.3 documentation. The core `tcgen05` allocation, load/store, MMA, fence, commit, and Cluster Launch Control instructions were introduced in PTX ISA 8.6; later PTX revisions add qualifiers, shapes, and family-specific targets. Exact target notes belong to each instruction in the official ISA and should be checked when emitting PTX for a particular target.
 
-## tcgen05.mma Instructions
+## `tcgen05.mma`
 
-### Syntax
+`tcgen05.mma` is asynchronous and is issued by one thread. Its dense, non-block-scaled floating-point form is:
 
-```asm
-tcgen05.mma.cta_group::{1|2}.kind::{dtype}
-    [tmem_addr],        // Destination: TMEM address
-    [smem_desc_a],      // Source A: SMEM descriptor
-    [smem_desc_b];      // Source B: SMEM descriptor
-```
-
-### CTA Group Variants
-
-| cta_group | Description | Max M |
-|---|---|---|
-| `cta_group::1` | Single-CTA (1-SM) operation | 128 |
-| `cta_group::2` | Cooperative 2-CTA (2-SM) operation | 256 |
-
-### Data Type Variants (kind)
-
-| kind | A type | B type | Accumulator | Shape (1-CTA) |
-|---|---|---|---|---|
-| `kind::f16` | FP16/BF16 | FP16/BF16 | FP32 | m128n256k16 |
-| `kind::tf32` | TF32 | TF32 | FP32 | m128n256k8 |
-| `kind::i8` | INT8 | INT8 | INT32 | m128n256k32 |
-| `kind::f8f6f4` | FP8/FP6/FP4 | FP8/FP6/FP4 | FP32 | m128n256k32+ |
-| `kind::mxf8` | MX FP8 | MX FP8 | FP32 | m128n256k32 |
-| `kind::mxf4nvf4` | NVFP4 | NVFP4 | FP32 | m128n256k64 |
-
-### Key Differences from Hopper wgmma
-
-```asm
-// Hopper (SM90): warpgroup scope, register accumulators
-wgmma.mma_async.sync.aligned.m64n256k16.f32.bf16.bf16
-    {d0..d127},     // 128 register accumulators
-    [desc_a],
-    [desc_b];
-
-// Blackwell (SM100): single-thread, TMEM accumulators
+```ptx
 tcgen05.mma.cta_group::1.kind::f16
-    [tmem_addr],    // TMEM accumulator (no register pressure)
-    [smem_desc_a],
-    [smem_desc_b];
+    [d_tmem], a_desc, b_desc, idesc,
+    {disable0, disable1, disable2, disable3}, enable_input_d;
 ```
 
-## TMEM Instructions
+The destination is in TMEM. Operand B is a shared-memory descriptor; operand A may be either a shared-memory descriptor or a TMEM address, depending on the instruction form. The `disable-output-lane` vector has four `.b32` members for `cta_group::1` and eight for `cta_group::2`; an all-zero vector disables no output lanes. `enable_input_d` selects `D = A*B+D` when true and `D = A*B` when false.
 
-### Allocation and Deallocation
+The documented kind groups are:
 
-```asm
-// Allocate TMEM rows for a CTA group
-tcgen05.alloc.cta_group::1 [tmem_base], num_rows;
+| Form | Kinds |
+|---|---|
+| Floating point, no block scaling | `kind::f16`, `kind::tf32`, `kind::f8f6f4` |
+| Floating point, block scaling | `kind::mxf8f6f4`, `kind::mxf4`, `kind::mxf4nvf4` |
+| Integer | `kind::i8` |
 
-// Deallocate TMEM rows
-tcgen05.dealloc.cta_group::1 [tmem_base], num_rows;
+Block-scaled forms add `.block_scale` (and an optional scale-vector-size qualifier) plus TMEM addresses for the A and B scale-factor matrices. Both `cta_group::1` and `cta_group::2` forms exist; the legal M/N/K shapes depend on the kind, CTA group, layout, and instruction descriptor, so this summary intentionally does not collapse them into one fixed shape.
+
+PTX ISA 9.3's `tcgen05.mma` Target ISA Notes distinguish the qualifier targets: `.scale_vec::1X`, `.scale_vec::2X`, and `.scale_vec::4X` require `sm_100a`, while `.block16` and `.block32` require `sm_100f` or `sm_110f`. Section 11.1.2 separately defines an `f` target as a family-specific feature target and an `a` target as architecture-specific; a family feature may be used by a later `a` target in that same family. These are target-feature rules, not a claim that a same-generation toolchain cannot accept a block alias under its corresponding architecture-specific path.
+
+The block aliases are kind- and K-dependent rather than interchangeable shorthand:
+
+| Alias | Equivalent scale-vector qualifier | Applicable kind and K |
+|---|---|---|
+| `.block16` | `.scale_vec::4X` | `kind::mxf4nvf4` with K=64 or K=128 |
+| `.block32` | `.scale_vec::1X` | `kind::mxf8f6f4` for every supported K |
+| `.block32` | `.scale_vec::2X` | `kind::mxf4` or `kind::mxf4nvf4` with K=64 or K=128 |
+
+## TMEM allocation and register transfers
+
+Allocation counts TMEM **columns**, not rows, and writes the allocated address to shared memory:
+
+```ptx
+tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [smem_tmem_addr], n_cols;
+ld.shared.b32 taddr, [smem_tmem_addr];
+
+// ... use taddr ...
+
+tcgen05.dealloc.cta_group::1.sync.aligned.b32 taddr, n_cols;
+tcgen05.relinquish_alloc_permit.cta_group::1.sync.aligned;
 ```
 
-### Load/Store (TMEM <-> Registers)
+All dynamically allocated TMEM must be deallocated before kernel exit. Loads and stores between TMEM and registers are asynchronous collective warp operations:
 
-```asm
-// Load from TMEM to registers (for epilogue)
-tcgen05.ld.16x256b [reg_dest], [tmem_src];
+```ptx
+tcgen05.ld.sync.aligned.32x32b.x2.b32 {r0, r1}, [taddr];
+tcgen05.wait::ld.sync.aligned;
 
-// Store from registers to TMEM
-tcgen05.st.16x256b [tmem_dest], [reg_src];
+tcgen05.st.sync.aligned.32x32b.x2.b32 [taddr], {r0, r1};
+tcgen05.wait::st.sync.aligned;
 ```
 
-### TMEM Layout
+All threads in the executing warp participate and must use the same base address.
 
-```
-TMEM per SM: 128 rows x 512 columns x 32-bit
-Total: 128 * 512 * 4 bytes = 256 KB
+## MMA completion and cross-thread ordering
 
-Row addressing: tmem_base + row_offset
-Column mapping: determined by MMA instruction variant
-```
+`tcgen05.fence` is an ordering primitive, not by itself a completion wait. The mbarrier completion path for an MMA is:
 
-## CLC Instructions
+```ptx
+// Issuing thread
+tcgen05.mma.cta_group::1.kind::f16
+    [taddr], a_desc, b_desc, idesc, {mask0, mask1, mask2, mask3}, p;
+tcgen05.commit.cta_group::1.mbarrier::arrive::one.b64 [mbar];
 
-### Dynamic Tile Scheduling
-
-```asm
-// Signal tile arrival (producer done loading data)
-clc.arrive.group::1;
-
-// Wait for tile assignment (consumer waits for work)
-clc.wait.group::1;
-
-// CLC replaces manual tile queues:
-// - Hardware maintains work queue
-// - Tiles assigned to SMs as they become available
-// - Eliminates tail effects and load imbalance
+// Wait until mbarrier.try_wait.parity reports completion, then order
+// this thread's following tcgen05 operation after the synchronization.
+tcgen05.fence::after_thread_sync;
+tcgen05.ld.sync.aligned.32x32b.x2.b32 {r0, r1}, [taddr];
+tcgen05.wait::ld.sync.aligned;
 ```
 
-## TMA Instructions (SM100 Enhanced)
+`tcgen05.commit` tracks prior asynchronous MMA/copy/shift operations issued by the same thread. `before_thread_sync` prevents preceding `tcgen05` operations from moving after a following execution-ordering operation; `after_thread_sync` prevents subsequent `tcgen05` operations from moving before a preceding synchronization. A bare `before_thread_sync` plus `bar.sync` is therefore not a substitute for tracking and waiting for MMA completion.
 
-### Async Bulk Copy
+## Shared-memory layouts
 
-```asm
-// TMA load: global -> shared memory
-cp.async.bulk.tensor.2d.dst_shared::cta.src_global.tile.mbarrier::complete_tx::bytes
-    [smem_addr], [tma_desc, {coord_x, coord_y}], [mbarrier];
+There is no blanket “128-byte swizzle required” rule for `tcgen05.mma`. For the common row-major A / column-major B cases, PTX ISA table 57 permits all swizzling modes. Transposed cases have narrower legal combinations. The matrix descriptor's swizzle field represents no swizzle, 32-byte, 64-byte, and two 128-byte modes; 96-byte swizzle belongs to TMA tensor-map encoding, not this descriptor. Descriptor construction, alignment, leading/stride offsets, and swizzle must be derived from the chosen kind, major mode, and shape; hand-written descriptor bit fields should be checked against the current ISA tables.
 
-// TMA store: shared memory -> global
-cp.async.bulk.tensor.2d.dst_global.src_shared::cta.tile
-    [tma_desc, {coord_x, coord_y}], [smem_addr];
+## Cluster Launch Control
+
+Cluster Launch Control does not use `clc.arrive` / `clc.wait` instructions. A cancellation request asynchronously tries to cancel a cluster that has not launched, writes a 16-byte opaque response to shared memory, and uses an mbarrier completion mechanism:
+
+```ptx
+clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes.b128
+    [response], [mbar];
+
+// After waiting for the mbarrier and loading the 16-byte response:
+clusterlaunchcontrol.query_cancel.is_canceled.pred.b128 p, handle;
+clusterlaunchcontrol.query_cancel.get_first_ctaid.v4.b32.b128
+    {x, y, z, _}, handle;
 ```
 
-### TMA Multicast
+The returned CTA id is valid only after a successful cancellation. CLC enables work-stealing designs, but it does not guarantee that all tail effects or load imbalance disappear.
 
-```asm
-// Multicast TMA load to multiple CTAs in cluster
-cp.async.bulk.tensor.2d.dst_shared::cluster.src_global.tile.mbarrier::complete_tx::bytes
-    [smem_addr], [tma_desc, {coord_x, coord_y}], [mbarrier], multicast_mask;
-```
+## Sub-byte conversion examples
 
-### Alignment Requirements
+These examples use instruction forms shown in the PTX ISA conversion section:
 
-- TMA descriptors: 128-byte aligned base address
-- Shared memory buffers: 128-byte aligned for TMA targets
-- Global memory source: 128-byte aligned
+```ptx
+// Two f32 values -> packed FP8 E4M3 values.
+cvt.rn.satfinite.e4m3x2.f32 d, a, b;
 
-## FP4/FP8 Conversion Instructions
+// Packed FP8 E4M3 -> packed f16x2.
+cvt.rn.f16x2.e4m3x2 d, a;
 
-### FP4 (E2M1) Conversions
+// Packed FP4 E2M1 -> packed f16x2.
+cvt.rn.relu.f16x2.e2m1x2 d, a;
 
-```asm
-// Pack two FP16 values into FP4x2
-cvt.rn.e2m1x2.f16x2 %fp4_packed, %f16x2_val;
-
-// Unpack FP4x2 to two FP16 values
-cvt.rn.f16x2.e2m1x2 %f16x2_result, %fp4_packed;
-```
-
-### Byte Unpacking for FP4
-
-```asm
-// Efficient byte unpacking (faster than bitwise extraction)
-mov.b32 {tmp0, tmp1, tmp2, tmp3}, %packed_word;
-// Splits 32-bit word into 4 bytes without shift/mask overhead
-// Critical for FP4 decoding performance
-```
-
-### FP8 Conversions
-
-```asm
-// FP8 E4M3 to FP16
-cvt.rn.f16.e4m3 %f16_result, %fp8_val;
-
-// FP16 to FP8 E4M3
-cvt.rn.e4m3.f16 %fp8_result, %f16_val;
-
-// FP8 E5M2 conversions (similar syntax)
-cvt.rn.f16.e5m2 %f16_result, %fp8_val;
-```
-
-## Cache Control Instructions
-
-### Load Qualifiers (Critical for Memory-Bound Kernels)
-
-```asm
-// Default: normal caching
-ld.global %val, [addr];
-
-// L1 no-allocate: bypass L1 for streaming data
-ld.global.L1::no_allocate %val, [addr];
-
-// L1 evict-last: keep in L1 as long as possible (for reused data)
-ld.global.L1::evict_last %val, [addr];
-
-// Non-coherent read-only (used by DeepEP for communication)
-ld.global.nc.L1::no_allocate.L2::256B %val, [addr];
-```
-
-### Vectorized Loads
-
-```asm
-// 64-bit vector load
-ld.global.v2.u32 {r0, r1}, [addr];
-
-// 128-bit vector load
-ld.global.v2.u64 {r0, r1}, [addr];
-
-// 256-bit vector load
-ld.global.v4.u64 {r0, r1, r2, r3}, [addr];
-```
-
-## Synchronization Primitives
-
-### mbarrier (Memory Barrier)
-
-```asm
-// Initialize mbarrier
-mbarrier.init.shared.b64 [mbar], thread_count;
-
-// Arrive at mbarrier (producer signals completion)
-mbarrier.arrive.shared.b64 %phase, [mbar];
-
-// Wait on mbarrier (consumer waits for data)
-mbarrier.try_wait.shared.b64 %pred, [mbar], %phase;
-```
-
-### Async Pipeline Coordination
-
-```asm
-// TMA + mbarrier pipeline pattern:
-// 1. Producer issues TMA load with mbarrier
-// 2. Consumer waits on mbarrier
-// 3. Consumer processes data while producer issues next load
-// 4. Repeat for multi-stage pipeline
+// Packed f16x2 -> packed FP4 E2M1; saturation is required.
+cvt.rn.satfinite.e2m1x2.f16x2 d, a;
 ```
 
 ## Sources
 
-- [PTX ISA Reference](https://docs.nvidia.com/cuda/parallel-thread-execution/)
-- [CUDA 13.0 Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
+- [PTX ISA 9.3](https://docs.nvidia.com/cuda/parallel-thread-execution/), especially §§9.7.14.18–19, 9.7.17.6–12, and 11.1.2
+- [CUDA Cluster Launch Control guide](https://docs.nvidia.com/cuda/cuda-programming-guide/04-special-topics/cluster-launch-control.html)
 - [NVIDIA Blackwell Tuning Guide](https://docs.nvidia.com/cuda/blackwell-tuning-guide/)

@@ -9,6 +9,7 @@ Usage:
     python3 scripts/generate-pr-pages.py --all
 """
 
+import hashlib
 import json
 import os
 import re
@@ -18,6 +19,8 @@ import urllib.request
 import yaml
 from datetime import date
 from pathlib import Path
+
+from pr_architectures import infer_architectures
 
 REPO_ROOT = Path(__file__).parent.parent
 TAGS_PATH = REPO_ROOT / "data" / "tags.yaml"
@@ -60,7 +63,7 @@ KW_TO_TECH = {
     "scan": "parallel-scan", "stream-k": "stream-k", "streamk": "stream-k",
 }
 KW_TO_LANG = {
-    ".cu": "cuda-cpp", ".cuh": "cuda-cpp", "cuda": "cuda-cpp",
+    ".cu": "cuda-cpp", ".cuh": "cuda-cpp",
     "cute_dsl": "cute-dsl", "cute-dsl": "cute-dsl", "cutedsl": "cute-dsl",
     "triton": "triton", ".ptx": "ptx", "ptx": "ptx",
     "python": "python", "tilelang": "tilelang",
@@ -95,12 +98,45 @@ def fetch_pr(repo, number):
     return gh_api(f"repos/{repo}/pulls/{number}")
 
 
+def fetch_pr_body_text(repo, number):
+    """Fetch GitHub's plain-text PR body representation via GraphQL."""
+    owner, name = repo.split("/", 1)
+    query = """
+      query($owner: String!, $name: String!, $number: Int!) {
+        repository(owner: $owner, name: $name) {
+          pullRequest(number: $number) { bodyText }
+        }
+      }
+    """
+    try:
+        result = subprocess.run(
+            ["gh", "api", "graphql", "-f", f"query={query}",
+             "-f", f"owner={owner}", "-f", f"name={name}",
+             "-F", f"number={number}"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode != 0:
+            return None
+        payload = json.loads(result.stdout)
+        pr = ((payload.get("data") or {}).get("repository") or {}).get("pullRequest")
+        return None if pr is None else str(pr.get("bodyText") or "")
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+
+
 def fetch_pr_files(repo, number):
-    """Fetch list of changed files via gh CLI."""
-    data = gh_api(f"repos/{repo}/pulls/{number}/files?per_page=100")
-    if data:
-        return [f["filename"] for f in data]
-    return []
+    """Fetch the complete changed-file list via paginated GitHub REST."""
+    try:
+        result = subprocess.run(
+            ["gh", "api", "--paginate", "--jq", ".[].filename",
+             f"repos/{repo}/pulls/{number}/files?per_page=100"],
+            capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode != 0:
+            return []
+        return [line for line in result.stdout.splitlines() if line]
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
 
 
 def is_kernel_related(title, files):
@@ -182,35 +218,74 @@ def auto_tag(title, files):
     techniques = techniques & VALID_TECHNIQUES
     languages = languages & VALID_LANGS
 
-    # Default language if none detected
-    if not languages:
-        for f in files:
-            if f.endswith((".cu", ".cuh")):
-                languages.add("cuda-cpp")
-            elif f.endswith(".py") and "triton" in f.lower():
+    # Extensions are language evidence regardless of other topical tokens.
+    # Do not infer CUDA C++ from a bare "cuda" substring: Python files such
+    # as test_cudagraph_trees.py are not CUDA C++ source.
+    for f in files:
+        lowered = f.lower()
+        if lowered.endswith((".cu", ".cuh", ".cc", ".cpp", ".cxx", ".h", ".hpp")):
+            languages.add("cuda-cpp")
+        if lowered.endswith(".py"):
+            languages.add("python")
+            if "triton" in lowered:
                 languages.add("triton")
-            elif f.endswith(".py"):
-                languages.add("python")
 
     return sorted(tags), sorted(hw_features), sorted(kernel_types), sorted(techniques), sorted(languages)
 
 
-def generate_page(repo, pr_data, files, inclusion_reason, captured_at):
+def render_upstream_body(title, body, files):
+    """Render a compact body containing only deterministic upstream material."""
+    if not body.strip():
+        return "\n".join([
+            "## Upstream description status",
+            "",
+            "GitHub `bodyText` is empty.",
+            "",
+            "> Local status statement; empty `bodyText` identity: frontmatter hash; source: `url`.",
+        ])
+    raw_excerpt = body.strip()[:160]
+    excerpt = "\n".join(line.rstrip() for line in raw_excerpt.splitlines()).rstrip()
+    lines = [
+        "## Upstream description excerpt",
+        "",
+        excerpt,
+        "",
+        "> GitHub `bodyText` prefix; local line-end whitespace normalized. Full `bodyText`/file identities: frontmatter hashes; source: `url`.",
+    ]
+    return "\n".join(lines)
+
+
+def load_existing_frontmatter(path):
+    """Load fields that must survive an in-place refresh."""
+    if not path.is_file():
+        return {}
+    match = re.match(r"^---\s*\n(.*?)\n---\s*\n", path.read_text(encoding="utf-8"), re.DOTALL)
+    if not match:
+        return {}
+    try:
+        payload = yaml.safe_load(match.group(1)) or {}
+    except yaml.YAMLError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def generate_page(repo, pr_data, files, inclusion_reason, captured_at, existing_fm=None):
     """Generate markdown page content for a PR."""
     repo_slug = repo.split("/")[1]
+    id_repo_slug = "deepgemm" if repo_slug.lower() == "deepgemm" else repo_slug
     number = pr_data["number"]
     title = pr_data["title"]
-    author = pr_data["user"]["login"]
+    author = (pr_data.get("user") or {}).get("login") or "unknown"
     date = pr_data["created_at"][:10]
     url = pr_data["html_url"]
-    merge_sha = (pr_data.get("merge_commit_sha") or "unknown")[:8]
+    merge_sha = (pr_data.get("merge_commit_sha") or "")[:8]
     body = pr_data.get("body") or ""
+    merged = bool(pr_data.get("merged_at"))
+    status = "merged" if merged else str(pr_data.get("state") or "closed").lower()
 
-    # Determine architectures
-    archs = ["sm100"]
-    text = (title + " " + body).lower()
-    if "sm90" in text or "hopper" in text:
-        archs.append("sm90")
+    # Determine architectures from explicit PR evidence; an empty list is more
+    # accurate than assigning SM100 to architecture-neutral work.
+    archs = infer_architectures(title, body, files)
 
     tags, hw_features, kernel_types, techniques, languages = auto_tag(title, files)
 
@@ -224,14 +299,9 @@ def generate_page(repo, pr_data, files, inclusion_reason, captured_at):
             all_tags.add(hw)
     tags = sorted(all_tags & ALL_TAGS)
 
-    # Kernel file paths only
-    kernel_paths = [f for f in files if any(
-        f.endswith(ext) for ext in [".cu", ".cuh", ".ptx", ".py"]
-    )][:10]
-
     # Build frontmatter
     fm = {
-        "id": f"pr-{repo_slug}-{number}",
+        "id": f"pr-{id_repo_slug}-{number}",
         "repo": repo,
         "pr": number,
         "title": title,
@@ -240,32 +310,31 @@ def generate_page(repo, pr_data, files, inclusion_reason, captured_at):
         "url": url,
         "source_category": "upstream-code",
         "architectures": archs,
-        "tags": tags if tags else ["gemm"],
+        "tags": tags,
         "techniques": techniques if techniques else [],
         "hardware_features": hw_features if hw_features else [],
         "kernel_types": kernel_types if kernel_types else [],
-        "languages": languages if languages else ["cuda-cpp"],
+        "languages": languages,
         "captured_at": captured_at,
-        "status": "merged",
-        "merge_sha": merge_sha,
+        "status": status,
         "inclusion_reason": inclusion_reason,
-        "changed_paths": kernel_paths if kernel_paths else [],
+        "changed_paths": files[:5],
+        "changed_paths_total": len(files),
+        "changed_paths_truncated": len(files) > 5,
+        "upstream_body_text_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "upstream_files_sha256": hashlib.sha256(
+            "\n".join(files).encode("utf-8")
+        ).hexdigest(),
     }
-
-    # Build body summary from PR description
-    summary = body[:500].strip() if body else "No description provided."
-    summary = re.sub(r'<!--.*?-->', '', summary, flags=re.DOTALL).strip()
-    summary = summary[:300] if len(summary) > 300 else summary
+    if merged:
+        fm["merge_sha"] = merge_sha
+    if existing_fm and existing_fm.get("artifact_dir"):
+        fm["artifact_dir"] = existing_fm["artifact_dir"]
 
     content = "---\n"
-    content += yaml.dump(fm, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    content += yaml.safe_dump(fm, default_flow_style=False, allow_unicode=True, sort_keys=False, width=1000)
     content += "---\n\n"
-    content += f"## Summary\n\n{summary}\n\n"
-    content += f"## Problem\n\n{title}\n\n"
-    content += f"## Changed Files\n\n"
-    for f in files[:15]:
-        content += f"- `{f}`\n"
-    content += "\n"
+    content += render_upstream_body(title, body, files)
 
     return content
 
@@ -292,6 +361,7 @@ def write_skip_audit(audit_map):
     out += "##\n"
     out += "## Stages owned by scripts/generate-pr-pages.py:\n"
     out += "##   pre-fetch         -> gh PR fetch returned no data\n"
+    out += "##   bodyText-fetch    -> GitHub GraphQL bodyText fetch returned no data\n"
     out += "##   is-kernel-related -> file-allowlist check excluded the PR\n"
     out += "##\n"
     out += yaml.safe_dump(payload, sort_keys=False, default_flow_style=False, width=200, allow_unicode=True)
@@ -311,7 +381,8 @@ def record_skip(audit_map, repo, pr_number, stage, reason, captured_at):
     }
 
 
-def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None):
+def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None,
+                   refresh_existing=False, only_prs=None):
     """Process a candidate ledger and generate PR pages."""
     with open(ledger_path, encoding="utf-8") as f:
         ledger = yaml.safe_load(f)
@@ -352,7 +423,9 @@ def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None
         decision = str(c.get("decision", "")).lower()
         if decision == "include":
             num = c["number"]
-            if num not in existing:
+            if only_prs is not None and num not in only_prs:
+                continue
+            if num not in existing or refresh_existing:
                 included.append(c)
 
     if captured_at is None:
@@ -361,8 +434,12 @@ def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None
         # Smoke check: must parse as ISO YYYY-MM-DD
         date.fromisoformat(captured_at)
 
-    print(f"\n{repo}: {len(included)} new PRs to process ({len(existing)} already exist)")
-    print(f"  captured_at = {captured_at}")
+    action = "selected PRs to refresh/process" if refresh_existing else "new PRs to process"
+    print(f"\n{repo}: {len(included)} {action} ({len(existing)} already exist)")
+    if refresh_existing:
+        print(f"  captured_at = {captured_at} for new pages; existing pages preserve their recorded value")
+    else:
+        print(f"  captured_at = {captured_at}")
     if max_pages:
         print(f"  Target: stop after generating {max_pages} pages")
 
@@ -375,6 +452,9 @@ def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None
             break
         number = candidate["number"]
         title = candidate.get("title", "")
+        outpath = outdir / f"PR-{number}.md"
+        existing_fm = load_existing_frontmatter(outpath) if refresh_existing else {}
+        page_captured_at = existing_fm.get("captured_at", captured_at)
 
         # Fetch PR details (gh CLI with auth = 5000/hour limit)
         pr_data = fetch_pr(repo, number)
@@ -384,6 +464,14 @@ def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None
                 record_skip(audit_map, repo, number, "pre-fetch",
                             "gh pr fetch returned no data", captured_at)
             continue
+        body_text = fetch_pr_body_text(repo, number)
+        if body_text is None:
+            skipped += 1
+            if audit_map is not None:
+                record_skip(audit_map, repo, number, "bodyText-fetch",
+                            "GitHub GraphQL bodyText fetch returned no data", captured_at)
+            continue
+        pr_data["body"] = body_text
         files = fetch_pr_files(repo, number)
 
         # Re-triage with file data
@@ -396,9 +484,10 @@ def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None
             continue
 
         inclusion_reason = reason if is_kernel else "deferred-semantic"
-        content = generate_page(repo, pr_data, files, inclusion_reason, captured_at)
+        content = generate_page(
+            repo, pr_data, files, inclusion_reason, page_captured_at, existing_fm
+        )
 
-        outpath = outdir / f"PR-{number}.md"
         outpath.write_text(content, encoding="utf-8")
         generated += 1
 
@@ -417,23 +506,31 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     max_pages = None
     captured_at = None
+    refresh_existing = "--refresh-existing" in sys.argv
+    only_prs = None
     for a in sys.argv[1:]:
         if a.startswith("--max="):
             max_pages = int(a.split("=")[1])
         elif a.startswith("--captured-at="):
             captured_at = a.split("=", 1)[1]
             date.fromisoformat(captured_at)  # smoke check
+        elif a.startswith("--pr="):
+            only_prs = {int(value) for value in a.split("=", 1)[1].split(",") if value}
 
     audit_map = load_skip_audit()
 
     if "--all" in sys.argv:
         ledger_dir = REPO_ROOT / "candidates"
         for ledger_file in sorted(ledger_dir.glob("*.yaml")):
-            process_ledger(ledger_file, max_pages, captured_at, audit_map)
+            process_ledger(ledger_file, max_pages, captured_at, audit_map,
+                           refresh_existing, only_prs)
     elif args:
-        process_ledger(args[0], max_pages, captured_at, audit_map)
+        process_ledger(args[0], max_pages, captured_at, audit_map,
+                       refresh_existing, only_prs)
     else:
-        print("Usage: python3 scripts/generate-pr-pages.py candidates/cutlass.yaml [--max=N] [--captured-at=YYYY-MM-DD]")
+        print("Usage: python3 scripts/generate-pr-pages.py candidates/cutlass.yaml "
+              "[--max=N] [--captured-at=YYYY-MM-DD] "
+              "[--refresh-existing] [--pr=N[,N...]]")
         print("       python3 scripts/generate-pr-pages.py --all [--max=N] [--captured-at=YYYY-MM-DD]")
         print("       (default captured_at = today's date)")
         return

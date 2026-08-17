@@ -4,88 +4,20 @@ title: FlashAttention-4 Blog
 author: Tri Dao
 url: https://tridao.me/blog/2026/flash4/
 source_category: benchmark-blog
-architectures:
-- sm100
-tags:
-- attention
-- flash-attention
-- tcgen05
-- tmem
-- 2sm-cooperative
-- software-exp
-- ping-pong-scheduling
-- conditional-rescaling
-- cute-dsl
-retrieved_at: 2026-04-27
-artifact_dir: artifacts/blogs/flash-attention-4/code
+architectures: [sm100]
+tags: [attention, flash-attention, tcgen05, tmem, 2sm-cooperative, software-exp, ping-pong-scheduling, conditional-rescaling, cute-dsl]
+retrieved_at: 2026-08-16
 ---
 
-## Summary
+# FlashAttention-4 blog
 
-Tri Dao's blog post on FlashAttention-4 design for Blackwell's asymmetric hardware scaling.
+Tri Dao's post describes the Blackwell FlashAttention-4 design and links the paper/code. Its source-reported points include the ping-pong schedule, partial software exponential evaluation, conditional rescaling, two-CTA backward design, and a roughly 20–30× compilation comparison.
 
-## Key Techniques
-- Asymmetric problem: tensor core throughput doubles but SFU count and SMEM bandwidth unchanged
-- Ping-pong scheduling: two 128-token query tiles per CTA
-- Software 2^x: Cody-Waite range reduction + Horner polynomial (Sollya-optimized coefficients)
-- Multiplies exponential throughput without additional SFU hardware
-- Conditional softmax rescaling: only when max jump is large
-- 2-CTA backward: paired CTAs share TMEM, halves SMEM traffic
-- CuTe-DSL implementation: 20-30x faster compilation than C++ templates
+The more specific 10–25% emulation share and the 2.5/1.4-second versus
+55/45-second per-kernel compilation table come from the associated paper, not
+from the blog text. They are retained on the paper source record and synthesized
+wiki page with that attribution.
 
-## Performance
-- 1605 TFLOPS on B200 BF16 (71% utilization)
-- 1.1-1.3x over cuDNN 9.13, 2.1-2.7x over Triton
+The associated paper reports up to 1,613 TFLOP/s on B200 BF16/FP16 (about 71% of its theoretical reference), up to 1.3× over cuDNN 9.13, and up to 2.7× over its Triton baseline. Those maxima occur on particular plotted configurations.
 
-## Key Code
-
-### Software exp (Cody-Waite + Horner)
-
-```cuda
-// Software-emulated exp2(x) using Cody-Waite range reduction and a
-// Horner-scheme polynomial, Sollya-optimized coefficients. Lets FA-4
-// overlap the exp path with tcgen05.mma because it stays off the SFU.
-__device__ __forceinline__ float sw_exp2(float x) {
-    // Range reduction: x = n + r, with n = round(x), r in [-0.5, 0.5]
-    int n = __float2int_rn(x);
-    float r = x - (float)n;
-    // Horner-scheme polynomial for 2^r, r in [-0.5, 0.5]
-    float p = 0x1.62e430p-1f;                // ~ ln(2)
-    p = fmaf(p, r, 0x1.ebfc1ep-3f);
-    p = fmaf(p, r, 0x1.c6af98p-5f);
-    p = fmaf(p, r, 0x1.3b2c9cp-7f);
-    p = fmaf(p, r, 0x1.62e43ap-10f);
-    float y = fmaf(r, p, 1.0f);
-    // Scale by 2^n via direct FP32 bit manipulation
-    int bits = __float_as_int(y) + (n << 23);
-    return __int_as_float(bits);
-}
-```
-
-### Ping-pong scheduling
-
-<!-- extract-skip: synthesized pseudo-code illustrating the scheduling concept (issue_mma, wait_mma, softmax_and_rescale are placeholders, not upstream functions). Not safe to publish under artifacts/blogs/** as mode=extracted. -->
-```cuda
-// Ping-pong two 128-token query tiles per CTA. While one tile is in the
-// softmax/rescale stage, the other issues tcgen05.mma — the 2x tensor-core
-// throughput on B200 gets fed while the SFU-bound softmax stays out of the
-// critical path.
-for (int tile = 0; tile < Q_tiles; tile += 2) {
-    issue_mma(query_a, key_block);
-    wait_mma();
-    softmax_and_rescale(query_a);           // SFU + MUFU path
-    issue_mma(query_b, key_block);
-    wait_mma();
-    softmax_and_rescale(query_b);
-}
-```
-
-### 2-CTA cooperative backward
-
-```cuda
-// 2-CTA cooperative backward: paired CTAs in a cluster share a single TMEM
-// accumulator half, halving SMEM traffic for dK/dV accumulation.
-asm volatile(
-    "tcgen05.mma.cta_group::2.kind::f16 [%0], %1, %2, %3, 1;"
-    : : "r"(tmem_acc_shared), "l"(desc_a), "l"(desc_b), "r"(0));
-```
+The former local page embedded explanatory pseudo-CUDA and an incomplete `tcgen05.mma` form under extracted-code provenance. Those were not verbatim blog code and are removed. The local CUTLASS PR-2466 bundle is analogous FMHA code, not the FA4 implementation.

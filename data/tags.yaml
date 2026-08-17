@@ -3,11 +3,19 @@
 ## The validator (scripts/validate.py) rejects unknown tags.
 
 architectures:
+  - blackwell
   - sm100
   - sm100a
+  - sm103
+  - sm103a
+  - sm110
+  - sm110a
   - sm90
   - sm90a
   - sm120
+  - sm120a
+  - sm121
+  - sm121a
   - sm80
 
 hardware_features:
@@ -82,6 +90,7 @@ kernel_types:
   - sort
 
 languages:
+  - mojo
   - cuda-cpp
   - cute-dsl
   - triton

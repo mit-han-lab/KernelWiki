@@ -2,214 +2,65 @@
 id: technique-persistent-kernels
 title: Persistent Kernels with CLC
 type: technique
-architectures:
-- sm100
-tags:
-- persistent-kernel
-- clc
-- tile-scheduling
-confidence: source-reported
+architectures: [sm100]
+tags: [persistent-kernel, clc, tile-scheduling]
+confidence: verified
+evidence_basis:
+  - {source_id: doc-ptx-isa-sm100, evidence_type: official-doc}
+  - {source_id: pr-cutlass-2161, evidence_type: upstream-code}
 reproducibility: snippet
-prerequisites:
-- hw-clc
-related:
-- hw-clc
-- technique-tile-scheduling
-- pattern-tail-effect
-sources:
-- doc-nvidia-tuning-guide
-- blog-tcgen05-tutorial
-- doc-cutlass-blackwell
+prerequisites: [hw-clc]
+related: [hw-clc, technique-tile-scheduling, pattern-tail-effect]
+sources: [doc-nvidia-tuning-guide, doc-ptx-isa-sm100, blog-tcgen05-tutorial, doc-cutlass-blackwell, pr-cutlass-2161]
 artifact_dir: artifacts/kernels/persistent-kernels
 ---
 
+# Persistent Kernels with CLC
+
 ## Overview
 
-Persistent kernels launch exactly as many CTAs as SMs, and each CTA processes multiple output tiles in a loop rather than exiting after one tile. On Blackwell, the CLC (Cluster Launch Control) hardware unit replaces software-based tile scheduling with a hardware-assisted mechanism. Each CTA queries the CLC for its next tile assignment and can cancel itself when no work remains, using the `try_cancel` pattern.
+A persistent kernel keeps resident CTAs or clusters alive across multiple logical work units. The physical grid is commonly sized from an occupancy-aware resident-worker count, but it need not equal the SM count: clusters may span multiple SMs, more than one CTA may reside per SM, and resource limits can change residency.
 
-## CLC Loop Pattern
+SM100 CLC gives a running cluster a hardware-assisted way to take responsibility for the launch ID of an unlaunched cluster. Software still maps each launch ID to a logical tile.
 
-The core persistent kernel loop on Blackwell uses CLC to dynamically assign tiles:
+## Control-flow sketch
 
-```cuda
-// Persistent kernel with CLC tile scheduling (Blackwell SM100)
-__global__ void __launch_bounds__(512)
-persistent_gemm_clc(const __grid_constant__ GemmParams params)
-{
-    // CLC-managed persistent loop: each CTA processes multiple tiles
-    while (true) {
-        // Query CLC for next tile assignment
-        // Returns tile coordinates (tile_m, tile_n) or signals termination
-        TileCoord tile;
-        bool has_work = clc_try_get_tile(&tile);
-
-        if (!has_work) {
-            // No more tiles to process -- CTA exits
-            // clc_try_cancel atomically checks if all tiles are done
-            if (clc_try_cancel()) {
-                return;  // CTA terminates
-            }
-            continue;  // Race condition: another CTA may have generated work
-        }
-
-        // Standard GEMM tile computation
-        int tile_m = tile.m;
-        int tile_n = tile.n;
-
-        // TMA producer loads A[tile_m, :] and B[:, tile_n] tiles
-        // MMA consumer accumulates K-dimension
-        // Epilogue writes C[tile_m, tile_n]
-        compute_gemm_tile(params, tile_m, tile_n);
-    }
-}
+```python
+def persistent_cluster(original_cluster_id):
+    work_id = original_cluster_id
+    while True:
+        compute_work_for_launch_id(work_id)
+        canceled_id = try_cancel_and_query_unlaunched_cluster()
+        if canceled_id is None:
+            break
+        work_id = canceled_id
 ```
 
-At the PTX level, the CLC interaction is a cancel/query sequence. The exact
-inline PTX is usually hidden behind CUTLASS/CuTe wrappers, but the control flow
-looks like this:
+The real cancel/query uses a shared-memory response and an `mbarrier`. Every CTA in a cluster must follow control flow compatible with cluster collectives. Resources such as TMEM and pipeline barriers can be allocated once and reused only after per-work-unit completion is established.
 
-```text
-TILE_LOOP:
-    // Request cancellation of a not-yet-launched cluster.
-    clusterlaunchcontrol.try_cancel(response_smem, mbarrier)
-    wait(mbarrier)
+## Comparison with a software stride
 
-    // Query the 16-byte response.
-    has_work, tile_m, tile_n = clusterlaunchcontrol.query_cancel(response_smem)
-    if (!has_work) return
+A static persistent worker can process `worker_id + n * resident_workers`. That is deterministic and portable but does not adapt to work-duration variance. A software atomic queue adapts but introduces atomic traffic. CLC can avoid that counter for future cluster IDs, subject to the “not yet launched” constraint.
 
-    // ... compute tile ...
-    goto TILE_LOOP
-```
+None of these approaches inherently chooses the best cache order. Rasterization and swizzle remain scheduler policy.
 
-## Comparison: CLC vs Static Stride (Hopper)
+## When persistence may help
 
-On Hopper (SM90), persistent kernels use a static stride pattern where each CTA computes tiles at fixed intervals:
+- There are substantially more logical work units than resident workers.
+- Per-launch overhead or partially filled waves are material.
+- Reusing long-lived kernel state is valuable.
+- Work can be reassigned without violating ordering or determinism requirements.
 
-```cuda
-// Hopper-style static stride persistent kernel
-__global__ void hopper_persistent_gemm(GemmParams params)
-{
-    int cta_id = blockIdx.x;
-    int total_ctas = gridDim.x;
-    int total_tiles = params.num_tiles_m * params.num_tiles_n;
+For grids smaller than machine capacity, persistence cannot manufacture missing parallelism. For uniform large grids, a conventional launch may already schedule well and have lower in-kernel overhead.
 
-    // Static stride: CTA i handles tiles i, i+total_ctas, i+2*total_ctas, ...
-    for (int tile_idx = cta_id; tile_idx < total_tiles; tile_idx += total_ctas) {
-        int tile_m = tile_idx / params.num_tiles_n;
-        int tile_n = tile_idx % params.num_tiles_n;
-        compute_gemm_tile(params, tile_m, tile_n);
-    }
-}
-```
+## Validation
 
-| Aspect | Hopper Static Stride | Blackwell CLC |
-|--------|---------------------|---------------|
-| Scheduling | Software loop with fixed stride | Hardware CLC unit assigns tiles |
-| Load balancing | Fixed; uneven if tile costs vary | Dynamic; CLC rebalances automatically |
-| Tail effect | Last wave may have partial occupancy | CLC minimizes by giving fast CTAs more tiles |
-| Launch overhead | Grid launch for each new problem | CLC can chain multiple problems |
-| Termination | Implicit when loop ends | Explicit `try_cancel` |
-| L2 locality | Depends on stride pattern | CLC can apply swizzled raster |
-
-## CUTLASS PersistentTileSchedulerSm100
-
-CUTLASS 4.5.0 provides `PersistentTileSchedulerSm100` that wraps the CLC hardware:
-
-```cuda
-// CUTLASS SM100 persistent tile scheduler (simplified)
-template <class TileShape>
-struct PersistentTileSchedulerSm100 {
-
-    // Initialize the CLC with the problem geometry
-    CUTLASS_DEVICE static void init(
-        dim3 problem_tiles,
-        void* clc_smem_buffer)
-    {
-        if (threadIdx.x == 0) {
-            // Program CLC with total tile count and scheduling policy
-            clc_init(clc_smem_buffer,
-                     problem_tiles.x,  // tiles along M
-                     problem_tiles.y,  // tiles along N
-                     ClcPolicy::SwizzledRaster);
-        }
-        __syncthreads();
-    }
-
-    // Shared storage for CTA-wide CLC result broadcast
-    // __shfl_sync is warp-local and cannot reach warps 1-15.
-    struct SharedClcState {
-        int tile_m, tile_n;
-        int valid;       // 1 = got tile, 0 = no more work
-        int cancelled;
-    };
-
-    // Get next tile assignment from CLC
-    CUTLASS_DEVICE static bool get_next_tile(
-        void* clc_smem_buffer,
-        SharedClcState& shared_clc,
-        int& tile_m,
-        int& tile_n)
-    {
-        if (threadIdx.x == 0) {
-            int m, n;
-            bool v = clc_query_tile(clc_smem_buffer, m, n);
-            shared_clc.tile_m = m;
-            shared_clc.tile_n = n;
-            shared_clc.valid  = v ? 1 : 0;
-        }
-        __syncthreads();  // All warps see the result
-        tile_m = shared_clc.tile_m;
-        tile_n = shared_clc.tile_n;
-        return shared_clc.valid != 0;
-    }
-
-    // Try to cancel the CTA when no more work
-    CUTLASS_DEVICE static bool try_cancel(
-        void* clc_smem_buffer,
-        SharedClcState& shared_clc)
-    {
-        if (threadIdx.x == 0) {
-            shared_clc.cancelled = clc_try_cancel(clc_smem_buffer) ? 1 : 0;
-        }
-        __syncthreads();
-        return shared_clc.cancelled != 0;
-    }
-};
-```
-
-## Performance Impact
-
-The tcgen05-tutorial progression demonstrates the impact of persistent kernels:
-
-```
-Without persistence (static grid):  940 TFLOPS  (62% of peak)
-With CLC persistent scheduling:    1476 TFLOPS  (98% of cuBLAS)
-```
-
-The 57% improvement comes from:
-1. **Eliminated tail effect**: CLC dynamically assigns tiles, so fast-completing CTAs absorb extra work rather than sitting idle while the last wave finishes.
-2. **Reduced launch overhead**: A single kernel launch covers all tiles; no need to re-launch grids.
-3. **Better L2 cache utilization**: CLC can apply a swizzled raster pattern that improves spatial locality across neighboring tiles.
-
-## When to Use
-
-- **Large GEMM problems**: Persistent kernels are most beneficial when the number of output tiles exceeds the SM count by at least 2-3x.
-- **Grouped GEMMs / MoE**: CLC can chain multiple problem instances, eliminating inter-kernel launch gaps.
-- **Workloads with uneven tile cost**: CLC's dynamic scheduling naturally handles variable-cost tiles (e.g., triangular attention masks).
-
-## Caveats
-
-- CLC is SM100-only; Hopper kernels must use software-based scheduling.
-- The `try_cancel` pattern introduces a potential race that must be handled with a retry loop.
-- For very small problems (fewer tiles than SMs), CLC overhead may not justify the complexity. A simple single-wave grid launch suffices.
+- Prove exactly-once coverage for original and canceled cluster IDs.
+- Test grids smaller than, equal to, and slightly larger than resident capacity.
+- Test failed cancellation and multidimensional cluster IDs.
+- Ensure all asynchronous work completes before state reuse or exit.
+- Compare full latency and throughput, not only the steady-state loop.
 
 ## Full Reference Implementation
 
-Verbatim upstream code lives in [`artifacts/kernels/persistent-kernels/full/`](../../artifacts/kernels/persistent-kernels/full/); labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/persistent-kernels/variants/`](../../artifacts/kernels/persistent-kernels/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
-
-Query via:
-
-```bash
-python3 scripts/get_page.py technique-persistent-kernels --include-code
-```
+Verbatim upstream code lives in [`artifacts/kernels/persistent-kernels/full/`](../../artifacts/kernels/persistent-kernels/full/). The former CLC teaching skeleton was removed because it represented CLC as an arbitrary tile queue rather than the documented launch-ID cancellation protocol.

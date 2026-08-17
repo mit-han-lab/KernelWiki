@@ -10,10 +10,10 @@ keywords_used:
 - dot_scaled
 - wgmma
 - tl.dot
-total_candidates: 60
+total_candidates: 158
 included: 2
 excluded: 1
-deferred: 57
+deferred: 155
 prs:
 - number: 10324
   pr: 10324
@@ -2033,3 +2033,591 @@ prs:
   deletions: 2
   changed_file_count: 3
   artifact_dir: evidence/pull-bundles/triton/gh-10184
+- number: 9546
+  title: '[GLUON][EXAMPLE] Two CTA matmul on blackwell'
+  date: '2026-02-24'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9361
+  title: '[Gluon] Add Cluster Launch Control (CLC) support for Blackwell GPUs'
+  date: '2026-02-06'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9734
+  title: '[NVIDIA] Fix PTX codegen segfaults on consumer Blackwell (sm_120)'
+  date: '2026-03-16'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9044
+  title: '[Nvidia][cuBLAS] Block-scaled matmul baselining (mxfp8, nvfp4) '
+  date: '2025-12-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9000
+  title: '[FRONTEND] Support scaled bmm'
+  date: '2025-12-18'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5726
+  title: '[Pipeliner] Enable automatic loop fusion'
+  date: '2025-02-07'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8482
+  title: '[NVIDIA] Rewrite getSM120DotScaledScaleLayout and Refactor MMAv2'
+  date: '2025-10-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10082
+  title: '[AMD][gfx1250] Add Scaled WMMA 32x16 Shape for FP4'
+  date: '2026-04-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9876
+  title: '[AMD][WMMA] Proper constant for fp4 mxfp scale'
+  date: '2026-03-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10110
+  title: '[Gluon][examples] Some autotuning of the attention example'
+  date: '2026-04-23'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10178
+  title: '[AMD][gfx1250] Fix f32 to fp8*fnuz conversion and test skips'
+  date: '2026-04-30'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9841
+  title: '[AMD][BACKEND] Fix OpScale for upcasts from fp8'
+  date: '2026-03-25'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9895
+  title: '[AMD] Skip fp8 data type tests on RDNA3 for test_conversions'
+  date: '2026-04-06'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9947
+  title: '[release/3.7.x][AMD][BACKEND] Fix mixed FP8 types promotion for WMMA (#9581)'
+  date: '2026-04-21'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10040
+  title: '[Gluon] Expose TMA atomic ops'
+  date: '2026-04-15'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10180
+  title: '[Backend] Respect IEEE input precision for tcgen05'
+  date: '2026-05-01'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10258
+  title: '[NFC][TUTORIALS] Add some more info to multicta tutorial'
+  date: '2026-05-08'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9987
+  title: '[BACKEND] Remove barrier from TMEMCopy'
+  date: '2026-04-10'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9974
+  title: '[BACKEND] Add multicast flag to tcgen05 scaled_mma'
+  date: '2026-04-14'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10211
+  title: '[EXAMPLES] Implement multicta attention'
+  date: '2026-05-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9843
+  title: '[ConSan] MultiCTA support for barriers and tcgen05 ops'
+  date: '2026-04-06'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9896
+  title: '[Gluon] Functional multi-CTA block scale MMA support'
+  date: '2026-04-02'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9934
+  title: '[CONSAN] Implement expect properly and add TMA + multicast support'
+  date: '2026-04-09'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9743
+  title: '[FPSAN] Adding support for tcgen05_mma_scaled'
+  date: '2026-03-23'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10263
+  title: '[BACKEND] add TMEM barrier insertion pass'
+  date: '2026-05-08'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10219
+  title: '[Gluon] Unwrap constexpr bool in dot_scaled and associative_scan'
+  date: '2026-05-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10010
+  title: '[SM121] Enable native block-scaled dot_scaled for DGX Spark (GB10)'
+  date: '2026-04-13'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9742
+  title: '[AMD] Fix bugs about CGALayout and shapePerCTA in AccelerateAMDMatmul'
+  date: '2026-03-16'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8653
+  title: '[BACKEND] Set 2CTA mode as a global flag'
+  date: '2025-11-06'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8564
+  title: '[FRONTEND] Add scales dimension checks for dot_scaled'
+  date: '2025-10-29'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8658
+  title: '[FRONTEND] Fix missing handling for None acc in dot_scaled'
+  date: '2025-11-07'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7799
+  title: '[AMD][Gluon] Add support for CDNA4 mfma scale'
+  date: '2025-08-14'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8433
+  title: '[DOC] Clarify lhs_scale and rhs_scale requirements in dot_scaled'
+  date: '2025-10-14'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7954
+  title: '[AMD] Enable dot_scaled on gfx11'
+  date: '2025-08-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7839
+  title: '[AMD]Enable Scaled Dot Decomposition'
+  date: '2025-09-10'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7697
+  title: '[AMD] Enable Pingpong by default on gfx950 arch'
+  date: '2025-07-30'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5985
+  title: '[AMD]Support mixed mxfp8 x mxfp4 dot_scaled for gfx950'
+  date: '2025-02-25'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6263
+  title: '[Backend] Make dot_scaled as anchor in RemoveLayoutConversion'
+  date: '2025-03-24'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7481
+  title: '[AMD][BACKEND] Enable LDS transpose loading for fp4 packed along K types'
+  date: '2025-07-12'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7458
+  title: '[AMD] Support async load in ping-pong pass'
+  date: '2025-07-18'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7626
+  title: '[AMD] Emit LocalAllocOp + LocalLoadPackedTransposedOp for M/N packed FP4'
+  date: '2025-07-31'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6420
+  title: '[Feature] Support different packing formats in dot_scaled op'
+  date: '2025-04-08'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7918
+  title: '[NVIDIA] Add native MXFP FP8 scaled_dot for SM120'
+  date: '2025-08-29'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6159
+  title: '[AMD] Enable LDS transpose loading for fp8 types'
+  date: '2025-03-13'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6776
+  title: '[TMA] Split large dimensions up into chunks of 256 elements'
+  date: '2025-05-14'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6269
+  title: '[BACKEND] Fix wrong K dimension for dot_scaled op'
+  date: '2025-03-21'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5924
+  title: Propagate DotOp thru Join & improve shmem load into LinearEnc
+  date: '2025-02-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5543
+  title: '[AMD] Support fp16 upcast in scaled dot'
+  date: '2025-01-10'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5796
+  title: '[mlir][dialect] Refactor DotLike trait into a DotOpInterface + Enable verification of scaled_dot'
+  date: '2025-02-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5798
+  title: '[LAYOUTS] Choose between wgmma RS and SS within AccelerateMatmul'
+  date: '2025-02-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5544
+  title: '[Nvidia] Support fp8 to bf16 casting on RTX 4000 series'
+  date: '2025-01-07'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9530
+  title: '[Hopper] Move dummy moves before wgmma.fence'
+  date: '2026-02-23'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9514
+  title: '[Hopper] Add dummy mov before RS WGMMA to fix synchronization'
+  date: '2026-02-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9931
+  title: '[NVIDIA] Support swizzle 0 TMA + MMA for Hopper and Blackwell'
+  date: '2026-04-10'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9152
+  title: '[WGMMA] Limit rs-dot splitting to only 2 splits'
+  date: '2026-01-07'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9274
+  title: Fix dotCanBeProperlyAsync when wgmma is not yielded by loop
+  date: '2026-01-22'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5813
+  title: '[Blackwell][TUTORIALS] Add tutorial 10-block-scaled-matmul.py'
+  date: '2025-02-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9021
+  title: '[Backend] Delay wgmma wait(0) to first use of the accumulator'
+  date: '2025-12-17'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8964
+  title: '[BACKEND] Add missing waits in WGMMA rhs in register pipelining'
+  date: '2025-12-11'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9179
+  title: Revert "[Backend] Delay wgmma wait(0) to first use of the accumulator"
+  date: '2026-01-09'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8997
+  title: '[Reapply][BACKEND] Add missing waits in WGMMA rhs in register pipelining'
+  date: '2025-12-17'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8970
+  title: Revert "[BACKEND] Add missing waits in WGMMA rhs in register pipelining"
+  date: '2025-12-11'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8873
+  title: '[TESTING] Add gluon TMA + MMA Hopper/Blackwell test'
+  date: '2025-12-03'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8554
+  title: '[SWP] Fix wgmma pipelined operand underallocation'
+  date: '2025-10-28'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8917
+  title: '[Kernels] Support hopper hbm swizzling in persistent matmul'
+  date: '2025-12-08'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8579
+  title: '[BACKEND] Fix unnecessary cvt caused by wgmma wait op'
+  date: '2025-10-29'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8561
+  title: 'Fix handling of 3D DotOp with M=1 '
+  date: '2025-11-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8107
+  title: '[Dialect][Nvidia] Verify WGMMA kWidth'
+  date: '2025-09-09'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8378
+  title: '[BACKEND] Fix swizzling=0 support for matrix descriptors and generalize wgmma lowering'
+  date: '2025-10-07'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8684
+  title: '[BACKEND] Gluon multicta + 2cta support'
+  date: '2025-12-02'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8211
+  title: '[release/3.5.x] Revert "[BACKEND] hint to LLVM that we can bound threadIdx.x (#7249)"'
+  date: '2025-09-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7708
+  title: '[TritonNvidiaGPU] Tighten WGMMA verifiers'
+  date: '2025-07-31'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7712
+  title: '[ConSan] Support for WGMMA. Checks on non-async shmem and tmem accesses'
+  date: '2025-08-01'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7760
+  title: '[Gluon] Add warpgroup_mma_accumulator object'
+  date: '2025-08-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7730
+  title: '[Gluon] Expose DotOperandLayout'
+  date: '2025-08-01'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7880
+  title: '[AMD][Gluon] Support global/buffer load to shared '
+  date: '2025-08-18'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10305
+  title: '[AMD] Guard MFMA store layout for small N dimensions'
+  date: '2026-05-15'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9717
+  title: '[Tools][Translator] Add AMD backend support for Triton-to-Gluon translator'
+  date: '2026-04-15'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9616
+  title: '[BACKEND] Extended combiner regarding dot-scale ops'
+  date: '2026-03-03'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10060
+  title: '[BACKEND] Extend support for small MMAv2 FP64: single 8x8x4 instructions.'
+  date: '2026-04-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8818
+  title: '[TEST] Fix for test nondeterminism on tl.dot-BF16xN input_precision'
+  date: '2025-11-24'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8542
+  title: '[FRONTEND] support multidimensional batches in tl.trans and tl.dot'
+  date: '2025-10-26'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8111
+  title: '[AMD][GLUON] Expose WMMA for RDNA3 and RDNA4'
+  date: '2025-09-09'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7592
+  title: '[BACKEND] Implement BF16x3 trick'
+  date: '2025-10-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6038
+  title: '[AMD]Lower fp8 tl.dot to scaled mfma on gfx950'
+  date: '2025-02-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7398
+  title: '[TMA] Fix lowering TMA load when 2 users of differing encodings'
+  date: '2025-07-07'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7130
+  title: '[Bug fix] tl.dot(a, b, None)'
+  date: '2025-06-10'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5622
+  title: Automatic Warp Specialization Optimization
+  date: '2025-01-15'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6875
+  title: '[WARNINGS] Emit warning for WGMMA fp8 dot when transposition prevents pipelining'
+  date: '2025-05-20'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6791
+  title: '[hopper][WS] Automatic data partition for multiple consumers'
+  date: '2025-05-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7899
+  title: Revert byte permutes in intra-warp layout conversion
+  date: '2025-08-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 7310
+  title: '[BACKEND] Support fp64 simt fma for common use and fp64 mma for SM80/SM90.'
+  date: '2025-07-08'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6246
+  title: Automatic Warp Specialization Optimization
+  date: '2025-03-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6289
+  title: Automatic Warp Specialization Optimization
+  date: '2025-03-25'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5936
+  title: Fix incorrect kernel compilation in batched matmul (#5620)
+  date: '2025-02-16'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6482
+  title: '[BACKEND] Support memdesc_reshape to allow different HBM layout for mmav5'
+  date: '2025-05-01'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5830
+  title: '[TensorDescriptor] Support ndim > 2 loads and stores'
+  date: '2025-02-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5795
+  title: '[INTERP] Support tensor descriptor ops'
+  date: '2025-02-03'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

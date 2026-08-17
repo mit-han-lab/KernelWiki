@@ -83,7 +83,7 @@ Alias mappings in `data/aliases.yaml` map canonical terms to known synonyms:
 
 - `concept`: text description only
 - `pseudocode`: language-agnostic algorithm
-- `snippet`: compilable code fragment
+- `snippet`: fenced code or logical-reference fragment; the page states when it is pseudocode or non-executable (the validator does not compile it)
 - `runnable`: self-contained buildable example
 - `benchmarked`: runnable + perf numbers with env metadata
 
@@ -94,10 +94,15 @@ Alias mappings in `data/aliases.yaml` map canonical terms to known synonyms:
 ```yaml
 performance_claims:
   - gpu: B200
+    software: "FlashAttention-4 paper benchmark; cuDNN 9.13 comparison"
     dtype: bf16
-    shape: "M=4096, N=4096, K=4096"
+    shape: "paper benchmark sweep; peak configuration not identified in prose"
+    workload: "FlashAttention forward/backward benchmark sweep"
     metric: TFLOPS
-    value: 1605
+    value: 1613
+    measurement_method: "source-reported paper benchmark"
+    baseline: "up to 1.3x cuDNN 9.13 and 2.7x evaluated Triton baseline"
+    limitations: "peak shape and complete software environment are not identified"
     utilization: "71%"
     source_id: doc-flash-attention-4
 ```

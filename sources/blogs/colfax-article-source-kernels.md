@@ -6,7 +6,6 @@ url: https://github.com/ColfaxResearch/cfx-article-src
 source_category: community-note
 architectures:
 - sm90
-- sm100
 tags:
 - cuda-cpp
 - cute-dsl
@@ -17,10 +16,10 @@ tags:
 - persistent-kernel
 - swizzling
 retrieved_at: '2026-05-20'
-description: Source-map entry imported from KernelPilot for TMA, pipelined GEMM, Stream-K, and CuTe transpose examples.
+description: Source-map entry for Hopper TMA, pipelined GEMM, Stream-K, and CuTe transpose examples.
 ---
 
-This repository collects source files for Colfax Research articles. The useful
-KernelWiki path is code-first: inspect the TMA, pipeline GEMM, Stream-K,
-transpose-cute, and CUTLASS GEMM folders when a profile points to pipeline
-bubbles, tail effects, or memory-layout pressure.
+This repository collects source files for Colfax Research articles. Its checked
+TMA, pipeline-GEMM, Stream-K, transpose-CuTe, and CUTLASS-GEMM build files target
+`sm_90a`. The algorithms may inform later ports, but the repository is not direct
+SM100 implementation evidence.

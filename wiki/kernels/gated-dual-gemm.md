@@ -2,126 +2,66 @@
 id: kernel-gated-dual-gemm
 title: Gated Dual GEMM (Gate-Up + SwiGLU Fusion)
 type: kernel
-architectures:
-- sm100
-- sm90
-tags:
-- gated-dual-gemm
-- gemm
-- fused-kernel
-- kernel-fusion
-- nvfp4
-- tmem
+architectures: [sm100, sm90]
+tags: [gated-dual-gemm, gemm, fused-kernel, kernel-fusion, nvfp4, tmem]
 confidence: source-reported
 reproducibility: snippet
-kernel_types:
-- gated-dual-gemm
-- gemm
-- fused-kernel
-languages:
-- cuda-cpp
-- cute-dsl
-related:
-- kernel-nvfp4-gemm
-- kernel-fused-moe
-- technique-kernel-fusion
-- technique-epilogue-fusion
-sources:
-- contest-gpumode-p3
-- blog-deepgemm
-- blog-tflops-gap-fp4-moe
-- pr-vllm-23696
-performance_claims:
-- gpu: B200
-  dtype: nvfp4
-  shape: M=1024 N=2*2048 K=7168 (gate-up MLP)
-  metric: latency_us
-  value: 18.5
-  utilization: compute-bound
-  source_id: contest-gpumode-p3
-blackwell_relevance: TMEM holds two accumulators simultaneously (gate, up), enabling
-  single-kernel fusion that Hopper register file could not handle efficiently.
-artifact_dir: artifacts/kernels/gated-dual-gemm
+kernel_types: [gated-dual-gemm, gemm, fused-kernel]
+languages: [cuda-cpp, cute-dsl]
+related: [kernel-nvfp4-gemm, kernel-fused-moe, technique-kernel-fusion, technique-epilogue-fusion]
+sources: [contest-gpumode-p3, blog-deepgemm, blog-tflops-gap-fp4-moe, pr-vllm-23696]
+performance_claims: []
+blackwell_relevance: "SM100 can keep layout-defined gate and up accumulators in TMEM and fuse their epilogue, subject to the 512-column budget and scale-factor storage."
 ---
 
 # Gated Dual GEMM
 
-## Overview
+## Operation
 
-Gated dual GEMM fuses two matrix multiplications with activation and elementwise operations — the canonical MLP gate-up pattern used by LLaMA, Qwen, DeepSeek, and most modern LLMs. Fusion eliminates two global memory roundtrips compared to separate gate/up GEMM + SwiGLU.
-
-This was Problem 3 of the GPU Mode NVFP4 Hackathon.
-
-## Fused Operation
-
-```
-Given x, W_gate, W_up (weights shared same K dimension)
-Standard (unfused):
-  gate = x @ W_gate      (GEMM 1: reads x, W_gate, writes gate)
-  up   = x @ W_up         (GEMM 2: reads x, W_up, writes up)
-  silu = gate * sigmoid(gate)  (elementwise: reads gate, writes silu)
-  out  = silu * up        (elementwise: reads silu, up, writes out)
-
-Fused:
-  out = SiLU(x @ W_gate) * (x @ W_up)  (single kernel, no intermediate GMEM)
+```text
+gate = X @ W_gate
+up   = X @ W_up
+out  = SiLU(gate) * up
 ```
 
-## Kernel Structure (Blackwell)
+A fused implementation may reuse an X tile, issue two independent GEMM streams, and apply SiLU/multiply while draining their completed accumulator fragments. It avoids materializing both full projections when the fused resource footprint remains efficient.
 
-```cuda
-template <int BLOCK_M, int BLOCK_N, int BLOCK_K, int NUM_STAGES>
-__global__ void gated_dual_gemm_nvfp4(
-    const nvfp4_t* __restrict__ X,        // [M, K] input
-    const nvfp4_t* __restrict__ W_gate,   // [N, K] gate weights
-    const nvfp4_t* __restrict__ W_up,     // [N, K] up weights
-    const fp8_t* sf_x, const fp8_t* sf_gate, const fp8_t* sf_up,
-    half* __restrict__ output,             // [M, N] output
-    int M, int N, int K
-) {
-    // Two TMEM regions: one accumulator per GEMM
-    uint32_t tmem_gate = tmem_alloc(256);
-    uint32_t tmem_up   = tmem_alloc(256);
+## SM100 dependency structure
 
-    for (int k = 0; k < K; k += BLOCK_K) {
-        int stage = (k / BLOCK_K) % NUM_STAGES;
-        mbarrier_wait(&tma_done[stage]);
-
-        // Two MMAs per K-tile: gate and up
-        // Both read same X tile, different weight tiles
-        tcgen05_mma(x_smem[stage], wg_smem[stage], tmem_gate);
-        tcgen05_mma(x_smem[stage], wu_smem[stage], tmem_up);
-    }
-
-    // Fused epilogue: SiLU(gate) * up
-    float g = tmem_load(tmem_gate);
-    float u = tmem_load(tmem_up);
-    float s = g / (1.0f + expf(-g));  // SiLU
-    output[row * N + col] = __float2half(s * u);
-
-    tmem_dealloc(tmem_gate, 256);
-    tmem_dealloc(tmem_up, 256);
-}
+```python
+def gated_dual_tile(x_tile, gate_weight_tiles, up_weight_tiles):
+    gate_stage = allocate_layout_defined_accumulator()
+    up_stage = allocate_layout_defined_accumulator()
+    for gate_w, up_w in zip(gate_weight_tiles, up_weight_tiles):
+        issue_block_scaled_mma(gate_stage, x_tile, gate_w)
+        issue_block_scaled_mma(up_stage, x_tile, up_w)
+    wait_for_both_accumulators()
+    gate = load_tmem_fragment(gate_stage)
+    up = load_tmem_fragment(up_stage)
+    return silu(gate) * up
 ```
 
-## Key Optimizations
+The logical sketch omits pipeline reuse and scale layouts. Two 256-column regions are one possible TMEM partition, not a general consequence of a 128-by-256 output tile. NVFP4 scale factors use UE4M3 and their own layout; TMEM column needs must come from the selected traits.
 
-1. **X reuse**: Same X tile feeds both MMAs — loaded once, used twice
-2. **TMEM dual accumulator**: Blackwell's 512-column TMEM fits two 256-col accumulators side-by-side
-3. **Fused epilogue**: SiLU and multiply happen after TMEM load, no intermediate SMEM
-4. **Shared SFA**: X's block scales apply to both gate and up computations
+## Tradeoffs
 
-## When To Use
+- X traffic can be shared only if both paths consume the same staged layout/lifetime.
+- Weight traffic is still distinct.
+- Two accumulators and a fused epilogue can increase TMEM, registers, shared memory, and barrier pressure.
+- Numerical behavior must preserve the reference SiLU, scale application, accumulator type, and output rounding.
 
-- MLP layers in modern LLMs (LLaMA, Qwen, DeepSeek, Mistral)
-- Any dual-output operation sharing one input
-- MoE expert computations (expand to per-expert fused kernels)
+## Contest evidence boundary
 
-## Full Reference Implementation
+The task file establishes the dual-GEMM numerical contract, four benchmark
+shapes, and a geometric-mean ranking rule. The separate public API snapshot on
+2026-08-16 reported a 13.123660-us leading score and placed the account `Simon` 4th at
+14.054539 us. It does not publish contestant implementations, so prior
+participant-specific fusion attributions remain omitted. The API reports this
+leaderboard ended at its 2026-01-20 deadline; the snapshot is not an independent
+award claim.
 
-The reference bundle lives in [`artifacts/kernels/gated-dual-gemm/full/`](../../artifacts/kernels/gated-dual-gemm/full/) and combines the upstream vLLM PR-23696 diff (`vllm-PR-23696-gated-dual-gemm.patch`, `mode: upstream-patch`) with an extracted CUTLASS-schedule snippet from the `tflops-gap-fp4-moe` blog (`blackwell-cutlass-schedules-and-tma.cu`, `mode: extracted`). Labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/gated-dual-gemm/variants/`](../../artifacts/kernels/gated-dual-gemm/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
+## Implementation evidence boundary
 
-Query via:
-
-```bash
-python3 scripts/get_page.py kernel-gated-dual-gemm --include-code
-```
+No local bundle is claimed as a gated-dual-GEMM implementation. The previously
+linked vLLM PR 23696 patch implements fused MXFP4 MoE and is retained only in
+the fused-MoE bundle; it is supporting MoE context, not this exact operation.

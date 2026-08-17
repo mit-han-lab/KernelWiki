@@ -25,10 +25,10 @@ keywords_used:
 - gemm
 - triton+blackwell
 - fp8+kernel
-total_candidates: 194
+total_candidates: 217
 included: 80
 excluded: 29
-deferred: 85
+deferred: 108
 prs:
 - number: 180470
   title: '[release 2.12] Apply Release only changes to 2.12 branch'
@@ -1191,6 +1191,144 @@ prs:
 - number: 181298
   title: ''
   date: '2026-04-26'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 165144
+  title: Build libgomp (gcc-13) from src on AArch64
+  date: '2025-10-29'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 166578
+  title: Bump uv from 0.9.5 to 0.9.6 in /.ci/lumen_cli
+  date: '2025-10-30'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 183346
+  title: '[release] Dockerfile: skip torchaudio install when CUDA_PATH=cu132'
+  date: '2026-05-11'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 182369
+  title: 'Fix stale PYTORCH_RELEASES_CODE_CC dict (fixes #182250)'
+  date: '2026-05-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181577
+  title: '[CD] Remove cu132->cu130 wheel install fallback in Dockerfile '
+  date: '2026-04-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181137
+  title: Add TLS stack_bounds so we dont pay expensive reads
+  date: '2026-04-23'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 182178
+  title: Avoid raw stream name collisions in Inductor
+  date: '2026-05-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 180809
+  title: '[NCCL][Symmetric Memory] Fix groupName in IntraNodeComm'
+  date: '2026-04-23'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181940
+  title: '[dynamo] warn instead of error on fullgraph=True fallback to eager'
+  date: '2026-04-30'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181019
+  title: '[dynamo] Fix cuda_stream pointer extraction for generic torch.Stream'
+  date: '2026-04-22'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181548
+  title: '[Inductor] Call latest c_shim version for versioned fallback ops'
+  date: '2026-05-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181441
+  title: '[Inductor] Improve materialization heuristic for a chain of computaions (#176994)'
+  date: '2026-04-29'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 182184
+  title: Revert "[Inductor] Improve materialization heuristic for a chain of computaions (#176994)"
+  date: '2026-05-01'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181658
+  title: Revert "Adding stamp out using native api for bmm outer product (#179082)
+  date: '2026-04-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181871
+  title: '[Dependabot] Update(deps): Bump transformers from 5.6.1 to 5.7.0 in /.ci/docker/ci_commit_pins'
+  date: '2026-04-30'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181550
+  title: Add enable_gqa parameter to SDPA MPS meta registration
+  date: '2026-05-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 182311
+  title: '[MPS] Fix bool mask handling in 1-pass SDPA decode kernel (#182285)'
+  date: '2026-05-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 181886
+  title: '[MPS] Fix SDPA wrong output for permuted q/k/v with B > 1'
+  date: '2026-05-04'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6331
+  title: Fix the c2-onnx exporter bug on Gemm
+  date: '2018-04-07'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6243
+  title: fix broadcast export to onnx
+  date: '2018-04-05'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 3509
+  title: 'Optimizer: optimize transposes in variety of circumstances'
+  date: '2017-11-28'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 3325
+  title: Big batch of JIT and ONNX fixes
+  date: '2017-10-30'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 6699
+  title: '[feature request] [Caffe2] Enable MKLDNN support for inference'
+  date: '2018-04-23'
   decision: defer
   reason: from refresh search; needs-triage
   files_changed: []

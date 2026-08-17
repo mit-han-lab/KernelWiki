@@ -11,10 +11,10 @@ keywords_used:
 - cutlass
 - dsa
 - tma
-total_candidates: 236
+total_candidates: 241
 included: 152
 excluded: 22
-deferred: 62
+deferred: 67
 prs:
 - number: 13340
   pr: 13340
@@ -11833,3 +11833,33 @@ prs:
   deletions: 22
   changed_file_count: 8
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11561
+- number: 9428
+  title: '[TRTLLM-6222][feat] Several perf opt for cuteDSL nvf4 gemm'
+  date: '2025-12-01'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 8807
+  title: '[#8476][chore] Update license'
+  date: '2025-11-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 5521
+  title: '[None] [feat] Add Tencent HunYuanMoEV1 model support'
+  date: '2025-08-14'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 9530
+  title: '[https://nvbugs/5690172][fix] Fix Qwen3-235B ATP accuracy issue with PDL'
+  date: '2025-12-01'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 10617
+  title: '[None][chore] enable EPLB for DEEPGEMM'
+  date: '2026-01-14'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

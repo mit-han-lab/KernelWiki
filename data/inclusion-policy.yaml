@@ -2,9 +2,9 @@
 ## Consumed by scripts/compute_core_prs.py
 ##
 ## Two separate lanes (CuTe DSL and Triton) are classified with different
-## criteria because Triton on SM100 has no direct tcgen05/TMEM access
-## (see wiki/languages/triton-blackwell.md), so Triton's useful scope is
-## narrower than CuTe DSL's.
+## criteria. Triton 3.6+ has native SM100 tcgen05/TMEM lowering surfaces,
+## but the capture lane remains scoped to concrete Blackwell integration,
+## memory-bound kernels, and backend-fallback evidence.
 
 cute-dsl:
   description: |
@@ -62,16 +62,20 @@ cute-dsl:
 
 triton:
   description: |
-    Triton is a scoped Blackwell lane. As of Triton 3.6 (released
-    2026-01-21), Triton has native SM100 lowering through tcgen05 + TMEM
+    Triton is a scoped Blackwell lane. Source-defined tcgen05/TMEM operations
+    existed by Triton 3.3. As of Triton 3.6 (released 2026-01-21), Triton has
+    broader, hardened SM100 lowering through tcgen05 + TMEM
     via descriptor/TMA + warp_specialize, tl.dot_scaled, and Gluon
     multi-CTA / 2CTA, but production peak-performance leadership for
     compute-bound matmul/attention on Blackwell still favors hand-written
-    CuTe-DSL / CUTLASS / FA-4 / TRT-LLM kernels for many workloads
-    (downstream evidence: pr-sglang-5390 measured CUTLASS tcgen05_mla
-    ~27% faster than the Triton MLA decode baseline; pr-sglang-21595
-    moved Blackwell datacenter multimodal attention default away from
-    triton_attn). We therefore capture Triton PRs in three sub-scopes
+    CuTe-DSL / CUTLASS / FA-4 / TRT-LLM kernels for many workloads.
+    One scoped downstream signal is pr-sglang-5390: its author-reported
+    3,000-request serving command produced about 27% more total token
+    throughput with `cutlass_mla` than with its Triton backend, but the PR
+    omits the exact GPU SKU and does not isolate kernel latency. PR 21595
+    separately moved one Blackwell datacenter multimodal-attention default
+    away from `triton_attn`; that routing choice is not a benchmark. We
+    therefore capture Triton PRs in three sub-scopes
     that remain genuinely useful on Blackwell rather than mirroring the
     full CuTe-DSL lane.
 

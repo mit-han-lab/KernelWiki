@@ -1,56 +1,42 @@
 ---
 id: hw-2sm-cooperative
-title: "Two-SM Cooperative MMA"
+title: "Two-CTA Cooperative MMA"
 type: hardware
 architectures: [sm100, sm100a]
 tags: [2sm-cooperative, tcgen05, cluster]
-confidence: source-reported
+confidence: verified
+evidence_basis:
+  - {source_id: doc-ptx-isa-sm100, evidence_type: official-doc}
+  - {source_id: pr-cutlass-2139, evidence_type: upstream-code}
 related: [hw-tcgen05-mma, hw-tmem, technique-warp-specialization]
-sources: [doc-nvidia-tuning-guide, blog-colfax-cutlass, blog-modular-blackwell]
+sources: [doc-ptx-isa-sm100, doc-nvidia-tuning-guide, doc-cutlass-blackwell, blog-colfax-cutlass, blog-modular-blackwell, pr-cutlass-2139]
 aliases: ["2-SM cooperative", "dual CTA", "2CTA", "cta_group::2"]
 ---
 
+# Two-CTA Cooperative MMA
+
 ## Overview
 
-Blackwell enables two SMs within a TPC to cooperatively execute a single larger MMA, doubling the effective compute tile size to m256×n256×k16.
+`tcgen05.mma.cta_group::2` lets a CTA pair in a two-CTA cluster cooperate on an MMA operation. The instruction's data-path and TMEM layouts distribute the work across the pair; issue, descriptor, synchronization, and allocation rules differ from `cta_group::1`.
 
-## How It Works
+The mode is not one fixed `m256 x n256 x k16` instruction. Valid M/N/K shapes depend on MMA kind and datatype. Current CUTLASS tables include both M=128 and M=256 two-SM legacy-type MMA tiles and narrower fixed combinations for NVFP4/MXFP4.
 
-```
-TPC (Two Processing Clusters)
-├── SM 0: CTA 0 — issues tcgen05.mma with cta_group::2
-│   ├── Shared Memory A (rows 0-127)
-│   └── TMEM (columns 0-255)
-└── SM 1: CTA 1 — cooperates on same MMA
-    ├── Shared Memory A (rows 128-255)
-    └── TMEM (columns 256-511)
-```
+## Structural requirements
 
-## PTX
-
-```ptx
-// 2-SM cooperative MMA
-tcgen05.mma.cta_group::2.kind::f16
-    [tmem_addr], descA, descB, idescC, idescD, ...;
+```python
+def two_cta_mma(cluster_pair, instruction):
+    assert cluster_pair.size == 2
+    prepare_each_cta_operands_and_descriptors(instruction)
+    coordinate_tmem_allocation_and_pipeline(cluster_pair, instruction)
+    elected_issuer_follows_cta_group_2_rules(instruction)
+    commit_and_wait_for_pair_completion()
+    each_cta_drains_its_layout_defined_output_partition()
 ```
 
-## Requirements
-1. **Identical shared memory layouts** across both CTAs
-2. `shared::cluster` mbarrier signaling between the two CTAs
-3. Both CTAs in the same cluster
-4. Each CTA contributes half the M-dimension
+This is dependency pseudocode. Use the exact PTX issue rules and CUTLASS traits; simply issuing the same inline assembly independently from both CTAs is not a valid substitute.
 
-## Performance Impact
+## Tradeoffs
 
-From tcgen05 tutorial progression:
-- 1-SM MMA (m128×n256): 80% of cuBLAS → adding 2-SM: **86%** of cuBLAS
-- ~7.5% improvement from doubling the MMA tile size
+Two-CTA MMA can increase the cooperative tile size and enable multicast/reuse, but it binds two SMs into one schedulable cluster and can reduce the number of independent workers. It is useful only when the larger tile, datatype, shape, and surrounding pipeline offset cluster residency and tail costs.
 
-## When to Use
-- Large GEMM problems where M ≥ 256
-- Compute-bound kernels where peak FLOPS matters
-- Combined with persistent scheduling for maximum throughput
-
-## Related
-- [tcgen05-mma](tcgen05-mma.md) — Base MMA instruction
-- [tmem](tmem.md) — Full TMEM used in 2-SM mode
+Tutorial figures that improve after enabling 2CTA also reflect that tutorial's tile, pipeline, and hardware. They do not establish a universal 7.5% gain.

@@ -23,10 +23,10 @@ keywords_used:
 - tile_scheduler
 - grouped_gemm
 - sub_byte
-total_candidates: 79
+total_candidates: 80
 included: 47
 excluded: 8
-deferred: 24
+deferred: 25
 prs:
 - number: 2033
   title: '[EVT] Add support for Row/Col broadcast PtrArray'
@@ -1020,3 +1020,9 @@ prs:
   score: 32
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/cutlass/gh-2172
+- number: 3224
+  title: '[CuTeDSL] fix MLA decode support for thor'
+  date: '2026-05-13'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

@@ -28,54 +28,41 @@ artifact_dir: artifacts/kernels/ping-pong-scheduling
 
 ## Overview
 
-Ping-pong scheduling alternates two query tiles within a single CTA so the softmax warpgroup never stalls waiting for MMA. Introduced in FlashAttention-4 to exploit Blackwell's asymmetric hardware (2× tensor cores, same SFU count as Hopper).
+FA4 pipelines two score/output tiles so Tensor Core work on one tile can overlap softmax, correction, or data movement for another when dependencies permit. Blackwell's faster Tensor Cores make this overlap important because shared-memory and exponential throughput scale more slowly.
 
 ## Pattern
 
-```cuda
-// Two 128-token query tiles per CTA, alternating through the mainloop
-// Warpgroup 0: softmax for tile A while MMA runs on tile B
-// Warpgroup 1: softmax for tile B while MMA runs on tile A
-
-__global__ void fa4_ping_pong_attn(...) {
-    int wg = warp_group_id();
-
-    // TMEM holds accumulators for BOTH tiles
-    uint32_t tmem_A = tmem_alloc(256);
-    uint32_t tmem_B = tmem_alloc(256);
-
-    for (int k = 0; k < num_kv_tiles; k++) {
-        if (wg == 0) {
-            // Compute softmax for tile A (previous MMA output)
-            softmax_normalize(tmem_A);
-            // Issue MMA for tile B next
-            tcgen05_mma(Q_B_smem, K_smem[k], tmem_B);
-        } else {
-            softmax_normalize(tmem_B);
-            tcgen05_mma(Q_A_smem, K_smem[k], tmem_A);
-        }
-        mbarrier_arrive(&ping_pong_sync);
-        mbarrier_wait(&ping_pong_sync);
-    }
-}
+```python
+# Dependency pseudocode, not CuTe DSL.
+def pipeline(tile, steady_state):
+    compute_score(tile[0])
+    compute_score(tile[1])
+    for stage in steady_state:
+        advance_mma(stage.mma_tile)
+        normalize(stage.softmax_tile)
+        handoff_probabilities_via_tmem(stage.softmax_tile)
+        correct_output_scale(stage.correction_tile)
+        rotate_stage_after_all_handoffs(stage)
 ```
+
+This is dependency pseudocode, not CuTe DSL or CUDA syntax. FA4 uses two 128-thread softmax warpgroups, a correction warpgroup, and a Tensor Core/TMA-driving warpgroup; the full implementation owns the exact TMEM partition and barrier protocol.
 
 ## Why It Helps on Blackwell
 
-- Tensor core throughput doubled (B200 vs H100) but SFU count unchanged
-- Single-tile schedule would leave SFU idle while MMA runs, and vice versa
-- Ping-pong keeps both units 100% busy
-- FA4 achieves 1605 TFLOPS BF16 (71% utilization) with this pattern
+- B200's FP16/BF16 Tensor Core throughput is much higher than H100's, while exponential and shared-memory resources did not scale proportionally
+- Multiple in-flight tiles expose independent MMA and non-MMA work for overlap
+- Actual utilization remains dependency- and resource-limited; the paper does not claim both units are always 100% busy
+- FA4's v1 paper reports up to 1613 TFLOP/s on B200 BF16/FP16 (approximately 71% of theoretical throughput) for the full implementation; that result is not an isolated measurement of this scheduling technique.
 
 ## When To Use
 
-- Compute-bound attention kernels on Blackwell
-- Kernels where softmax/epilogue is SFU-heavy
-- Not useful on Hopper (balance is different)
+- Attention pipelines with at least two independent tiles and enough TMEM/register capacity for their live state
+- Kernels where non-MMA work can overlap an asynchronous MMA without violating data dependencies
+- The concrete FA4 schedule targets Blackwell; ping-pong/double-buffering as a general technique is not Blackwell-exclusive
 
 ## Full Reference Implementation
 
-Verbatim upstream code lives in [`artifacts/kernels/ping-pong-scheduling/full/`](../../artifacts/kernels/ping-pong-scheduling/full/); labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/ping-pong-scheduling/variants/`](../../artifacts/kernels/ping-pong-scheduling/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
+Verbatim upstream code lives in [`artifacts/kernels/ping-pong-scheduling/full/`](../../artifacts/kernels/ping-pong-scheduling/full/). Its SHA-256 and upstream-pinning metadata are in `PROVENANCE.yaml`. The former sequential teaching sketch did not demonstrate the overlap it claimed and was removed.
 
 Query via:
 

@@ -3,7 +3,6 @@ id: technique-external-source-map-research
 title: External Source-Map Research For Kernel Edits
 type: technique
 architectures:
-- sm100
 - sm90
 tags:
 - cuda-cpp
@@ -29,15 +28,17 @@ sources:
 - blog-colfax-cutlass-kernels
 - blog-simveit-effective-transpose
 - blog-simveit-load-and-store
-blackwell_relevance: These source-map repositories complement PR pages with compact, searchable examples for TMA, swizzling, Stream-K, persistent scheduling, and load/store mechanics on Hopper and Blackwell-era kernels.
+blackwell_relevance: These repositories provide mostly Hopper or generic CUDA examples. They can suggest experiments for a Blackwell port, but do not establish SM100 instruction mappings or performance.
 ---
 
 ## Use
 
 Use external source-map research after a profile or benchmark identifies an edit
 family but the local PR pages do not expose a small enough implementation
-example. The route is code-first: clone a source-map repository, grep for the
-measured mechanism, and cite exact files before adapting an idea.
+example. The route is code-first: inspect a pinned commit, grep for the measured
+mechanism, and cite exact files before adapting an idea. The Colfax and simveit
+entries checked here target Hopper `sm_90a`; a Blackwell adaptation still needs
+an SM100 source and independent correctness validation.
 
 ```bash
 git clone https://github.com/ColfaxResearch/cfx-article-src external/colfax-cfx

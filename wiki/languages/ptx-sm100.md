@@ -4,85 +4,111 @@ title: "PTX Instructions for SM100"
 type: language
 tags: [ptx, tcgen05, tmem, tma, clc, mbarrier, nvfp4]
 related: [hw-tcgen05-mma, hw-tmem, hw-clc, lang-cuda-cpp]
-sources: [doc-ptx-isa-sm100, doc-nvidia-tuning-guide, blog-yue-nvfp4]
+sources: [doc-ptx-isa-sm100, doc-nvidia-tuning-guide, pr-cutlass-2139, blog-yue-nvfp4]
 reproducibility: snippet
 architectures: [sm100, sm100a]
-confidence: source-reported
+confidence: verified
+evidence_basis:
+  - source_id: doc-ptx-isa-sm100
+    evidence_type: official-doc
+  - source_id: pr-cutlass-2139
+    evidence_type: upstream-code
 ---
 
 ## Overview
 
-SM100 PTX instructions for Blackwell-specific hardware features.
+SM100 introduces `tcgen05`, Tensor Memory, and Cluster Launch Control instruction families. The examples below use syntax checked against PTX ISA 9.3. They are instruction-level fragments, not complete kernels: allocation, descriptors, barrier initialization, parity, uniformity, and target directives remain the caller's responsibility.
 
-## tcgen05 Instructions
+## `tcgen05` instructions
 
 ```ptx
-// Allocate TMEM columns
-tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32  [smem_tmem_addr], num_cols;
+// Allocate TMEM columns; the result address is written to shared memory.
+tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32
+    [smem_tmem_addr], num_cols;
+ld.shared.b32 tmem_addr, [smem_tmem_addr];
 
-// MMA: inputs from SMEM, accumulator in TMEM
-tcgen05.mma.cta_group::1.kind::f16  [tmem_addr], desc_a, desc_b, idesc, enable_input_d;
+// Dense MMA. A and B are SMEM descriptors; D is in TMEM.
+// Four zero mask registers leave all cta_group::1 output lanes enabled.
+tcgen05.mma.cta_group::1.kind::f16
+    [tmem_addr], desc_a, desc_b, idesc,
+    {mask0, mask1, mask2, mask3}, enable_input_d;
 
-// 2-SM cooperative MMA
-tcgen05.mma.cta_group::2.kind::f16  [tmem_addr], desc_a, desc_b, idesc, enable_input_d;
+// Copy a shaped SMEM matrix into TMEM.
+tcgen05.cp.cta_group::1.128x256b [tmem_addr], sdesc;
 
-// Load TMEM to registers
-tcgen05.ld.sync.aligned.32x32b.x1.b32  {regs}, [tmem_addr];
+// Track completion of preceding MMA/copy/shift operations from this thread.
+tcgen05.commit.cta_group::1.mbarrier::arrive::one.b64 [mbarrier];
 
-// Store registers to TMEM
-tcgen05.st.sync.aligned.32x32b.x1.b32  [tmem_addr], {regs};
-
-// Copy a shaped SMEM matrix descriptor into TMEM
-tcgen05.cp.cta_group::1.128x256b  [tmem_addr], sdesc;
-
-// Critical fence between TMA completion and MMA
+// After waiting for that mbarrier, order the dependent TMEM load.
 tcgen05.fence::after_thread_sync;
+tcgen05.ld.sync.aligned.32x32b.x2.b32 {r0, r1}, [tmem_addr];
+tcgen05.wait::ld.sync.aligned;
 
-// Deallocate TMEM (MUST before kernel exit)
-tcgen05.dealloc.cta_group::1.sync.aligned.b32  tmem_addr, num_cols;
+// Register-to-TMEM store and its completion wait.
+tcgen05.st.sync.aligned.32x32b.x2.b32 [tmem_addr], {r0, r1};
+tcgen05.wait::st.sync.aligned;
+
+// All allocated TMEM must be released before exit.
+tcgen05.dealloc.cta_group::1.sync.aligned.b32 tmem_addr, num_cols;
+tcgen05.relinquish_alloc_permit.cta_group::1.sync.aligned;
 ```
 
-## NVFP4 Conversion Instructions
+All `tcgen05` instructions in a kernel must use the same CTA-group value. A `tcgen05.fence` orders operations but does not replace `tcgen05.commit` plus the mbarrier completion wait.
+
+## Sub-byte conversions
 
 ```ptx
-// Convert two packed FP4 values to two FP16 values
-cvt.rn.f16x2.e2m1x2  result_f16x2, packed_fp4;
+// Two f32 inputs to packed FP8 E4M3.
+cvt.rn.satfinite.e4m3x2.f32 packed_fp8, a, b;
 
-// Byte unpacking (faster than bitwise extraction)
-mov.b32  {byte0, byte1, byte2, byte3}, packed_word;
+// Packed FP8 or FP4 to packed f16x2.
+cvt.rn.f16x2.e4m3x2 f16_pair, packed_fp8;
+cvt.rn.relu.f16x2.e2m1x2 f16_pair, packed_fp4;
+
+// Packed f16x2 to packed FP4 E2M1.
+cvt.rn.satfinite.e2m1x2.f16x2 packed_fp4, f16_pair;
 ```
 
-## Cache Control for Memory-Bound Kernels
+## Cache-control examples
 
 ```ptx
-// Streaming data (use once): bypass L1
-ld.global.L1::no_allocate.v2.u64  {r0, r1}, [addr];
+// Avoid allocating the line in L1. This is an eviction-priority hint,
+// not a promise to bypass every cache level.
+ld.global.L1::no_allocate.v2.u64 {r0, r1}, [addr];
 
-// Reused data: keep in L1
-ld.global.L1::evict_last.v2.u64  {r0, r1}, [addr];
+// Prefer retaining a reused line in L1.
+ld.global.L1::evict_last.v2.u64 {r0, r1}, [addr];
 
-// Wide vectorized loads
-ld.global.v4.u64  {r0, r1, r2, r3}, [addr];  // 256-bit
+// A 256-bit vector load; natural alignment requirements still apply.
+ld.global.v4.u64 {r0, r1, r2, r3}, [addr];
 ```
 
 ## Cluster Launch Control
 
+CLC asynchronously attempts to cancel a cluster that has not launched; a successful response supplies the first CTA id of the canceled cluster for work stealing.
+
 ```ptx
-// Query for next tile (persistent kernel loop)
-clusterlaunchcontrol.try_cancel  {clc_id};
-// Returns valid tile_id or decline (all work done)
+clusterlaunchcontrol.try_cancel.async.shared::cta.mbarrier::complete_tx::bytes.b128
+    [response], [mbarrier];
+
+// After waiting for the mbarrier and loading the 16-byte response:
+clusterlaunchcontrol.query_cancel.is_canceled.pred.b128 p, handle;
+clusterlaunchcontrol.query_cancel.get_first_ctaid.v4.b32.b128
+    {x, y, z, _}, handle;
 ```
 
-## TMA (Tensor Memory Accelerator)
+The CTA id must be queried only when `p` is true.
+
+## TMA tensor copies
 
 ```ptx
-// Bulk tensor copy: global → shared
-cp.async.bulk.tensor.2d.shared::cluster.global.tile.mbarrier::complete_tx::bytes
-    [smem_ptr], [tensorMap, {x, y}], [mbarrier];
+// Global to this CTA's shared memory.
+cp.async.bulk.tensor.2d.shared::cta.global.mbarrier::complete_tx::bytes.tile
+    [smem_ptr], [tensor_map, {x, y}], [mbarrier];
 
-// Multicast to cluster SMs
-cp.async.bulk.tensor.2d.shared::cluster.global.tile.mbarrier::complete_tx::bytes.multicast
-    [smem_ptr], [tensorMap, {x, y}], [mbarrier], multicast_mask;
+// Global to cluster shared memory with cluster multicast.
+cp.async.bulk.tensor.2d.shared::cluster.global.mbarrier::complete_tx::bytes.multicast::cluster
+    [smem_ptr], [tensor_map, {x, y}], [mbarrier], cta_mask;
 ```
 
 ## Related

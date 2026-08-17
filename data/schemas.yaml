@@ -25,6 +25,10 @@ source-pr:
     - description
     - inclusion_reason
     - changed_paths
+    - changed_paths_total
+    - changed_paths_truncated
+    - upstream_body_text_sha256
+    - upstream_files_sha256
     - artifact_dir
   disallow_peer_of_artifact_dir:
     - diff_path
@@ -64,6 +68,11 @@ source-blog:
   optional:
     - description
     - artifact_dir
+    - techniques
+    - hardware_features
+    - kernel_types
+    - languages
+    - related_urls
   disallow_peer_of_artifact_dir:
     - code_path
     - code_dir
@@ -84,6 +93,13 @@ source-contest:
     - track
     - submissions
     - artifact_dir
+    - techniques
+    - hardware_features
+    - kernel_types
+    - languages
+    - leaderboard_url
+    - leaderboard_api_url
+    - leaderboard_retrieved_at
   disallow_peer_of_artifact_dir:
     - code_path
   submissions_schema:
@@ -201,6 +217,31 @@ wiki-kernel:
     id_prefix: kernel-
     reproducibility_minimum: snippet
 
+performance-claim:
+  required:
+    - gpu
+    - software
+    - dtype
+    - shape
+    - workload
+    - metric
+    - value
+    - measurement_method
+    - baseline
+    - limitations
+    - source_id
+  optional:
+    - utilization
+  constraints:
+    metric:
+      - TFLOPS
+      - latency_ms
+      - latency_us_geomean
+      - speedup_forward
+      - speedup_backward
+      - speedup_decode
+    utilization_pattern: "numeric percentage such as 71%"
+
 wiki-language:
   required:
     - id
@@ -238,6 +279,7 @@ wiki-migration:
     - reproducibility
     - prerequisites
     - version_sensitive
+    - evidence_basis
   constraints:
     type: migration
     id_prefix: migration-
@@ -389,6 +431,7 @@ tool-versions-snapshot:
 ##
 ## Stage values (matches plan-phase4.md::AC-4 strictly):
 ##   pre-fetch          -> gh PR fetch returned no data
+##   bodyText-fetch     -> GitHub GraphQL bodyText fetch returned no data
 ##   is-kernel-related  -> file-allowlist check excluded the PR
 ##
 ## A historical `bootstrap-uncaptured` stage was used in Round 4 R4-8 as a
@@ -408,7 +451,7 @@ pr-page-skipped-audit:
       - reason
       - recorded_at
     constraints:
-      stage: [pre-fetch, is-kernel-related]
+      stage: [pre-fetch, bodyText-fetch, is-kernel-related]
   constraints:
     sort_order: "rows sorted by (repo, pr_number) ascending; byte-stable across re-runs"
 

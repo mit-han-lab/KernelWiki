@@ -8,54 +8,41 @@ confidence: source-reported
 reproducibility: snippet
 prerequisites: []
 related: [pattern-memory-bound, pattern-register-pressure, kernel-nvfp4-gemv]
-sources: [blog-yue-nvfp4, blog-amandeep-nvfp4, blog-simon-nvfp4-gemv]
-blackwell_relevance: "TMEM eliminates accumulator register pressure on Blackwell, freeing ~100 registers/thread for other uses; technique still critical for memory-bound kernels."
+sources: [doc-nvidia-tuning-guide, blog-yue-nvfp4, blog-amandeep-nvfp4, blog-simon-nvfp4-gemv]
+blackwell_relevance: "TMEM can reduce MMA-accumulator register demand on SM100, while occupancy still depends on registers, shared memory, threads, barriers, clusters, and launch constraints."
 ---
 
 # Register Budgeting
 
 ## Overview
 
-SM occupancy is inversely proportional to registers-per-thread. For memory-bound kernels, higher occupancy = more warps to hide memory latency. `-maxrregcount` and `__launch_bounds__` force the compiler to stay within a budget.
+Registers are allocated to resident thread blocks in hardware-defined granularities. A kernel can become register-limited, but occupancy is not simply the inverse of registers per thread: threads per block, shared memory, architectural block/warp limits, cluster requirements, and allocation rounding all participate.
 
-## Pattern
+Use compiler resource output and the CUDA occupancy APIs/calculator for the exact kernel and target.
+
+## Controls
 
 ```cuda
-// Aggressive: 32 registers/thread → ~4 blocks per SM at 256 threads/block
-__launch_bounds__(256, 4)
-__global__ void gemv_memory_bound(...) {
-    // Compiler will spill to local memory if needed
+// Requests launch compatibility with 256 threads and at least two blocks/SM.
+// It does not promise that two blocks will reside or that spills are profitable.
+__launch_bounds__(256, 2)
+__global__ void kernel(/* ... */) {
+    // implementation
 }
-
-// Or via nvcc flag:
-// nvcc -maxrregcount=32 -arch=sm_100a ...
 ```
 
-## Compiler Tradeoffs
+`__launch_bounds__`, `__maxnreg__` where supported, and compiler register limits constrain allocation decisions. They can reduce unrolling or introduce local-memory spills. Always inspect the generated register/spill report and benchmark rather than assuming a lower count is better.
 
-Lower register count → compiler may:
-- Spill frequently-used values to local memory (bad)
-- Recompute values instead of storing them (neutral)
-- Use fewer unrolled iterations (bad for compute-bound)
+## Tuning loop
 
-For memory-bound kernels, spills can be hidden by memory latency anyway, so aggressive budgeting often wins.
+1. Identify whether achieved occupancy or eligible warps actually limit the kernel.
+2. Record registers, spill loads/stores, shared memory, and block size.
+3. Sweep a small set of launch bounds or code variants.
+4. Validate numerical results and benchmark representative shapes.
+5. Prefer the fastest stable configuration, not the highest occupancy percentage.
 
-## GPU Mode NVFP4 GEMV Results
+Spill traffic is ordinary memory-system work and is not automatically hidden because the original kernel was memory-bound. It can worsen the same bottleneck.
 
-| Rank | Register count | Latency |
-|------|---------------|---------|
-| 1 | 32 | 18.5μs |
-| 3 | 45 | ~20μs |
+## Evidence boundary
 
-The measurable difference between 32 and 45 registers shows occupancy dominates for memory-bound NVFP4 GEMV.
-
-## When To Use
-
-- Memory-bound kernels (first priority: occupancy)
-- Kernels where register pressure comes from inner loop, not accumulators (TMEM handles accumulators)
-- Sub-byte types with heavy decode/scale computation
-
-## When NOT To Use
-
-- Compute-bound GEMM (let compiler use what it needs)
-- Kernels where spills to local memory would serialize
+Register/latency pairs reported by NVFP4 GEMV competition write-ups describe specific implementations and benchmark cases. They do not establish that 32 registers is an SM100 optimum or that the latency difference is caused solely by occupancy. Preserve those measurements as source-reported case studies unless controlled variants establish causality.

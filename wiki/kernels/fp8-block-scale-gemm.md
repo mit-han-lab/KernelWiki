@@ -9,109 +9,54 @@ reproducibility: snippet
 kernel_types: [gemm]
 languages: [cuda-cpp, cute-dsl]
 related: [kernel-deepgemm, kernel-nvfp4-gemm, technique-fine-grained-quantization, hw-tcgen05-mma]
-sources: [blog-deepgemm, doc-cutlass-blackwell, doc-cutlass-changelog-sm100]
+sources: [blog-deepgemm, doc-cutlass-blackwell, doc-cutlass-changelog-sm100, doc-ptx-isa-sm100, pr-cutlass-2139]
 performance_claims:
   - gpu: H800
+    software: "DeepGEMM README news item dated 2025-04-18; CUDA and library versions not stated"
     dtype: fp8
-    shape: "M=4096, N=4096, K=4096"
+    shape: unspecified peak case in the 2025-04-18 DeepGEMM README news item
+    workload: "FP8 GEMM peak headline; exact operation variant not stated"
     metric: TFLOPS
     value: 1550
-    utilization: "~90% via CUDA core promotion"
+    measurement_method: "source-reported project benchmark; method not stated in the headline"
+    baseline: "none; absolute throughput headline"
+    limitations: "shape, clocks, CUDA version, and measurement method are not stated in the retained headline"
     source_id: blog-deepgemm
-blackwell_relevance: "SM100 tcgen05.mma has native UE8M0 block scaling; SM90 requires Nc=128 CUDA core promotion. Same kernel pattern works on both but different scale handling."
+blackwell_relevance: "SM100 block-scaled tcgen05 paths use layout-defined scale factors and TMEM accumulation; SM90 libraries implement fine-grained scaling with different MMA and scale handling."
 ---
 
 # FP8 Block-Scale GEMM
 
-## Overview
+## Operation
 
-FP8 GEMM with fine-grained block scales (128x128 weights, 1x128 activations). Preserves more dynamic range than per-tensor FP8 scaling, critical for LLM inference and training where outliers dominate quantization error.
+A block-scaled GEMM associates scale tensors with groups of quantized operand elements. A simple logical form is:
 
-DeepGEMM is the reference implementation; CUTLASS provides SM100 schedules.
-
-## Block Scaling Structure
-
-```
-Activations: tile-wise 1x128 scales
-  [1x128 values] → 1 scale factor (FP32 or FP8 E4M3)
-
-Weights: block-wise 128x128 scales
-  [128x128 values] → 1 scale factor per block
-
-Output accumulator: FP32
-  Multiply A × B in FP8, accumulate in FP32, apply scales at MMA boundary
+```python
+def scaled_product(a_q, a_sf, b_q, b_sf, i, j, k_size, vec_size):
+    total = 0.0
+    for k in range(k_size):
+        a = decode_fp8(a_q[i, k]) * a_sf[i, k // vec_size]
+        b = decode_fp8(b_q[j, k]) * b_sf[j, k // vec_size]
+        total += a * b
+    return total
 ```
 
-## SM90 Path (Hopper, WGMMA)
+DeepGEMM's historically described recipe uses 1-by-128 activation and 128-by-128 weight granularity. CUTLASS supports blockwise/groupwise configurations beyond that pair, so the exact scale granularity is an API/kernel property.
 
-```cuda
-// Hopper accumulator has ~22-bit precision (FP22)
-// Every Nc=128 WGMMAs, promote partial sum to FP32 on CUDA cores
-// This retains precision without adding MMA overhead
+## SM90 and SM100 are different implementations
 
-__device__ void sm90_fp8_gemm_with_promotion(...) {
-    float acc_fp32 = 0.0f;
+SM90 WGMMA paths use register accumulator fragments and library-defined scale/promotion strategies. DeepGEMM documents CUDA-core promotion for its Hopper FP8 implementation; that is not a universal WGMMA instruction rule.
 
-    for (int k = 0; k < K; k += 128) {
-        float acc_fp22 = 0.0f;
-        #pragma unroll 4
-        for (int kk = 0; kk < 128; kk += 32) {
-            wgmma_fp8_e4m3(acc_fp22, A_frag, B_frag);
-        }
-        // Promote to FP32 accumulator on CUDA cores
-        acc_fp32 += acc_fp22 * scale_a * scale_b;
-    }
+SM100 block-scaled paths use `tcgen05.mma` kinds such as `mxf8f6f4`, TMEM scale-factor layouts/IDs, and TMEM destinations. A syntactically shortened MMA with raw “scale descriptors” is not sufficient: the instruction descriptor encodes shapes, types, major orders, scale IDs/vector size, and accumulation behavior.
 
-    // Write acc_fp32 to output
-}
-```
+## Layout
 
-## SM100 Path (Blackwell, tcgen05.mma)
+Optimized scale tensors use prescribed physical layouts and alignment. DeepGEMM's current SM100 FP8 interface requires packed UE8M0 scales and provides layout-transform utilities; CUTLASS provides its own scale-layout builders. “FP32 or E4M3 or UE8M0” cannot be interchanged without selecting a compatible kernel kind.
 
-```cuda
-// tcgen05.mma has native UE8M0 block scale support in hardware
-// No promotion needed - scales applied inside MMA
+## Precision
 
-__global__ void sm100_fp8_gemm_block_scale(...) {
-    uint32_t tmem = tmem_alloc(256);
+TMEM is the destination storage, not a statement that every internal accumulation step has unrestricted FP32 precision. Numerical behavior follows the selected MMA kind/accumulator type and any promotion scheme. Validate error against the intended reference and distribution.
 
-    for (int k = 0; k < K; k += BLOCK_K) {
-        mbarrier_wait(&tma_done);
+## Performance boundary
 
-        // tcgen05.mma.mxf8f6f4.block_scale variant
-        // Reads A, B from SMEM; scales from scale SMEM; accumulates in TMEM
-        asm volatile(
-            "tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X "
-            "[%0], %1, %2, %3, %4, %5;"
-            :: "r"(tmem), "l"(a_desc), "l"(b_desc),
-               "r"(sf_a_desc), "r"(sf_b_desc), "n"(1)
-        );
-    }
-
-    // Read from TMEM, apply global scale, store
-    float result = tmem_load(tmem) * global_scale;
-    output[row * N + col] = __float2half(result);
-}
-```
-
-## Memory Layout
-
-```
-A (activations) [M, K] packed FP8 E4M3
-sf_a            [M, K/128] FP32 or FP8 E4M3 scales  # 1 per 1x128 tile
-
-B (weights)     [N, K] packed FP8 E4M3
-sf_b            [N/128, K/128] scales               # 1 per 128x128 block
-                # or packed UE8M0 format (Blackwell): 4 scales per int32
-```
-
-## Performance
-
-- DeepGEMM on H800: up to 1550 TFLOPS FP8
-- CUTLASS SM100 schedules: similar ratio vs peak
-
-## When To Use
-
-- LLM inference with FP8 quantized weights (DeepSeek V3, Qwen2-FP8, etc.)
-- Training with FP8 activations (DeepSeek V3 training framework)
-- Anywhere per-tensor FP8 accuracy is insufficient due to outliers
+DeepGEMM's README reports a historical peak of up to 1,550 TFLOP/s on H800. It does not tie that headline to 4096-by-4096-by-4096 or a universal 90% utilization value. CUTLASS SM100 performance must be reported for a named kernel, shape, build, and GPU rather than as a “similar ratio.”

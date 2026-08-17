@@ -9,10 +9,10 @@ keywords_used:
 - hopper
 - fp8
 - tma
-total_candidates: 146
+total_candidates: 161
 included: 46
 excluded: 0
-deferred: 100
+deferred: 115
 prs:
 - number: 2441
   pr: 2441
@@ -5606,3 +5606,93 @@ prs:
   - flash_attn/ops/triton/rotary.py
   - tests/test_rotary.py
   artifact_dir: evidence/pull-bundles/flash-attention/gh-911
+- number: 2517
+  title: Fix long MSVC linker commands on Windows
+  date: '2026-04-29'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 2519
+  title: '[ROCm Windows] fix build failed'
+  date: '2026-05-06'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 2483
+  title: '[Tests,MLA] Close coverage gaps in test_flash_attn_mla_absorbed'
+  date: '2026-04-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 1504
+  title: Enable MLA flag in FA3 (rope=64, latent=512)
+  date: '2025-02-23'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 2536
+  title: Enable split-kv for blocksparse tensors
+  date: '2026-05-19'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 2448
+  title: expose num_splits for FA2 and add option for kernel blocksize alignment
+  date: '2026-04-16'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 2006
+  title: '[Cute,Fwd,Sm100] fix major regression with split kv'
+  date: '2025-11-12'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 1085
+  title: Fix ima for split-kv kernel
+  date: '2024-07-23'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 970
+  title: Support unpadded LSE layout
+  date: '2024-06-27'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 754
+  title: Add split-kv and M<->H swap to varlen forward decoding attention
+  date: '2024-01-21'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 2315
+  title: '[Cute, SM90, bwd] Wire seqused_q/k through backward pass'
+  date: '2026-03-12'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 1949
+  title: Fix hopper cuda 13 build
+  date: '2025-10-21'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 1952
+  title: '[NVIDIA] cutlass v4.3.0'
+  date: '2025-10-21'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 1598
+  title: Make hopper build more robust
+  date: '2025-04-17'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []
+- number: 2345
+  title: fix the create_ragged_tensor_for_tma issue
+  date: '2026-03-14'
+  decision: defer
+  reason: from refresh search; needs-triage
+  files_changed: []

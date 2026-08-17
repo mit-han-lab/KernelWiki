@@ -1,5 +1,5 @@
 diff --git a/cub/cub/device/dispatch/dispatch_topk.cuh b/cub/cub/device/dispatch/dispatch_topk.cuh
-index 3053d4b98d9..f06dc141324 100644
+index 3053d4b98d9f..f06dc1413244 100644
 --- a/cub/cub/device/dispatch/dispatch_topk.cuh
 +++ b/cub/cub/device/dispatch/dispatch_topk.cuh
 @@ -387,15 +387,13 @@ struct DispatchTopK

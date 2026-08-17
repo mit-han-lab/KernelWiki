@@ -2,7 +2,7 @@ origin_url: https://github.com/NVIDIA/cccl/pull/3559
 upstream_repo: NVIDIA/cccl
 upstream_sha: 25523da2
 license: inherits-from-upstream
-retrieved_at: '2026-05-23'
+retrieved_at: '2026-08-16'
 asset_mode: verbatim
 size_cap_truncated: false
 generated_by: scripts/fetch_pr_diff.py
@@ -11,7 +11,7 @@ files:
 - local_path: diff.patch
   role: pr-diff
   mode: upstream-patch
-  sha256: 468d826a12d57150db0258d5461b0e7a46ea190c78a6c9f82884e291baff1715
+  sha256: b7ca83167466289864132e3ade716cb2746f51b9eac90c639b0cf0e14ac98203
 - local_path: key-files/cub/cub/device/device_scan.cuh
   role: upstream-file
   mode: verbatim

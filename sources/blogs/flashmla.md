@@ -1,94 +1,27 @@
 ---
 id: blog-flashmla
-title: FlashMLA — Multi-head Latent Attention
+title: FlashMLA
 author: DeepSeek AI
 url: https://github.com/deepseek-ai/FlashMLA
 source_category: benchmark-blog
-architectures:
-- sm100
-- sm90
-tags:
-- mla
-- attention
-- decode
-- prefill
-- fp8
-- sparse-attention
-- tcgen05
-- tmem
-retrieved_at: 2026-04-27
-artifact_dir: artifacts/blogs/flashmla/code
+architectures: [sm100, sm90]
+tags: [mla, attention, decode, prefill, fp8, sparse-attention, tcgen05, tmem]
+retrieved_at: 2026-08-16
 ---
 
-## Summary
+# FlashMLA
 
-DeepSeek's efficient MLA kernels for V3/V3.2 with massive KV cache compression (70KB/token).
+The checked upstream README lists dense decode (SM90), sparse decode (SM90/SM100), dense MHA prefill (SM100), and sparse MLA prefill (SM90/SM100). It reports the following peak headlines without a complete shape table in the headline paragraphs:
 
-## Variants
-- Dense MLA decoding (SM90): BF16, paged KV (block 64), 3000 GB/s, 660 TFLOPS on H800
-- Sparse MLA decoding (SM90/SM100): FP8 KV, token-level sparsity, 410 TFLOPS H800, 350 TFLOPS B200
-- Dense prefill (SM100): 1460 TFLOPS fwd, 1000 TFLOPS bwd on B200
-- Sparse prefill (SM90/SM100): 640 TFLOPS H800, 1450 TFLOPS B200
+- H800 dense decode: up to 3,000 GB/s in a memory-bound case and 660 TFLOP/s in a compute-bound case;
+- sparse decode: 410 TFLOP/s on H800 and up to 350 TFLOP/s on a then-unoptimized B200 path;
+- B200 dense **MHA** prefill: 1,460 TFLOP/s forward and 1,000 TFLOP/s backward, explicitly labeled “as reported by NVIDIA”; and
+- sparse MLA prefill: 640 TFLOP/s on H800 with CUDA 12.8 and 1,450 TFLOP/s on B200 with CUDA 12.9.
 
-## Token Format
-656 bytes/token: 512B FP8 data + 16B FP32 scales + 128B BF16 RoPE embeddings
+The README headline paragraphs do not state the compute dtype for either prefill result, so this record does not infer one from the project name or neighboring decode discussion.
 
-## Key Code
+The FP8 sparse-decode cache uses 656 bytes per token: 512 E4M3 values, four FP32 scales, and 64 BF16 RoPE values. The README explicitly says the cache is dequantized and attention computation/output use BF16.
 
-### MLA decode inner loop
+Sparse kernels consume an `indices` tensor. Decode accepts `-1` for invalid entries; sparse prefill documents `-1` or values at least `s_kv`, has no batch dimension, and requires `h_kv=1` in its equivalent reference.
 
-```cuda
-// MLA collapses K and V into a shared latent matrix of head-dim Dc=128.
-// On decode (one query vector against N KV tokens) we alternate TMA load,
-// wgmma/tcgen05 into the q@K^T accumulator, online softmax, and the second
-// accumulator against V.
-constexpr int Dc = 128;              // latent head dim
-constexpr int BLOCK_N = 64;          // paged KV block size
-float acc[Dc] = {0};
-float max_val = -INFINITY;
-float l = 0.f;
-for (int n0 = 0; n0 < seqlen; n0 += BLOCK_N) {
-    tma_load(smem_kv, KV_pages + n0);
-    cp_async_wait();
-    float scores[BLOCK_N];
-    wgmma_or_tcgen05_mma(scores, q, smem_kv);       // q @ K^T
-    float new_max = warp_reduce_max(scores, BLOCK_N);
-    float scale = expf(max_val - new_max);
-    for (int j = 0; j < Dc; j++) acc[j] *= scale;
-    l *= scale;
-    for (int j = 0; j < BLOCK_N; j++) {
-        float p = expf(scores[j] - new_max);
-        l += p;
-        for (int d = 0; d < Dc; d++) acc[d] += p * smem_kv[j * Dc + d];
-    }
-    max_val = new_max;
-}
-for (int d = 0; d < Dc; d++) O[d] = acc[d] / l;
-```
-
-### Sparse-MLA KV-retrieval kernel (V3.2)
-
-```cuda
-// Sparse MLA selects top-k KV positions per query before running the dense
-// MLA kernel on just those positions. Retrieval uses FP8 dot products with
-// per-token scale factors.
-__global__ void sparse_mla_topk(
-    const __nv_fp8_e4m3* Q, const __nv_fp8_e4m3* K,
-    const float* Q_scale, const float* K_scale,
-    int* topk_idx, float* topk_score,
-    int N, int K_DIM, int TOPK)
-{
-    int q_tile = blockIdx.x;
-    float scores[N];
-    for (int n = 0; n < N; n++) {
-        float s = 0.f;
-        for (int k = 0; k < K_DIM; k++) {
-            s += decode_fp8(Q[q_tile * K_DIM + k]) * Q_scale[q_tile]
-               * decode_fp8(K[n * K_DIM + k]) * K_scale[n];
-        }
-        scores[n] = s;
-    }
-    warp_topk_select(scores, N, topk_idx + q_tile * TOPK,
-                     topk_score + q_tile * TOPK, TOPK);
-}
-```
+The former local summary called 656 bytes “massive compression to 70 KB/token” and embedded invented CUDA. Those statements were not upstream and are removed.

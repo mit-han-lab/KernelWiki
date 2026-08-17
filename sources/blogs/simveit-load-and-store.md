@@ -6,19 +6,14 @@ url: https://github.com/simveit/load_and_store
 source_category: community-note
 architectures:
 - sm90
-- sm100
 tags:
-- cute-dsl
-- gemm
-- tma
-- wgmma
-- vectorized-loads
 - shared-memory-optimization
+- ldmatrix
+- stmatrix
 retrieved_at: '2026-05-20'
-description: Source-map entry imported from KernelPilot for CuTe load/store and shared-memory movement examples.
+description: Hopper ldmatrix/stmatrix examples compiled for sm_90a.
 ---
 
-The load_and_store repository is a source-map route for CuTe load/store
-mechanics. It is most useful when converting a profiler symptom into a concrete
-data-movement edit: vector width, layout, shared staging, or TMA-friendly access
-structure.
+The repository contains small `ldmatrix` and `stmatrix` CUDA/PTX examples, and
+its Makefile targets `sm_90a`. It does not contain CuTe, TMA, WGMMA, or an SM100
+kernel in the checked tree.

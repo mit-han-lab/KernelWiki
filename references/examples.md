@@ -3,188 +3,106 @@ version_sensitive:
   id: vs-triton-3.6-blackwell-tcgen05
 ---
 
-# Worked Query Examples
+# Worked query examples
 
-Concrete patterns showing how to translate a user question into a navigation path and synthesize an answer.
+These examples show evidence-preserving navigation. Commands locate candidates; they do not prove factual correctness by themselves.
 
----
+## 1. Find B200 GEMM material
 
-## Example 1: "How do I write a fast GEMM kernel on B200?"
-
-**Navigation path**:
-1. `queries/by-kernel-type.md` → find `gemm` row → lists kernel pages
-2. Read `wiki/kernels/fp8-block-scale-gemm.md` and `wiki/kernels/nvfp4-gemm.md`
-3. Follow `sources:` to concrete PRs: `pr-cutlass-2139` (blockwise+groupwise GEMM), `pr-vllm-13798` (FP8 GEMM)
-4. For optimization path, read `wiki/techniques/warp-specialization.md`, `wiki/techniques/persistent-kernels.md`
-5. For progression, cite the tcgen05 tutorial (`sources/blogs/tcgen05-tutorial.md`): Naive 17% → Swizzling 46% → Pipelining 62% → Warp Spec 80% → 2-SM 86% → CLC 98%
-
-**Command**:
 ```bash
 python3 scripts/query.py --type kernel --tag gemm --architecture sm100
+python3 scripts/get_page.py kernel-nvfp4-gemm --follow-sources
 ```
 
----
+Read the kernel contract first, then its PTX/CUTLASS sources. Do not reuse a tutorial's stage count, warp map, or throughput without matching its configuration.
 
-## Example 2: "My kernel has low SM utilization on B200"
+## 2. Diagnose low SM utilization
 
-**Navigation path**:
-1. `queries/by-problem.md` → find "low-sm-utilization" row
-2. Pattern page: `wiki/patterns/low-sm-utilization.md`
-3. Candidate techniques: `technique-persistent-kernels`, `technique-tile-scheduling`, `hw-clc`
-4. Read the CLC page: `wiki/hardware/clc.md` for code example
-5. Cite: tcgen05 tutorial showed 86% → 98% with persistent + CLC
-
-**Command**:
 ```bash
 python3 scripts/query.py --symptom low-sm-utilization
 python3 scripts/get_page.py pattern-low-sm-utilization
 ```
 
----
+Use the pattern page to choose measurements. CLC, persistent scheduling, and tile-shape changes are candidates, not automatic fixes.
 
-## Example 3: "Where is tcgen05.mma used in CUTLASS?"
+## 3. Locate CUTLASS `tcgen05` evidence
 
-**Navigation path**:
-1. `queries/by-hardware-feature.md` → find `tcgen05` row → lists all relevant pages
-2. `queries/by-repo.md` → NVIDIA/cutlass section → 32 PRs
-3. Cross-reference via tag filter
-
-**Command**:
 ```bash
 python3 scripts/query.py --tag tcgen05 --repo cutlass --limit 30
 python3 scripts/grep_wiki.py "tcgen05\\.mma" --only sources
 ```
 
-Tip: the `--tag` filter also accepts aliases, so `--tag UMMA` resolves to `tcgen05`.
+Open the pinned PR or official CUTLASS file before quoting an instruction kind or role allocation.
 
----
+## 4. Inspect FlashAttention-4
 
-## Example 4: "Show me the FlashAttention-4 implementation details"
-
-**Navigation path**:
-1. Direct: `wiki/kernels/flash-attention-4.md`
-2. Performance: 1605 TFLOPS on B200 BF16 (71% utilization)
-3. Techniques used: ping-pong scheduling, software exp, 2-CTA backward
-4. Follow sources → `sources/docs/flash-attention-4.md` (paper), `sources/blogs/flash-attention-4.md` (Tri Dao blog)
-
-**Command**:
 ```bash
 python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 ```
 
----
+Keep the paper's full sweep and maximum-result boundary. Do not assign its end-to-end gain to partial software exponential or ping-pong scheduling alone.
 
-## Example 5: "What's the difference between Hopper wgmma and Blackwell tcgen05?"
+## 5. Compare Hopper WGMMA with Blackwell `tcgen05`
 
-**Navigation path**:
-1. `wiki/migration/wgmma-to-tcgen05.md` — dedicated migration guide with `blackwell_relevance` field
-2. `wiki/hardware/tcgen05-mma.md` — canonical reference for the new instruction
-3. Contrast with Hopper behavior implicit in the migration page
-
-**Command**:
 ```bash
 python3 scripts/get_page.py migration-wgmma-to-tcgen05
 python3 scripts/get_page.py hw-tcgen05-mma
 ```
 
----
+Compare execution ownership, accumulator storage, descriptors, synchronization, and legal shapes; mnemonic replacement alone is insufficient.
 
-## Example 6: "How did teams in the GPU Mode NVFP4 Hackathon win?"
+## 6. Research the GPU Mode NVFP4 tasks
 
-**Navigation path**:
-1. `sources/contests/gpu-mode-nvfp4/` (4 problems)
-2. Each problem page has `submissions:` with rank 1/2/3 techniques
-3. Read participant blogs: `sources/blogs/yue-nvfp4-hackathon.md`, `sources/blogs/amandeep-nvfp4-attempts.md`, `sources/blogs/simon-nvfp4-gemv.md`
-4. Techniques: PTX-level control, cache policy differentiation, register budgeting
-
-**Command**:
 ```bash
 python3 scripts/query.py --type contest --tag nvfp4
 python3 scripts/get_page.py contest-gpumode-p1
 ```
 
----
+The public repository defines task contracts but not a complete podium. Yue and Amandeep provide author-reported Problem 1 measurements; unavailable/private rankings must remain unverified.
 
-## Example 7: "Write a Triton kernel for GatedDeltaNet decode on Blackwell"
+## 7. Research Gated Delta Net on Blackwell
 
-**Navigation path**:
-1. `wiki/kernels/gated-delta-net.md` — conceptual + code
-2. `wiki/languages/triton-blackwell.md` — current Triton 3.6+ Blackwell lowering surfaces (tcgen05 + TMEM via descriptor/TMA + warp_specialize, `tl.dot_scaled`, Gluon multi-CTA); pre-3.6 historical context preserved in a clearly-marked subsection
-3. Source PRs: `pr-vllm-*` for gated_delta, FlashInfer GDN kernels
-
-**Command**:
 ```bash
-python3 scripts/query.py "gated delta net decode" --language triton
+python3 scripts/query.py "gated delta net decode" --architecture sm100
+python3 scripts/get_page.py kernel-gated-delta-net --follow-sources
 ```
 
----
+Separate the mathematical recurrence, framework interface, and actual GPU implementation. A simplified recurrence sketch is not a production Triton kernel.
 
-## Example 8: "What are the memory-bound kernel optimization tricks on B200?"
+## 8. Investigate a memory-bound kernel
 
-**Navigation path**:
-1. `wiki/patterns/memory-bound.md` — candidate techniques list
-2. `wiki/techniques/vectorized-loads.md` — wide loads + cache policies (covers `evict_first` / `no_allocate`)
-3. Best case study: `wiki/kernels/nvfp4-gemv.md` (2000μs → 22.4μs progression)
-
-**Command**:
 ```bash
 python3 scripts/query.py --symptom memory-bound
+python3 scripts/get_page.py technique-vectorized-loads --follow-sources
+python3 scripts/get_page.py technique-cache-policy --follow-sources
 ```
 
----
+Check alignment, instruction width, cache reuse, occupancy, and measured bandwidth. Cache qualifiers and wider loads are workload-dependent.
 
-## Example 9: "Find all FlashInfer PRs for FP8 MoE"
+## 9. Find FlashInfer FP8 MoE PRs
 
-**Command**:
 ```bash
 python3 scripts/query.py --repo flashinfer --tag moe --limit 30
 python3 scripts/query.py --repo flashinfer --tag fp8 --limit 30
-python3 scripts/grep_wiki.py "fp8" "moe" --only sources --files-only
 ```
 
----
+PR frontmatter is an intake index. Open the PR and pinned artifact before treating a tag or summary as semantic proof.
 
-## Example 10: "What PTX instructions are unique to SM100?"
+## 10. Inspect SM100 PTX
 
-**Navigation path**:
-1. `wiki/languages/ptx-sm100.md` — direct reference
-2. Cross-reference: tcgen05.alloc/mma/ld/st/dealloc/fence, clusterlaunchcontrol.try_cancel, cp.async.bulk.tensor multicast
-
-**Command**:
 ```bash
 python3 scripts/get_page.py lang-ptx --body-only
-python3 scripts/grep_wiki.py "tcgen05" --only wiki --context 0
+python3 scripts/get_page.py hw-tmem --follow-sources
 ```
 
----
+Use the official PTX ISA for exact syntax and constraints. Wiki snippets may be logical references or scoped examples; the validator checks structure, not compilation.
 
-## Synthesis Pattern
+## Synthesis pattern
 
-For most questions, a high-quality answer follows this shape:
+1. Frame the topic with a wiki page.
+2. Follow its source IDs to primary evidence.
+3. State architecture, version, dtype, shape, and operation boundaries.
+4. Label code as upstream, executable local code, logical reference, or pseudocode.
+5. Quote performance only with the source's benchmark context and limitations.
 
-```
-1. Topic framing (1-2 sentences, cite wiki page)
-   → Pull from wiki/<section>/<topic>.md ## Overview
-
-2. Technical mechanism (cite hardware + technique pages)
-   → wiki/hardware/*.md for hw details
-   → wiki/techniques/*.md for optimization patterns
-
-3. Concrete code snippet (copy from wiki page, already validated)
-   → Every technique/kernel/language page has a compilable snippet
-
-4. Performance evidence (cite performance_claims)
-   → Always report gpu, dtype, shape, metric, value, source_id
-
-5. References (cite source IDs)
-   → PR: pr-cutlass-2139 → sources/prs/cutlass/PR-2139.md
-   → Blog/doc: blog-* / doc-*
-```
-
-## Anti-Patterns (Don't Do These)
-
-- Don't recommend techniques without citing `sources:` — the wiki exists precisely for this.
-- Don't quote performance without the full 6-field `performance_claims` record.
-- Don't conflate `sm90` and `sm100` patterns — always check the `architectures:` field.
-- Don't cite `verified` claims without checking the page actually has `evidence_basis` entries that name both an official doc and an upstream code source.
-- Don't recommend DeepEP/DualPipe/EPLB — they're explicitly out of scope (kernel-only KB).
+Avoid treating generated indices, candidate tags, validator success, or absence of contradictory evidence as factual proof.

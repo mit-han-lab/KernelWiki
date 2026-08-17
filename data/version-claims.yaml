@@ -22,14 +22,15 @@ claims:
   - id: vs-triton-3.6-blackwell-tcgen05
     tool: triton
     claim_valid_for: ">=3.6"
-    last_verified_release: "3.6.0"
-    last_verified_at: 2026-04-27
+    last_verified_release: "3.7.0"
+    last_verified_at: 2026-08-16
     applies_to:
       - wiki/languages/triton-blackwell.md
       - references/primer.md
       - references/examples.md
       - data/inclusion-policy.yaml::triton.description
     source_ids:
+      - doc-triton-3.7-blackwell
       - doc-triton-3.6-blackwell
       - pr-vllm-34597
       - pr-vllm-29339
@@ -37,29 +38,35 @@ claims:
       - pr-sglang-21019
       - pr-sglang-5390
       - pr-sglang-21595
-      - pr-pytorch-175826
     notes: |
-      Tracks the claim that Triton 3.6+ has native Blackwell (SM100) lowering
-      paths through tcgen05.mma + TMEM (descriptor/TMA + warp_specialize on
+      Tracks the claim that Triton 3.6+ has broad, hardened Blackwell (SM100)
+      lowering paths through tcgen05.mma + TMEM (descriptor/TMA + warp_specialize on
       tl.dot, plus Gluon multi-CTA + 2CTA on tcgen05_mma_scaled), replacing
-      the obsolete 3.5-era "no tcgen05 / no TMEM" framing. Supporting evidence:
+      the obsolete "no tcgen05 / no TMEM" framing. The underlying dialect
+      operations already existed in the release/3.3.x source, so 3.6 is a
+      maturity/coverage milestone rather than their point of introduction.
+      Supporting evidence:
       data/triton-3.6-evidence.md memo plus the official release notes
-      (doc-triton-3.6-blackwell). AC-1.1 "new tracked-repo PR page demonstrates
-      a kernel" anchor: pr-vllm-34597 (post-refresh; vLLM "[Kernel] Add FP8 KV
-      cache support to Triton MLA decode attention", merged 2026-02-16, sm100,
-      directly modifying @triton.jit kernels in vllm/v1/attention/ops/
-      triton_decode_attention.py with tl.dot matmul + vllm/v1/attention/
-      backends/mla/triton_mla.py; Triton kernel shipped verbatim under
-      artifacts/prs/vllm/PR-34597/ pinned at SHA a1257fd1). Supplementary
+      (doc-triton-3.6-blackwell). The post-refresh pr-vllm-34597 directly
+      modifies inspectable @triton.jit MLA decode kernels, but its upstream PR
+      explicitly targets SM120, so it is Blackwell-consumer evidence rather
+      than an SM100 anchor. Supplementary
       post-refresh anchor: pr-vllm-29339 (Triton 3.6 triton_kernels library
       scoped to [sm100, sm90] for MXFP4 dispatch-gate, merged 2025-11-24).
-      Pre-refresh historical anchors retained as supplementary context (each
-      appears in data/refresh-cutoff.yaml::previous_pages_manifest):
-      pr-sglang-22079 (Gemma4 NVFP4 Triton attention kernel doing real tl.dot
-      matmul on [sm100, sm90], merged 2026-04-03), pr-sglang-21019
-      (memory-rearrangement Triton kernel on SM100, merged 2026-03-20, no
-      tl.dot), pr-sglang-5390, pr-sglang-21595, pr-pytorch-175826 (ecosystem
-      context). The strongest possible demonstrations of the 3.6 Blackwell-
+      The direct SM100/GB200 downstream anchor is pr-sglang-22079; it is
+      retained as historical/pre-refresh context (and
+      appears in data/refresh-cutoff.yaml::previous_pages_manifest). It
+      demonstrates a Gemma4 NVFP4 Triton attention path, merged 2026-04-10.
+      pr-sglang-21019 is retained only as Hopper/H200 Triton context
+      (memory-rearrangement kernel, merged 2026-03-23, no tl.dot); it is not
+      an SM100 anchor. Other historical context includes pr-sglang-5390 and
+      pr-sglang-21595.
+      PyTorch PR 175826 was removed because it closed without merge
+      and does not establish the claimed CUDA 13.0 CI migration. Triton 3.7.0,
+      released 2026-05-07 at commit 5f3f125, is the latest stable release
+      before the repository's 2026-05-20 cutoff and adds material 2CTA,
+      multicast, verifier, and warp-specialization follow-on work. The
+      strongest possible demonstrations of the 3.6 Blackwell-
       native paths (descriptor/TMA + warp_specialize, tl.dot_scaled, Gluon
       multi-CTA/2CTA) have NOT been found in any tracked-downstream merged
       PR locally; future refresh rounds should backfill such an anchor when

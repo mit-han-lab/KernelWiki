@@ -1,214 +1,75 @@
 ---
 id: kernel-deepgemm
-title: DeepGEMM — FP8 GEMM with Fine-Grained Scaling
+title: DeepGEMM — Fine-Grained-Scaled GEMM Library
 type: kernel
-architectures:
-- sm100
-- sm90
-tags:
-- gemm
-- fp8
-- fine-grained-quantization
-- block-scale
+architectures: [sm100, sm90]
+tags: [gemm, fp8, fp4, fine-grained-quantization, block-scale]
 confidence: source-reported
 reproducibility: snippet
-kernel_types:
-- gemm
-- grouped-gemm
-languages:
-- cuda-cpp
-- ptx
-related:
-- technique-fine-grained-quantization
-- hw-tcgen05-mma
-- hw-nvfp4
-sources:
-- blog-deepgemm
-- pr-deepgemm-304
-- pr-cutlass-2139
-- pr-vllm-23696
+kernel_types: [gemm, grouped-gemm]
+languages: [cuda-cpp, ptx]
+related: [technique-fine-grained-quantization, hw-tcgen05-mma, hw-nvfp4]
+sources: [blog-deepgemm, pr-deepgemm-304, pr-cutlass-2139, pr-vllm-23696]
 performance_claims:
-- gpu: H800
-  dtype: fp8
-  shape: M=4096, N=4096, K=4096
-  metric: TFLOPS
-  value: 1550
-  utilization: ~90%
-  source_id: blog-deepgemm
-blackwell_relevance: SM100 kernel uses tcgen05.mma with TMEM and native UE8M0 block
-  scaling; SM90 kernel provides baseline FP8 GEMM comparison.
+  - gpu: H800
+    software: "DeepGEMM README news item dated 2025-04-18; CUDA and library versions not stated"
+    dtype: fp8
+    shape: unspecified peak case in the 2025-04-18 README news item
+    workload: "FP8 GEMM peak headline; exact operation variant not stated"
+    metric: TFLOPS
+    value: 1550
+    measurement_method: "source-reported project benchmark; method not stated in the headline"
+    baseline: "none; absolute throughput headline"
+    limitations: "shape, clocks, CUDA version, and measurement method are not stated in the retained headline"
+    source_id: blog-deepgemm
+blackwell_relevance: "The current SM100 path uses tcgen05 block-scaled MMA, TMEM accumulators, and packed UE8M0 scale layouts; current releases also include FP4, BF16, attention/indexer, and fused MoE kernels."
 artifact_dir: artifacts/kernels/deepgemm
 ---
 
-# DeepGEMM -- FP8 GEMM with Fine-Grained Scaling
+# DeepGEMM
 
-## Overview
+## Current scope
 
-DeepGEMM is DeepSeek's open-source FP8 GEMM library providing high-performance matrix multiplication with fine-grained per-tile/per-block scaling. The core kernel is remarkably compact (~300 lines), yet achieves approximately 90% utilization on H800. It supports both Hopper (SM90 via WGMMA) and Blackwell (SM100 via tcgen05.mma) architectures, and includes specialized MoE grouped GEMM layouts.
+DeepGEMM is a runtime-compiled CUDA kernel library supporting SM90 and SM100. Its current upstream README includes dense and M-grouped FP8 GEMMs, K-grouped weight-gradient GEMMs, BF16 paths, FP8/FP4 attention-indexer kernels, and Mega MoE. PR 304 added major SM100 functionality including FP8-by-FP4 Mega MoE and FP4 indexer work.
 
-The key innovation is the fine-grained quantization scheme: tile-wise 1x128 scaling for activations and block-wise 128x128 scaling for weights, which prevents outlier values from destroying quantization precision.
+The project uses a lightweight JIT module. NVCC is the documented default compiler; `DG_JIT_USE_NVRTC=1` is an optional faster-compilation path that may reduce performance in some cases. Therefore “JIT via NVRTC” is not an unconditional description of current DeepGEMM.
 
-## Fine-Grained Quantization Scheme
+## Scaling and layouts
 
-```
-Activations (tile-wise 1x128):
-  +-----------+-----------+-----------+
-  | tile 0    | tile 1    | tile 2    |  <-- each tile: 1 row x 128 cols
-  | scale: s0 | scale: s1 | scale: s2 |  <-- one FP32 scale per tile
-  +-----------+-----------+-----------+
+The upstream interface documentation distinguishes:
 
-Weights (block-wise 128x128):
-  +---------------+---------------+
-  |  block (0,0)  |  block (0,1)  |  <-- each block: 128 rows x 128 cols
-  |  scale: s_00  |  scale: s_01  |  <-- one FP32 scale per block
-  +---------------+---------------+
-  |  block (1,0)  |  block (1,1)  |
-  |  scale: s_10  |  scale: s_11  |
-  +---------------+---------------+
-```
+- SM90 scale tensors in FP32;
+- SM100 scale tensors in a packed UE8M0 layout (four scale values per `torch.int`) for the FP8 paths described there;
+- SM90 dense input layout restricted to NT;
+- SM100 dense APIs supporting NT, TN, NN, and TT;
+- M-grouped contiguous and masked layouts with fixed N/K, plus K-grouped APIs with their own constraints.
 
-## FP8 Accumulation with Nc=128 CUDA Core Promotion
+The historical fine-grained scheme commonly associated with DeepGEMM uses 1-by-128 activation and 128-by-128 weight scaling. Current APIs accept multiple recipes/granularities, so that pair is not a complete description of every kernel.
 
-On Hopper, the Tensor Core accumulator has limited precision (~FP22, not true FP32). DeepGEMM mitigates this by promoting partial sums to a separate FP32 accumulator on CUDA Cores every Nc=128 columns (4 consecutive WGMMA operations).
+## SM100 implementation anchor
 
-```cpp
-// SM90 path: WGMMA with Nc=128 CUDA Core promotion
-// Every 4 WGMMAs, promote accumulated result to FP32 CUDA core accumulator
-constexpr int Nc = 128;  // Promotion interval (4 WGMMAs of n=32 each)
-constexpr int WGMMA_N = 32;
+The shipped upstream SM100 source constructs a block-scaled instruction descriptor with UE8M0 scales, copies scale-factor tiles into TMEM, issues `SM100_MMA_MXF8F6F4_*`, and commits completion to barriers. It explicitly notes that `tcgen05.commit` supplies the relevant before-thread-sync fence for that sequence.
 
-float cuda_core_acc[TILE_M][TILE_N] = {0};  // FP32 accumulator on CUDA Cores
-
-for (int k = 0; k < K; k += Nc) {
-    // Run 4 consecutive WGMMAs with TC-limited precision accumulation
-    __half2 tc_acc[TILE_M][WGMMA_N];  // Tensor Core accumulator (~FP22)
-    memset(tc_acc, 0, sizeof(tc_acc));
-
-    for (int sub_k = 0; sub_k < Nc; sub_k += WGMMA_K) {
-        wgmma_mma_async(tc_acc, A_smem + sub_k, B_smem + sub_k);
-    }
-    wgmma_wait();
-
-    // Promote: add TC result to CUDA Core FP32 accumulator
-    // This prevents precision loss from repeated FP22 accumulation
-    for (int m = 0; m < TILE_M; m++)
-        for (int n = 0; n < TILE_N; n++)
-            cuda_core_acc[m][n] += (float)tc_acc[m][n] * scale_a[m] * scale_b[n];
-}
+```python
+def sm100_dependency_shape():
+    tma_load_quantized_operands_and_packed_scales()
+    wait_for_stage_and_order_cross_thread_tcgen_access()
+    copy_scale_factor_fragments_to_tmem()
+    issue_mxf8f6f4_block_scaled_mma()
+    commit_mma_to_completion_barriers()
+    wait_before_tmem_epilogue_load()
 ```
 
-On Blackwell (SM100), the tcgen05.mma instruction with TMEM accumulation uses native UE8M0 block scaling, which eliminates the need for explicit CUDA core promotion.
+This is a structural summary, not inline PTX. The real descriptor contains shape, major order, scale IDs, and accumulation flags that a shortened assembly example would omit.
 
-```cpp
-// SM100 path: tcgen05.mma with native block scaling
-// Scaling factors packed as UE8M0 (4 values per uint32)
-// No explicit CUDA core promotion needed -- TMEM accumulates in full precision
+## Precision boundary
 
-// Pack 4 UE8M0 scale factors into a single uint32
-uint32_t packed_scales = pack_ue8m0(sf[0], sf[1], sf[2], sf[3]);
+The SM90 implementation uses `BLOCK_K = 128`, issues four K=32 WGMMA operations for each such scale block, and then applies its CUDA-core promotion step before continuing the final FP32 accumulation. The per-128-K scaling interval and the promotion operation are related in that implementation but are not interchangeable terms. The presence of TMEM on SM100 removes distributed register storage for `tcgen05` destinations but does not, by itself, prove “full FP32” arithmetic or eliminate every numerical concern. Accumulator semantics come from the selected MMA kind and output type and should be tested against the application tolerance.
 
-// tcgen05.mma reads A/B from SMEM, accumulates into TMEM
-// Block scale applied natively during MMA
-asm volatile(
-    "tcgen05.mma.cta_group::1.kind::f8f6f4"
-    " [%0], %1, %2, %3, %4;"
-    :
-    : "l"(tmem_addr), "l"(a_smem_addr), "l"(b_smem_addr),
-      "r"(packed_scales), "n"(SCALE_D_ENABLED)
-);
-```
+## Performance boundary
 
-## MoE Grouped GEMM Layouts
-
-DeepGEMM provides three grouped GEMM layouts tailored for MoE workloads, where only the M-axis varies (different token counts per expert) while N and K remain fixed:
-
-```
-Layout 1: Contiguous (prefill)
-  Expert 0: M0 tokens  ──┐
-  Expert 1: M1 tokens  ──┤── All packed contiguously in memory
-  Expert 2: M2 tokens  ──┘   Index array stores cumulative offsets
-
-Layout 2: Masked (decode with CUDA graphs)
-  Fixed-size M_max allocation per expert
-  Binary mask indicates valid tokens
-  Compatible with CUDA graph capture (no dynamic shapes)
-
-Layout 3: K-grouped (weight gradients)
-  Groups along K-axis instead of M-axis
-  Used for computing dW in MoE training backward
-```
-
-```cpp
-// Contiguous grouped GEMM dispatch
-// problem_sizes[i] = {M_i, N, K} for expert i
-void grouped_gemm_contiguous(
-    const fp8_t* A,         // All expert inputs packed
-    const fp8_t* B,         // Expert weights [num_experts, N, K]
-    float* C,               // Output packed
-    const int* offsets,     // Cumulative M offsets per expert
-    int num_experts
-) {
-    // Each thread block picks an expert via tile scheduling
-    // M-axis tiles distributed across experts using offset lookup
-    int expert_id = binary_search(offsets, num_experts, tile_m_start);
-    int local_m = tile_m_start - offsets[expert_id];
-
-    // Standard GEMM tile with expert-specific B matrix
-    compute_tile(A + offsets[expert_id] * K,
-                 B + expert_id * N * K,
-                 C + offsets[expert_id] * N,
-                 local_m, N, K);
-}
-```
-
-## JIT Compilation
-
-DeepGEMM uses JIT compilation via NVRTC to specialize kernels per problem shape at runtime. This avoids the combinatorial explosion of pre-compiled template instantiations while still achieving optimal register allocation and loop unrolling.
-
-```cpp
-// Lightweight JIT module: compile per-shape kernel at first call
-auto kernel = jit_compile(
-    "deepgemm_fp8",
-    {{"M", M}, {"N", N}, {"K", K},
-     {"BLOCK_M", 128}, {"BLOCK_N", 128}, {"BLOCK_K", 64},
-     {"NUM_STAGES", 4}}
-);
-kernel.launch(A, B, C, scales_a, scales_b, stream);
-```
-
-## Memory Layout
-
-SM90 kernels use NT (non-transposed A, transposed B) layout exclusively. SM100 kernels support all four layout combinations (NT, TN, NN, TT), enabled by tcgen05.mma's flexible operand addressing.
-
-## Performance
-
-| GPU | Dtype | Shape | TFLOPS | Utilization |
-|-----|-------|-------|--------|-------------|
-| H800 | FP8 | M=4096, N=4096, K=4096 | 1550 | ~90% |
-
-## When to Use
-
-- FP8 inference and training where per-tensor quantization loses too much precision
-- MoE expert computation with variable token counts per expert
-- Situations where fine-grained (1x128 / 128x128) scale granularity is needed
-
-## Caveats
-
-- SM90 path is NT layout only
-- JIT compilation adds first-call latency (amortized over repeated calls)
-- Fine-grained scaling adds overhead vs. per-tensor scaling -- only beneficial when outlier sensitivity matters
-
-## Sources
-
-- [DeepGEMM GitHub](https://github.com/deepseek-ai/DeepGEMM)
-- [DeepSeek-V3 Technical Report](https://arxiv.org/abs/2412.19437)
+DeepGEMM's current README retains a historical “up to 1,550 TFLOP/s on H800” news item dated 2025-04-18 and links the relevant changes. It does not attach that headline to the 4096-by-4096-by-4096 shape or a universal 90% utilization figure. Preserve it as an unspecified peak, not a per-shape benchmark.
 
 ## Full Reference Implementation
 
-Local verbatim upstream code lives in [`artifacts/kernels/deepgemm/full/`](../../artifacts/kernels/deepgemm/full/) (see its `PROVENANCE.yaml` for the pinned upstream SHA and byte-verified SHA-256). Labeled derived variants — including a naive/teaching skeleton — live in [`artifacts/kernels/deepgemm/variants/`](../../artifacts/kernels/deepgemm/variants/).
-
-Query via:
-
-```bash
-python3 scripts/get_page.py kernel-deepgemm --include-code
-```
+Pinned upstream SM90/SM100 code is under [`artifacts/kernels/deepgemm/full/`](../../artifacts/kernels/deepgemm/full/). The former accumulation teaching variant was removed because its pseudo-API and variable naming mixed the SM90 promotion/scaling mechanism with SM100 behavior; the exact upstream SM90 mechanism is described above instead.

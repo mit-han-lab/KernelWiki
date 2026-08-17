@@ -6,12 +6,12 @@ architectures: [sm100, sm100a]
 tags: [tcgen05, tmem, mbarrier]
 confidence: verified
 evidence_basis:
-  - source_id: doc-nvidia-tuning-guide
+  - source_id: doc-ptx-isa-sm100
     evidence_type: official-doc
   - source_id: pr-cutlass-2139
     evidence_type: upstream-code
 related: [hw-tmem, hw-2sm-cooperative, technique-warp-specialization]
-sources: [pr-cutlass-2139, doc-nvidia-tuning-guide, blog-tcgen05-tutorial, blog-colfax-cutlass]
+sources: [doc-ptx-isa-sm100, pr-cutlass-2139, doc-nvidia-tuning-guide, blog-tcgen05-tutorial, blog-colfax-cutlass]
 aliases: [UMMA, tcgen05, "tensor core gen 05"]
 ---
 
@@ -19,299 +19,112 @@ aliases: [UMMA, tcgen05, "tensor core gen 05"]
 
 ## Overview
 
-`tcgen05.mma` is the Blackwell (SM100/SM100a) matrix-multiply-accumulate instruction that replaces Hopper's `wgmma.mma_async`. The name stands for **Tensor Core Generation 05**. NVIDIA also refers to the higher-level abstraction as **UMMA** (Unified Matrix Multiply-Accumulate) in the CUTLASS framework.
+`tcgen05.mma` is the fifth-generation Tensor Core MMA instruction family used by Blackwell SM100. NVIDIA's CUTLASS documentation also uses **UMMA** for the corresponding higher-level abstraction. Unlike Hopper `wgmma`, an MMA is issued by one thread and writes its accumulator to Tensor Memory (TMEM).
 
-Key differences from `wgmma`:
-
-| Property | wgmma (SM90) | tcgen05.mma (SM100) |
+| Property | Hopper `wgmma` | Blackwell `tcgen05.mma` |
 |---|---|---|
-| Issuing scope | Warpgroup (4 warps, 128 threads) | Single thread |
-| Accumulator storage | Registers (high pressure) | Tensor Memory (TMEM, 256KB/SM) |
-| Operand A source | Registers or SMEM | Shared memory only |
-| Operand B source | Shared memory | Shared memory only |
-| Matrix load | ldmatrix to registers | Direct from SMEM (no ldmatrix) |
-| Synchronization | Warpgroup-scoped barriers | Fully async, fence-based |
+| Issuing scope | Warpgroup | One issuing thread |
+| Accumulator | Registers | TMEM |
+| Operand A | Registers or shared-memory descriptor | Shared-memory descriptor or TMEM address, depending on form |
+| Operand B | Shared-memory descriptor | Shared-memory descriptor |
+| Completion | `commit_group` / `wait_group` | `tcgen05.commit` plus mbarrier wait |
 
-## Instruction Variants
+`tcgen05.mma` is asynchronous. Setting `enable-input-d` false computes `D = A*B`; setting it true computes `D = A*B+D`.
 
-tcgen05.mma has 7 variants organized by precision and scaling mode:
+## Kinds and CTA groups
 
-| Variant | A Type | B Type | Accumulator | Scale | MMA Shape (1SM) | Notes |
-|---|---|---|---|---|---|---|
-| `tcgen05.mma.kind::f16` | FP16/BF16 | FP16/BF16 | FP32 | None | m128n256k16 | Standard half-precision |
-| `tcgen05.mma.kind::tf32` | TF32 | TF32 | FP32 | None | m128n256k8 | Single-precision approximation |
-| `tcgen05.mma.kind::f8f6f4` | FP8/FP6/FP4 | FP8/FP6/FP4 | FP32 | Block (UE8M0) | m128n256k32 | Narrow precision with native block scaling |
-| `tcgen05.mma.kind::i8` | INT8 | INT8 | INT32 | None | m128n256k32 | Integer quantized inference |
-| `tcgen05.mma.kind::mxf8` | MXFP8 | MXFP8 | FP32 | MX (E8M0) | m128n256k32 | Microscaling FP8 |
-| `tcgen05.mma.kind::mxf4` | MXFP4 | MXFP4 | FP32 | MX (E8M0) | m128n256k64 | Microscaling FP4 |
-| `tcgen05.mma.kind::mxf4nvf4` | NVFP4 | MXFP4 | FP32 | Mixed | m128n256k64 | Mixed NVFP4/MXFP4 |
+The current PTX ISA groups the dense forms as follows:
 
-## MMA Shapes: 1-SM vs 2-SM
+| Form | Kinds |
+|---|---|
+| No block scaling | `kind::f16`, `kind::tf32`, `kind::f8f6f4` |
+| Block scaling | `kind::mxf8f6f4`, `kind::mxf4`, `kind::mxf4nvf4` |
+| Integer | `kind::i8` |
 
-### 1-SM (Single CTA) Shapes
+Both `cta_group::1` and cooperative `cta_group::2` forms are documented. The legal M/N/K ranges depend on kind, CTA group, instruction descriptor, operand major modes, and swizzle. Values such as m128n256k16 are common CUTLASS atoms, not a complete statement of every legal shape.
 
-In single-SM mode, a single CTA owns the full MMA operation:
+## Issuance and completion
 
-- **BF16/FP16**: M=128, N=256, K=16
-- **TF32**: M=128, N=256, K=8
-- **FP8/FP6/FP4**: M=128, N=256, K=32
-- **MXFP4/NVFP4**: M=128, N=256, K=64
-
-### 2-SM (Cooperative) Shapes
-
-In two-SM cooperative mode, two CTAs share a single MMA across paired SMs:
-
-- **BF16/FP16**: M=256, N=256, K=16
-- **TF32**: M=256, N=256, K=8
-- **FP8/FP6/FP4**: M=256, N=256, K=32
-- **MXFP4/NVFP4**: M=256, N=256, K=64
-
-The M dimension doubles because each SM contributes 128 rows from its own TMEM partition.
-
-## Single-Thread Issuance Model
-
-Unlike `wgmma` which required coordinated issuance from a warpgroup (4 warps, 128 threads), `tcgen05.mma` is issued by a **single thread**. This is a fundamental architectural simplification:
-
-1. **No warpgroup synchronization overhead** -- one elected thread (typically lane 0 of warp 0) issues the MMA.
-2. **Fully asynchronous** -- the instruction returns immediately; the hardware pipeline executes the MMA in the background.
-3. **Fence-based completion** -- the producer must insert explicit fences before reading results from TMEM.
-
-```cuda
-// Single-thread MMA issuance pattern
-__device__ void issue_mma(uint32_t tmem_addr, uint64_t smem_desc_a, uint64_t smem_desc_b) {
-    // Only one thread issues the MMA
-    if (threadIdx.x == 0) {
-        asm volatile(
-            "tcgen05.mma.cta_group::1.kind::f16 "
-            "[%0], %1, %2, %3, 0;"
-            :
-            : "r"(tmem_addr),
-              "l"(smem_desc_a),
-              "l"(smem_desc_b),
-              "r"(0)  // scale descriptor (unused for f16)
-        );
-    }
-}
-```
-
-## PTX Examples
-
-### Basic BF16 MMA (1-SM)
+The following PTX shows the essential sequencing. It is schematic—the descriptors, barrier initialization, parity loop, and TMEM allocation must already be correct for the selected MMA shape.
 
 ```ptx
-// Issue a 128x256x16 BF16 MMA
-// Operand A: shared memory descriptor
-// Operand B: shared memory descriptor
-// Accumulator: TMEM address
-tcgen05.mma.cta_group::1.kind::f16 [tmem_addr], desc_a, desc_b, idesc, 0;
-```
+// A and B are shared-memory descriptors; D is a TMEM address.
+// p = 0 overwrites D with A*B; p = 1 accumulates into D.
+// A cta_group::1 disable-output-lane tuple has four .b32 members; all-zero
+// masks leave every output lane enabled.
+tcgen05.mma.cta_group::1.kind::f16
+    [d_tmem], a_desc, b_desc, idesc, {mask0, mask1, mask2, mask3}, p;
 
-### 2-SM Cooperative BF16 MMA
+// Track completion of prior cta_group::1 tcgen05 operations from this thread.
+tcgen05.commit.cta_group::1.mbarrier::arrive::one.b64 [mma_done];
 
-```ptx
-// Issue a 256x256x16 BF16 MMA across two paired CTAs
-// cta_group::2 indicates cooperative mode
-tcgen05.mma.cta_group::2.kind::f16 [tmem_addr], desc_a, desc_b, idesc, 0;
-```
-
-### FP8 with Block Scaling
-
-```ptx
-// FP8 with native UE8M0 block scaling
-// scale_desc encodes the per-block scale factors
-tcgen05.mma.cta_group::1.kind::f8f6f4 [tmem_addr], desc_a, desc_b, idesc, scale_desc;
-```
-
-### CUDA Inline PTX for BF16 MMA with Accumulation
-
-```cuda
-__device__ void mma_bf16_128x256x16(
-    uint32_t tmem_addr,
-    uint64_t desc_a,
-    uint64_t desc_b
-) {
-    if (threadIdx.x == 0) {
-        // First MMA: zero-initialize accumulator
-        asm volatile(
-            "tcgen05.mma.cta_group::1.kind::f16 "
-            "[%0], %1, %2, %3, 0;"
-            :
-            : "r"(tmem_addr), "l"(desc_a), "l"(desc_b), "r"(0)
-        );
-    }
-}
-
-__device__ void mma_bf16_accumulate(
-    uint32_t tmem_addr,
-    uint64_t desc_a,
-    uint64_t desc_b
-) {
-    if (threadIdx.x == 0) {
-        // Subsequent MMAs: accumulate into existing TMEM
-        // The enable_accumulate flag controls whether to add to or overwrite TMEM
-        asm volatile(
-            "tcgen05.mma.cta_group::1.kind::f16 "
-            "[%0], %1, %2, %3, 1;"  // last arg 1 = accumulate
-            :
-            : "r"(tmem_addr), "l"(desc_a), "l"(desc_b), "r"(0)
-        );
-    }
-}
-```
-
-## Critical Fences
-
-Fences are **mandatory** for correctness. The hardware does not implicitly synchronize between MMA and TMEM reads/writes.
-
-### tcgen05.fence
-
-Insert before reading MMA results from TMEM:
-
-```cuda
-// Fence before CTA sync and TMEM reads after the completion mechanism.
-__device__ void fence_before_tmem_read() {
-    asm volatile("tcgen05.fence::before_thread_sync;");
-    __syncthreads();  // Ensure all threads see the fence
-}
-```
-
-### tcgen05.fence variants
-
-```ptx
-// Fence before reading TMEM (most common)
-tcgen05.fence::before_thread_sync;
-
-// Fence after CTA sync before issuing dependent tcgen05 operations
+// Loop on mbarrier.try_wait.parity until complete, then order the load
+// after that synchronization.
 tcgen05.fence::after_thread_sync;
+tcgen05.ld.sync.aligned.32x32b.x2.b32 {r0, r1}, [d_tmem];
+tcgen05.wait::ld.sync.aligned;
 ```
 
-### Correct Mainloop Fence Pattern
+The fence is an ordering primitive, not a completion wait. In particular, `tcgen05.fence::before_thread_sync` followed by `bar.sync` does **not** establish MMA completion by itself. Use the PTX-documented `tcgen05.commit`/mbarrier mechanism, then `after_thread_sync` before a dependent `tcgen05` operation. `tcgen05.ld` is itself asynchronous and must be followed by `tcgen05.wait::ld` before its destination registers are consumed.
 
-```cuda
-__device__ void gemm_mainloop(/* params */) {
-    for (int k_tile = 0; k_tile < num_k_tiles; ++k_tile) {
-        // 1. Wait for operand data to arrive in SMEM
-        wait_barrier(k_tile % NUM_STAGES);
+## Block-scaled form
 
-        // 2. Issue MMA (single thread)
-        if (threadIdx.x == 0) {
-            asm volatile(
-                "tcgen05.mma.cta_group::1.kind::f16 "
-                "[%0], %1, %2, %3, 1;"
-                :
-                : "r"(tmem_addr),
-                  "l"(make_smem_desc(smem_a, k_tile)),
-                  "l"(make_smem_desc(smem_b, k_tile)),
-                  "r"(0)
-            );
-        }
+The microscaling kind is `kind::mxf8f6f4`, not `kind::mxf8`. Block-scaled syntax carries separate TMEM addresses for the A and B scale-factor matrices:
 
-        // 3. Release SMEM buffer for next TMA load
-        if (threadIdx.x == 0) {
-            arrive_barrier((k_tile + 1) % NUM_STAGES);
-        }
-    }
-
-    // 4. CRITICAL: Fence before reading accumulator from TMEM
-    asm volatile("tcgen05.fence::before_thread_sync;");
-    __syncthreads();
-
-    // 5. Now safe to read results from TMEM
-    read_tmem_accumulator(tmem_addr, output);
-}
+```ptx
+tcgen05.mma.cta_group::1.kind::mxf8f6f4.block_scale.scale_vec::1X
+    [d_tmem], a_desc, b_desc, idesc,
+    [scale_a_tmem], [scale_b_tmem],
+    enable_input_d;
 ```
 
-## Comparison with wgmma
+This `scale_vec::1X` example requires an architecture-specific target such as
+`sm_100a`. The PTX 8.8 `block16`/`block32` aliases require the family-specific
+`sm_100f` or `sm_110f` feature set in the PTX 9.3 Target ISA Notes. That is a
+forward-portability distinction, not a claim that the aliases cannot assemble
+for the corresponding same-generation `a` target: CUTLASS v4.5 emits
+`.block16`/`.block32` when its SM100A path is enabled under CUDA 12.9 or later.
+An `f` feature may also be used by a later target in the same architecture
+family (for example, an `sm_103a` target can use an `sm_100f` family feature).
+The aliases are kind-specific: `.block16` aliases `.scale_vec::4X` for
+`kind::mxf4nvf4` at K=64 or K=128, while `.block32` aliases
+`.scale_vec::1X` for `kind::mxf8f6f4` at every supported K and
+`.scale_vec::2X` for `kind::mxf4` or `kind::mxf4nvf4` at K=64 or K=128.
+The block-scaled syntax does not carry the dense form's `disable-output-lane`
+tuple. The precise scale-vector mode and scale-factor layouts are kind/shape
+dependent; see PTX ISA §9.7.17.10.7 rather than treating a single “scale
+descriptor” argument as universal.
 
-### Programming Model Shift
+## Shared-memory layouts
 
-```cuda
-// ---- HOPPER (SM90): wgmma ----
-// Requires warpgroup-scoped execution
-// All 128 threads in a warpgroup participate
-__device__ void hopper_mma() {
-    // Load A matrix into registers via ldmatrix
-    uint32_t a_frag[4];
-    asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 "
-                 "{%0,%1,%2,%3}, [%4];"
-                 : "=r"(a_frag[0]), "=r"(a_frag[1]),
-                   "=r"(a_frag[2]), "=r"(a_frag[3])
-                 : "r"(smem_addr));
+`tcgen05.mma` does **not** universally require 128-byte swizzling. PTX ISA table 57 permits all swizzling modes for the common row-major A and column-major B cases. Transposed operand cases have additional restrictions. A layout that is legal for one type/major-mode pair may be illegal for another, so descriptors should be built using the ISA tables or a checked CUTLASS/CuTe layout rather than hard-coded guessed bit fields.
 
-    // Issue wgmma -- warpgroup scope, register accumulator
-    asm volatile("wgmma.mma_async.sync.aligned.m64n256k16.f32.bf16.bf16 "
-                 "{%0, %1, ...}, "  // register accumulators (128+ registers!)
-                 "{%N, %N+1, ...}, " // A operand in registers
-                 "desc_b, ...;"
-                 : "+f"(acc[0]), "+f"(acc[1]), ...
-                 : ...);
+Swizzling can still be a large performance optimization. That is distinct from correctness: the matrix descriptor encodes no-swizzle, 32-byte, 64-byte, and two 128-byte modes (one with 32-byte atomicity) in documented combinations. The 96-byte TMA tensor-map mode is not a `tcgen05` matrix-descriptor mode.
 
-    // Commit and wait
-    asm volatile("wgmma.commit_group.sync.aligned;");
-    asm volatile("wgmma.wait_group.sync.aligned 0;");
-    // Accumulators now in registers -- high register pressure
-}
+## Programming implications
 
-// ---- BLACKWELL (SM100): tcgen05 ----
-// Single-thread issuance, TMEM accumulator
-__device__ void blackwell_mma() {
-    // No ldmatrix needed -- reads directly from SMEM
-    // No register allocation for accumulators
+- TMEM removes the large register-resident accumulator fragments used by `wgmma`, leaving a different register budget for the rest of the kernel. It does not automatically guarantee higher occupancy; shared memory, threads, barriers, and TMEM allocation also constrain residency.
+- One thread issues an MMA, but a practical kernel commonly dedicates a warp to the MMA-control role and other warps to TMA, scheduling, and epilogue work.
+- Warp counts and roles are kernel choices. CUTLASS SM100 kernels do not define a universal 16-warp “1 load + 1 MMA + 14 epilogue” mapping.
 
-    // Single thread issues MMA
-    if (threadIdx.x == 0) {
-        asm volatile(
-            "tcgen05.mma.cta_group::1.kind::f16 "
-            "[%0], %1, %2, %3, 1;"
-            :
-            : "r"(tmem_addr),   // accumulator in TMEM (not registers!)
-              "l"(desc_a),       // A from SMEM descriptor
-              "l"(desc_b),       // B from SMEM descriptor
-              "r"(0)
-        );
-    }
+## Tutorial-reported performance progression
 
-    // Fence + sync before reading results
-    asm volatile("tcgen05.fence::before_thread_sync;");
-    __syncthreads();
-    // Read from TMEM -- registers free for other work
-}
-```
+The community `tcgen05 for dummies` tutorial reports this single BF16 GEMM optimization progression on B200 for `M=N=K=4096`, using PyTorch 2.9.1 with CUDA 13 and a 1,506.74-TFLOP/s cuBLAS reference. These figures are source-reported, workload-specific measurements—not architectural throughput guarantees or a general comparison for all shapes. The percentages below are locally derived ratios to that reference, not all percentages printed by the article:
 
-### Performance Implications
+| Tutorial stage | Reported TFLOP/s | Derived fraction of its cuBLAS reference |
+|---|---:|---:|
+| Basic, 2D 16-byte TMA (v1a) | 254.62 | 16.90% |
+| Basic, 3D 16-byte TMA (v1b) | 252.81 | 16.78% |
+| 2D 128-byte TMA (v2a) | 681.20 | 45.21% |
+| 3D 128-byte TMA (v2b) | 695.43 | 46.15% |
+| Pipelining (v3) | 939.61 | 62.36% |
+| Warp specialization (v4) | 1,208.83 | 80.23% |
+| 2-SM MMA (v5) | 1,302.29 | 86.43% |
+| Persistent static scheduling (v6) | 1,475.93 | 97.96% |
+| cuBLAS reference | 1,506.74 | 100% |
 
-- **Register pressure**: Hopper wgmma uses 128+ registers for accumulators in a large GEMM tile. Blackwell stores accumulators in TMEM, freeing those registers for data movement and epilogue logic.
-- **Occupancy**: Lower register pressure enables higher CTA occupancy or larger tile sizes without spilling.
-- **Warp specialization**: With tcgen05, a single MMA-producer warp can feed the tensor cores while other warps handle TMA loads, epilogue, or softmax -- a natural fit for FlashAttention-style kernels.
+## Authoritative references
 
-## SMEM Layout Requirements
-
-tcgen05.mma requires **128-byte swizzled** shared memory layouts for both operands. Non-swizzled or 64-byte swizzled layouts will produce incorrect results silently.
-
-```cuda
-// Shared memory descriptor construction for tcgen05
-// The descriptor encodes: base address, stride, swizzle mode, dimensions
-__device__ uint64_t make_smem_desc(void* smem_ptr, int stride_bytes) {
-    uint64_t desc = 0;
-    uint32_t addr = static_cast<uint32_t>(__cvta_generic_to_shared(smem_ptr));
-
-    // Encode base address (bits 0-13)
-    desc |= (uint64_t)(addr >> 4);
-    // Encode leading dimension stride (bits 16-29)
-    desc |= (uint64_t)((stride_bytes >> 4) & 0x3FFF) << 16;
-    // Encode 128-byte swizzle mode (bits 62-63) -- MANDATORY for tcgen05
-    desc |= (uint64_t)(3) << 62;  // 3 = 128-byte swizzle
-
-    return desc;
-}
-```
-
-## Performance Progression (from tcgen05-for-dummies)
-
-| Optimization Stage | Throughput (TFLOPS) | % of cuBLAS |
-|---|---|---|
-| Naive tcgen05.mma | 255 | 17% |
-| + 128B swizzled SMEM | 695 | 46% |
-| + TMA pipelining | 940 | 62% |
-| + Persistent kernel + CLC | 1476 | 98% |
-| cuBLAS reference | 1507 | 100% |
+- [`doc-ptx-isa-sm100`](../../sources/docs/nvidia-ptx-isa-sm100.md) — current PTX syntax, operand forms, legal layouts, and synchronization
+- [CUTLASS Blackwell functionality](https://docs.nvidia.com/cutlass/latest/media/docs/cpp/blackwell_functionality.html) — supported SM100 MMA families
+- [CUTLASS tcgen05 programming guide](https://docs.nvidia.com/cutlass/latest/media/docs/pythonDSL/mma_docs/tcgen05_programming.html) — CuTe DSL construction and pipeline concepts

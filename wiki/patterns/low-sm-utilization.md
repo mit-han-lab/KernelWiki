@@ -6,37 +6,34 @@ tags: [persistent-kernel, clc, tile-scheduling]
 symptoms: [low-sm-utilization, tail-effect, load-imbalance]
 candidate_techniques: [technique-persistent-kernels, technique-tile-scheduling, hw-clc]
 related: [pattern-tail-effect, pattern-compute-bound]
-sources: [doc-nvidia-tuning-guide, blog-tcgen05-tutorial, pr-cutlass-2161]
+sources: [doc-nvidia-tuning-guide, doc-ptx-isa-sm100, blog-tcgen05-tutorial, pr-cutlass-2161]
 ---
+
+# Low SM Utilization
 
 ## Symptom
 
-SM utilization below 60% despite sufficient occupancy. Nsight Compute shows idle SMs during portions of kernel execution.
+Profiler timelines show fewer active SMs than the workload and resource limits appear able to use. Do not diagnose from a universal percentage threshold: “SM utilization” metrics differ, and a bandwidth-saturated kernel may be efficient without high issue activity.
 
-## Likely Causes
+## Likely causes
 
-1. **Tail effect**: Last wave of tiles leaves most SMs idle (see [tail-effect](tail-effect.md))
-2. **Load imbalance**: Some tiles take longer than others (variable computation per tile)
-3. **Static scheduling**: Fixed tile-to-SM assignment doesn't adapt to runtime conditions
-4. **Grid too small**: Fewer threadblocks than SMs
+- Too few CTAs or clusters for the device.
+- A partially filled final wave.
+- Per-tile work variance or uneven grouped workloads.
+- Resource limits allowing too few resident blocks.
+- Dependencies that serialize nominally independent work.
+- Host gaps, synchronization, or another kernel occupying resources.
 
-## Candidate Techniques
+## Candidate techniques
 
-| Technique | Applicability | Effect |
-|---|---|---|
-| [CLC](../hardware/clc.md) | SM100 only | Dynamic tile assignment, eliminates load imbalance |
-| [Persistent kernels](../techniques/persistent-kernels.md) | SM90+ | Eliminates tail effect, one-time launch overhead |
-| [Tile scheduling](../techniques/tile-scheduling.md) | SM90+ | Better L2 locality, reduce load variance |
+- Adjust tile/cluster shape or grid size when there is insufficient parallel work.
+- Use a persistent software scheduler when many logical tiles can be processed by a smaller resident grid.
+- On SM100, use CLC to let a running cluster cancel an **unlaunched** cluster and execute the work associated with its launch ID.
+- Consider Stream-K or another partition only when reduction overhead is smaller than the tail loss.
+- Reorder grouped work to reduce variance or improve locality.
 
-## Examples
+CLC does not cancel running clusters and does not guarantee elimination of load imbalance or the final wave. Persistent kernels likewise trade launch/wave overhead against scheduler cost and long-lived resource residency.
 
-```
-// tcgen05 tutorial progression:
-// Without persistent/CLC: 86% of cuBLAS (some SMs idle at wave boundaries)
-// With persistent + CLC:  98% of cuBLAS (all SMs stay busy)
-```
+## Verification
 
-## Caveats
-- CLC only available on SM100 datacenter GPUs (not SM120 consumer)
-- Persistent kernels complicate debugging and profiling
-- For non-persistent kernels, ensure grid size >> SM count
+Compare full timelines, useful throughput, memory traffic, and tail duration. Preserve tutorial percentages as measurements of the cited kernel revision and hardware; they are not architecture-wide outcomes attributable solely to persistence or CLC.

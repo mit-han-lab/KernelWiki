@@ -4,111 +4,68 @@ title: "CUDA C++ for Blackwell Kernels"
 type: language
 tags: [cuda-cpp, ptx, tcgen05, tmem]
 related: [lang-ptx, hw-tcgen05-mma, hw-tmem, blog-tcgen05-tutorial]
-sources: [blog-tcgen05-tutorial, doc-nvidia-tuning-guide, blog-yue-nvfp4]
+sources: [doc-ptx-isa-sm100, doc-nvidia-tuning-guide, pr-cutlass-2139, blog-tcgen05-tutorial, blog-yue-nvfp4]
 reproducibility: snippet
 architectures: [sm100, sm100a]
-confidence: source-reported
+confidence: verified
+evidence_basis:
+  - {source_id: doc-ptx-isa-sm100, evidence_type: official-doc}
+  - {source_id: pr-cutlass-2139, evidence_type: upstream-code}
 ---
+
+# CUDA C++ for Blackwell Kernels
 
 ## Overview
 
-Plain CUDA C++ with inline PTX is used for hand-optimized Blackwell kernels. The tcgen05 tutorial achieved 98% of cuBLAS performance using this approach.
+CUDA C++ supplies the kernel/launch model, while low-level SM100 kernels often reach `tcgen05`, TMEM, CLC, and specialized cache controls through CUTLASS/CuTe wrappers or inline PTX. Inline PTX is version-sensitive: operand types, register tuple sizes, participation, and memory constraints must match the exact ISA form.
 
-## tcgen05 via Inline PTX
+Tutorial results near a library baseline demonstrate one tuned kernel/configuration. They are not a performance property of “plain CUDA C++.”
+
+## Prefer typed wrappers when available
 
 ```cuda
-// Allocate TMEM. tcgen05.alloc writes the allocated address into SMEM.
-__device__ uint32_t tmem_alloc_cta(uint32_t* smem_tmem_addr,
-                                   uint32_t num_cols) {
-    if (threadIdx.x == 0) {
-        uint32_t smem_addr =
-            static_cast<uint32_t>(__cvta_generic_to_shared(smem_tmem_addr));
-        asm volatile(
-            "tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], %1;"
-            :: "r"(smem_addr), "r"(num_cols)
-        );
-    }
-    __syncthreads();
-    return *smem_tmem_addr;
-}
-
-// Issue MMA (single thread, typically warp 1 lane 0)
-// idesc_c/idesc_d: immediate descriptors for accumulator C and output D
-__device__ void tcgen05_mma(uint32_t tmem_addr,
-                             uint64_t desc_a, uint64_t desc_b,
-                             uint32_t idesc_c, uint32_t idesc_d) {
-    asm volatile(
-        "tcgen05.mma.cta_group::1.kind::f16"
-        " [%0], %1, %2, %3, %4;"
-        :: "r"(tmem_addr), "l"(desc_a), "l"(desc_b),
-           "r"(idesc_c), "r"(idesc_d)
-    );
-}
-
-// Load TMEM to registers
-__device__ void tmem_load(float* dst, uint32_t tmem_addr, int cols) {
-    asm volatile(
-        "tcgen05.ld.sync.aligned.32x32b.x1.b32 {%0}, [%1];"
-        : "=f"(*dst) : "r"(tmem_addr)
-    );
-}
-
-// Deallocate TMEM (MUST do before kernel exit)
-__device__ void tmem_dealloc(uint32_t addr, uint32_t num_cols) {
-    asm volatile(
-        "tcgen05.dealloc.cta_group::1.sync.aligned.b32 %0, %1;"
-        :: "r"(addr), "r"(num_cols)
-    );
+template <class TiledMma, class Accumulator, class TensorA, class TensorB>
+__device__ void issue_mma(TiledMma const& mma,
+                          Accumulator& accumulator,
+                          TensorA const& a,
+                          TensorB const& b) {
+  // CUTLASS/CuTe traits carry instruction descriptors, operand source,
+  // layouts, and TMEM mapping for the selected target.
+  cute::gemm(mma, a, b, accumulator);
 }
 ```
 
-## mbarrier Synchronization
+This is a structural example; use the API signature from the pinned CUTLASS version. A hand-written `tcgen05.mma` wrapper that invents separate C/D descriptors or assumes one result register is unsafe.
+
+## Inline-PTX checklist
+
+- Compile for the feature-specific SM100 target required by the instruction.
+- Declare every operand with the PTX-prescribed register width and constraint.
+- Include `volatile` and a `memory` clobber when compiler-visible memory ordering requires them.
+- Follow single-thread/CTA-pair issue and uniformity rules.
+- Publish a TMEM allocation address through shared memory exactly as specified.
+- Derive TMEM load/store register tuples from the selected fragment shape.
+- Commit and wait for asynchronous MMA completion; do not use a fence as a wait.
+- Match allocation/deallocation base and column count and finish outstanding users first.
+
+## Barrier state
+
+Wrap pipeline state as a stage token rather than an unscoped spin loop:
 
 ```cuda
-// TMA-MMA synchronization via mbarrier
-// expected_bytes: total bytes the TMA will deliver to this stage
-__device__ void mbarrier_arrive(uint64_t* mbar, uint32_t expected_bytes) {
-    asm volatile(
-        "mbarrier.arrive.expect_tx.shared.b64 _, [%0], %1;"
-        :: "r"((uint32_t)__cvta_generic_to_shared(mbar)),
-           "r"(expected_bytes)
-    );
-}
-
-__device__ void mbarrier_wait(uint64_t* mbar, int phase) {
-    asm volatile(
-        "{\n"
-        ".reg .pred p;\n"
-        "WAIT_LOOP:\n"
-        "  mbarrier.try_wait.parity.shared.b64 p, [%0], %1;\n"
-        "  @!p bra WAIT_LOOP;\n"
-        "}\n"
-        :: "r"((uint32_t)__cvta_generic_to_shared(mbar)),
-           "r"(phase)
-    );
-}
+struct StageState {
+  uint64_t* full_barrier;
+  uint64_t* empty_barrier;
+  unsigned producer_phase;
+  unsigned consumer_phase;
+  uint32_t expected_bytes;
+};
 ```
 
-## Warp Role Dispatch
+The producer's `arrive.expect_tx` and TMA completion must satisfy the initialized arrival/transaction counts. Each circular stage tracks its own phase. Cross-thread tcgen ordering and async-proxy ordering are separate from completion observation.
 
-```cuda
-__global__ void blackwell_gemm_kernel(...) {
-    int warp_id = threadIdx.x / 32;
-    int lane_id = threadIdx.x % 32;
+## Role dispatch
 
-    if (warp_id == 0 && lane_id == 0) {
-        // TMA producer: issue cp.async.bulk.tensor
-        tma_producer_loop(...);
-    } else if (warp_id == 1 && lane_id == 0) {
-        // MMA consumer: issue tcgen05.mma
-        mma_consumer_loop(...);
-    } else if (warp_id >= 2) {
-        // Epilogue: read TMEM, write to global
-        epilogue_loop(...);
-    }
-}
-```
+Warp specialization is ordinary control flow plus a rigorously defined dependency graph. Role indices are configuration-specific; do not assume warp 0 is TMA, warp 1 MMA, and every later warp epilogue. Current CUTLASS SM100 schedules include distinct scheduler, mainloop-load, MMA, epilogue-load, and variable epilogue roles.
 
-## Related
-- [ptx-sm100](ptx-sm100.md) — PTX instruction reference
-- [tcgen05 tutorial](../../sources/blogs/tcgen05-tutorial.md) — Step-by-step guide
+Use [`ptx-sm100`](ptx-sm100.md) for checked instruction fragments and the shipped upstream CUTLASS artifacts for complete context.

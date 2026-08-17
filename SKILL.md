@@ -67,7 +67,7 @@ python3 scripts/grep_wiki.py "nvfp4" "block_scale" --any
 Auto-generated under `queries/`:
 
 - `queries/by-problem.md` — symptom → pattern page → candidate techniques
-- `queries/by-technique.md` — 15 techniques with architectures, confidence, reproducibility, source count
+- `queries/by-technique.md` — 17 technique pages with architectures, confidence, reproducibility, and source counts
 - `queries/by-hardware-feature.md` — tcgen05/tmem/clc/tma/nvfp4/etc. → related wiki + PR pages
 - `queries/by-kernel-type.md` — gemm/attention/moe/mla/gated-delta-net → pages
 - `queries/by-language.md` — cute-dsl/cuda-cpp/ptx/triton → guide page + related kernels/sources
@@ -88,13 +88,15 @@ When answering from this KB:
 1. **Cite specific pages** with paths (e.g., `wiki/kernels/flash-attention-4.md`) and IDs (`kernel-flash-attention-4`).
 2. **Follow `sources:` fields** to trace claims back to PRs/blogs/docs.
 3. **Respect confidence levels** — `verified` > `source-reported` > `inferred` > `experimental`. Call out when a claim is `experimental` or `inferred`.
-4. **Include code snippets** from wiki pages when they exist — technique/kernel/language pages are guaranteed `snippet`-reproducibility (validator-enforced).
+4. **Include code snippets** from wiki pages when they exist. Reproducibility
+   metadata distinguishes logical or schematic snippets from extracted,
+   compilable, and benchmarked assets; do not describe pseudocode as compiled.
 5. **Report performance claims with all six fields** — `gpu`, `dtype`, `shape`, `metric`, `value`, `source_id`.
 
 ## Knowledge Base Contents
 
 - Source PR pages, synthesized wiki pages, blog/doc/contest summaries, candidate ledgers, query indices, and artifact bundles.
-- **Verbatim/extracted/derived asset bundles** in `artifacts/` (PR diffs, kernel files, blog code) — pinned to upstream SHAs via `PROVENANCE.yaml`
+- **Verbatim asset bundles** in `artifacts/` (PR diffs and kernel files) — pinned to upstream SHAs via `PROVENANCE.yaml`; the current audit has no extracted or derived bundles
 - **Auto-generated query indices** in `queries/`
 - **Controlled vocabulary** (80+ tags) in `data/tags.yaml`, alias map in `data/aliases.yaml`
 - **Hybrid version-claim registry** — per-page `version_sensitive: <id>` pointers + `data/version-claims.yaml` central registry, validated for bidirectional consistency
@@ -107,6 +109,9 @@ To refresh the corpus: run `scripts/refresh_candidate_ledger.py`, regenerate PR 
 ## Quality Guarantees
 
 - Every `verified` page has official-doc + upstream-code evidence
-- Every technique/kernel/language page has a compilable snippet
-- Every PR page has `inclusion_reason` and `status: merged`
-- All Hopper-inclusive pages have explicit `blackwell_relevance`
+- Every technique/kernel/language page carries validator-checked reproducibility
+  metadata; the level can range from logical snippet to benchmarked artifact.
+- Every PR page has an `inclusion_reason` and records the GitHub state captured for
+  that PR; closed proposals are not represented as merged implementation evidence.
+- Hopper-inclusive synthesized pages state their Blackwell relevance where the
+  schema requires it.
