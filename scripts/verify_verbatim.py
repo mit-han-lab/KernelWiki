@@ -28,7 +28,6 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-import yaml
 import base64
 import json
 
@@ -45,6 +44,9 @@ def canonicalize_upstream_patch(data):
     header/hunk byte remain part of the comparison oracle.
     """
     return _PATCH_INDEX_RE.sub(rb"\1<OLD>\2<NEW>\3", data)
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS_DIR = REPO_ROOT / "artifacts"

@@ -33,7 +33,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-import yaml
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 CONTESTS_SRC = REPO / "sources" / "contests"

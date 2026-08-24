@@ -7,9 +7,9 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-import yaml
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
+
 from _wiki_root import WIKI_ROOT  # noqa: E402
 
 

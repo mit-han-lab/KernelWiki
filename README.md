@@ -17,10 +17,15 @@ A structured knowledge base of NVIDIA Blackwell (SM100, B200) and Hopper (SM90, 
 
 ```bash
 git clone git@github.com:mit-han-lab/KernelWiki.git ~/.claude/skills/KernelWiki
-pip install -r ~/.claude/skills/KernelWiki/requirements.txt
 ```
 
-That's it. The skill auto-registers (because `SKILL.md` lives at the clone root), and the query scripts auto-resolve the wiki root to their own directory — no environment variable required.
+That's it. The skill auto-registers (because `SKILL.md` lives at the clone root), and the query scripts auto-resolve the wiki root to their own directory — no environment variable or Python package installation is required. The scripts prefer a host PyYAML installation and transparently use the bundled pure-Python fallback when PyYAML is unavailable (including offline or `python3 -S` environments).
+
+PyYAML remains an optional performance dependency. If a package installation is available, it can be enabled with:
+
+```bash
+python3 -m pip install -r ~/.claude/skills/KernelWiki/requirements.txt
+```
 
 Smoke test:
 
@@ -102,11 +107,12 @@ Supporting files:
 | `scripts/repo_status.py` | Print current corpus counts |
 
 ```bash
-pip install -r requirements.txt
 python3 scripts/validate.py
 python3 scripts/repo_status.py
 python3 scripts/generate-indices.py    # regenerate query indices
 ```
+
+These commands also work without PyYAML. Installing `requirements.txt` is optional and only selects the host implementation.
 
 ## Quality Gates
 
@@ -137,9 +143,10 @@ KernelWiki/                             (= ~/.claude/skills/KernelWiki/)
 ├── README.md                          # This file
 ├── CLAUDE.md                          # Extended navigation + schema reference
 ├── index.md                           # Curated top-level index
-├── requirements.txt                   # PyYAML
+├── requirements.txt                   # Optional host PyYAML dependency
 │
 ├── scripts/                           # Query tools + maintenance tooling
+│   ├── _yaml_compat.py                # Host PyYAML / offline fallback selector
 │   ├── query.py                       # Unified search
 │   ├── get_page.py                    # Page fetcher
 │   ├── grep_wiki.py                   # Regex search

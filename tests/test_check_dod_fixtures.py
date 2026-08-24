@@ -1,12 +1,13 @@
 import importlib.util
 import copy
+import sys
 import unittest
 from pathlib import Path
 
-import yaml
-
-
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+from _yaml_compat import yaml  # noqa: E402
+
 SPEC = importlib.util.spec_from_file_location(
     "check_dod_fixtures", ROOT / "scripts" / "check_dod_fixtures.py"
 )

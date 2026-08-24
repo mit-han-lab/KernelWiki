@@ -24,7 +24,9 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BUDGET_PATH = REPO_ROOT / "data" / "phase3-size-budget.yaml"

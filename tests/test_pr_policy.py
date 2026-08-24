@@ -5,12 +5,11 @@ import sys
 import unittest
 from pathlib import Path
 
-import yaml
-
-
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+
+from _yaml_compat import yaml  # noqa: E402
 
 from pr_policy import (  # noqa: E402
     SUPPORTED_EXACT_ARCHITECTURES,

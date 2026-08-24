@@ -17,9 +17,11 @@ import argparse
 import copy
 import re
 import sys
-import yaml
 from collections import defaultdict
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _wiki_root import WIKI_ROOT  # noqa: E402

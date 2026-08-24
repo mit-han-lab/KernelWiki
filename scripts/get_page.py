@@ -13,10 +13,11 @@ Usage:
 import argparse
 import re
 import sys
-import yaml
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
+
 from _wiki_root import WIKI_ROOT  # noqa: E402
 
 
@@ -115,8 +116,7 @@ def _resolve_artifact_dir(page_path, fm):
         manifest_path = abs_path / "MANIFEST.yaml"
         if manifest_path.is_file():
             try:
-                import yaml as _yaml
-                manifest = _yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+                manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
                 if manifest.get("code_present") is False:
                     return None, None, False
             except Exception:

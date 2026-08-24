@@ -31,6 +31,15 @@ Do NOT use this skill for:
 
 All commands below run from the skill directory (the clone root — the directory this `SKILL.md` lives in). The scripts auto-resolve the wiki root; **no environment variable required**.
 
+### Runtime dependencies
+
+The query and maintenance scripts are self-contained. They use the host
+PyYAML package when present and fall back to the bundled pure-Python loader and
+dumper when it is missing. Invoke them directly with `python3`; do not assume
+that `pip`, a virtualenv, network access, or a pre-installed PyYAML package is
+available. `requirements.txt` is optional and only installs the faster host
+implementation.
+
 ### Path 1: Unified search (preferred for natural language)
 
 ```bash

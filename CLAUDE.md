@@ -110,7 +110,7 @@ performance_claims:
 
 - `scripts/validate.py` — Validates all frontmatter against `data/schemas.yaml`
 - `scripts/generate-indices.py` — Regenerates `queries/*.md` from frontmatter
-- Setup: `pip install -r requirements.txt` (requires PyYAML)
+- Setup: no Python package is required; scripts prefer host PyYAML and fall back to the bundled pure-Python implementation. `pip install -r requirements.txt` is optional.
 - Run: `python3 scripts/validate.py` then `python3 scripts/generate-indices.py`
 
 ## Scope Rules

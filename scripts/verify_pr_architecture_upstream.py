@@ -21,9 +21,10 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-import yaml
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
 
-from pr_policy import (
+from pr_policy import (  # noqa: E402
     _path_is_distributed_implementation,
     _path_is_non_implementation,
     classify_scope,

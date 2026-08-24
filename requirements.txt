@@ -1,1 +1,3 @@
+# Optional host implementation. The scripts include an offline pure-Python
+# fallback, so installing this file is not required for normal queries.
 PyYAML>=6.0

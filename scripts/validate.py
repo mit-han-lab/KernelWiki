@@ -6,10 +6,11 @@ import hashlib
 import json
 import re
 import sys
-import yaml
 from pathlib import Path
 
-from pr_policy import (
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
+from pr_policy import (  # noqa: E402
     ARCHITECTURE_FAMILY_PREFIXES,
     PRODUCT_ARCHITECTURE_MAPPINGS,
     SUPPORTED_EXACT_ARCHITECTURES,

@@ -33,7 +33,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
-import yaml
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
 
 from pr_policy import classify_scope
 

@@ -3,11 +3,12 @@
 
 import re
 import sys
-import yaml
 from pathlib import Path
 from collections import defaultdict
 
-from pr_policy import ARCHITECTURE_FAMILY_PREFIXES
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _yaml_compat import yaml  # noqa: E402
+from pr_policy import ARCHITECTURE_FAMILY_PREFIXES  # noqa: E402
 
 REPO_ROOT = Path(__file__).parent.parent
 SOURCES_DIR = REPO_ROOT / "sources"
