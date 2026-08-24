@@ -10,8 +10,8 @@ keywords_used:
 - fp8
 - tma
 total_candidates: 146
-included: 46
-excluded: 0
+included: 34
+excluded: 12
 deferred: 100
 prs:
 - number: 2441
@@ -23,7 +23,7 @@ prs:
   merged_at: '2026-04-15T03:42:40Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/interface.py, flash_attn/cute/mask.py, flash_attn/cute/softmax.py, flash_attn/cute/topk_gather_kv.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -84,6 +84,13 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: jayhshah
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2441
+  files_changed:
+  - flash_attn/cute/interface.py
+  - flash_attn/cute/mask.py
+  - flash_attn/cute/softmax.py
+  - flash_attn/cute/topk_gather_kv.py
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 1236
   pr: 1236
   title: FA3 kvcache + split kv + gqa parallelization
@@ -93,7 +100,8 @@ prs:
   merged_at: '2024-10-15T07:21:22Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/combine.h, hopper/epilogue_fwd_sm90_tma.hpp, hopper/flash_fwd_kernel.h, hopper/kernel_traits.h, hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp, hopper/seq_len.h,
+    hopper/tile_scheduler.hpp, hopper/utils.h'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -149,6 +157,17 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: jayhshah
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1236
+  files_changed:
+  - hopper/combine.h
+  - hopper/epilogue_fwd_sm90_tma.hpp
+  - hopper/flash_fwd_kernel.h
+  - hopper/kernel_traits.h
+  - hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp
+  - hopper/seq_len.h
+  - hopper/tile_scheduler.hpp
+  - hopper/utils.h
+  files_reviewed_count: 65
+  scope_disposition: retained
 - number: 2043
   pr: 2043
   title: '[Cute,Fwd] Extend score_mod to variable sequence length'
@@ -158,7 +177,7 @@ prs:
   merged_at: '2025-12-15T22:16:30Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd.py, flash_attn/cute/flash_fwd_sm100.py, flash_attn/cute/softmax.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -209,6 +228,12 @@ prs:
   score: 61
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2043
+  files_changed:
+  - flash_attn/cute/flash_fwd.py
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/softmax.py
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 2412
   pr: 2412
   title: Feat([FA4][CUTE DSL]) Add head_dim=256 support (forward + backward)
@@ -218,7 +243,8 @@ prs:
   merged_at: '2026-04-23T18:22:11Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/mask.py, flash_attn/cute/sm100_hd256_2cta_fmha_backward.py, flash_attn/cute/sm100_hd256_2cta_fmha_forward.py, flash_attn/cute/tile_scheduler.py,
+    flash_attn/cute/utils.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -274,6 +300,14 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: wangsiyu
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2412
+  files_changed:
+  - flash_attn/cute/mask.py
+  - flash_attn/cute/sm100_hd256_2cta_fmha_backward.py
+  - flash_attn/cute/sm100_hd256_2cta_fmha_forward.py
+  - flash_attn/cute/tile_scheduler.py
+  - flash_attn/cute/utils.py
+  files_reviewed_count: 11
+  scope_disposition: retained
 - number: 1173
   pr: 1173
   title: FA3 FP8 qkv descales + restore max offset for h128 causal + added sync for producer WG
@@ -283,7 +317,7 @@ prs:
   merged_at: '2024-08-25T19:18:04Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp, hopper/softmax.h'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -332,6 +366,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: jayhshah
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1173
+  files_changed:
+  - hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp
+  - hopper/softmax.h
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 2186
   pr: 2186
   title: '[Cute,Fwd,Sm100] support irregular qhead / kvhead ratios'
@@ -341,7 +380,7 @@ prs:
   merged_at: '2026-03-20T10:40:24Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd_sm100.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -382,6 +421,10 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: timmy-feng
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2186
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 2098
   pr: 2098
   title: Add pack-gqa fwd support for sparse impl w/ broadcasted H dim
@@ -389,9 +432,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2098
   date: '2026-01-04'
   merged_at: '2026-01-04T01:55:00Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 6 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -428,6 +471,15 @@ prs:
   score: 49
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2098
+  files_changed:
+  - flash_attn/cute/block_sparse_utils.py
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/interface.py
+  - flash_attn/cute/mask.py
+  - flash_attn/cute/mask_definitions.py
+  - tests/cute/test_mask_mod.py
+  files_reviewed_count: 6
+  scope_disposition: removed
 - number: 2488
   pr: 2488
   title: '[hd256] Improve forward kernel with exp2 FMA emulation (3% to 9% performance gain)'
@@ -437,7 +489,7 @@ prs:
   merged_at: '2026-04-28T04:42:56Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/sm100_hd256_2cta_fmha_forward.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -481,6 +533,10 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: Johnsonms
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2488
+  files_changed:
+  - flash_attn/cute/sm100_hd256_2cta_fmha_forward.py
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 1999
   pr: 1999
   title: '[Cute,Fwd,Sm100] Support paged attention'
@@ -490,7 +546,7 @@ prs:
   merged_at: '2025-11-14T16:43:38Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd_sm100.py, flash_attn/cute/paged_kv.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -534,6 +590,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: timmy-feng
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1999
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/paged_kv.py
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 2489
   pr: 2489
   title: '[hd256] Add TMA paged KV support to SM100 2CTA forward kernel'
@@ -543,7 +604,7 @@ prs:
   merged_at: '2026-05-01T17:26:08Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/paged_kv.py, flash_attn/cute/sm100_hd256_2cta_fmha_forward.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -586,6 +647,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: Johnsonms
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2489
+  files_changed:
+  - flash_attn/cute/paged_kv.py
+  - flash_attn/cute/sm100_hd256_2cta_fmha_forward.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 2333
   pr: 2333
   title: Add SM120 varlen attention support
@@ -595,7 +661,7 @@ prs:
   merged_at: '2026-03-13T10:56:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -635,6 +701,10 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: blake-snc
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2333
+  files_changed:
+  - flash_attn/cute/flash_fwd.py
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 1268
   pr: 1268
   title: Paged Attention support for FA3
@@ -644,7 +714,7 @@ prs:
   merged_at: '2024-11-10T01:05:01Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/copy_paged_sm90_tma.hpp, hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp, hopper/seq_len.h'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -686,6 +756,12 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: kadeng
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1268
+  files_changed:
+  - hopper/copy_paged_sm90_tma.hpp
+  - hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp
+  - hopper/seq_len.h
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 2360
   pr: 2360
   title: '[Fwd,Sm90] Add paged KV attention support (tma and cp.async)'
@@ -695,7 +771,7 @@ prs:
   merged_at: '2026-03-18T19:46:03Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd_sm90.py, flash_attn/cute/paged_kv.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -735,6 +811,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: henrylhtsang
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2360
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm90.py
+  - flash_attn/cute/paged_kv.py
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 2104
   pr: 2104
   title: '[Cute,Fwd,Sm100] distributed offset calculation for paged KV'
@@ -744,7 +825,7 @@ prs:
   merged_at: '2026-01-15T20:11:02Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/paged_kv.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -779,6 +860,10 @@ prs:
   score: 36
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2104
+  files_changed:
+  - flash_attn/cute/paged_kv.py
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 2108
   pr: 2108
   title: '[NVIDIA] Enable Jetson Thor FA4'
@@ -786,9 +871,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2108
   date: '2025-12-29'
   merged_at: '2025-12-29T22:14:47Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -824,6 +909,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: johnnynunez
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2108
+  files_changed:
+  - csrc/cutlass
+  - flash_attn/cute/interface.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 1331
   pr: 1331
   title: 'FA3 paged attention: Readiness for Cutlass 3.6 / default value for block_table'
@@ -833,7 +923,7 @@ prs:
   merged_at: '2024-11-12T19:31:37Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/copy_paged_sm90_tma_cutlass35.hpp, hopper/copy_paged_sm90_tma_cutlass36.hpp'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -870,6 +960,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: kadeng
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1331
+  files_changed:
+  - hopper/copy_paged_sm90_tma_cutlass35.hpp
+  - hopper/copy_paged_sm90_tma_cutlass36.hpp
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 1945
   pr: 1945
   title: Blackwell FlashAttention-BWD (v1.0)
@@ -879,7 +974,7 @@ prs:
   merged_at: '2025-10-19T17:03:36Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_bwd_postprocess.py, flash_attn/cute/flash_bwd_sm100.py, flash_attn/cute/mask.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -912,6 +1007,12 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: tzadouri
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1945
+  files_changed:
+  - flash_attn/cute/flash_bwd_postprocess.py
+  - flash_attn/cute/flash_bwd_sm100.py
+  - flash_attn/cute/mask.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 2388
   pr: 2388
   title: 'fix: use LSE accum strides from params instead of hardcoded ones'
@@ -957,7 +1058,7 @@ prs:
   merged_at: '2025-08-22T02:44:03Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): hopper/flash_prepare_scheduler.cu'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -1005,6 +1106,10 @@ prs:
   score: 60
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1823
+  files_changed:
+  - hopper/flash_prepare_scheduler.cu
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 1934
   pr: 1934
   title: 'feat: Adding varlen support to cute-dsl sm80 bwd'
@@ -1014,7 +1119,7 @@ prs:
   merged_at: '2025-10-13T21:16:47Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_bwd.py, flash_attn/cute/flash_bwd_postprocess.py, flash_attn/cute/flash_bwd_preprocess.py'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -1054,6 +1159,12 @@ prs:
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   author: imbr92
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1934
+  files_changed:
+  - flash_attn/cute/flash_bwd.py
+  - flash_attn/cute/flash_bwd_postprocess.py
+  - flash_attn/cute/flash_bwd_preprocess.py
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 2515
   pr: 2515
   title: Fix ZeroDivisionError in num_splits_heuristic for empty Q workloads
@@ -1061,9 +1172,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2515
   date: '2026-05-13'
   merged_at: '2026-05-13T21:11:47Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -1103,6 +1214,11 @@ prs:
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   author: shivam2199
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2515
+  files_changed:
+  - flash_attn/cute/interface.py
+  - tests/cute/test_flash_attn.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 2455
   pr: 2455
   title: Add CLC scheduler heuristic
@@ -1110,9 +1226,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2455
   date: '2026-04-16'
   merged_at: '2026-04-16T00:13:53Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 8 authoritative changed file(s)'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -1149,6 +1265,17 @@ prs:
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   author: drisspg
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2455
+  files_changed:
+  - .gitignore
+  - AGENTS.md
+  - CLAUDE.md
+  - benchmarks/clc_bench.py
+  - benchmarks/configs/clc.yaml
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/interface.py
+  - tests/cute/test_clc_fuzz.py
+  files_reviewed_count: 8
+  scope_disposition: removed
 - number: 2218
   pr: 2218
   title: '[Ai-assisted] CLC work stealing'
@@ -1158,7 +1285,7 @@ prs:
   merged_at: '2026-03-28T23:37:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd_sm100.py, flash_attn/cute/tile_scheduler.py'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -1199,6 +1326,11 @@ prs:
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   author: drisspg
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2218
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/tile_scheduler.py
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 1940
   pr: 1940
   title: '[Cute,Fwd,Sm100] Implement SplitKV'
@@ -1208,7 +1340,7 @@ prs:
   merged_at: '2025-11-05T01:13:26Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd_sm100.py, flash_attn/cute/tile_scheduler.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1267,6 +1399,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: timmy-feng
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1940
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/tile_scheduler.py
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 2109
   pr: 2109
   title: '[Cute,Fwd,Sm100] fp8 e4m3 and e5m2 support'
@@ -1276,7 +1413,7 @@ prs:
   merged_at: '2026-04-17T17:51:50Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd_sm100.py, flash_attn/cute/interface.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1334,6 +1471,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: dcw02
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2109
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/interface.py
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 1893
   pr: 1893
   title: Improve causal backward determinism perf with SPT schedule
@@ -1343,7 +1485,7 @@ prs:
   merged_at: '2025-09-17T21:58:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/mainloop_bwd_sm90_tma_gmma_ws.hpp, hopper/tile_scheduler.hpp'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1391,6 +1533,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: jayhshah
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1893
+  files_changed:
+  - hopper/mainloop_bwd_sm90_tma_gmma_ws.hpp
+  - hopper/tile_scheduler.hpp
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 2033
   pr: 2033
   title: '[Cute,Bwd,Sm100] enable deterministic mode for sm100 bwd and fix race conditions'
@@ -1400,7 +1547,7 @@ prs:
   merged_at: '2025-11-25T01:33:08Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_bwd_sm100.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1444,6 +1591,10 @@ prs:
   score: 60
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2033
+  files_changed:
+  - flash_attn/cute/flash_bwd_sm100.py
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 1361
   pr: 1361
   title: Fix FA3 Varlen Performance regression
@@ -1453,7 +1604,7 @@ prs:
   merged_at: '2024-12-02T02:15:11Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/copy_paged_sm90_tma_cutlass35.hpp, hopper/copy_paged_sm90_tma_cutlass36.hpp'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1500,6 +1651,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: kadeng
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1361
+  files_changed:
+  - hopper/copy_paged_sm90_tma_cutlass35.hpp
+  - hopper/copy_paged_sm90_tma_cutlass36.hpp
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 1985
   pr: 1985
   title: '[Cute] Block sparse support Sm100'
@@ -1509,7 +1665,7 @@ prs:
   merged_at: '2025-11-18T00:58:03Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/block_sparse_utils.py, flash_attn/cute/flash_bwd_sm100.py, flash_attn/cute/mask.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1555,6 +1711,12 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: drisspg
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1985
+  files_changed:
+  - flash_attn/cute/block_sparse_utils.py
+  - flash_attn/cute/flash_bwd_sm100.py
+  - flash_attn/cute/mask.py
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 1233
   pr: 1233
   title: Add local attention in Hopper FAv3
@@ -1564,7 +1726,7 @@ prs:
   merged_at: '2024-09-20T06:14:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/mainloop_bwd_sm90_tma_gmma_ws.hpp, hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1610,6 +1772,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: ipiszy
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1233
+  files_changed:
+  - hopper/mainloop_bwd_sm90_tma_gmma_ws.hpp
+  - hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 1604
   pr: 1604
   title: Support hdimQK != hdimV backward
@@ -1619,7 +1786,7 @@ prs:
   merged_at: '2025-04-24T03:17:27Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/mainloop_bwd_sm80.hpp'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1663,6 +1830,10 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: shcho1118
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1604
+  files_changed:
+  - hopper/mainloop_bwd_sm80.hpp
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 2085
   pr: 2085
   title: Add blocksparse support for bwd on blackwell
@@ -1672,7 +1843,7 @@ prs:
   merged_at: '2025-12-18T22:45:35Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/block_sparse_utils.py, flash_attn/cute/mask.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1716,6 +1887,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: drisspg
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2085
+  files_changed:
+  - flash_attn/cute/block_sparse_utils.py
+  - flash_attn/cute/mask.py
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 2497
   pr: 2497
   title: '[FA4][hd256] Backward TMA bulk-store epilogue + LSE/dpsum coalesce'
@@ -1725,7 +1901,7 @@ prs:
   merged_at: '2026-05-01T17:25:40Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/sm100_hd256_2cta_fmha_backward_dkdvkernel.py, flash_attn/cute/sm100_hd256_2cta_fmha_backward_dqkernel.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1775,6 +1951,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: Johnsonms
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2497
+  files_changed:
+  - flash_attn/cute/sm100_hd256_2cta_fmha_backward_dkdvkernel.py
+  - flash_attn/cute/sm100_hd256_2cta_fmha_backward_dqkernel.py
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 2070
   pr: 2070
   title: 'Add score-mod bwd support '
@@ -1784,7 +1965,7 @@ prs:
   merged_at: '2025-12-16T17:19:20Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_bwd_sm100.py, flash_attn/cute/softmax.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1827,6 +2008,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: drisspg
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2070
+  files_changed:
+  - flash_attn/cute/flash_bwd_sm100.py
+  - flash_attn/cute/softmax.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 1182
   pr: 1182
   title: Add seqused_q in fwd / bwd and seqused_k in bwd in hopper FA.
@@ -1834,9 +2020,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/1182
   date: '2024-09-16'
   merged_at: '2024-09-16T21:57:19Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 16 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1881,6 +2067,17 @@ prs:
   score: 48
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1182
+  files_changed:
+  - flash_attn/bert_padding.py
+  - flash_attn/flash_blocksparse_attention.py
+  - flash_attn/models/bert.py
+  - hopper/epilogue_bwd_sm90_tma.hpp
+  - hopper/flash.h
+  - hopper/flash_api.cpp
+  - hopper/flash_attn_interface.py
+  - hopper/flash_bwd_launch_template.h
+  files_reviewed_count: 16
+  scope_disposition: removed
 - number: 1993
   pr: 1993
   title: '[Cute,Fwd,Sm100] Support `q_stage=1` for inference'
@@ -1888,9 +2085,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/1993
   date: '2026-01-08'
   merged_at: '2026-01-08T18:10:26Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 3 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1932,6 +2129,12 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: timmy-feng
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1993
+  files_changed:
+  - flash_attn/cute/block_sparsity.py
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/interface.py
+  files_reviewed_count: 3
+  scope_disposition: removed
 - number: 2330
   pr: 2330
   title: '[Bwd,Sm120] Add SM120 backward pass support'
@@ -1939,9 +2142,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2330
   date: '2026-03-12'
   merged_at: '2026-03-12T21:07:33Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 3 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1978,6 +2181,12 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: blake-snc
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2330
+  files_changed:
+  - flash_attn/cute/flash_bwd_postprocess.py
+  - flash_attn/cute/flash_bwd_sm120.py
+  - flash_attn/cute/interface.py
+  files_reviewed_count: 3
+  scope_disposition: removed
 - number: 2014
   pr: 2014
   title: '[Cute,Sm100,Fwd] use correction warps for epi when not using TMA'
@@ -1987,7 +2196,7 @@ prs:
   merged_at: '2025-11-19T00:10:00Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/flash_fwd_sm100.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -2023,6 +2232,10 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: jayhshah
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2014
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 2026
   pr: 2026
   title: '[Cute,Fwd,Sm100] don''t pass mask_fn to softmax_step generically'
@@ -2030,9 +2243,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2026
   date: '2025-11-22'
   merged_at: '2025-11-22T02:33:54Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -2065,6 +2278,10 @@ prs:
   score: 33
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2026
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 2236
   pr: 2236
   title: '[Cute,Flex,Fwd] Allow vectorized score_mod definitions'
@@ -2072,9 +2289,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2236
   date: '2026-02-11'
   merged_at: '2026-02-11T21:15:28Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 8 authoritative changed file(s)'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -2123,6 +2340,17 @@ prs:
   score: 58
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2236
+  files_changed:
+  - flash_attn/cute/cute_dsl_utils.py
+  - flash_attn/cute/flash_fwd.py
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/interface.py
+  - flash_attn/cute/utils.py
+  - tests/cute/score_mod_definitions.py
+  - tests/cute/test_score_mod.py
+  - tests/cute/test_score_mod_varlen.py
+  files_reviewed_count: 8
+  scope_disposition: removed
 - number: 2145
   pr: 2145
   title: '[CUTE][SM90]Enable pack-gqa with broadcasted maskmods'
@@ -2132,7 +2360,7 @@ prs:
   merged_at: '2026-01-10T01:40:52Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: flash_attn/cute/block_sparse_utils.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -2168,6 +2396,10 @@ prs:
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   author: drisspg
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2145
+  files_changed:
+  - flash_attn/cute/block_sparse_utils.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 2180
   pr: 2180
   title: '[Cute][Flex]Add pack-gqa divmod'
@@ -2175,9 +2407,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2180
   date: '2026-01-15'
   merged_at: '2026-01-15T18:09:55Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -2208,6 +2440,11 @@ prs:
   score: 34
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2180
+  files_changed:
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/mask.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 1100
   pr: 1100
   title: Fp8 kernel with "in-kernel" transpose of V in producer
@@ -2217,7 +2454,8 @@ prs:
   merged_at: '2024-07-30T21:14:14Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/epilogue_fwd_sm90_tma.hpp, hopper/flash_fwd_kernel.h, hopper/kernel_traits.h, hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp, hopper/tile_scheduler.hpp,
+    hopper/utils.h'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2276,6 +2514,15 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: jayhshah
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1100
+  files_changed:
+  - hopper/epilogue_fwd_sm90_tma.hpp
+  - hopper/flash_fwd_kernel.h
+  - hopper/kernel_traits.h
+  - hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp
+  - hopper/tile_scheduler.hpp
+  - hopper/utils.h
+  files_reviewed_count: 16
+  scope_disposition: retained
 - number: 1072
   pr: 1072
   title: Add var-seq-len to FA3 fp16 / bf16 fwd
@@ -2285,7 +2532,7 @@ prs:
   merged_at: '2024-07-23T04:32:41Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: hopper/epilogue_fwd_sm90_tma.hpp, hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp, hopper/seq_len.h, hopper/utils.h'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2332,6 +2579,13 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: ipiszy
   artifact_dir: evidence/pull-bundles/flash-attention/gh-1072
+  files_changed:
+  - hopper/epilogue_fwd_sm90_tma.hpp
+  - hopper/mainloop_fwd_sm90_tma_gmma_ws.hpp
+  - hopper/seq_len.h
+  - hopper/utils.h
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 2390
   pr: 2390
   title: '[Cute,Sm100,Bwd] refine bwd swizzle for deterministic'
@@ -2339,9 +2593,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2390
   date: '2026-03-25'
   merged_at: '2026-03-25T17:45:13Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2383,6 +2637,11 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: jayhshah
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2390
+  files_changed:
+  - benchmarks/benchmark_attn.py
+  - flash_attn/cute/tile_scheduler.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 2091
   pr: 2091
   title: Fix IMA in fwd on m boundary
@@ -2390,9 +2649,9 @@ prs:
   url: https://github.com/Dao-AILab/flash-attention/pull/2091
   date: '2025-12-20'
   merged_at: '2025-12-20T12:52:41Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 5 authoritative changed file(s)'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2428,6 +2687,14 @@ prs:
   score: 46
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/flash-attention/gh-2091
+  files_changed:
+  - flash_attn/cute/block_sparse_utils.py
+  - flash_attn/cute/flash_bwd_sm100.py
+  - flash_attn/cute/flash_fwd_sm100.py
+  - flash_attn/cute/mask.py
+  - tests/cute/test_mask_mod.py
+  files_reviewed_count: 5
+  scope_disposition: removed
 - number: 2563
   pr: 2563
   title: '[Cute, flex, sm90] fix sm90 flex'

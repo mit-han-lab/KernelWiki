@@ -9,6 +9,7 @@ Usage:
     python3 scripts/generate-pr-pages.py --all
 """
 
+import hashlib
 import json
 import os
 import re
@@ -18,6 +19,16 @@ import urllib.request
 import yaml
 from datetime import date
 from pathlib import Path
+
+from pr_policy import (
+    BODY_CONTRACT,
+    classify_scope,
+    derive_architectures,
+    derive_metadata,
+    normalize_files,
+    render_generated_body,
+    upstream_files_sha256,
+)
 
 REPO_ROOT = Path(__file__).parent.parent
 TAGS_PATH = REPO_ROOT / "data" / "tags.yaml"
@@ -96,106 +107,39 @@ def fetch_pr(repo, number):
 
 
 def fetch_pr_files(repo, number):
-    """Fetch list of changed files via gh CLI."""
-    data = gh_api(f"repos/{repo}/pulls/{number}/files?per_page=100")
-    if data:
-        return [f["filename"] for f in data]
-    return []
+    """Fetch complete changed-file metadata, including available patches."""
+    files = []
+    for page in range(1, 31):
+        data = gh_api(f"repos/{repo}/pulls/{number}/files?per_page=100&page={page}")
+        if data is None:
+            return []
+        if not isinstance(data, list):
+            return []
+        files.extend(data)
+        if len(data) < 100:
+            return files
+    raise RuntimeError(f"PR {repo}#{number} exceeds GitHub's 3000 changed-file API limit")
 
 
-def is_kernel_related(title, files):
-    """Check if PR is kernel-related based on title + changed files."""
-    title_lower = title.lower()
-
-    # Title-based exclusion
-    for pat in EXCLUDE_TITLE_PATTERNS:
-        if re.search(pat, title_lower):
-            return False, "excluded by title pattern"
-
-    # File-based inclusion
-    kernel_exts = {".cu", ".cuh", ".ptx"}
-    kernel_dirs = {"cutlass/", "csrc/", "kernel", "triton/", "cute/", "gemm",
-                   "attention", "moe", "inductor/", "tensor_core", "mma",
-                   "scaled_mm", "quantiz", "flash_attention", "sdpa"}
-
-    has_kernel_file = False
-    for f in files:
-        ext = os.path.splitext(f)[1]
-        if ext in kernel_exts:
-            has_kernel_file = True
-            break
-        for kd in kernel_dirs:
-            if kd in f.lower():
-                has_kernel_file = True
-                break
-
-    # Semantic signals in title
-    semantic_kws = ["kernel", "sm100", "blackwell", "tcgen05", "tmem", "nvfp4",
-                     "fp8", "fp4", "gemm", "attention", "moe", "mla", "cutlass",
-                     "flashinfer", "deepgemm", "flashmla", "triton", "fmha",
-                     "inductor", "sdpa", "flash_attention", "scaled_mm",
-                     "block_scale", "quantiz", "tma", "b200", "cuda 13"]
-    has_semantic = any(kw in title_lower for kw in semantic_kws)
-
-    if has_kernel_file:
-        return True, "kernel file changes"
-    if has_semantic and files:
-        return True, "semantic match with file changes"
-    if has_semantic and not files:
-        return None, "semantic match but no file data"  # defer
-    return False, "no kernel signals"
+def is_kernel_related(title, files, body=""):
+    """Compatibility wrapper around the shared evidence-based scope policy."""
+    decision = classify_scope(title, body, files)
+    return decision.retain, decision.reason
 
 
-def auto_tag(title, files):
-    """Auto-detect tags from title and changed files."""
-    text = (title + " " + " ".join(files)).lower()
-
-    tags = set()
-    hw_features = set()
-    kernel_types = set()
-    techniques = set()
-    languages = set()
-
-    for kw, tag in KW_TO_TAGS.items():
-        if kw in text:
-            hw_features.add(tag)
-            tags.add(tag)
-
-    for kw, kt in KW_TO_KT.items():
-        if kw in text:
-            kernel_types.add(kt)
-            tags.add(kt)
-
-    for kw, tech in KW_TO_TECH.items():
-        if kw in text:
-            techniques.add(tech)
-            tags.add(tech)
-
-    for kw, lang in KW_TO_LANG.items():
-        if kw in text:
-            languages.add(lang)
-
-    # Filter to valid vocabulary only
-    tags = tags & ALL_TAGS
-    hw_features = hw_features & VALID_HW
-    kernel_types = kernel_types & VALID_KT
-    techniques = techniques & VALID_TECHNIQUES
-    languages = languages & VALID_LANGS
-
-    # Default language if none detected
-    if not languages:
-        for f in files:
-            if f.endswith((".cu", ".cuh")):
-                languages.add("cuda-cpp")
-            elif f.endswith(".py") and "triton" in f.lower():
-                languages.add("triton")
-            elif f.endswith(".py"):
-                languages.add("python")
-
-    return sorted(tags), sorted(hw_features), sorted(kernel_types), sorted(techniques), sorted(languages)
+def auto_tag(title, files, body="", scope=None):
+    """Compatibility wrapper returning shared positive-evidence metadata."""
+    metadata = derive_metadata(title, body, files, scope)
+    return (
+        metadata["tags"],
+        metadata["hardware_features"],
+        metadata["kernel_types"],
+        metadata["techniques"],
+        metadata["languages"],
+    )
 
 
-def generate_page(repo, pr_data, files, inclusion_reason, captured_at):
+def generate_page(repo, pr_data, files, inclusion_reason, captured_at, preserved=None):
     """Generate markdown page content for a PR."""
     repo_slug = repo.split("/")[1]
     number = pr_data["number"]
@@ -203,33 +147,52 @@ def generate_page(repo, pr_data, files, inclusion_reason, captured_at):
     author = pr_data["user"]["login"]
     date = pr_data["created_at"][:10]
     url = pr_data["html_url"]
-    merge_sha = (pr_data.get("merge_commit_sha") or "unknown")[:8]
+    merge_sha = pr_data.get("merge_commit_sha")
     body = pr_data.get("body") or ""
+    normalized_files = normalize_files(files)
+    scope = classify_scope(title, body, normalized_files)
+    archs, architecture_disposition, architecture_evidence = derive_architectures(
+        title, body, normalized_files
+    )
+    tags, hw_features, kernel_types, techniques, languages = auto_tag(
+        title, normalized_files, body, scope
+    )
 
-    # Determine architectures
-    archs = ["sm100"]
-    text = (title + " " + body).lower()
-    if "sm90" in text or "hopper" in text:
-        archs.append("sm90")
-
-    tags, hw_features, kernel_types, techniques, languages = auto_tag(title, files)
-
-    # Ensure tags include all kernel_types and hw_features
-    all_tags = set(tags)
-    for kt in kernel_types:
-        if kt in ALL_TAGS:
-            all_tags.add(kt)
-    for hw in hw_features:
-        if hw in ALL_TAGS:
-            all_tags.add(hw)
-    tags = sorted(all_tags & ALL_TAGS)
-
-    # Kernel file paths only
-    kernel_paths = [f for f in files if any(
-        f.endswith(ext) for ext in [".cu", ".cuh", ".ptx", ".py"]
-    )][:10]
+    all_paths = [item["filename"] for item in normalized_files]
+    evidence_paths = list(scope.evidence_paths)
+    for row in architecture_evidence:
+        locator = row.get("locator", "")
+        if locator.startswith("changed-path:"):
+            evidence_paths.append(locator.removeprefix("changed-path:"))
+        elif locator.startswith("added-patch:"):
+            evidence_paths.append(locator.removeprefix("added-patch:"))
+    display_paths = list(dict.fromkeys([*all_paths[:25], *evidence_paths]))
+    authoritative_changed_files = int(pr_data.get("changed_files") or len(all_paths))
+    if authoritative_changed_files < len(all_paths):
+        raise ValueError(
+            f"PR {repo}#{number} reports changed_files={authoritative_changed_files} "
+            f"but {len(all_paths)} file records were supplied"
+        )
+    enumerated_count = int(
+        pr_data.get("changed_files_enumerated_count", len(all_paths))
+    )
+    changed_files_listing_complete = bool(
+        pr_data.get(
+            "changed_files_listing_complete",
+            enumerated_count == authoritative_changed_files,
+        )
+    )
+    upstream_body_sha256 = hashlib.sha256(body.encode("utf-8")).hexdigest()
+    rendered_body, excerpt_sha256 = render_generated_body(
+        body, display_paths, authoritative_changed_files
+    )
 
     # Build frontmatter
+    status = "merged" if pr_data.get("merged") or pr_data.get("merged_at") else str(
+        pr_data.get("state") or "closed"
+    ).lower()
+    if status == "merged" and not merge_sha:
+        raise ValueError(f"PR {repo}#{number} is merged but has no merge_commit_sha")
     fm = {
         "id": f"pr-{repo_slug}-{number}",
         "repo": repo,
@@ -240,32 +203,57 @@ def generate_page(repo, pr_data, files, inclusion_reason, captured_at):
         "url": url,
         "source_category": "upstream-code",
         "architectures": archs,
-        "tags": tags if tags else ["gemm"],
-        "techniques": techniques if techniques else [],
-        "hardware_features": hw_features if hw_features else [],
-        "kernel_types": kernel_types if kernel_types else [],
-        "languages": languages if languages else ["cuda-cpp"],
+        "architecture_disposition": architecture_disposition,
+        "architecture_evidence": architecture_evidence,
+        "tags": tags,
+        "techniques": techniques,
+        "hardware_features": hw_features,
+        "kernel_types": kernel_types,
+        "languages": languages,
         "captured_at": captured_at,
-        "status": "merged",
-        "merge_sha": merge_sha,
-        "inclusion_reason": inclusion_reason,
-        "changed_paths": kernel_paths if kernel_paths else [],
+        "status": status,
+        **({"merge_sha": str(merge_sha)} if status == "merged" else {}),
+        "inclusion_reason": scope.reason,
+        "scope_disposition": scope.disposition,
+        "scope_evidence": {"rule": scope.rule, "paths": list(scope.evidence_paths)},
+        "changed_files_count": authoritative_changed_files,
+        "changed_files_enumerated_count": enumerated_count,
+        "changed_files_listing_complete": changed_files_listing_complete,
+        "changed_paths": display_paths,
+        "changed_paths_complete": (
+            changed_files_listing_complete
+            and len(display_paths) == authoritative_changed_files
+        ),
+        "body_contract": BODY_CONTRACT,
+        "upstream_body_locator": f"{url} (PR description)",
+        "upstream_body_sha256": upstream_body_sha256,
+        "upstream_excerpt_sha256": excerpt_sha256,
+        "upstream_files_sha256": upstream_files_sha256(normalized_files),
+        "upstream_patches_complete": pr_data.get(
+            "patches_complete",
+            all(item.get("patch") is not None for item in normalized_files),
+        ),
     }
-
-    # Build body summary from PR description
-    summary = body[:500].strip() if body else "No description provided."
-    summary = re.sub(r'<!--.*?-->', '', summary, flags=re.DOTALL).strip()
-    summary = summary[:300] if len(summary) > 300 else summary
+    if pr_data.get("changed_files_evidence_method"):
+        fm.update({
+            "changed_files_evidence_count": len(all_paths),
+            "changed_files_evidence_complete": (
+                len(all_paths) == authoritative_changed_files
+            ),
+            "changed_files_evidence_method": pr_data["changed_files_evidence_method"],
+            "changed_files_evidence_receipt": pr_data["changed_files_evidence_receipt"],
+        })
+        fm["scope_evidence"]["path_source"] = pr_data[
+            "changed_files_evidence_method"
+        ]
+    preserved = preserved or {}
+    if preserved.get("artifact_dir"):
+        fm["artifact_dir"] = preserved["artifact_dir"]
 
     content = "---\n"
     content += yaml.dump(fm, default_flow_style=False, allow_unicode=True, sort_keys=False)
     content += "---\n\n"
-    content += f"## Summary\n\n{summary}\n\n"
-    content += f"## Problem\n\n{title}\n\n"
-    content += f"## Changed Files\n\n"
-    for f in files[:15]:
-        content += f"- `{f}`\n"
-    content += "\n"
+    content += rendered_body
 
     return content
 
@@ -387,7 +375,7 @@ def process_ledger(ledger_path, max_pages=None, captured_at=None, audit_map=None
         files = fetch_pr_files(repo, number)
 
         # Re-triage with file data
-        is_kernel, reason = is_kernel_related(title, files)
+        is_kernel, reason = is_kernel_related(pr_data.get("title", title), files, pr_data.get("body") or "")
         if is_kernel is False:
             skipped += 1
             if audit_map is not None:

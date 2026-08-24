@@ -35,6 +35,8 @@ from pathlib import Path
 
 import yaml
 
+from pr_policy import classify_scope
+
 REPO_ROOT = Path(__file__).parent.parent
 CANDIDATES_DIR = REPO_ROOT / "candidates"
 DATA_DIR = REPO_ROOT / "data"
@@ -107,7 +109,49 @@ def gh_search_prs(repo_full, keywords, cutoff_date, per_keyword_limit=30,
     return list(seen.values())
 
 
-def update_ledger(ledger_path, cutoff_date, search_results):
+def fetch_pr_evidence(repo_full, number):
+    """Fetch the authoritative PR description and complete changed-file payload."""
+    try:
+        pr_raw = subprocess.check_output(
+            ["gh", "api", f"repos/{repo_full}/pulls/{number}"], text=True, timeout=60
+        )
+        pr = json.loads(pr_raw)
+        files = []
+        for page in range(1, 31):
+            raw = subprocess.check_output(
+                [
+                    "gh", "api",
+                    f"repos/{repo_full}/pulls/{number}/files?per_page=100&page={page}",
+                ],
+                text=True,
+                timeout=60,
+            )
+            payload = json.loads(raw)
+            if not isinstance(payload, list):
+                return None
+            files.extend(payload)
+            if len(payload) < 100:
+                return pr, files
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        return None
+    return None
+
+
+def classify_search_hit(repo_full, hit, evidence_fetcher=fetch_pr_evidence):
+    """Classify a refresh hit with the same positive-evidence policy as generation."""
+    evidence = evidence_fetcher(repo_full, hit["number"])
+    if evidence is None:
+        return "defer", "authoritative PR evidence unavailable; needs-triage", []
+    pr, files = evidence
+    decision = classify_scope(pr.get("title") or hit.get("title", ""), pr.get("body") or "", files)
+    return (
+        "include" if decision.retain else "exclude",
+        decision.reason,
+        [item.get("filename") for item in files if item.get("filename")],
+    )
+
+
+def update_ledger(ledger_path, cutoff_date, search_results, repo_full=None):
     """Update a candidates/<repo>.yaml file to set searched_at == cutoff_date
     AND merge new PR numbers from search_results into the ledger as
     `decision: defer` rows. Existing rows are not touched.
@@ -127,13 +171,14 @@ def update_ledger(ledger_path, cutoff_date, search_results):
         num = hit["number"]
         if num in existing_nums:
             continue
+        decision, reason, paths = classify_search_hit(repo_full or data.get("repo", ""), hit)
         new_rows.append({
             "number": num,
             "title": hit.get("title", ""),
             "date": hit.get("closedAt", ""),
-            "decision": "defer",
-            "reason": "from refresh search; needs-triage",
-            "files_changed": [],
+            "decision": decision,
+            "reason": reason,
+            "files_changed": paths,
         })
     if new_rows:
         data["prs"] = (data.get("prs") or []) + new_rows
@@ -221,7 +266,7 @@ def main():
         per_repo[slug] = rows
         print(f"    -> {len(rows)} merged PRs found within cutoff window")
         if not args.dry_run:
-            added = update_ledger(ledger_path, cutoff_date, rows)
+            added = update_ledger(ledger_path, cutoff_date, rows, repo_full)
             if added:
                 print(f"    -> +{added} new defer-rows merged into ledger")
 

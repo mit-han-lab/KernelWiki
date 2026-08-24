@@ -3,9 +3,9 @@
 
 lane: cute-dsl
 generated_by: scripts/compute_core_prs.py
-total: 171
-captured: 119
-skipped: 52
+total: 127
+captured: 90
+skipped: 37
 prs:
 - id: pr-TensorRT-LLM-10042
   captured: false
@@ -27,14 +27,6 @@ prs:
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
     (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-TensorRT-LLM-10279
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-TensorRT-LLM-10339
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-10429
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
@@ -51,24 +43,12 @@ prs:
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
     (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-TensorRT-LLM-11143
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-11181
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-TensorRT-LLM-11589
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
     (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-11697
   captured: true
-- id: pr-TensorRT-LLM-11769
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-11897
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
@@ -103,10 +83,6 @@ prs:
     (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-12731
   captured: true
-- id: pr-TensorRT-LLM-12799
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-12884
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
@@ -121,27 +97,23 @@ prs:
     (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-13929
   captured: true
-- id: pr-TensorRT-LLM-8886
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-TensorRT-LLM-9618
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
     (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-cutlass-2139
+- id: pr-cutlass-1883
+  captured: true
+- id: pr-cutlass-2270
   captured: true
 - id: pr-cutlass-2378
-  captured: true
-- id: pr-cutlass-2466
-  captured: true
-- id: pr-cutlass-2472
   captured: true
 - id: pr-cutlass-2492
   captured: true
 - id: pr-cutlass-2599
   captured: true
 - id: pr-cutlass-2750
+  captured: true
+- id: pr-cutlass-2875
   captured: true
 - id: pr-cutlass-2881
   captured: true
@@ -165,13 +137,9 @@ prs:
   captured: true
 - id: pr-flash-attention-1985
   captured: true
-- id: pr-flash-attention-1993
-  captured: true
 - id: pr-flash-attention-1999
   captured: true
 - id: pr-flash-attention-2014
-  captured: true
-- id: pr-flash-attention-2026
   captured: true
 - id: pr-flash-attention-2033
   captured: true
@@ -181,39 +149,23 @@ prs:
   captured: true
 - id: pr-flash-attention-2085
   captured: true
-- id: pr-flash-attention-2091
-  captured: true
-- id: pr-flash-attention-2098
-  captured: true
 - id: pr-flash-attention-2104
-  captured: true
-- id: pr-flash-attention-2108
   captured: true
 - id: pr-flash-attention-2109
   captured: true
 - id: pr-flash-attention-2145
   captured: true
-- id: pr-flash-attention-2180
-  captured: true
 - id: pr-flash-attention-2186
   captured: true
 - id: pr-flash-attention-2218
-  captured: true
-- id: pr-flash-attention-2236
-  captured: true
-- id: pr-flash-attention-2330
   captured: true
 - id: pr-flash-attention-2333
   captured: true
 - id: pr-flash-attention-2360
   captured: true
-- id: pr-flash-attention-2390
-  captured: true
 - id: pr-flash-attention-2412
   captured: true
 - id: pr-flash-attention-2441
-  captured: true
-- id: pr-flash-attention-2455
   captured: true
 - id: pr-flash-attention-2488
   captured: true
@@ -221,24 +173,14 @@ prs:
   captured: true
 - id: pr-flash-attention-2497
   captured: true
-- id: pr-flash-attention-2515
-  captured: true
 - id: pr-flashinfer-1331
   captured: true
 - id: pr-flashinfer-1481
   captured: true
 - id: pr-flashinfer-1488
   captured: true
-- id: pr-flashinfer-1495
-  captured: false
-  skipped_reason: all changed_paths are tests/benchmarks/docs (empty bundle after
-    fetch_pr_diff.SKIP_GLOBS)
 - id: pr-flashinfer-1498
   captured: true
-- id: pr-flashinfer-1502
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-flashinfer-1509
   captured: true
 - id: pr-flashinfer-1521
@@ -247,19 +189,7 @@ prs:
   captured: true
 - id: pr-flashinfer-1677
   captured: true
-- id: pr-flashinfer-1695
-  captured: true
-- id: pr-flashinfer-1764
-  captured: true
-- id: pr-flashinfer-1812
-  captured: true
-- id: pr-flashinfer-1862
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-flashinfer-2149
-  captured: true
-- id: pr-flashinfer-2171
   captured: true
 - id: pr-flashinfer-2233
   captured: true
@@ -267,6 +197,10 @@ prs:
   captured: true
 - id: pr-flashinfer-2279
   captured: true
+- id: pr-flashinfer-2370
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-flashinfer-2385
   captured: true
 - id: pr-flashinfer-2395
@@ -289,9 +223,21 @@ prs:
   captured: true
 - id: pr-flashinfer-2503
   captured: true
+- id: pr-flashinfer-2521
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
+- id: pr-flashinfer-2540
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-flashinfer-2573
   captured: true
-- id: pr-flashinfer-2629
+- id: pr-flashinfer-2610
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
+- id: pr-flashinfer-2618
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
     (control-plane / affinity only; policy requires a kernel/example path)
@@ -299,8 +245,16 @@ prs:
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
     (control-plane / affinity only; policy requires a kernel/example path)
+- id: pr-flashinfer-2727
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-flashinfer-2743
   captured: true
+- id: pr-flashinfer-2777
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-flashinfer-2805
   captured: true
 - id: pr-flashinfer-2811
@@ -312,6 +266,14 @@ prs:
 - id: pr-flashinfer-2904
   captured: true
 - id: pr-flashinfer-2944
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
+- id: pr-flashinfer-3001
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
+- id: pr-flashinfer-3007
   captured: false
   skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
     (control-plane / affinity only; policy requires a kernel/example path)
@@ -333,18 +295,22 @@ prs:
   captured: true
 - id: pr-flashinfer-3252
   captured: true
+- id: pr-flashinfer-3268
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-flashinfer-3271
   captured: true
 - id: pr-flashinfer-3286
   captured: true
 - id: pr-flashinfer-3328
   captured: true
-- id: pr-sglang-10422
-  captured: true
-- id: pr-sglang-12376
-  captured: true
 - id: pr-sglang-14717
   captured: true
+- id: pr-sglang-15182
+  captured: false
+  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
+    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-sglang-15631
   captured: true
 - id: pr-sglang-17353
@@ -359,97 +325,13 @@ prs:
   captured: true
 - id: pr-sglang-21203
   captured: true
-- id: pr-sglang-21239
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-sglang-21339
-  captured: true
-- id: pr-sglang-21428
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-sglang-22669
-  captured: true
-- id: pr-sglang-22822
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-sglang-23590
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-sglang-23745
-  captured: true
-- id: pr-sglang-25525
-  captured: true
-- id: pr-sglang-9199
-  captured: true
-- id: pr-tilelang-1874
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-tilelang-1882
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-tilelang-1909
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-tilelang-1972
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-tilelang-1981
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-tilelang-2003
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-tilelang-2063
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
 - id: pr-tilelang-2216
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
+  captured: true
 - id: pr-tilelang-2218
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)
-- id: pr-vllm-25990
   captured: true
-- id: pr-vllm-31528
-  captured: true
-- id: pr-vllm-33417
-  captured: true
-- id: pr-vllm-36728
-  captured: true
-- id: pr-vllm-37217
-  captured: true
-- id: pr-vllm-37759
-  captured: true
-- id: pr-vllm-38050
-  captured: true
-- id: pr-vllm-38251
-  captured: true
-- id: pr-vllm-39644
-  captured: false
-  skipped_reason: all changed_paths are tests/benchmarks/docs (empty bundle after
-    fetch_pr_diff.SKIP_GLOBS)
 - id: pr-vllm-41428
   captured: true
 - id: pr-vllm-42236
   captured: true
-- id: pr-vllm-42857
-  captured: true
 - id: pr-vllm-42899
   captured: true
-- id: pr-vllm-43073
-  captured: false
-  skipped_reason: cute-dsl PR with no kernel/example path match after fetch-skip filtering
-    (control-plane / affinity only; policy requires a kernel/example path)

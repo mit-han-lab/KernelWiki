@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Report repo working-tree size and file count; fail if active ceiling exceeded.
 
-Exclusion list: .git, .humanize, .codex, .cache, __pycache__, node_modules.
+Exclusion list: .git, .humanize, .codex, .cache, .worklog, __pycache__, node_modules.
+
+`.worklog/` is explicitly reserved for ignored audit scratch state. Counting
+downloaded evidence there would make the repository budget depend on a local
+verification cache rather than reviewable repository content.
 
 Reads data/phase3-size-budget.yaml when present to get the active ceiling.
 If the budget file is absent, this script reports numbers but does not fail
@@ -26,7 +30,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 BUDGET_PATH = REPO_ROOT / "data" / "phase3-size-budget.yaml"
 ARTIFACTS_DIR = REPO_ROOT / "artifacts"
 
-EXCLUDE_TOP = {".git", ".humanize", ".codex", ".cache", "node_modules", ".venv", "venv", ".tox", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+EXCLUDE_TOP = {".git", ".humanize", ".codex", ".cache", ".worklog", "node_modules", ".venv", "venv", ".tox", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
 EXCLUDE_ANY = {"__pycache__"}
 
 # Hard file-count budget (plan AC-10): 6000 under artifacts/

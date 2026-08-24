@@ -18,6 +18,7 @@ See [references/examples.md](references/examples.md) for 10 worked query pattern
 
 | I want to... | Go to |
 |---|---|
+| Browse exact, family-only, or unknown architecture evidence | [queries/by-architecture.md](queries/by-architecture.md) |
 | Fix a performance problem | [queries/by-problem.md](queries/by-problem.md) |
 | Learn a specific technique | [queries/by-technique.md](queries/by-technique.md) |
 | Use a hardware feature | [queries/by-hardware-feature.md](queries/by-hardware-feature.md) |
@@ -28,7 +29,7 @@ See [references/examples.md](references/examples.md) for 10 worked query pattern
 ## Hardware Features
 
 - [hw-tcgen05-mma](wiki/hardware/tcgen05-mma.md) — Blackwell MMA instruction (replaces wgmma)
-- [hw-tmem](wiki/hardware/tmem.md) — Tensor Memory (256KB dedicated accumulator storage)
+- [hw-tmem](wiki/hardware/tmem.md) — Tensor Memory (CTA-visible 128-lane × 512-column view)
 - [hw-clc](wiki/hardware/clc.md) — Cluster Launch Control (dynamic tile scheduling)
 - [hw-tma](wiki/hardware/tma.md) — Tensor Memory Accelerator (async bulk loads)
 - [hw-2sm-cooperative](wiki/hardware/2sm-cooperative.md) — Two-SM cooperative MMA
@@ -45,12 +46,12 @@ See [references/examples.md](references/examples.md) for 10 worked query pattern
 - [technique-tile-scheduling](wiki/techniques/tile-scheduling.md) — Tile scheduling strategies
 - [technique-double-buffering](wiki/techniques/double-buffering.md) — Double/multi-buffering
 - [technique-software-exp](wiki/techniques/software-exp.md) — Software-emulated exponential
-- [technique-fine-grained-quant](wiki/techniques/fine-grained-quantization.md) — Fine-grained FP8/FP4 quantization
+- [technique-fine-grained-quantization](wiki/techniques/fine-grained-quantization.md) - Fine-grained FP8/FP4 quantization
 - [technique-vectorized-loads](wiki/techniques/vectorized-loads.md) — Wide vectorized loads and cache policies
 
 ## Kernel Case Studies
 
-- [kernel-flash-attention-4](wiki/kernels/flash-attention-4.md) — FlashAttention-4 (1605 TFLOPS on B200)
+- [kernel-flash-attention-4](wiki/kernels/flash-attention-4.md) — FlashAttention-4 (up to 1613 TFLOPS on B200 in the paper's benchmark sweep)
 - [kernel-deepgemm](wiki/kernels/deepgemm.md) — DeepGEMM FP8 GEMM (1550 TFLOPS on H800)
 - [kernel-flashmla](wiki/kernels/flashmla.md) — FlashMLA sparse/dense MLA decoding
 - [kernel-nsa](wiki/kernels/nsa.md) — Native Sparse Attention (9x fwd speedup)

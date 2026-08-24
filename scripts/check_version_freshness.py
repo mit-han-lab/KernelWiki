@@ -3,6 +3,7 @@
 
 Reads checked-in inputs only:
   - data/tool-versions.yaml      (release-of-record snapshot)
+  - data/tool-release-receipt.yaml (dated authoritative-list receipt)
   - data/version-claims.yaml     (per-claim metadata)
   - candidates/<repo>.yaml       (ledger searched_at)
   - data/refresh-cutoff.yaml     (optional; round's refresh cutoff date)
@@ -67,6 +68,25 @@ def check_tool_versions(tool_versions, today, version_staleness_days):
     """Yield (severity, message) tuples for each tool/release entry."""
     threshold = today - timedelta(days=version_staleness_days)
     for tool in tool_versions.get("tools", []):
+        checked_at = tool.get("upstream_checked_at")
+        checked_date = None
+        if checked_at is None:
+            yield "warn", f"tool-versions: {tool['tool']} missing upstream_checked_at"
+        else:
+            try:
+                checked_date = parse_iso(checked_at)
+                if checked_date < threshold:
+                    age_days = (today - checked_date).days
+                    yield "warn", (
+                        f"tool-versions: {tool['tool']} upstream_checked_at="
+                        f"{checked_date.isoformat()} ({age_days}d ago, >= "
+                        f"{version_staleness_days}d threshold)"
+                    )
+            except ValueError:
+                yield "warn", (
+                    f"tool-versions: {tool['tool']} has unparseable "
+                    f"upstream_checked_at={checked_at!r}"
+                )
         for rel in tool.get("releases", []):
             name = rel.get("name", "?")
             ra = rel.get("released_at")
@@ -78,9 +98,86 @@ def check_tool_versions(tool_versions, today, version_staleness_days):
             except ValueError:
                 yield "warn", f"tool-versions: {tool['tool']} {name} has unparseable released_at={ra!r}"
                 continue
+            if checked_date is not None and ra_date > checked_date:
+                yield "warn", (
+                    f"tool-versions: {tool['tool']} {name} released_at="
+                    f"{ra_date.isoformat()} is newer than upstream_checked_at="
+                    f"{checked_date.isoformat()}"
+                )
             if ra_date < threshold:
                 age_days = (today - ra_date).days
                 yield "info", f"tool-versions: {tool['tool']} {name} released {age_days}d ago (>= {version_staleness_days}d staleness threshold)"
+
+
+def _registry_release_pairs(tool):
+    pairs = set()
+    for release in tool.get("releases", []) or []:
+        name = str(release.get("name", ""))
+        try:
+            released_at = parse_iso(release.get("released_at")).isoformat()
+        except (TypeError, ValueError):
+            released_at = str(release.get("released_at"))
+        pairs.add((name, released_at))
+    return pairs
+
+
+def _receipt_release_pairs(tool_name, receipt_tool):
+    pairs = set()
+    for index, row in enumerate(receipt_tool.get("releases", []) or []):
+        if not isinstance(row, list) or len(row) != 2:
+            raise ValueError(f"{tool_name} releases[{index}] must be [name, released_at]")
+        pairs.add((str(row[0]), parse_iso(row[1]).isoformat()))
+    return pairs
+
+
+def check_release_receipt(tool_versions, receipt):
+    """Require the registry to equal its independently committed dated receipt.
+
+    This offline comparison detects unreceipted additions, omissions, and date
+    edits. It intentionally does not claim to discover upstream releases newer
+    than the receipt's captured_at date.
+    """
+    if not isinstance(receipt, dict):
+        yield "warn", "tool-release-receipt: missing or invalid receipt"
+        return
+    receipt_tools = receipt.get("tools")
+    if not isinstance(receipt_tools, dict):
+        yield "warn", "tool-release-receipt: tools must be a mapping"
+        return
+
+    registry_tools = {
+        str(tool.get("tool")): tool
+        for tool in tool_versions.get("tools", []) or []
+        if isinstance(tool, dict) and tool.get("tool")
+    }
+    for tool_name, registry_tool in sorted(registry_tools.items()):
+        receipt_tool = receipt_tools.get(tool_name)
+        if not isinstance(receipt_tool, dict):
+            yield "warn", f"tool-release-receipt: missing receipt for {tool_name}"
+            continue
+        registry_checked = str(registry_tool.get("upstream_checked_at", ""))
+        receipt_checked = str(receipt_tool.get("upstream_checked_at", ""))
+        if registry_checked != receipt_checked:
+            yield "warn", (
+                f"tool-release-receipt: {tool_name} upstream_checked_at mismatch "
+                f"registry={registry_checked!r} receipt={receipt_checked!r}"
+            )
+        try:
+            receipt_pairs = _receipt_release_pairs(tool_name, receipt_tool)
+        except (TypeError, ValueError) as exc:
+            yield "warn", f"tool-release-receipt: {exc}"
+            continue
+        registry_pairs = _registry_release_pairs(registry_tool)
+        missing = sorted(receipt_pairs - registry_pairs)
+        unreceipted = sorted(registry_pairs - receipt_pairs)
+        if missing:
+            yield "warn", f"tool-release-receipt: {tool_name} registry missing receipted releases {missing}"
+        if unreceipted:
+            yield "warn", f"tool-release-receipt: {tool_name} has unreceipted releases {unreceipted}"
+
+    extra_receipts = sorted(set(receipt_tools) - set(registry_tools))
+    if extra_receipts:
+        yield "warn", f"tool-release-receipt: receipts without registry tools {extra_receipts}"
 
 
 def check_version_claims(claims_data, tool_versions, today, version_staleness_days):
@@ -169,6 +266,7 @@ def main():
         today = date.today()
 
     tool_versions = load_yaml(DATA_DIR / "tool-versions.yaml") or {}
+    release_receipt = load_yaml(DATA_DIR / "tool-release-receipt.yaml")
     claims = load_yaml(DATA_DIR / "version-claims.yaml") or {}
     refresh_cutoff_data = load_yaml(DATA_DIR / "refresh-cutoff.yaml")
     refresh_cutoff = None
@@ -181,6 +279,7 @@ def main():
 
     findings = []
     findings.extend(check_tool_versions(tool_versions, today, args.version_staleness_days))
+    findings.extend(check_release_receipt(tool_versions, release_receipt))
     findings.extend(check_version_claims(claims, tool_versions, today, args.version_staleness_days))
     findings.extend(check_ledger_freshness(today, args.ledger_staleness_days, refresh_cutoff))
     findings.extend(check_supersession(today))

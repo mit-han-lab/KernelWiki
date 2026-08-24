@@ -1,91 +1,56 @@
 ---
 id: lang-ptx
-title: "PTX Instructions for SM100"
+title: "PTX for SM100"
 type: language
 tags: [ptx, tcgen05, tmem, tma, clc, mbarrier, nvfp4]
 related: [hw-tcgen05-mma, hw-tmem, hw-clc, lang-cuda-cpp]
-sources: [doc-ptx-isa-sm100, doc-nvidia-tuning-guide, blog-yue-nvfp4]
+sources: [doc-ptx-isa-sm100]
 reproducibility: snippet
 architectures: [sm100, sm100a]
 confidence: source-reported
 ---
 
-## Overview
+# PTX for SM100
 
-SM100 PTX instructions for Blackwell-specific hardware features.
+PTX is a versioned virtual ISA. A complete module declares both a PTX version and a target; support for one Blackwell feature does not imply support for every target-specific instruction.
 
-## tcgen05 Instructions
-
-```ptx
-// Allocate TMEM columns
-tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32  [smem_tmem_addr], num_cols;
-
-// MMA: inputs from SMEM, accumulator in TMEM
-tcgen05.mma.cta_group::1.kind::f16  [tmem_addr], desc_a, desc_b, idesc, enable_input_d;
-
-// 2-SM cooperative MMA
-tcgen05.mma.cta_group::2.kind::f16  [tmem_addr], desc_a, desc_b, idesc, enable_input_d;
-
-// Load TMEM to registers
-tcgen05.ld.sync.aligned.32x32b.x1.b32  {regs}, [tmem_addr];
-
-// Store registers to TMEM
-tcgen05.st.sync.aligned.32x32b.x1.b32  [tmem_addr], {regs};
-
-// Copy a shaped SMEM matrix descriptor into TMEM
-tcgen05.cp.cta_group::1.128x256b  [tmem_addr], sdesc;
-
-// Critical fence between TMA completion and MMA
-tcgen05.fence::after_thread_sync;
-
-// Deallocate TMEM (MUST before kernel exit)
-tcgen05.dealloc.cta_group::1.sync.aligned.b32  tmem_addr, num_cols;
-```
-
-## NVFP4 Conversion Instructions
+This minimal module is useful as a compilation smoke test before adding an instruction under audit:
 
 ```ptx
-// Convert two packed FP4 values to two FP16 values
-cvt.rn.f16x2.e2m1x2  result_f16x2, packed_fp4;
+.version 8.7
+.target sm_100a
+.address_size 64
 
-// Byte unpacking (faster than bitwise extraction)
-mov.b32  {byte0, byte1, byte2, byte3}, packed_word;
+.visible .entry no_op() {
+  ret;
+}
 ```
 
-## Cache Control for Memory-Bound Kernels
+## Representative forms
 
 ```ptx
-// Streaming data (use once): bypass L1
-ld.global.L1::no_allocate.v2.u64  {r0, r1}, [addr];
+// Warp-collective allocation; destination is shared memory.
+tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [dst], 32;
 
-// Reused data: keep in L1
-ld.global.L1::evict_last.v2.u64  {r0, r1}, [addr];
+// Single-thread MMA issue; idesc is a required 32-bit instruction descriptor.
+tcgen05.mma.cta_group::1.kind::f16
+    [d_tmem], a_desc, b_desc, idesc, enable_input_d;
 
-// Wide vectorized loads
-ld.global.v4.u64  {r0, r1, r2, r3}, [addr];  // 256-bit
+// Track earlier MMA completion through an mbarrier.
+tcgen05.commit.cta_group::1.mbarrier::arrive::one.b64 [mma_done];
+
+// Warp-collective deallocation before exit.
+tcgen05.dealloc.cta_group::1.sync.aligned.b32 d_tmem, 32;
 ```
 
-## Cluster Launch Control
+CLC is an asynchronous cancellation/acquisition protocol, not a one-operand “next tile” query:
 
 ```ptx
-// Query for next tile (persistent kernel loop)
-clusterlaunchcontrol.try_cancel  {clc_id};
-// Returns valid tile_id or decline (all work done)
+clusterlaunchcontrol.try_cancel.async.shared::cta
+    .mbarrier::complete_tx::bytes.b128 [response], [done];
+clusterlaunchcontrol.query_cancel.is_canceled.pred.b128 p, response;
+@p clusterlaunchcontrol.query_cancel.get_first_ctaid.v4.b32.b128
+    {x, y, z, ignored}, response;
 ```
 
-## TMA (Tensor Memory Accelerator)
-
-```ptx
-// Bulk tensor copy: global → shared
-cp.async.bulk.tensor.2d.shared::cluster.global.tile.mbarrier::complete_tx::bytes
-    [smem_ptr], [tensorMap, {x, y}], [mbarrier];
-
-// Multicast to cluster SMs
-cp.async.bulk.tensor.2d.shared::cluster.global.tile.mbarrier::complete_tx::bytes.multicast
-    [smem_ptr], [tensorMap, {x, y}], [mbarrier], multicast_mask;
-```
-
-## Related
-- [cuda-cpp](cuda-cpp.md) — Inline PTX in CUDA C++
-- [tcgen05-mma](../hardware/tcgen05-mma.md) — MMA instruction details
-- [nvfp4](../hardware/nvfp4.md) — FP4 format details
+The exact legal kinds, shapes, layouts, address spaces, scopes, and target notes are normative in the current PTX ISA.

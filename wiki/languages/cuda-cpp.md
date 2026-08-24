@@ -4,111 +4,39 @@ title: "CUDA C++ for Blackwell Kernels"
 type: language
 tags: [cuda-cpp, ptx, tcgen05, tmem]
 related: [lang-ptx, hw-tcgen05-mma, hw-tmem, blog-tcgen05-tutorial]
-sources: [blog-tcgen05-tutorial, doc-nvidia-tuning-guide, blog-yue-nvfp4]
+sources: [doc-ptx-isa-sm100, doc-nvidia-tuning-guide, doc-cutlass-cute-dsl]
 reproducibility: snippet
 architectures: [sm100, sm100a]
 confidence: source-reported
 ---
 
-## Overview
+# CUDA C++ for Blackwell kernels
 
-Plain CUDA C++ with inline PTX is used for hand-optimized Blackwell kernels. The tcgen05 tutorial achieved 98% of cuBLAS performance using this approach.
+CUDA C++ kernels can reach Blackwell-specific facilities through compiler abstractions such as CUTLASS/CuTe or through inline PTX. Inline PTX does not relax PTX participation, alignment, descriptor, memory-ordering, or target requirements.
 
-## tcgen05 via Inline PTX
+## Query hardware-dependent values
 
-```cuda
-// Allocate TMEM. tcgen05.alloc writes the allocated address into SMEM.
-__device__ uint32_t tmem_alloc_cta(uint32_t* smem_tmem_addr,
-                                   uint32_t num_cols) {
-    if (threadIdx.x == 0) {
-        uint32_t smem_addr =
-            static_cast<uint32_t>(__cvta_generic_to_shared(smem_tmem_addr));
-        asm volatile(
-            "tcgen05.alloc.cta_group::1.sync.aligned.shared::cta.b32 [%0], %1;"
-            :: "r"(smem_addr), "r"(num_cols)
-        );
-    }
-    __syncthreads();
-    return *smem_tmem_addr;
-}
+This host fragment is compilable with `nvcc` and avoids embedding a product-wide SM-count constant in a scheduler:
 
-// Issue MMA (single thread, typically warp 1 lane 0)
-// idesc_c/idesc_d: immediate descriptors for accumulator C and output D
-__device__ void tcgen05_mma(uint32_t tmem_addr,
-                             uint64_t desc_a, uint64_t desc_b,
-                             uint32_t idesc_c, uint32_t idesc_d) {
-    asm volatile(
-        "tcgen05.mma.cta_group::1.kind::f16"
-        " [%0], %1, %2, %3, %4;"
-        :: "r"(tmem_addr), "l"(desc_a), "l"(desc_b),
-           "r"(idesc_c), "r"(idesc_d)
-    );
-}
+```cpp
+#include <cuda_runtime.h>
+#include <cstdio>
 
-// Load TMEM to registers
-__device__ void tmem_load(float* dst, uint32_t tmem_addr, int cols) {
-    asm volatile(
-        "tcgen05.ld.sync.aligned.32x32b.x1.b32 {%0}, [%1];"
-        : "=f"(*dst) : "r"(tmem_addr)
-    );
-}
-
-// Deallocate TMEM (MUST do before kernel exit)
-__device__ void tmem_dealloc(uint32_t addr, uint32_t num_cols) {
-    asm volatile(
-        "tcgen05.dealloc.cta_group::1.sync.aligned.b32 %0, %1;"
-        :: "r"(addr), "r"(num_cols)
-    );
+int main() {
+  cudaDeviceProp properties{};
+  if (cudaGetDeviceProperties(&properties, 0) != cudaSuccess) return 1;
+  std::printf("%s cc=%d.%d sms=%d\n", properties.name,
+              properties.major, properties.minor, properties.multiProcessorCount);
 }
 ```
 
-## mbarrier Synchronization
+## Inline-PTX review checklist
 
-```cuda
-// TMA-MMA synchronization via mbarrier
-// expected_bytes: total bytes the TMA will deliver to this stage
-__device__ void mbarrier_arrive(uint64_t* mbar, uint32_t expected_bytes) {
-    asm volatile(
-        "mbarrier.arrive.expect_tx.shared.b64 _, [%0], %1;"
-        :: "r"((uint32_t)__cvta_generic_to_shared(mbar)),
-           "r"(expected_bytes)
-    );
-}
+- Gate target-specific instructions with a compatible compilation target.
+- Match C++ operand constraints and widths to the PTX operand types.
+- Keep `.sync.aligned` allocation/load/store operations converged across a fully active warp.
+- Give `tcgen05.mma` a correctly encoded 32-bit instruction descriptor.
+- Preserve async-proxy fences and the documented completion mechanism.
+- Make a TMA or matrix descriptor agree with the actual shared-memory layout.
 
-__device__ void mbarrier_wait(uint64_t* mbar, int phase) {
-    asm volatile(
-        "{\n"
-        ".reg .pred p;\n"
-        "WAIT_LOOP:\n"
-        "  mbarrier.try_wait.parity.shared.b64 p, [%0], %1;\n"
-        "  @!p bra WAIT_LOOP;\n"
-        "}\n"
-        :: "r"((uint32_t)__cvta_generic_to_shared(mbar)),
-           "r"(phase)
-    );
-}
-```
-
-## Warp Role Dispatch
-
-```cuda
-__global__ void blackwell_gemm_kernel(...) {
-    int warp_id = threadIdx.x / 32;
-    int lane_id = threadIdx.x % 32;
-
-    if (warp_id == 0 && lane_id == 0) {
-        // TMA producer: issue cp.async.bulk.tensor
-        tma_producer_loop(...);
-    } else if (warp_id == 1 && lane_id == 0) {
-        // MMA consumer: issue tcgen05.mma
-        mma_consumer_loop(...);
-    } else if (warp_id >= 2) {
-        // Epilogue: read TMEM, write to global
-        epilogue_loop(...);
-    }
-}
-```
-
-## Related
-- [ptx-sm100](ptx-sm100.md) — PTX instruction reference
-- [tcgen05 tutorial](../../sources/blogs/tcgen05-tutorial.md) — Step-by-step guide
+Prefer a maintained CUTLASS/CuTe wrapper when it expresses the operation. If inline PTX is required, copy the form from the current PTX ISA and test compilation plus numerical correctness on the intended architecture.

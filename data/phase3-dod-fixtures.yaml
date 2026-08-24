@@ -1,4 +1,4 @@
-## Phase 3 Definition-of-Done fixtures (AC-7 immutable contract)
+## Phase 3 Definition-of-Done fixtures (AC-7 contract, version 3)
 ## Consumed by scripts/check_dod_fixtures.py
 ##
 ## Per-glob semantics (Round 2+):
@@ -19,24 +19,23 @@
 ##   - required_content_patterns  : case-insensitive regex set applied across
 ##                                  the combined matched set
 
-fixtures:
-  - question: "How do I write an NVFP4 batched GEMV on B200?"
-    required_assets:
-      # Canonical kernel must be ≥200 lines (the plan's evidence floor).
-      - glob: "artifacts/kernels/nvfp4-gemv/full/nvfp4_scaled_mm_kernels.cu"
-        min_lines: 200
-      # Contest-reconstructed progression provides the hackathon-winning path.
-      # Individual extracted snippets are small; the floor here is just
-      # "non-empty", enforced by the default 20-line floor.
-      - glob: "artifacts/contests/gpu-mode-nvfp4/problem-1-gemv/submissions/rank-2-yue/*.cpp"
-        min_lines: 8
-    required_min_lines: 200
-    required_provenance_modes: [verbatim, extracted]
-    required_bundle_asset_mode: [verbatim, extracted]
-    required_content_patterns:
-      - "nvfp4|fp4|e2m1"
+contract_version: 3
 
-  - question: "How is warp specialization structured on Blackwell (producer / consumer / epilogue)?"
+## Stable identity roster. An active contract may leave `fixtures:` only by
+## moving the same id to `retired_fixtures:` with a complete tombstone.
+## The checker pins the exact version-3 roster independently and compares it
+## to both sections, so deleting an entry and its roster row cannot pass.
+fixture_roster:
+  blackwell-warp-specialization: active
+  deepgemm-nc128-promotion: active
+  cutlass-sm100-clc: active
+  nvfp4-batched-gemv: retired
+  flashattention4-software-exp: retired
+
+fixtures:
+
+  - id: blackwell-warp-specialization
+    question: "How is warp specialization structured on Blackwell (producer / consumer / epilogue)?"
     required_assets:
       - "artifacts/kernels/warp-specialization/full/sm100_fmha_fwd_mainloop_tma_warpspecialized.hpp"
     required_min_lines: 500
@@ -45,7 +44,8 @@ fixtures:
     required_content_patterns:
       - "pipeline|mbarrier|producer|consumer"
 
-  - question: "How does DeepGEMM do Nc=128 CUDA-core promotion for FP8 accumulation?"
+  - id: deepgemm-nc128-promotion
+    question: "How does DeepGEMM do Nc=128 CUDA-core promotion for FP8 accumulation?"
     required_assets:
       - "artifacts/kernels/deepgemm/full/sm90_fp8_gemm_1d1d.cuh"
     required_min_lines: 200
@@ -54,7 +54,8 @@ fixtures:
     required_content_patterns:
       - "wgmma|promote|cuda.?core"
 
-  - question: "How does CUTLASS configure PersistentScheduler + CLC (Cluster Launch Control) on SM100?"
+  - id: cutlass-sm100-clc
+    question: "How does CUTLASS configure PersistentScheduler + CLC (Cluster Launch Control) on SM100?"
     required_assets:
       - "artifacts/prs/cutlass/PR-2161/diff.patch"
       - "artifacts/prs/cutlass/PR-2161/key-files/**/*"
@@ -64,12 +65,20 @@ fixtures:
     required_content_patterns:
       - "grid_dependency_control|GDC|griddepcontrol"
 
-  - question: "How does FlashAttention-4 implement software-emulated exponential and softmax rescaling?"
-    required_assets:
-      - "artifacts/kernels/flash-attention-4/full/sm100_fmha_bwd_mla_kernel_tma_warpspecialized.hpp"
-      - "artifacts/blogs/flash-attention-4/code/01-software-exp-cody-waite-horner.cu"
-    required_min_lines: 20
-    required_provenance_modes: [verbatim, extracted]
-    required_bundle_asset_mode: [verbatim, extracted]
-    required_content_patterns:
-      - "exp2?|rescale|softmax|cody.waite|horner"
+
+retired_fixtures:
+  - id: nvfp4-batched-gemv
+    question: "How do I write an NVFP4 batched GEMV on B200?"
+    retired_at: '2026-08-19'
+    reason: The former full-kernel and contest-progression assets were removed after provenance review found that they were not source-true; no unrelated retained GEMM file is an honest substitute for this GEMV contract.
+    former_required_assets:
+      - artifacts/kernels/nvfp4-gemv/full/nvfp4_scaled_mm_kernels.cu
+      - artifacts/contests/gpu-mode-nvfp4/problem-1-gemv/submissions/rank-2-yue/*.cpp
+
+  - id: flashattention4-software-exp
+    question: "How does FlashAttention-4 implement software-emulated exponential and softmax rescaling?"
+    retired_at: '2026-08-19'
+    reason: The former kernel and blog-code assets were removed after provenance review found that they were not source-true; the retained FlashAttention PR assets do not implement this exact FA4 software-exp example.
+    former_required_assets:
+      - artifacts/kernels/flash-attention-4/full/sm100_fmha_bwd_mla_kernel_tma_warpspecialized.hpp
+      - artifacts/blogs/flash-attention-4/code/01-software-exp-cody-waite-horner.cu

@@ -22,6 +22,18 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES_PATH = REPO_ROOT / "data" / "phase3-dod-fixtures.yaml"
 
+# Contract-v3 identities are pinned outside the data file so deleting an entry
+# together with its roster row cannot turn a failing requirement into a pass.
+# An intentional identity migration must update this constant and the contract
+# version/regression tests in the same reviewed change.
+EXPECTED_V3_FIXTURE_ROSTER = {
+    "blackwell-warp-specialization": "active",
+    "deepgemm-nc128-promotion": "active",
+    "cutlass-sm100-clc": "active",
+    "nvfp4-batched-gemv": "retired",
+    "flashattention4-software-exp": "retired",
+}
+
 
 def find_bundle_root_for(path):
     """Walk up from path until a PROVENANCE.yaml is found; return the directory."""
@@ -192,6 +204,100 @@ def check_entry(entry):
     return errors
 
 
+def check_retired_entry(entry):
+    """Require an auditable tombstone when an obsolete fixture is retired."""
+    if not isinstance(entry, dict):
+        return ["retired fixture entry must be a mapping"]
+    question = entry.get("question", "<unnamed>")
+    errors = []
+    if not str(entry.get("reason") or "").strip():
+        errors.append(f"{question!r}: retired fixture requires a non-empty reason")
+    if not str(entry.get("retired_at") or "").strip():
+        errors.append(f"{question!r}: retired fixture requires retired_at")
+    former_assets = entry.get("former_required_assets") or []
+    if not isinstance(former_assets, list) or not former_assets:
+        errors.append(f"{question!r}: retired fixture requires former_required_assets")
+    if entry.get("required_assets"):
+        errors.append(f"{question!r}: retired fixture cannot carry active required_assets")
+    return errors
+
+
+def check_fixture_contract(data):
+    """Validate the version-3 identity roster across active and retired rows.
+
+    The independently pinned roster makes retirement an explicit state
+    transition. Deleting an active row and its roster id must still fail.
+    """
+    errors = []
+    if not isinstance(data, dict):
+        return ["fixture contract must be a mapping"]
+    if data.get("contract_version") != 3:
+        errors.append("fixture contract_version must be 3")
+
+    roster = data.get("fixture_roster")
+    if not isinstance(roster, dict) or not roster:
+        return errors + ["fixture_roster must be a non-empty mapping"]
+    if roster != EXPECTED_V3_FIXTURE_ROSTER:
+        missing = sorted(set(EXPECTED_V3_FIXTURE_ROSTER) - set(roster))
+        extra = sorted(set(roster) - set(EXPECTED_V3_FIXTURE_ROSTER))
+        state_drift = sorted(
+            fixture_id
+            for fixture_id in set(roster) & set(EXPECTED_V3_FIXTURE_ROSTER)
+            if roster[fixture_id] != EXPECTED_V3_FIXTURE_ROSTER[fixture_id]
+        )
+        errors.append(
+            "fixture_roster differs from pinned contract-v3 identities: "
+            f"missing={missing}, extra={extra}, state_drift={state_drift}"
+        )
+
+    expected = {"active": set(), "retired": set()}
+    for fixture_id, state in roster.items():
+        if not isinstance(fixture_id, str) or not fixture_id.strip():
+            errors.append("fixture_roster ids must be non-empty strings")
+            continue
+        if state not in expected:
+            errors.append(
+                f"fixture_roster[{fixture_id!r}] has invalid state {state!r}; "
+                "expected active or retired"
+            )
+            continue
+        expected[state].add(fixture_id)
+
+    actual = {"active": set(), "retired": set()}
+    for state, key in (("active", "fixtures"), ("retired", "retired_fixtures")):
+        rows = data.get(key) or []
+        if not isinstance(rows, list):
+            errors.append(f"{key} must be a list")
+            continue
+        for index, entry in enumerate(rows):
+            if not isinstance(entry, dict):
+                errors.append(f"{key}[{index}] must be a mapping")
+                continue
+            fixture_id = entry.get("id")
+            if not isinstance(fixture_id, str) or not fixture_id.strip():
+                errors.append(f"{key}[{index}] requires a non-empty id")
+                continue
+            if fixture_id in actual[state]:
+                errors.append(f"{key} contains duplicate id {fixture_id!r}")
+            actual[state].add(fixture_id)
+
+    for state in ("active", "retired"):
+        missing = expected[state] - actual[state]
+        extra = actual[state] - expected[state]
+        if missing:
+            errors.append(
+                f"fixture_roster {state} ids missing from entries: {sorted(missing)}"
+            )
+        if extra:
+            errors.append(
+                f"{state} entry ids absent from fixture_roster: {sorted(extra)}"
+            )
+    overlap = actual["active"] & actual["retired"]
+    if overlap:
+        errors.append(f"fixture ids cannot be both active and retired: {sorted(overlap)}")
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     args = parser.parse_args()
@@ -232,13 +338,16 @@ def main():
         )
         sys.exit(2)
 
-    all_errors = []
+    retired = data.get("retired_fixtures") or []
+    all_errors = check_fixture_contract(data)
     for entry in entries:
         if not isinstance(entry, dict):
             continue
         all_errors.extend(check_entry(entry))
+    for entry in retired:
+        all_errors.extend(check_retired_entry(entry))
 
-    print(f"Checked {len(entries)} DoD fixture entries.")
+    print(f"Checked {len(entries)} active and {len(retired)} retired DoD fixture entries.")
     if all_errors:
         for e in all_errors:
             print(f"  FAIL: {e}", file=sys.stderr)

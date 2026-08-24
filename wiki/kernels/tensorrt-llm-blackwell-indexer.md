@@ -38,15 +38,17 @@ lands CUDA kernels for K-cache gather/scatter and fused FP4 concatenation. Use i
 as implementation evidence for sparse indexer memory movement and quantized
 cache layout, not as a drop-in answer for FlashInfer-Bench.
 
-```cuda
-// Evidence checklist before adapting the idea:
-// 1. Inspect indexerKCacheGather.cu and indexerKCacheScatter.cu.
-// 2. Check the scale and FP4 packing layout.
-// 3. Benchmark gather/scatter separately from top-k selection.
-__global__ void candidate_indexer_probe(const uint8_t* cache, int* indices) {
-  int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  indices[tid] = static_cast<int>(cache[tid]);
-}
+The captured PR's gather wrapper distinguishes FP8 and packed-FP4 byte widths.
+This contiguous added-lines excerpt is an input/launch contract, not the top-k
+algorithm:
+
+```cpp
+constexpr int32_t VEC_SIZE = 4;
+TLLM_CHECK_WITH_INFO(head_dim == 128 || head_dim == 64,
+    "head_dim must be 128 (FP8) or 64 (FP4 packed) for the indexer cache (got %d)", head_dim);
+TLLM_CHECK_WITH_INFO(scale_size == 4,
+    "scale_size must equal 4 bytes (packed UE8M0 x4 for FP4, 1 float32 for FP8, got %d)", scale_size);
+int32_t const threads_per_block = head_dim / VEC_SIZE;
 ```
 
 ## Transfer Notes
@@ -55,3 +57,6 @@ __global__ void candidate_indexer_probe(const uint8_t* cache, int* indices) {
   correctness reference.
 - Treat gather/scatter traffic as a separate NCU profile target.
 - Avoid merging this with top-k selection until the memory path is understood.
+
+The former `candidate_indexer_probe` block was removed because it was locally
+invented and did not represent any kernel in PR 13340.

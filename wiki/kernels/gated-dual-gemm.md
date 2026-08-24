@@ -1,127 +1,44 @@
 ---
 id: kernel-gated-dual-gemm
-title: Gated Dual GEMM (Gate-Up + SwiGLU Fusion)
+title: Gated Dual GEMM (Gate-Up + Activation)
 type: kernel
-architectures:
-- sm100
-- sm90
-tags:
-- gated-dual-gemm
-- gemm
-- fused-kernel
-- kernel-fusion
-- nvfp4
-- tmem
+architectures: [sm100, sm90]
+tags: [gated-dual-gemm, gemm, fused-kernel, kernel-fusion, nvfp4, tmem]
 confidence: source-reported
 reproducibility: snippet
-kernel_types:
-- gated-dual-gemm
-- gemm
-- fused-kernel
-languages:
-- cuda-cpp
-- cute-dsl
-related:
-- kernel-nvfp4-gemm
-- kernel-fused-moe
-- technique-kernel-fusion
-- technique-epilogue-fusion
-sources:
-- contest-gpumode-p3
-- blog-deepgemm
-- blog-tflops-gap-fp4-moe
-- pr-vllm-23696
-performance_claims:
-- gpu: B200
-  dtype: nvfp4
-  shape: M=1024 N=2*2048 K=7168 (gate-up MLP)
-  metric: latency_us
-  value: 18.5
-  utilization: compute-bound
-  source_id: contest-gpumode-p3
-blackwell_relevance: TMEM holds two accumulators simultaneously (gate, up), enabling
-  single-kernel fusion that Hopper register file could not handle efficiently.
-artifact_dir: artifacts/kernels/gated-dual-gemm
+kernel_types: [gated-dual-gemm, gemm, fused-kernel]
+languages: [cuda-cpp, cute-dsl]
+related: [kernel-nvfp4-gemm, kernel-fused-moe, technique-kernel-fusion, technique-epilogue-fusion]
+sources: [contest-gpumode-p3, blog-deepgemm, blog-tflops-gap-fp4-moe, pr-TensorRT-LLM-11897]
+performance_claims: []
+blackwell_relevance: Blackwell kernels can hold matrix accumulators in TMEM and fuse their register-side epilogue, subject to the selected tile and TMEM budget.
 ---
 
 # Gated Dual GEMM
 
-## Overview
+A gated dual GEMM evaluates two projections of the same input and combines them through a gated activation, for example `SiLU(X·W_gate) * (X·W_up)`. Reusing the input tile and fusing the elementwise combination can avoid materializing both projections in global memory.
 
-Gated dual GEMM fuses two matrix multiplications with activation and elementwise operations — the canonical MLP gate-up pattern used by LLaMA, Qwen, DeepSeek, and most modern LLMs. Fusion eliminates two global memory roundtrips compared to separate gate/up GEMM + SwiGLU.
+## Implementation questions
 
-This was Problem 3 of the GPU Mode NVFP4 Hackathon.
+- whether the two projections use one combined output tile or separate accumulator regions;
+- how A and both weight tiles are staged and synchronized;
+- whether block scales are shared, independent, or applied in the epilogue;
+- how the epilogue drains accumulator fragments without exceeding register or TMEM capacity;
+- whether fusing both projections improves traffic enough to offset added live state.
 
-## Fused Operation
+## Evidence boundary
 
-```
-Given x, W_gate, W_up (weights shared same K dimension)
-Standard (unfused):
-  gate = x @ W_gate      (GEMM 1: reads x, W_gate, writes gate)
-  up   = x @ W_up         (GEMM 2: reads x, W_up, writes up)
-  silu = gate * sigmoid(gate)  (elementwise: reads gate, writes silu)
-  out  = silu * up        (elementwise: reads silu, up, writes out)
+GPU Mode problem 3 defines the workload and its live organizer page records the benchmark context. The official evidence retained here does not support the earlier local latency or standalone speedup claims, so `performance_claims` is empty.
 
-Fused:
-  out = SiLU(x @ W_gate) * (x @ W_up)  (single kernel, no intermediate GMEM)
-```
+The previous artifact bundle was removed: its anchor was a vLLM test-only PR excluded by the kernel-source policy, and its remaining files were a blog extract and a synthetic skeleton rather than one upstream implementation.
 
-## Kernel Structure (Blackwell)
+TensorRT-LLM PR 11897 supplies a concrete retained implementation boundary: an
+NVFP4 dense GEMM fused with SwiGLU. The following contiguous added-lines excerpt
+is the BF16-output call site in
+`tensorrt_llm/_torch/modules/gated_mlp.py`, not a standalone kernel:
 
-```cuda
-template <int BLOCK_M, int BLOCK_N, int BLOCK_K, int NUM_STAGES>
-__global__ void gated_dual_gemm_nvfp4(
-    const nvfp4_t* __restrict__ X,        // [M, K] input
-    const nvfp4_t* __restrict__ W_gate,   // [N, K] gate weights
-    const nvfp4_t* __restrict__ W_up,     // [N, K] up weights
-    const fp8_t* sf_x, const fp8_t* sf_gate, const fp8_t* sf_up,
-    half* __restrict__ output,             // [M, N] output
-    int M, int N, int K
-) {
-    // Two TMEM regions: one accumulator per GEMM
-    uint32_t tmem_gate = tmem_alloc(256);
-    uint32_t tmem_up   = tmem_alloc(256);
-
-    for (int k = 0; k < K; k += BLOCK_K) {
-        int stage = (k / BLOCK_K) % NUM_STAGES;
-        mbarrier_wait(&tma_done[stage]);
-
-        // Two MMAs per K-tile: gate and up
-        // Both read same X tile, different weight tiles
-        tcgen05_mma(x_smem[stage], wg_smem[stage], tmem_gate);
-        tcgen05_mma(x_smem[stage], wu_smem[stage], tmem_up);
-    }
-
-    // Fused epilogue: SiLU(gate) * up
-    float g = tmem_load(tmem_gate);
-    float u = tmem_load(tmem_up);
-    float s = g / (1.0f + expf(-g));  // SiLU
-    output[row * N + col] = __float2half(s * u);
-
-    tmem_dealloc(tmem_gate, 256);
-    tmem_dealloc(tmem_up, 256);
-}
-```
-
-## Key Optimizations
-
-1. **X reuse**: Same X tile feeds both MMAs — loaded once, used twice
-2. **TMEM dual accumulator**: Blackwell's 512-column TMEM fits two 256-col accumulators side-by-side
-3. **Fused epilogue**: SiLU and multiply happen after TMEM load, no intermediate SMEM
-4. **Shared SFA**: X's block scales apply to both gate and up computations
-
-## When To Use
-
-- MLP layers in modern LLMs (LLaMA, Qwen, DeepSeek, Mistral)
-- Any dual-output operation sharing one input
-- MoE expert computations (expand to per-expert fused kernels)
-
-## Full Reference Implementation
-
-The reference bundle lives in [`artifacts/kernels/gated-dual-gemm/full/`](../../artifacts/kernels/gated-dual-gemm/full/) and combines the upstream vLLM PR-23696 diff (`vllm-PR-23696-gated-dual-gemm.patch`, `mode: upstream-patch`) with an extracted CUTLASS-schedule snippet from the `tflops-gap-fp4-moe` blog (`blackwell-cutlass-schedules-and-tma.cu`, `mode: extracted`). Labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/gated-dual-gemm/variants/`](../../artifacts/kernels/gated-dual-gemm/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
-
-Query via:
-
-```bash
-python3 scripts/get_page.py kernel-gated-dual-gemm --include-code
+```python
+output = torch.ops.trtllm.cute_dsl_nvfp4_dense_gemm_swiglu_blackwell(
+    act_fp4, module.weight, act_sf, module.weight_scale, alpha,
+    module.dtype)
 ```

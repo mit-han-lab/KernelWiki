@@ -10,8 +10,8 @@ keywords_used:
 - tma
 - cute
 total_candidates: 215
-included: 53
-excluded: 1
+included: 43
+excluded: 11
 deferred: 161
 prs:
 - number: 1945
@@ -23,7 +23,7 @@ prs:
   merged_at: '2026-04-24T15:58:20Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_sm100/gemm_mxfp8_blockscaled_1d1d.py, tilelang/tileop/gemm/gemm_tcgen05.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -80,6 +80,11 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: Rachmanino
   artifact_dir: evidence/pull-bundles/tilelang/gh-1945
+  files_changed:
+  - examples/gemm_sm100/gemm_mxfp8_blockscaled_1d1d.py
+  - tilelang/tileop/gemm/gemm_tcgen05.py
+  files_reviewed_count: 21
+  scope_disposition: retained
 - number: 2073
   pr: 2073
   title: '[CUDA] Improve int4 GEMM lowering and packed codegen support'
@@ -89,7 +94,7 @@ prs:
   merged_at: '2026-04-21T16:09:01Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_int4/example_tilelang_gemm_int4.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -132,6 +137,10 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: LeiWang1999
   artifact_dir: evidence/pull-bundles/tilelang/gh-2073
+  files_changed:
+  - examples/gemm_int4/example_tilelang_gemm_int4.py
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 1736
   pr: 1736
   title: Add swizzle layout detection and automatic merging for layout conflicts
@@ -141,7 +150,7 @@ prs:
   merged_at: '2026-01-27T07:01:02Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: maint/gemm_v2/correctness_evaluation.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -181,6 +190,10 @@ prs:
   score: 37
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tilelang/gh-1736
+  files_changed:
+  - maint/gemm_v2/correctness_evaluation.py
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 1667
   pr: 1667
   title: '[Feature] Support `cp.reduce.async.bulk.tensor`'
@@ -190,7 +203,7 @@ prs:
   merged_at: '2026-01-14T06:39:46Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/autodd/tilelang_buggy.py'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -241,6 +254,10 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: Rachmanino
   artifact_dir: evidence/pull-bundles/tilelang/gh-1667
+  files_changed:
+  - examples/autodd/tilelang_buggy.py
+  files_reviewed_count: 11
+  scope_disposition: retained
 - number: 1845
   pr: 1845
   title: '[Enhancement] Optimize templates for half/bfloat16'
@@ -352,7 +369,8 @@ prs:
   merged_at: '2026-03-18T05:08:11Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/warp_specialize/example_warp_specialize_flashmla.py, examples/warp_specialize/example_warp_specialize_gemm_barrierpipe_stage2.py,
+    examples/warp_specialize/example_warp_specialize_gemm_copy_0_gemm_1.py, examples/warp_specialize/example_warp_specialize_gemm_copy_1_gemm_0.py, examples/warp_specialize/example_warp_specialize_gemm_softpipe_stage2.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -420,6 +438,14 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: LeiWang1999
   artifact_dir: evidence/pull-bundles/tilelang/gh-1909
+  files_changed:
+  - examples/warp_specialize/example_warp_specialize_flashmla.py
+  - examples/warp_specialize/example_warp_specialize_gemm_barrierpipe_stage2.py
+  - examples/warp_specialize/example_warp_specialize_gemm_copy_0_gemm_1.py
+  - examples/warp_specialize/example_warp_specialize_gemm_copy_1_gemm_0.py
+  - examples/warp_specialize/example_warp_specialize_gemm_softpipe_stage2.py
+  files_reviewed_count: 60
+  scope_disposition: retained
 - number: 1874
   pr: 1874
   title: '[Feature] Support cluster launch, query, synchronization and barrier operations'
@@ -429,7 +455,7 @@ prs:
   merged_at: '2026-02-28T06:17:47Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_sm100/gemm_tcgen5mma_ws_persistent.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -495,6 +521,10 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: Rachmanino
   artifact_dir: evidence/pull-bundles/tilelang/gh-1874
+  files_changed:
+  - examples/gemm_sm100/gemm_tcgen5mma_ws_persistent.py
+  files_reviewed_count: 29
+  scope_disposition: retained
 - number: 2107
   pr: 2107
   title: '[TMA] Support FP4 TensorMap TMA copies'
@@ -502,9 +532,9 @@ prs:
   url: https://github.com/tile-ai/tilelang/pull/2107
   date: '2026-04-28'
   merged_at: '2026-04-28T04:35:17Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -560,6 +590,13 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: LeiWang1999
   artifact_dir: evidence/pull-bundles/tilelang/gh-2107
+  files_changed:
+  - src/op/copy.cc
+  - src/op/utils.cc
+  - src/runtime/runtime.cc
+  - testing/python/language/test_tilelang_language_tma_copy.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 2153
   pr: 2153
   title: '[codex] Split GEMM implementations by backend'
@@ -569,7 +606,7 @@ prs:
   merged_at: '2026-05-06T11:08:46Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: src/backend/cuda/op/gemm.cc, src/op/gemm_sp.cc'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -626,6 +663,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: LeiWang1999
   artifact_dir: evidence/pull-bundles/tilelang/gh-2153
+  files_changed:
+  - src/backend/cuda/op/gemm.cc
+  - src/op/gemm_sp.cc
+  files_reviewed_count: 29
+  scope_disposition: retained
 - number: 1764
   pr: 1764
   title: '[Feature] Support tcgen5mma lowering for `.kind::i8`'
@@ -633,9 +675,9 @@ prs:
   url: https://github.com/tile-ai/tilelang/pull/1764
   date: '2026-02-02'
   merged_at: '2026-02-02T09:12:27Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 7 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -679,6 +721,16 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: Rachmanino
   artifact_dir: evidence/pull-bundles/tilelang/gh-1764
+  files_changed:
+  - maint/gemm_v2/correctness_evaluation_tcgen05.py
+  - src/op/tcgen5_meta.h
+  - src/target/codegen_cuda.cc
+  - src/tl_templates/cuda/instruction/tcgen05mma.h
+  - testing/python/kernel/test_tilelang_kernel_int8_gemm_tcgen5.py
+  - tilelang/intrinsics/mma_macro_generator.py
+  - tilelang/tileop/gemm/gemm_tcgen05.py
+  files_reviewed_count: 7
+  scope_disposition: removed
 - number: 1229
   pr: 1229
   title: '[WIP] support more dtypes for tcgen05'
@@ -688,7 +740,7 @@ prs:
   merged_at: '2025-11-21T13:20:18Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_fp8/example_tilelang_gemm_fp8_sm100.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -733,6 +785,10 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: PannenetsF
   artifact_dir: evidence/pull-bundles/tilelang/gh-1229
+  files_changed:
+  - examples/gemm_fp8/example_tilelang_gemm_fp8_sm100.py
+  files_reviewed_count: 11
+  scope_disposition: retained
 - number: 1327
   pr: 1327
   title: '[Enhancement] add more dtype and fix mma.ws for fp16 for tcgen05'
@@ -742,7 +798,7 @@ prs:
   merged_at: '2025-11-26T07:44:00Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_fp8/example_tilelang_gemm_fp8_sm100.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -787,6 +843,10 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: PannenetsF
   artifact_dir: evidence/pull-bundles/tilelang/gh-1327
+  files_changed:
+  - examples/gemm_fp8/example_tilelang_gemm_fp8_sm100.py
+  files_reviewed_count: 11
+  scope_disposition: retained
 - number: 1762
   pr: 1762
   title: '[Feature] Hierarchical reduction and warp reduction intrinsics support'
@@ -846,7 +906,7 @@ prs:
   merged_at: '2026-04-16T04:53:22Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: src/op/builtin.h, src/transform/inject_tcgen05_fence.cc'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -893,6 +953,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: LeiWang1999
   artifact_dir: evidence/pull-bundles/tilelang/gh-2003
+  files_changed:
+  - src/op/builtin.h
+  - src/transform/inject_tcgen05_fence.cc
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 1858
   pr: 1858
   title: '[Feature] Add TIR builtins for warp-level vote and block-level predicate sync'
@@ -948,7 +1013,7 @@ prs:
   merged_at: '2026-02-28T08:33:13Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: src/layout/tcgen05_layout.h, src/op/copy.cc, src/tl_templates/cuda/copy_sm100.h, src/tl_templates/cuda/tcgen_05_st.h'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -993,6 +1058,13 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: Hale423
   artifact_dir: evidence/pull-bundles/tilelang/gh-1866
+  files_changed:
+  - src/layout/tcgen05_layout.h
+  - src/op/copy.cc
+  - src/tl_templates/cuda/copy_sm100.h
+  - src/tl_templates/cuda/tcgen_05_st.h
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 1882
   pr: 1882
   title: '[Feature] 2-SM support for TMA, TMEM and TCGEN5MMA on Blackwell'
@@ -1002,7 +1074,7 @@ prs:
   merged_at: '2026-03-24T04:24:16Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_sm100/gemm_tcgen5mma_ws.py, examples/gemm_sm100/gemm_tcgen5mma_ws_persistent.py, maint/gemm_v2/correctness_evaluation_tcgen05_2cta.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1063,6 +1135,12 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: Rachmanino
   artifact_dir: evidence/pull-bundles/tilelang/gh-1882
+  files_changed:
+  - examples/gemm_sm100/gemm_tcgen5mma_ws.py
+  - examples/gemm_sm100/gemm_tcgen5mma_ws_persistent.py
+  - maint/gemm_v2/correctness_evaluation_tcgen05_2cta.py
+  files_reviewed_count: 33
+  scope_disposition: retained
 - number: 2166
   pr: 2166
   title: '[BugFix] Consider non-local store in external call and SIMT producer for warp specialize'
@@ -1126,9 +1204,9 @@ prs:
   url: https://github.com/tile-ai/tilelang/pull/1840
   date: '2026-02-25'
   merged_at: '2026-02-25T07:19:36Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 3 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1162,6 +1240,12 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: Henry-Jessie
   artifact_dir: evidence/pull-bundles/tilelang/gh-1840
+  files_changed:
+  - src/transform/inject_tma_barrier.cc
+  - testing/python/issue/test_tilelang_issue_tma_no_ws.py
+  - tilelang/engine/phase.py
+  files_reviewed_count: 3
+  scope_disposition: removed
 - number: 2087
   pr: 2087
   title: '[Bugfix] Enable `.shared::cta` in TMA copy paths only on CUDA 12.8+'
@@ -1169,9 +1253,9 @@ prs:
   url: https://github.com/tile-ai/tilelang/pull/2087
   date: '2026-04-22'
   merged_at: '2026-04-22T16:36:54Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -1207,6 +1291,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: ColmaLiu
   artifact_dir: evidence/pull-bundles/tilelang/gh-2087
+  files_changed:
+  - src/target/ptx.cc
+  - src/tl_templates/cuda/copy_sm90.h
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 2052
   pr: 2052
   title: '[Bugfix] Use shared::cta instead of shared::cluster for non-cluster T…'
@@ -1322,7 +1411,7 @@ prs:
   merged_at: '2026-04-20T08:35:43Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_int4/example_tilelang_gemm_int4.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -1396,6 +1485,10 @@ prs:
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   author: LeiWang1999
   artifact_dir: evidence/pull-bundles/tilelang/gh-2063
+  files_changed:
+  - examples/gemm_int4/example_tilelang_gemm_int4.py
+  files_reviewed_count: 25
+  scope_disposition: retained
 - number: 1717
   pr: 1717
   title: '[Enhancement] Add explicit global memory load/store intrinsics (ldg/stg 32/64/128)'
@@ -1470,7 +1563,7 @@ prs:
   merged_at: '2026-03-27T07:29:48Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tilelang/language/copy_op.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -1517,6 +1610,10 @@ prs:
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   author: LeiWang1999
   artifact_dir: evidence/pull-bundles/tilelang/gh-1981
+  files_changed:
+  - tilelang/language/copy_op.py
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 1976
   pr: 1976
   title: '[Feature] Batched AllReduce for better T.reduce performance'
@@ -1583,9 +1680,9 @@ prs:
   url: https://github.com/tile-ai/tilelang/pull/1972
   date: '2026-03-31'
   merged_at: '2026-03-31T14:36:03Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -1620,6 +1717,13 @@ prs:
   score: 45
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tilelang/gh-1972
+  files_changed:
+  - testing/python/autotune/test_tilelang_autotune_cutedsl_cache.py
+  - tilelang/autotuner/param.py
+  - tilelang/jit/kernel.py
+  - tilelang/language/dtypes.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 1786
   pr: 1786
   title: 'fix(intrinsics): add missing _legalize_to_buffer_region in SM70 emitter'
@@ -1627,9 +1731,9 @@ prs:
   url: https://github.com/tile-ai/tilelang/pull/1786
   date: '2026-02-04'
   merged_at: '2026-02-04T09:24:33Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -1650,6 +1754,10 @@ prs:
   score: 14
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tilelang/gh-1786
+  files_changed:
+  - tilelang/intrinsics/mma_sm70_macro_generator.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 1658
   pr: 1658
   title: '[Feat] profiler support cudagraph backend'
@@ -1657,9 +1765,9 @@ prs:
   url: https://github.com/tile-ai/tilelang/pull/1658
   date: '2026-02-08'
   merged_at: '2026-02-08T15:26:52Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 5 authoritative changed file(s)'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -1695,6 +1803,14 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: cscyuge
   artifact_dir: evidence/pull-bundles/tilelang/gh-1658
+  files_changed:
+  - examples/gemm/example_gemm_autotune.py
+  - tilelang/autotuner/param.py
+  - tilelang/autotuner/tuner.py
+  - tilelang/profiler/__init__.py
+  - tilelang/profiler/bench.py
+  files_reviewed_count: 5
+  scope_disposition: removed
 - number: 1839
   pr: 1839
   title: '[CUDA][Feature] Add packed FP32x2 math intrinsics and auto vectorized support'
@@ -8371,9 +8487,9 @@ prs:
   date: '2026-05-19'
   merged_at: '2026-05-19T04:11:37Z'
   author: Rachmanino
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: examples/deepseek_v32/sparse_mla_fwd.py, examples/deepseek_v32/sparse_mla_fwd_pipelined.py'
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8401,6 +8517,11 @@ prs:
   deletions: 39
   changed_file_count: 2
   artifact_dir: evidence/pull-bundles/tilelang/gh-2219
+  files_changed:
+  - examples/deepseek_v32/sparse_mla_fwd.py
+  - examples/deepseek_v32/sparse_mla_fwd_pipelined.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 2218
   pr: 2218
   title: '[Python] Drop Python 3.9 support'
@@ -8411,7 +8532,7 @@ prs:
   author: LeiWang1999
   decision: include
   status: merged
-  reason: 'file-path kernel signal: tilelang/_typing.py, tilelang/autodd.py, tilelang/autotuner/grouped_compile.py, tilelang/autotuner/param.py'
+  reason: 'retain: Python DSL device-kernel implementation added in: tilelang/jit/adapter/cutedsl/adapter.py'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8501,6 +8622,10 @@ prs:
   deletions: 109
   changed_file_count: 44
   artifact_dir: evidence/pull-bundles/tilelang/gh-2218
+  files_changed:
+  - tilelang/jit/adapter/cutedsl/adapter.py
+  files_reviewed_count: 44
+  scope_disposition: retained
 - number: 2216
   pr: 2216
   title: '[TIR][IR] Update to use tirx'
@@ -8511,8 +8636,7 @@ prs:
   author: LeiWang1999
   decision: include
   status: merged
-  reason: 'file-path kernel signal: examples/dequantize_gemm/example_dequant_gemm_bf16_fp4_hopper.py, examples/dequantize_gemm/example_dequant_gemm_bf16_mxfp4_hopper.py, examples/dequantize_gemm/example_dequant_gemm_fp4_hopper.py,
-    examples/dequantize_gemm/example_dequant_gemm_w4a8.py'
+  reason: 'retain: Python DSL device-kernel implementation added in: tilelang/jit/adapter/cutedsl/adapter.py, tilelang/jit/adapter/cutedsl/wrapper.py'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8719,6 +8843,11 @@ prs:
   deletions: 6831
   changed_file_count: 357
   artifact_dir: evidence/pull-bundles/tilelang/gh-2216
+  files_changed:
+  - tilelang/jit/adapter/cutedsl/adapter.py
+  - tilelang/jit/adapter/cutedsl/wrapper.py
+  files_reviewed_count: 357
+  scope_disposition: retained
 - number: 2215
   pr: 2215
   title: '[NFC] Align stale fallback comment with CUDA 12.8 guard'
@@ -8850,7 +8979,7 @@ prs:
   author: Tokimorphling
   decision: include
   status: merged
-  reason: 'file-path kernel signal: src/tl_templates/cuda/instruction/mma.h, testing/python/cuda/test_cuda_mma_sm75_dispatch.py, testing/python/kernel/test_tilelang_kernel_gemm_sm75.py, tilelang/cuda/intrinsics/macro/mma_macro_generator.py'
+  reason: 'retain: added device-code construct in: src/tl_templates/cuda/instruction/mma.h'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8903,6 +9032,10 @@ prs:
   deletions: 18
   changed_file_count: 8
   artifact_dir: evidence/pull-bundles/tilelang/gh-2198
+  files_changed:
+  - src/tl_templates/cuda/instruction/mma.h
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 2197
   pr: 2197
   title: Allow variable barrier id in `T.sync_threads()`
@@ -9059,9 +9192,9 @@ prs:
   date: '2026-05-20'
   merged_at: '2026-05-20T07:09:12Z'
   author: ighoshsubho
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: src/backend/cuda/codegen/codegen_cuda.cc, src/backend/cuda/op/copy.cc, src/backend/cuda/op/copy.h, src/backend/cuda/op/copy_analysis.cc'
+  reason: 'remove: no positive device-kernel implementation in 11 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9128,6 +9261,17 @@ prs:
   deletions: 8
   changed_file_count: 11
   artifact_dir: evidence/pull-bundles/tilelang/gh-2129
+  files_changed:
+  - src/backend/cuda/codegen/codegen_cuda.cc
+  - src/backend/cuda/op/copy.cc
+  - src/backend/cuda/op/copy.h
+  - src/backend/cuda/op/copy_analysis.cc
+  - src/layout/gemm_layouts.cc
+  - src/op/builtin.cc
+  - src/op/builtin.h
+  - src/tl_templates/cuda/copy_sm100.h
+  files_reviewed_count: 11
+  scope_disposition: removed
 - number: 2112
   pr: 2112
   title: 'feat: auto-vectorize bf16/fp16 reduce with packed add2 intrinsics'
@@ -9138,7 +9282,7 @@ prs:
   author: kurisu6912
   decision: include
   status: merged
-  reason: 'file-path kernel signal: benchmark/matmul/benchmark_matmul_sp_compress.py, src/backend/cuda/codegen/codegen_cuda.cc, src/backend/cuda/op/reduce.cc, src/tl_templates/cuda/common.h'
+  reason: 'retain: Python DSL device-kernel implementation added in: tilelang/utils/sparse.py'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9206,6 +9350,10 @@ prs:
   deletions: 114
   changed_file_count: 13
   artifact_dir: evidence/pull-bundles/tilelang/gh-2112
+  files_changed:
+  - tilelang/utils/sparse.py
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 2084
   pr: 2084
   title: '[Enhance] Reject default scalar params and support `do_not_specialize` for autotune '
@@ -9262,7 +9410,7 @@ prs:
   author: botbw
   decision: include
   status: merged
-  reason: 'file-path kernel signal: benchmark/matmul/benchmark_matmul_sp.py, benchmark/matmul/benchmark_matmul_sp_compress.py, examples/gemm_sp/example_custom_compress.py, examples/gemm_sp/example_gemm_sp.py'
+  reason: 'retain: Python DSL device-kernel implementation added in: examples/gemm_sp/example_gemm_sp.py, tilelang/cuda/op/gemm_sp/gemm_sp_wgmma.py, tilelang/tileop/gemm_sp/gemm_sp_wgmma.py, tilelang/utils/sparse.py'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9373,6 +9521,13 @@ prs:
   deletions: 3197
   changed_file_count: 49
   artifact_dir: evidence/pull-bundles/tilelang/gh-2048
+  files_changed:
+  - examples/gemm_sp/example_gemm_sp.py
+  - tilelang/cuda/op/gemm_sp/gemm_sp_wgmma.py
+  - tilelang/tileop/gemm_sp/gemm_sp_wgmma.py
+  - tilelang/utils/sparse.py
+  files_reviewed_count: 49
+  scope_disposition: retained
 - number: 1908
   pr: 1908
   title: '[Feature] Add T.copy_cluster to support TMA multicast and SM-to-SM cluster copy'
@@ -9381,9 +9536,9 @@ prs:
   date: '2026-05-20'
   merged_at: '2026-05-20T06:44:17Z'
   author: He-Jingkai
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: src/backend/cuda/codegen/codegen_cuda.cc, src/backend/cuda/op/copy.cc, src/backend/cuda/op/copy_analysis.cc, src/tl_templates/cuda/copy_sm90.h'
+  reason: 'remove: no positive device-kernel implementation in 20 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9465,3 +9620,14 @@ prs:
   deletions: 14
   changed_file_count: 20
   artifact_dir: evidence/pull-bundles/tilelang/gh-1908
+  files_changed:
+  - docs/programming_guides/cluster_tma.md
+  - src/backend/cuda/codegen/codegen_cuda.cc
+  - src/backend/cuda/op/copy.cc
+  - src/backend/cuda/op/copy_analysis.cc
+  - src/op/builtin.cc
+  - src/op/builtin.h
+  - src/op/copy.cc
+  - src/op/copy.h
+  files_reviewed_count: 20
+  scope_disposition: removed

@@ -2,200 +2,64 @@
 id: kernel-flash-attention-4
 title: FlashAttention-4
 type: kernel
-architectures:
-- sm100
-tags:
-- attention
-- flash-attention
-- tcgen05
-- tmem
-- 2sm-cooperative
-- software-exp
+architectures: [sm100]
+tags: [attention, flash-attention, tcgen05, tmem, 2sm-cooperative, software-exp]
 confidence: source-reported
 reproducibility: snippet
-kernel_types:
-- attention
-- flash-attention
-languages:
-- cute-dsl
-related:
-- technique-warp-specialization
-- technique-software-exp
-- hw-tcgen05-mma
-- hw-tmem
-sources:
-- doc-flash-attention-4
-- blog-flash-attention-4
-- pr-flashinfer-1850
+kernel_types: [attention, flash-attention]
+languages: [cute-dsl]
+related: [technique-warp-specialization, technique-software-exp, hw-tcgen05-mma, hw-tmem]
+sources: [doc-flash-attention-4, blog-flash-attention-4]
 performance_claims:
-- gpu: B200
-  dtype: bf16
-  shape: seqlen=8192, headdim=128
-  metric: TFLOPS
-  value: 1605
-  utilization: 71%
-  source_id: doc-flash-attention-4
-artifact_dir: artifacts/kernels/flash-attention-4
+  - gpu: B200
+    dtype: bf16
+    shape: up to, across paper benchmark settings
+    metric: TFLOPS
+    value: 1613
+    utilization: 71%
+    source_id: doc-flash-attention-4
+    source_locator: https://arxiv.org/html/2603.05451v1#S5 (§5 Empirical Evaluation)
 ---
 
 # FlashAttention-4
 
-## Overview
+FlashAttention-4 is a Blackwell attention implementation written in CuTe DSL. Its design responds to asymmetric scaling from Hopper to Blackwell: tensor-core throughput increased more quickly than shared-memory bandwidth and the special-function resources used by softmax.
 
-FlashAttention-4 is the Blackwell-native evolution of the FlashAttention family, designed to exploit SM100 architectural features that break the Hopper-era bottleneck: tensor core throughput doubles on Blackwell, but SFU (Special Function Unit) count and shared memory bandwidth remain unchanged. FA4 addresses this asymmetry through software-emulated exponentials, ping-pong scheduling across TMEM, and 2-CTA cooperative backward passes.
+## Forward pipeline
 
-Written entirely in CuTe DSL (Python), FA4 compiles 20-30x faster than equivalent CUTLASS C++ template code while matching or exceeding cuDNN performance.
+- A CTA processes two query tiles in a ping-pong schedule to overlap matrix multiplication, softmax, and memory operations.
+- Dedicated softmax warpgroups operate on attention intermediates held in TMEM.
+- Exponential work is distributed across the hardware MUFU path and a Cody-Waite/Horner software approximation on FMA units.
+- A correction warpgroup performs conditional online-softmax rescaling outside the main critical stage.
 
-## Key Techniques
+## Backward pipeline
 
-### Ping-Pong Scheduling
+- Intermediate results are retained in TMEM to reduce shared-memory traffic.
+- The two-CTA MMA mode lets paired CTAs cooperate and reduces the shared-memory traffic and global atomic reduction described by the authors.
+- The implementation also supports a deterministic scheduling mode for reproducible training.
 
-Two 128-token query tiles are assigned to each CTA. While one tile's matmul runs on the tensor cores, the other tile's softmax rescaling runs on dedicated warpgroups accessing TMEM. This hides the softmax latency behind MMA compute.
+## Reported performance
 
-```python
-# CuTe DSL: Ping-pong tile scheduling (simplified)
-# Two query tiles per CTA, alternating MMA and softmax phases
+The paper reports up to **1613 TFLOPS** in BF16 on B200 across its benchmark sweep, corresponding to **71%** utilization in that reported setting. The author blog separately reports up to 1605 TFLOPS and comparisons of up to 1.3× over cuDNN 9.13 and up to 2.7× over the tested Triton implementation. These are source-reported benchmark maxima, not guarantees for an arbitrary attention shape.
 
-@cute.kernel
-def flash_attention_4_fwd(Q, K, V, O, L):
-    # Each CTA processes 2 query tiles of 128 tokens
-    TILE_Q = 128
-    NUM_TILES = 2
+## Reproduction boundary
 
-    # Phase A: tile_0 does MMA(Q0, K), tile_1 does softmax rescale
-    # Phase B: tile_1 does MMA(Q1, K), tile_0 does softmax rescale
+Use the authors' linked implementation and benchmark configuration for reproduction. Earlier local pseudo-code and the local “full implementation” bundle were removed because they were not a verbatim FA4 implementation: the purported full file came from an unrelated CUTLASS MLA-backward PR.
 
-    for kv_block in range(num_kv_blocks):
-        # Ping: MMA on tile 0, softmax on tile 1
-        with warpgroup(mma_wg):
-            S0 = cute.mma(Q_tile[0], K_block)  # tcgen05.mma -> TMEM
-        with warpgroup(softmax_wg):
-            O_tile[1], L_tile[1] = rescale_and_accumulate(
-                O_tile[1], L_tile[1], S1, V_prev
-            )
-
-        # Pong: MMA on tile 1, softmax on tile 0
-        with warpgroup(mma_wg):
-            S1 = cute.mma(Q_tile[1], K_block)
-        with warpgroup(softmax_wg):
-            O_tile[0], L_tile[0] = rescale_and_accumulate(
-                O_tile[0], L_tile[0], S0, V_block
-            )
-```
-
-### Software-Emulated Exponential (Cody-Waite)
-
-The SFU `ex2` instruction is the bottleneck on Blackwell -- its throughput does not scale with the doubled tensor core rate. FA4 replaces it with a software exponential distributed across FMA units using Cody-Waite range reduction and Horner polynomial evaluation.
+At the implementation commit pinned by `doc-flash-attention-4`, the public API
+README gives this minimal invocation:
 
 ```python
-# Software exp2 via Cody-Waite range reduction + Horner polynomial
-# Distributes across FMA units instead of using scarce SFU hardware
+from flash_attn.cute import flash_attn_func, flash_attn_varlen_func
 
-def software_exp2(x):
-    """
-    Compute 2^x using FMA units instead of SFU ex2.
-    Cody-Waite range reduction splits x into integer + fraction.
-    Horner polynomial approximates 2^frac.
-    """
-    # Range reduction: x = n + f, where n is integer, f in [-0.5, 0.5]
-    n = round(x)
-    f = x - n  # Cody-Waite: use extended precision subtraction
-
-    # Horner polynomial for 2^f on [-0.5, 0.5]
-    # Coefficients chosen for bf16 precision target
-    p = f * (C5 + f * (C4 + f * (C3 + f * (C2 + f * C1))))
-    p = 1.0 + p
-
-    # Reconstruct: 2^x = 2^n * 2^f
-    return ldexp(p, n)  # Integer exponent via bit manipulation
+out = flash_attn_func(q, k, v, causal=True)
 ```
 
-This gives roughly 4x throughput improvement over the hardware SFU path by utilizing FMA units that would otherwise be idle during softmax phases.
-
-### Conditional Softmax Rescaling
-
-Standard FlashAttention rescales the output accumulator every KV block. FA4 only rescales when the running maximum changes significantly (large jump), reducing non-matmul operations.
-
-```python
-# Only rescale when max changes substantially
-def conditional_rescale(O_acc, lse_old, lse_new, threshold=2.0):
-    diff = lse_new - lse_old
-    if abs(diff) > threshold:
-        # Full rescale: O_acc *= exp(lse_old - lse_new)
-        scale = software_exp2((lse_old - lse_new) * LOG2E)
-        O_acc = O_acc * scale
-    # Otherwise: skip rescale, accumulate normally
-    return O_acc
-```
-
-### 2-CTA Backward Pass
-
-The backward pass spans two paired CTAs in a cluster, sharing TMEM across both SMs. This halves shared memory traffic for the dQ/dK/dV gradient computation.
-
-```python
-# 2-CTA backward: paired CTAs share TMEM via 2-SM cooperative mode
-@cute.kernel
-def flash_attention_4_bwd(Q, K, V, O, dO, dQ, dK, dV):
-    # Two CTAs cooperate: CTA_0 and CTA_1 in same cluster
-    # tcgen05.mma shape: m256 x n256 x k16 (2-SM cooperative)
-
-    cta_id = cute.cluster_rank()  # 0 or 1
-
-    for q_block in range(num_q_blocks):
-        # Both CTAs load shared KV block via TMA
-        K_smem = tma_load(K, kv_offset)
-        V_smem = tma_load(V, kv_offset)
-
-        # CTA_0: compute dK contribution
-        # CTA_1: compute dV contribution
-        if cta_id == 0:
-            # dK += dS^T @ Q  (accumulated in TMEM)
-            dS = compute_dS(O, dO, S)
-            cute.mma(dS.T, Q_tile, accumulator=dK_tmem)
-        else:
-            # dV += S^T @ dO  (accumulated in TMEM)
-            cute.mma(S.T, dO_tile, accumulator=dV_tmem)
-```
-
-## Performance
-
-| Configuration | GPU | Dtype | TFLOPS | Utilization | vs cuDNN | vs Triton |
-|---------------|-----|-------|--------|-------------|----------|-----------|
-| seqlen=8192, headdim=128 | B200 | BF16 | 1605 | 71% | 1.1-1.3x | 2.1-2.7x |
-
-The 71% MMA utilization represents the state of the art for attention kernels on Blackwell. The remaining 29% is consumed by softmax, rescaling, and memory transfers.
-
-## Implementation Notes
-
-- Written entirely in CuTe DSL (Python), not C++ templates
-- 20-30x faster compilation than equivalent CUTLASS C++ code
-- Uses `SM100_MMA_SS` atoms for tcgen05 MMA from shared memory
-- TMEM locality via `TMEM` locale in CuTe layout
-- TMA bulk loads for Q, K, V tiles into shared memory
-
-## When to Use
-
-- Standard multi-head attention on Blackwell with sequence lengths >= 1024
-- Both forward and backward passes
-- BF16 precision (FP8 support planned)
-
-## Caveats
-
-- SM100 only -- no fallback to SM90
-- Requires CuTe DSL toolchain (CUTLASS 4.5.0 + Python frontend)
-- Ping-pong scheduling most effective for headdim=128; smaller headdims may not fully overlap
+This is a verbatim usage excerpt, not a self-contained benchmark. Shapes,
+dtypes, installation, and correctness checks still have to follow the pinned
+upstream implementation.
 
 ## Sources
 
 - [FlashAttention-4 paper](https://arxiv.org/abs/2603.05451)
-- [Tri Dao's blog](https://tridao.me/blog/2026/flash4/)
-
-## Full Reference Implementation
-
-Local verbatim upstream code lives in [`artifacts/kernels/flash-attention-4/full/`](../../artifacts/kernels/flash-attention-4/full/) (see its `PROVENANCE.yaml` for the pinned upstream SHA and byte-verified SHA-256). Labeled derived variants — including a naive/teaching skeleton — live in [`artifacts/kernels/flash-attention-4/variants/`](../../artifacts/kernels/flash-attention-4/variants/).
-
-Query via:
-
-```bash
-python3 scripts/get_page.py kernel-flash-attention-4 --include-code
-```
+- [FlashAttention-4 author blog](https://tridao.me/blog/2026/flash4/)

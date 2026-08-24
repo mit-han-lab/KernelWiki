@@ -6,7 +6,7 @@ retrieved_at: '2026-04-27'
 asset_mode: verbatim
 size_cap_truncated: false
 generated_by: scripts/fetch_pr_diff.py
-source_pr_id: pr-deepgemm-304
+source_pr_id: pr-DeepGEMM-304
 files:
 - local_path: diff.patch
   role: pr-diff

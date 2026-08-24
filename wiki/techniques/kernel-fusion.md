@@ -1,55 +1,39 @@
 ---
 id: technique-kernel-fusion
-title: "Kernel Fusion"
+title: Kernel fusion
 type: technique
 architectures: [sm100, sm90]
 tags: [kernel-fusion, fused-kernel, tmem]
 confidence: source-reported
 reproducibility: snippet
-prerequisites: [hw-tmem]
+prerequisites: []
 related: [kernel-fused-moe, kernel-nvfp4-gemm, technique-epilogue-fusion]
-sources: [contest-gpumode-p3, contest-flashinfer-track-a, blog-tflops-gap-fp4-moe]
-blackwell_relevance: "TMEM enables multi-accumulator fusion (gate+up dual GEMM) without register pressure; technique valuable on both architectures."
+sources: [contest-gpumode-p3, contest-flashinfer-track-a, blog-tflops-gap-fp4-moe, pr-TensorRT-LLM-11897]
+blackwell_relevance: TMEM can hold accumulator state for some fused SM100 designs, but the legal and profitable fusion boundary is kernel-specific.
 ---
 
-# Kernel Fusion
+# Kernel fusion
 
-## Overview
+Kernel fusion keeps producer/consumer operations within one launch to avoid
+materializing selected intermediates in global memory. It can reduce launch and
+traffic costs, but it may increase live state, registers, shared memory, TMEM,
+code size, and synchronization. A workload's operation graph—not a fixed
+number of kernels—defines the legal boundary.
 
-Kernel fusion combines multiple operations into a single kernel launch, eliminating intermediate global memory roundtrips. Critical for MoE and attention pipelines where 5-7 sequential launches each incur latency, synchronization, and memory traffic overhead.
+TensorRT-LLM PR 11897 provides a retained example: a Blackwell NVFP4 dense GEMM
+fused with SwiGLU. This contiguous call-site excerpt is the BF16-output path:
 
-## Examples
-
-### Fused Gate-Up Dual GEMM + SwiGLU
-```cuda
-// Instead of: gate_gemm → up_gemm → silu → multiply (4 kernels)
-// Fused: single kernel with two TMEM accumulators
-__global__ void fused_gate_up_silu(...) {
-    uint32_t tmem_gate = tmem_alloc(256);
-    uint32_t tmem_up = tmem_alloc(256);
-
-    for (int k = 0; k < K; k += BLOCK_K) {
-        tcgen05_mma(x_smem, w_gate_smem, tmem_gate);
-        tcgen05_mma(x_smem, w_up_smem, tmem_up);
-    }
-
-    float g = tmem_load(tmem_gate);
-    float u = tmem_load(tmem_up);
-    output = (g / (1.0f + expf(-g))) * u;  // SwiGLU fused
-}
+```python
+output = torch.ops.trtllm.cute_dsl_nvfp4_dense_gemm_swiglu_blackwell(
+    act_fp4, module.weight, act_sf, module.weight_scale, alpha,
+    module.dtype)
 ```
 
-### MoE Fusion Progression
-- **vLLM (7 kernels)**: softmax → topk → dispatch → gate → up → silu_mul → down+combine
-- **SGLang (5 kernels)**: router+topk → dispatch → fused gate-up-silu → down → combine
-- **Ideal (1-2 kernels)**: all ops in one launch, saves 21.9% activation memory traffic
+The source has separate contracts for shapes, alignment, input scales, and
+output type. It does not establish that routing, two expert GEMMs, activation,
+and combine should all be fused into one device kernel.
 
-## Constraints
-
-- TMEM capacity limits how many accumulators can fuse (256 cols total)
-- Register pressure on epilogue if fusing complex activations
-- Fusion opportunities depend on dataflow shape (dependency graph must be DAG-compatible with CTA scope)
-
-## Related
-- [fused-moe](../kernels/fused-moe.md)
-- [epilogue-fusion](epilogue-fusion.md)
+Evaluate fusion by holding numerics and workload constant, then measuring
+launch count, intermediate bytes, occupancy/resources, and end-to-end latency.
+The former local example was removed because `tmem_alloc` and `tcgen05_mma`
+were invented pseudo-APIs presented as CUDA.

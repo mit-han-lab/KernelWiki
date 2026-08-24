@@ -10,8 +10,8 @@ keywords_used:
 - sm100
 - cuda
 total_candidates: 239
-included: 73
-excluded: 0
+included: 67
+excluded: 6
 deferred: 166
 prs:
 - number: 6152
@@ -23,7 +23,7 @@ prs:
   merged_at: '2025-10-13T03:23:20Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/dispatch_topk.cuh'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -48,6 +48,10 @@ prs:
   score: 24
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-6152
+  files_changed:
+  - cub/cub/device/dispatch/dispatch_topk.cuh
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 3559
   pr: 3559
   title: Add b200 tunings for scan.exclusive.sum
@@ -57,7 +61,7 @@ prs:
   merged_at: '2025-02-07T09:58:10Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_scan.cuh, cub/cub/device/dispatch/dispatch_scan.cuh, cub/cub/device/dispatch/tuning/tuning_scan.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -102,6 +106,12 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-3559
+  files_changed:
+  - cub/cub/device/device_scan.cuh
+  - cub/cub/device/dispatch/dispatch_scan.cuh
+  - cub/cub/device/dispatch/tuning/tuning_scan.cuh
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 4961
   pr: 4961
   title: Add nondeterministic reduce that uses atomics
@@ -111,7 +121,9 @@ prs:
   merged_at: '2025-07-31T16:54:30Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/block/block_reduce.cuh, cub/cub/block/specializations/block_reduce_warp_reductions_nondeterministic.cuh, cub/cub/detail/launcher/cuda_driver.cuh,
+    cub/cub/detail/launcher/cuda_runtime.cuh, cub/cub/device/device_reduce.cuh, cub/cub/device/dispatch/dispatch_reduce_nondeterministic.cuh, cub/cub/device/dispatch/kernels/reduce.cuh, cub/cub/device/dispatch/tuning/tuning_reduce.cuh,
+    cub/cub/grid/grid_even_share.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -158,6 +170,18 @@ prs:
   score: 58
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-4961
+  files_changed:
+  - cub/cub/block/block_reduce.cuh
+  - cub/cub/block/specializations/block_reduce_warp_reductions_nondeterministic.cuh
+  - cub/cub/detail/launcher/cuda_driver.cuh
+  - cub/cub/detail/launcher/cuda_runtime.cuh
+  - cub/cub/device/device_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_reduce_nondeterministic.cuh
+  - cub/cub/device/dispatch/kernels/reduce.cuh
+  - cub/cub/device/dispatch/tuning/tuning_reduce.cuh
+  - cub/cub/grid/grid_even_share.cuh
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 6811
   pr: 6811
   title: Integrate decoupled lookahead warpspeed scan
@@ -167,7 +191,11 @@ prs:
   merged_at: '2026-02-10T21:39:40Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/launcher/cuda_runtime.cuh, cub/cub/detail/warpspeed/allocators/smem_allocator.cuh, cub/cub/detail/warpspeed/constant_assert.cuh,
+    cub/cub/detail/warpspeed/look_ahead.cuh, cub/cub/detail/warpspeed/make_warp_uniform.cuh, cub/cub/detail/warpspeed/optimize_smem_ptr.cuh, cub/cub/detail/warpspeed/resource/smem_phase.cuh, cub/cub/detail/warpspeed/resource/smem_ref.cuh,
+    cub/cub/detail/warpspeed/resource/smem_resource.cuh, cub/cub/detail/warpspeed/resource/smem_resource_raw.cuh, cub/cub/detail/warpspeed/resource/smem_stage.cuh, cub/cub/detail/warpspeed/special_registers.cuh,
+    cub/cub/detail/warpspeed/squad/load_store.cuh, cub/cub/detail/warpspeed/squad/squad.cuh, cub/cub/detail/warpspeed/squad/squad_desc.cuh, cub/cub/detail/warpspeed/sync_handler.cuh, cub/cub/detail/warpspeed/values.cuh,
+    cub/cub/detail/warpspeed/warpspeed.cuh, cub/cub/device/dispatch/dispatch_scan.cuh, cub/cub/device/dispatch/kernels/kernel_scan.cuh, cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh, cub/cub/device/dispatch/tuning/tuning_scan.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -226,6 +254,31 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-6811
+  files_changed:
+  - cub/cub/detail/launcher/cuda_runtime.cuh
+  - cub/cub/detail/warpspeed/allocators/smem_allocator.cuh
+  - cub/cub/detail/warpspeed/constant_assert.cuh
+  - cub/cub/detail/warpspeed/look_ahead.cuh
+  - cub/cub/detail/warpspeed/make_warp_uniform.cuh
+  - cub/cub/detail/warpspeed/optimize_smem_ptr.cuh
+  - cub/cub/detail/warpspeed/resource/smem_phase.cuh
+  - cub/cub/detail/warpspeed/resource/smem_ref.cuh
+  - cub/cub/detail/warpspeed/resource/smem_resource.cuh
+  - cub/cub/detail/warpspeed/resource/smem_resource_raw.cuh
+  - cub/cub/detail/warpspeed/resource/smem_stage.cuh
+  - cub/cub/detail/warpspeed/special_registers.cuh
+  - cub/cub/detail/warpspeed/squad/load_store.cuh
+  - cub/cub/detail/warpspeed/squad/squad.cuh
+  - cub/cub/detail/warpspeed/squad/squad_desc.cuh
+  - cub/cub/detail/warpspeed/sync_handler.cuh
+  - cub/cub/detail/warpspeed/values.cuh
+  - cub/cub/detail/warpspeed/warpspeed.cuh
+  - cub/cub/device/dispatch/dispatch_scan.cuh
+  - cub/cub/device/dispatch/kernels/kernel_scan.cuh
+  - cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh
+  - cub/cub/device/dispatch/tuning/tuning_scan.cuh
+  files_reviewed_count: 25
+  scope_disposition: retained
 - number: 7346
   pr: 7346
   title: Implement the new tuning API for deterministic (rfa) reduce dispatch
@@ -235,7 +288,8 @@ prs:
   merged_at: '2026-02-25T16:44:49Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_reduce.cuh, cub/cub/device/dispatch/dispatch_reduce_deterministic.cuh, cub/cub/device/dispatch/kernels/kernel_reduce.cuh,
+    cub/cub/device/dispatch/kernels/kernel_reduce_deterministic.cuh, cub/cub/device/dispatch/tuning/tuning_reduce.cuh, cub/cub/device/dispatch/tuning/tuning_reduce_deterministic.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -276,6 +330,15 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7346
+  files_changed:
+  - cub/cub/device/device_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_reduce_deterministic.cuh
+  - cub/cub/device/dispatch/kernels/kernel_reduce.cuh
+  - cub/cub/device/dispatch/kernels/kernel_reduce_deterministic.cuh
+  - cub/cub/device/dispatch/tuning/tuning_reduce.cuh
+  - cub/cub/device/dispatch/tuning/tuning_reduce_deterministic.cuh
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 7718
   pr: 7718
   title: Optimize non fixed size segmented reduce for small segments using max_segment_size
@@ -285,7 +348,8 @@ prs:
   merged_at: '2026-03-10T00:43:36Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_reduce.cuh, cub/cub/device/device_segmented_reduce.cuh, cub/cub/device/dispatch/dispatch_fixed_size_segmented_reduce.cuh,
+    cub/cub/device/dispatch/dispatch_segmented_reduce.cuh, cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh, cub/cub/device/dispatch/tuning/tuning_reduce.cuh, cub/cub/device/dispatch/tuning/tuning_segmented_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -333,6 +397,16 @@ prs:
   score: 53
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7718
+  files_changed:
+  - cub/cub/agent/agent_reduce.cuh
+  - cub/cub/device/device_segmented_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_fixed_size_segmented_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_reduce.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh
+  - cub/cub/device/dispatch/tuning/tuning_reduce.cuh
+  - cub/cub/device/dispatch/tuning/tuning_segmented_reduce.cuh
+  files_reviewed_count: 15
+  scope_disposition: retained
 - number: 7874
   pr: 7874
   title: Implement the new tuning API for `DispatchSegmentedSort`
@@ -342,7 +416,8 @@ prs:
   merged_at: '2026-03-09T17:04:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_segmented_sort.cuh, cub/cub/device/dispatch/dispatch_segmented_sort.cuh, cub/cub/device/dispatch/kernels/kernel_segmented_sort.cuh,
+    cub/cub/device/dispatch/tuning/tuning_segmented_sort.cuh, cub/cub/util_math.cuh, cub/cub/warp/warp_load.cuh, cub/cub/warp/warp_store.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -386,6 +461,16 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7874
+  files_changed:
+  - cub/cub/device/device_segmented_sort.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_sort.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_sort.cuh
+  - cub/cub/device/dispatch/tuning/tuning_segmented_sort.cuh
+  - cub/cub/util_math.cuh
+  - cub/cub/warp/warp_load.cuh
+  - cub/cub/warp/warp_store.cuh
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 5314
   pr: 5314
   title: CUB - Add internal integer utils and tests (Split `WarpReduce` PR)
@@ -395,7 +480,7 @@ prs:
   merged_at: '2025-07-19T01:53:31Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/integer_utils.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -430,6 +515,10 @@ prs:
   score: 50
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-5314
+  files_changed:
+  - cub/cub/detail/integer_utils.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 7823
   pr: 7823
   title: Optimized Device-to-Device Tensor Copy (`cudax`)
@@ -439,7 +528,9 @@ prs:
   merged_at: '2026-04-14T16:37:20Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cudax/include/cuda/experimental/__copy/are_mdspan_byte_copyable.cuh, cudax/include/cuda/experimental/__copy/copy_contiguous.cuh, cudax/include/cuda/experimental/__copy/copy_optimized.cuh,
+    cudax/include/cuda/experimental/__copy/dispatch_by_vector.cuh, cudax/include/cuda/experimental/__copy/mdspan_d2d.cuh, cudax/include/cuda/experimental/__copy/tensor_copy_utils.cuh, cudax/include/cuda/experimental/__copy/tensor_iterator.cuh,
+    cudax/include/cuda/experimental/__copy/vector_access.cuh, cudax/include/cuda/experimental/__copy_bytes/simplify_paired.cuh, cudax/include/cuda/experimental/copy.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -486,6 +577,19 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: fbusato
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7823
+  files_changed:
+  - cudax/include/cuda/experimental/__copy/are_mdspan_byte_copyable.cuh
+  - cudax/include/cuda/experimental/__copy/copy_contiguous.cuh
+  - cudax/include/cuda/experimental/__copy/copy_optimized.cuh
+  - cudax/include/cuda/experimental/__copy/dispatch_by_vector.cuh
+  - cudax/include/cuda/experimental/__copy/mdspan_d2d.cuh
+  - cudax/include/cuda/experimental/__copy/tensor_copy_utils.cuh
+  - cudax/include/cuda/experimental/__copy/tensor_iterator.cuh
+  - cudax/include/cuda/experimental/__copy/vector_access.cuh
+  - cudax/include/cuda/experimental/__copy_bytes/simplify_paired.cuh
+  - cudax/include/cuda/experimental/copy.cuh
+  files_reviewed_count: 20
+  scope_disposition: retained
 - number: 7844
   pr: 7844
   title: Implement the new tuning API for `DispatchSegmentedRadixSort`
@@ -495,7 +599,8 @@ prs:
   merged_at: '2026-03-02T17:23:12Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_segmented_radix_sort.cuh, cub/cub/device/dispatch/dispatch_radix_sort.cuh, cub/cub/device/dispatch/dispatch_segmented_radix_sort.cuh,
+    cub/cub/device/dispatch/kernels/kernel_segmented_radix_sort.cuh, cub/cub/device/dispatch/tuning/tuning_radix_sort.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -531,6 +636,14 @@ prs:
   score: 48
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7844
+  files_changed:
+  - cub/cub/device/device_segmented_radix_sort.cuh
+  - cub/cub/device/dispatch/dispatch_radix_sort.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_radix_sort.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_radix_sort.cuh
+  - cub/cub/device/dispatch/tuning/tuning_radix_sort.cuh
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 6069
   pr: 6069
   title: Add dynamic CUB dispatch for segmented_sort
@@ -540,7 +653,8 @@ prs:
   merged_at: '2025-10-01T14:40:28Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_radix_sort_downsweep.cuh, cub/cub/agent/agent_sub_warp_merge_sort.cuh, cub/cub/device/device_partition.cuh, cub/cub/device/dispatch/dispatch_segmented_sort.cuh,
+    cub/cub/device/dispatch/kernels/segmented_sort.cuh, cub/cub/device/dispatch/tuning/tuning_segmented_sort.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -577,6 +691,15 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: NaderAlAwar
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-6069
+  files_changed:
+  - cub/cub/agent/agent_radix_sort_downsweep.cuh
+  - cub/cub/agent/agent_sub_warp_merge_sort.cuh
+  - cub/cub/device/device_partition.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_sort.cuh
+  - cub/cub/device/dispatch/kernels/segmented_sort.cuh
+  - cub/cub/device/dispatch/tuning/tuning_segmented_sort.cuh
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 8826
   pr: 8826
   title: Use the new tuning API internally for `detail::reduce[_nd]::dispatch[_nd]`
@@ -586,7 +709,7 @@ prs:
   merged_at: '2026-05-12T10:02:11Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -623,6 +746,10 @@ prs:
   score: 45
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8826
+  files_changed:
+  - cub/cub/device/device_reduce.cuh
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 3236
   pr: 3236
   title: 'Fix scan / sm90 perf regression '
@@ -632,7 +759,7 @@ prs:
   merged_at: '2025-01-02T22:50:28Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/tuning/tuning_scan.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -667,6 +794,10 @@ prs:
   score: 44
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-3236
+  files_changed:
+  - cub/cub/device/dispatch/tuning/tuning_scan.cuh
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 8495
   pr: 8495
   title: Replace `detail::scan::dispatch` by CUB's public API
@@ -676,7 +807,7 @@ prs:
   merged_at: '2026-05-06T14:10:05Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_scan.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -715,6 +846,10 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8495
+  files_changed:
+  - cub/cub/device/device_scan.cuh
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 7807
   pr: 7807
   title: Implement the new tuning API for `detail::reduce::dispatch_streaming_arg_reduce_t`
@@ -724,7 +859,7 @@ prs:
   merged_at: '2026-02-26T20:42:09Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_reduce.cuh, cub/cub/device/dispatch/dispatch_streaming_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -755,6 +890,11 @@ prs:
   score: 42
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7807
+  files_changed:
+  - cub/cub/device/device_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_streaming_reduce.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 8381
   pr: 8381
   title: Replace `detail::merge::dispatch` by CUB's public API
@@ -764,7 +904,7 @@ prs:
   merged_at: '2026-04-16T09:09:58Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/env_dispatch.cuh, cub/cub/device/device_merge.cuh, nvbench_helper/nvbench_helper/nvbench_helper.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -799,6 +939,12 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8381
+  files_changed:
+  - cub/cub/detail/env_dispatch.cuh
+  - cub/cub/device/device_merge.cuh
+  - nvbench_helper/nvbench_helper/nvbench_helper.cuh
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 8839
   pr: 8839
   title: Fix Warpspeed scan shifted output store
@@ -808,7 +954,7 @@ prs:
   merged_at: '2026-05-06T22:11:03Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/warpspeed/squad/load_store.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -843,6 +989,10 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bdice
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8839
+  files_changed:
+  - cub/cub/detail/warpspeed/squad/load_store.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 6819
   pr: 6819
   title: Use integer promotion for `warp_reduce`
@@ -852,7 +1002,7 @@ prs:
   merged_at: '2025-12-11T01:03:40Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/warp/specializations/warp_reduce_shfl.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -887,6 +1037,10 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: miscco
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-6819
+  files_changed:
+  - cub/cub/warp/specializations/warp_reduce_shfl.cuh
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 8473
   pr: 8473
   title: Replace `detail::merge_sort::dispatch` by CUB's public API
@@ -896,7 +1050,7 @@ prs:
   merged_at: '2026-04-20T12:49:26Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_merge_sort.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -928,6 +1082,10 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8473
+  files_changed:
+  - cub/cub/device/device_merge_sort.cuh
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 8355
   pr: 8355
   title: '[cub]: implement utilities for policy selection'
@@ -937,7 +1095,13 @@ prs:
   merged_at: '2026-04-22T19:13:27Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/block/block_load_to_shared.cuh, cub/cub/device/dispatch/dispatch_adjacent_difference.cuh, cub/cub/device/dispatch/dispatch_batch_memcpy.cuh,
+    cub/cub/device/dispatch/dispatch_find.cuh, cub/cub/device/dispatch/dispatch_merge.cuh, cub/cub/device/dispatch/dispatch_reduce_by_key.cuh, cub/cub/device/dispatch/dispatch_rle.cuh, cub/cub/device/dispatch/dispatch_scan_by_key.cuh,
+    cub/cub/device/dispatch/dispatch_select_if.cuh, cub/cub/device/dispatch/dispatch_topk.cuh, cub/cub/device/dispatch/kernels/kernel_batched_topk.cuh, cub/cub/device/dispatch/kernels/kernel_for_each.cuh,
+    cub/cub/device/dispatch/kernels/kernel_histogram.cuh, cub/cub/device/dispatch/kernels/kernel_merge_sort.cuh, cub/cub/device/dispatch/kernels/kernel_radix_sort.cuh, cub/cub/device/dispatch/kernels/kernel_reduce.cuh,
+    cub/cub/device/dispatch/kernels/kernel_reduce_deterministic.cuh, cub/cub/device/dispatch/kernels/kernel_scan.cuh, cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh, cub/cub/device/dispatch/kernels/kernel_segmented_radix_sort.cuh,
+    cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh, cub/cub/device/dispatch/kernels/kernel_segmented_sort.cuh, cub/cub/device/dispatch/kernels/kernel_three_way_partition.cuh, cub/cub/device/dispatch/kernels/kernel_transform.cuh,
+    cub/cub/device/dispatch/kernels/kernel_unique_by_key.cuh, cub/cub/util_arch.cuh, cub/cub/util_device.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -980,6 +1144,36 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: davebayer
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8355
+  files_changed:
+  - cub/cub/block/block_load_to_shared.cuh
+  - cub/cub/device/dispatch/dispatch_adjacent_difference.cuh
+  - cub/cub/device/dispatch/dispatch_batch_memcpy.cuh
+  - cub/cub/device/dispatch/dispatch_find.cuh
+  - cub/cub/device/dispatch/dispatch_merge.cuh
+  - cub/cub/device/dispatch/dispatch_reduce_by_key.cuh
+  - cub/cub/device/dispatch/dispatch_rle.cuh
+  - cub/cub/device/dispatch/dispatch_scan_by_key.cuh
+  - cub/cub/device/dispatch/dispatch_select_if.cuh
+  - cub/cub/device/dispatch/dispatch_topk.cuh
+  - cub/cub/device/dispatch/kernels/kernel_batched_topk.cuh
+  - cub/cub/device/dispatch/kernels/kernel_for_each.cuh
+  - cub/cub/device/dispatch/kernels/kernel_histogram.cuh
+  - cub/cub/device/dispatch/kernels/kernel_merge_sort.cuh
+  - cub/cub/device/dispatch/kernels/kernel_radix_sort.cuh
+  - cub/cub/device/dispatch/kernels/kernel_reduce.cuh
+  - cub/cub/device/dispatch/kernels/kernel_reduce_deterministic.cuh
+  - cub/cub/device/dispatch/kernels/kernel_scan.cuh
+  - cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_radix_sort.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_sort.cuh
+  - cub/cub/device/dispatch/kernels/kernel_three_way_partition.cuh
+  - cub/cub/device/dispatch/kernels/kernel_transform.cuh
+  - cub/cub/device/dispatch/kernels/kernel_unique_by_key.cuh
+  - cub/cub/util_arch.cuh
+  - cub/cub/util_device.cuh
+  files_reviewed_count: 28
+  scope_disposition: retained
 - number: 1973
   pr: 1973
   title: Experimental Python cooperative algorithms
@@ -987,9 +1181,9 @@ prs:
   url: https://github.com/NVIDIA/cccl/pull/1973
   date: '2024-07-11'
   merged_at: '2024-07-11T21:18:35Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 43 authoritative changed file(s)'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1046,6 +1240,17 @@ prs:
   score: 38
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-1973
+  files_changed:
+  - .gitignore
+  - ci/inspect_changes.sh
+  - ci/matrix.yaml
+  - ci/pretty_printing.sh
+  - ci/test_pycuda.sh
+  - cub/cub/block/block_radix_sort.cuh
+  - docs/pycuda/index.rst
+  - docs/repo.toml
+  files_reviewed_count: 43
+  scope_disposition: removed
 - number: 7384
   pr: 7384
   title: Radix-selection based `BlockTopK` specialization
@@ -1055,7 +1260,7 @@ prs:
   merged_at: '2026-03-07T10:26:12Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_batched_topk.cuh, cub/cub/block/block_topk.cuh, cub/cub/block/specializations/block_topk_air.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1087,6 +1292,12 @@ prs:
   score: 38
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7384
+  files_changed:
+  - cub/cub/agent/agent_batched_topk.cuh
+  - cub/cub/block/block_topk.cuh
+  - cub/cub/block/specializations/block_topk_air.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 7949
   pr: 7949
   title: Use the new tuning API for `detail::radix_sort::dispatch`
@@ -1096,7 +1307,7 @@ prs:
   merged_at: '2026-05-14T21:21:07Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_radix_sort.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1128,6 +1339,10 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7949
+  files_changed:
+  - cub/cub/device/device_radix_sort.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 7805
   pr: 7805
   title: Forward policy hub from `dispatch_streaming_arg_reduce_t` to `reduce::dispatch`
@@ -1137,7 +1352,7 @@ prs:
   merged_at: '2026-02-26T15:10:16Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/dispatch_streaming_reduce.cuh, cub/cub/device/dispatch/tuning/tuning_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1168,6 +1383,11 @@ prs:
   score: 37
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7805
+  files_changed:
+  - cub/cub/device/dispatch/dispatch_streaming_reduce.cuh
+  - cub/cub/device/dispatch/tuning/tuning_reduce.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 7814
   pr: 7814
   title: '[Backport branch/3.3.x] Forward policy hub from `dispatch_streaming_arg_reduce_t` to `reduce::dispatch`'
@@ -1177,7 +1397,7 @@ prs:
   merged_at: '2026-02-27T20:22:35Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/dispatch_streaming_reduce.cuh, cub/cub/device/dispatch/tuning/tuning_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1208,6 +1428,11 @@ prs:
   score: 37
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7814
+  files_changed:
+  - cub/cub/device/dispatch/dispatch_streaming_reduce.cuh
+  - cub/cub/device/dispatch/tuning/tuning_reduce.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 7944
   pr: 7944
   title: Reduce usage of `cub::DispatchReduce`
@@ -1215,9 +1440,9 @@ prs:
   url: https://github.com/NVIDIA/cccl/pull/7944
   date: '2026-03-10'
   merged_at: '2026-03-10T08:03:48Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1244,6 +1469,13 @@ prs:
   score: 35
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7944
+  files_changed:
+  - cub/benchmarks/bench/transform_reduce/sum.cu
+  - cub/cub/device/dispatch/dispatch_reduce.cuh
+  - cub/test/catch2_test_device_reduce_dispatcher.cu
+  - docs/cub/tuning.rst
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 8565
   pr: 8565
   title: Replace `detail::for_each::dispatch` by CUB's public API
@@ -1253,7 +1485,7 @@ prs:
   merged_at: '2026-04-27T18:32:31Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_for.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1281,6 +1513,10 @@ prs:
   score: 35
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8565
+  files_changed:
+  - cub/cub/device/device_for.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 8695
   pr: 8695
   title: Replace `detail::segmented_reduce::dispatch` by the public API
@@ -1290,7 +1526,7 @@ prs:
   merged_at: '2026-04-30T10:13:57Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_segmented_reduce.cuh, cub/cub/device/dispatch/dispatch_segmented_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1320,6 +1556,11 @@ prs:
   score: 35
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8695
+  files_changed:
+  - cub/cub/device/device_segmented_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_reduce.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 8352
   pr: 8352
   title: Apply some random warpspeed tunings
@@ -1329,7 +1570,7 @@ prs:
   merged_at: '2026-04-14T15:47:54Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/tuning/tuning_scan.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1363,6 +1604,10 @@ prs:
   score: 32
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8352
+  files_changed:
+  - cub/cub/device/dispatch/tuning/tuning_scan.cuh
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 7795
   pr: 7795
   title: Add env SegmentedReduce (non fixed-size overloads)
@@ -1372,7 +1617,7 @@ prs:
   merged_at: '2026-03-25T13:45:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_segmented_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1399,6 +1644,10 @@ prs:
   score: 31
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7795
+  files_changed:
+  - cub/cub/device/device_segmented_reduce.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 7940
   pr: 7940
   title: '[cuda.compute]: Fix faulty pointer arithmetic calculation in CUB dispatch'
@@ -1408,7 +1657,7 @@ prs:
   merged_at: '2026-03-09T20:49:01Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/dispatch_radix_sort.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1435,6 +1684,10 @@ prs:
   score: 31
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7940
+  files_changed:
+  - cub/cub/device/dispatch/dispatch_radix_sort.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 8125
   pr: 8125
   title: Optimized Device-to-Device Tensor Copy (cudax) - Transpose Case
@@ -1444,7 +1697,8 @@ prs:
   merged_at: '2026-04-24T08:25:02Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cudax/include/cuda/experimental/__copy/copy_shared_memory.cuh, cudax/include/cuda/experimental/__copy/copy_shared_memory_utils.cuh, cudax/include/cuda/experimental/__copy/mdspan_d2d.cuh,
+    cudax/include/cuda/experimental/__copy/tensor_iterator.cuh, cudax/include/cuda/experimental/__copy_bytes/mdspan_to_raw_tensor.cuh, cudax/include/cuda/experimental/__copy_bytes/simplify_paired.cuh, cudax/include/cuda/experimental/__copy_bytes/tensor_query.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1479,6 +1733,16 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: fbusato
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8125
+  files_changed:
+  - cudax/include/cuda/experimental/__copy/copy_shared_memory.cuh
+  - cudax/include/cuda/experimental/__copy/copy_shared_memory_utils.cuh
+  - cudax/include/cuda/experimental/__copy/mdspan_d2d.cuh
+  - cudax/include/cuda/experimental/__copy/tensor_iterator.cuh
+  - cudax/include/cuda/experimental/__copy_bytes/mdspan_to_raw_tensor.cuh
+  - cudax/include/cuda/experimental/__copy_bytes/simplify_paired.cuh
+  - cudax/include/cuda/experimental/__copy_bytes/tensor_query.cuh
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 8291
   pr: 8291
   title: Port `thrust::min|max_element` to CUB
@@ -1488,7 +1752,7 @@ prs:
   merged_at: '2026-04-30T10:24:40Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): nvbench_helper/nvbench_helper/nvbench_helper.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1514,6 +1778,10 @@ prs:
   score: 29
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8291
+  files_changed:
+  - nvbench_helper/nvbench_helper/nvbench_helper.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 2944
   pr: 2944
   title: fix thread-reduce performance regression
@@ -1523,7 +1791,7 @@ prs:
   merged_at: '2024-11-27T00:42:47Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/thread/thread_operators.cuh, cub/cub/thread/thread_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1549,6 +1817,11 @@ prs:
   score: 27
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-2944
+  files_changed:
+  - cub/cub/thread/thread_operators.cuh
+  - cub/cub/thread/thread_reduce.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 8427
   pr: 8427
   title: '[thrust] Single-pass `is_partitioned` via adjacent zip_iterator'
@@ -1556,9 +1829,9 @@ prs:
   url: https://github.com/NVIDIA/cccl/pull/8427
   date: '2026-04-27'
   merged_at: '2026-04-27T18:15:06Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1586,6 +1859,11 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: edenfunf
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8427
+  files_changed:
+  - thrust/benchmarks/bench/is_partitioned/basic.cu
+  - thrust/thrust/system/cuda/detail/partition.h
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 5408
   pr: 5408
   title: 'Combine `block_reduce_warp_reduction_nondeterministic.cuh` specialization with original deterministic one '
@@ -1595,7 +1873,7 @@ prs:
   merged_at: '2025-08-04T18:42:37Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/block/block_reduce.cuh, cub/cub/block/specializations/block_reduce_warp_reductions.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1626,6 +1904,11 @@ prs:
   score: 26
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-5408
+  files_changed:
+  - cub/cub/block/block_reduce.cuh
+  - cub/cub/block/specializations/block_reduce_warp_reductions.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 4716
   pr: 4716
   title: Split Optimize Warp Reduce PR - CUB part
@@ -1635,7 +1918,8 @@ prs:
   merged_at: '2025-05-20T23:50:17Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/block/radix_rank_sort_operations.cuh, cub/cub/detail/array_utils.cuh, cub/cub/detail/type_traits.cuh, cub/cub/detail/unsafe_bitcast.cuh,
+    cub/cub/device/dispatch/dispatch_adjacent_difference.cuh, cub/cub/device/dispatch/dispatch_reduce.cuh, cub/cub/thread/thread_operators.cuh, cub/cub/thread/thread_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1666,6 +1950,17 @@ prs:
   score: 25
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-4716
+  files_changed:
+  - cub/cub/block/radix_rank_sort_operations.cuh
+  - cub/cub/detail/array_utils.cuh
+  - cub/cub/detail/type_traits.cuh
+  - cub/cub/detail/unsafe_bitcast.cuh
+  - cub/cub/device/dispatch/dispatch_adjacent_difference.cuh
+  - cub/cub/device/dispatch/dispatch_reduce.cuh
+  - cub/cub/thread/thread_operators.cuh
+  - cub/cub/thread/thread_reduce.cuh
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 6597
   pr: 6597
   title: Split fixed-size segmented reduce dispatch header
@@ -1675,7 +1970,8 @@ prs:
   merged_at: '2025-11-14T02:23:52Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_segmented_reduce.cuh, cub/cub/device/dispatch/dispatch_fixed_size_segmented_reduce.cuh, cub/cub/device/dispatch/dispatch_reduce.cuh,
+    cub/cub/device/dispatch/dispatch_segmented_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1706,6 +2002,13 @@ prs:
   score: 25
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-6597
+  files_changed:
+  - cub/cub/device/device_segmented_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_fixed_size_segmented_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_reduce.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 7114
   pr: 7114
   title: Two-phase reduction for fixed size segmented reduction for very large segment sizes
@@ -1715,7 +2018,7 @@ prs:
   merged_at: '2026-02-19T14:51:21Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/dispatch_fixed_size_segmented_reduce.cuh, cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1744,6 +2047,11 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: srinivasyadav18
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7114
+  files_changed:
+  - cub/cub/device/dispatch/dispatch_fixed_size_segmented_reduce.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 8861
   pr: 8861
   title: '[cub] Simplify arch dispatch'
@@ -1753,7 +2061,7 @@ prs:
   merged_at: '2026-05-07T09:50:17Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/arch_dispatch.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1779,6 +2087,10 @@ prs:
   score: 25
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8861
+  files_changed:
+  - cub/cub/detail/arch_dispatch.cuh
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 8423
   pr: 8423
   title: Vectorize mbarrier initialization in warpspeed scan
@@ -1788,7 +2100,7 @@ prs:
   merged_at: '2026-04-15T09:26:14Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/warpspeed/sync_handler.cuh, cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1820,6 +2132,11 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8423
+  files_changed:
+  - cub/cub/detail/warpspeed/sync_handler.cuh
+  - cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 6938
   pr: 6938
   title: Unify operator handling in cuda.compute
@@ -1871,7 +2188,7 @@ prs:
   merged_at: '2026-04-13T16:09:37Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1898,6 +2215,10 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8184
+  files_changed:
+  - cub/cub/device/dispatch/kernels/kernel_scan_warpspeed.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 8395
   pr: 8395
   title: '[CUB] Replace `Shuffle(Up|Down|Index)` with cuda::device::warp_shuffle - RadixSort only'
@@ -1907,7 +2228,7 @@ prs:
   merged_at: '2026-04-29T01:06:50Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_radix_sort_downsweep.cuh, cub/cub/device/dispatch/kernels/kernel_radix_sort.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -1939,6 +2260,11 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: fbusato
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8395
+  files_changed:
+  - cub/cub/agent/agent_radix_sort_downsweep.cuh
+  - cub/cub/device/dispatch/kernels/kernel_radix_sort.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 8810
   pr: 8810
   title: '[Tile] Improve overlapping range check for `cuda::std::copy`'
@@ -1980,7 +2306,7 @@ prs:
   merged_at: '2026-01-09T02:29:53Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/arch_dispatch.cuh'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -2010,6 +2336,10 @@ prs:
   score: 36
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7093
+  files_changed:
+  - cub/cub/detail/arch_dispatch.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 3691
   pr: 3691
   title: Fix SM100 histogram tunings
@@ -2019,7 +2349,7 @@ prs:
   merged_at: '2025-02-06T21:56:39Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/dispatch/tuning/tuning_histogram.cuh'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -2053,6 +2383,10 @@ prs:
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   author: bernhardmgruber
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-3691
+  files_changed:
+  - cub/cub/device/dispatch/tuning/tuning_histogram.cuh
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 8311
   pr: 8311
   title: Implement the new tuning API for `DispatchSelectIf`
@@ -2062,7 +2396,7 @@ prs:
   merged_at: '2026-04-09T11:47:41Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_partition.cuh, cub/cub/device/device_select.cuh, cub/cub/device/dispatch/dispatch_select_if.cuh, cub/cub/device/dispatch/tuning/tuning_select_if.cuh'
   inclusion_reason: Treat scheduler/autotune configs as shape-specific evidence; replay benchmark shapes before generalizing.
   seed_source: legacy-pr-index
   primary_category: scheduler_autotune
@@ -2093,6 +2427,13 @@ prs:
   score: 27
   ncu_hint: SM occupancy, waves/SM, active cycles, tail effects, and load imbalance.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8311
+  files_changed:
+  - cub/cub/device/device_partition.cuh
+  - cub/cub/device/device_select.cuh
+  - cub/cub/device/dispatch/dispatch_select_if.cuh
+  - cub/cub/device/dispatch/tuning/tuning_select_if.cuh
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 7500
   pr: 7500
   title: 'cuda.compute: Use native CCCL.c support for stateful ops'
@@ -2172,7 +2513,7 @@ prs:
   merged_at: '2026-03-09T14:48:16Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_topk.cuh, cub/cub/device/device_topk.cuh, cub/cub/device/dispatch/dispatch_topk.cuh, cub/cub/device/dispatch/tuning/tuning_topk.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2211,6 +2552,13 @@ prs:
   score: 58
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7928
+  files_changed:
+  - cub/cub/agent/agent_topk.cuh
+  - cub/cub/device/device_topk.cuh
+  - cub/cub/device/dispatch/dispatch_topk.cuh
+  - cub/cub/device/dispatch/tuning/tuning_topk.cuh
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 8538
   pr: 8538
   title: Implement the new tuning API for `detail::batched_topk::dispatch_batched_topk`
@@ -2220,7 +2568,8 @@ prs:
   merged_at: '2026-04-22T09:58:40Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_batched_topk.cuh, cub/cub/device/dispatch/dispatch_batched_topk.cuh, cub/cub/device/dispatch/kernels/kernel_batched_topk.cuh,
+    cub/cub/device/dispatch/tuning/tuning_batched_topk.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2260,6 +2609,13 @@ prs:
   score: 57
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8538
+  files_changed:
+  - cub/cub/agent/agent_batched_topk.cuh
+  - cub/cub/device/dispatch/dispatch_batched_topk.cuh
+  - cub/cub/device/dispatch/kernels/kernel_batched_topk.cuh
+  - cub/cub/device/dispatch/tuning/tuning_batched_topk.cuh
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 8040
   pr: 8040
   title: 'Adds support for non-fundamental types via decomposer to `DeviceTopK` '
@@ -2269,7 +2625,7 @@ prs:
   merged_at: '2026-03-18T17:08:24Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_topk.cuh, cub/cub/block/radix_rank_sort_operations.cuh, cub/cub/device/device_topk.cuh, cub/cub/device/dispatch/dispatch_topk.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2309,6 +2665,13 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: elstehle
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8040
+  files_changed:
+  - cub/cub/agent/agent_topk.cuh
+  - cub/cub/block/radix_rank_sort_operations.cuh
+  - cub/cub/device/device_topk.cuh
+  - cub/cub/device/dispatch/dispatch_topk.cuh
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 8742
   pr: 8742
   title: Use the new tuning API internally for `detail::topk::dispatch`
@@ -2318,7 +2681,7 @@ prs:
   merged_at: '2026-05-12T22:52:38Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_topk.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2354,6 +2717,10 @@ prs:
   score: 49
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8742
+  files_changed:
+  - cub/cub/device/device_topk.cuh
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 5578
   pr: 5578
   title: '`cuda.cccl.parallel`: Expose "well-known" operations to Python'
@@ -2426,7 +2793,7 @@ prs:
   merged_at: '2026-02-23T20:56:24Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/detail/delay_constructor.cuh, cub/cub/device/device_run_length_encode.cuh, cub/cub/device/dispatch/dispatch_rle.cuh, cub/cub/device/dispatch/tuning/tuning_rle_non_trivial_runs.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2460,6 +2827,13 @@ prs:
   score: 45
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7669
+  files_changed:
+  - cub/cub/detail/delay_constructor.cuh
+  - cub/cub/device/device_run_length_encode.cuh
+  - cub/cub/device/dispatch/dispatch_rle.cuh
+  - cub/cub/device/dispatch/tuning/tuning_rle_non_trivial_runs.cuh
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 8332
   pr: 8332
   title: simplify dispatch segmented reduce to use latest dispatch and new tunings API
@@ -2469,7 +2843,8 @@ prs:
   merged_at: '2026-04-24T19:14:03Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_reduce.cuh, cub/cub/device/device_segmented_reduce.cuh, cub/cub/device/dispatch/dispatch_reduce.cuh, cub/cub/device/dispatch/dispatch_segmented_reduce.cuh,
+    cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2513,6 +2888,14 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: srinivasyadav18
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8332
+  files_changed:
+  - cub/cub/agent/agent_reduce.cuh
+  - cub/cub/device/device_segmented_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_reduce.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_reduce.cuh
+  - cub/cub/device/dispatch/kernels/kernel_segmented_reduce.cuh
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 6077
   pr: 6077
   title: '[CUB] Use `BlockLoadToShared` in `DeviceMerge`'
@@ -2522,7 +2905,7 @@ prs:
   merged_at: '2025-11-06T09:19:09Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/agent/agent_merge.cuh, cub/cub/device/dispatch/dispatch_merge.cuh, cub/cub/device/dispatch/tuning/tuning_merge.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2559,6 +2942,12 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: pauleonix
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-6077
+  files_changed:
+  - cub/cub/agent/agent_merge.cuh
+  - cub/cub/device/dispatch/dispatch_merge.cuh
+  - cub/cub/device/dispatch/tuning/tuning_merge.cuh
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 7810
   pr: 7810
   title: Use the new tuning API internally for `detail::transform::dispatch`
@@ -2568,7 +2957,7 @@ prs:
   merged_at: '2026-03-02T09:19:32Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_transform.cuh, cub/cub/device/dispatch/dispatch_transform.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2600,6 +2989,11 @@ prs:
   score: 38
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-7810
+  files_changed:
+  - cub/cub/device/device_transform.cuh
+  - cub/cub/device/dispatch/dispatch_transform.cuh
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 8284
   pr: 8284
   title: Expose `max_segment_size` guarantee in cuda.compute
@@ -2607,9 +3001,9 @@ prs:
   url: https://github.com/NVIDIA/cccl/pull/8284
   date: '2026-04-06'
   merged_at: '2026-04-06T18:35:34Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 10 authoritative changed file(s)'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2649,6 +3043,17 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: shwina
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8284
+  files_changed:
+  - c/parallel/include/cccl/c/segmented_reduce.h
+  - c/parallel/src/segmented_reduce.cu
+  - c/parallel/test/test_segmented_reduce.cpp
+  - python/cuda_cccl/benchmarks/compute/quick_configs.yaml
+  - python/cuda_cccl/benchmarks/compute/run_benchmarks.py
+  - python/cuda_cccl/benchmarks/compute/segmented_reduce/variable_sum.py
+  - python/cuda_cccl/cuda/compute/_bindings.pyi
+  - python/cuda_cccl/cuda/compute/_bindings_impl.pyx
+  files_reviewed_count: 10
+  scope_disposition: removed
 - number: 7501
   pr: 7501
   title: 'cuda.compute: improve caching performance by not relying on `isinstance()` checks for protocols'
@@ -2740,7 +3145,7 @@ prs:
   merged_at: '2025-02-04T10:48:22Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/block/block_load.cuh'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -2767,6 +3172,10 @@ prs:
   score: 26
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-3517
+  files_changed:
+  - cub/cub/block/block_load.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 9035
   pr: 9035
   title: '[Tile] Try to appease tile compiler'
@@ -8756,7 +9165,7 @@ prs:
   author: bernhardmgruber
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cub/cub/block/block_load.cuh, cub/cub/block/block_store.cuh'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/block/block_load.cuh, cub/cub/block/block_store.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8781,6 +9190,11 @@ prs:
   deletions: 6
   changed_file_count: 2
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-9056
+  files_changed:
+  - cub/cub/block/block_load.cuh
+  - cub/cub/block/block_store.cuh
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 9044
   pr: 9044
   title: '[libcu++] Fix default make_shared_resource construction'
@@ -8789,9 +9203,9 @@ prs:
   date: '2026-05-17'
   merged_at: '2026-05-17T15:14:25Z'
   author: bdice
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: libcudacxx/include/cuda/__memory_resource/shared_block_ptr.h, libcudacxx/include/cuda/__memory_resource/shared_resource.h, libcudacxx/test/libcudacxx/cuda/memory_resource/shared_resource.cu'
+  reason: 'remove: no positive device-kernel implementation in 3 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8818,6 +9232,12 @@ prs:
   deletions: 2
   changed_file_count: 3
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-9044
+  files_changed:
+  - libcudacxx/include/cuda/__memory_resource/shared_block_ptr.h
+  - libcudacxx/include/cuda/__memory_resource/shared_resource.h
+  - libcudacxx/test/libcudacxx/cuda/memory_resource/shared_resource.cu
+  files_reviewed_count: 3
+  scope_disposition: removed
 - number: 9039
   pr: 9039
   title: Fix segmented radix sort benchmark segment size type
@@ -8826,9 +9246,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T07:18:14Z'
   author: bernhardmgruber
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: cub/benchmarks/bench/segmented_radix_sort/keys.cu'
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8852,6 +9272,10 @@ prs:
   deletions: 1
   changed_file_count: 1
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-9039
+  files_changed:
+  - cub/benchmarks/bench/segmented_radix_sort/keys.cu
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 9036
   pr: 9036
   title: Complex tanh (and thus tan) accuracy refinement
@@ -8898,7 +9322,7 @@ prs:
   author: davebayer
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cudax/include/cuda/experimental/__execution/visit.cuh, libcudacxx/codegen/generate_prologue_epilogue.py, libcudacxx/include/cuda/std/__cccl/prologue.h, libcudacxx/include/cuda/std/__type_traits/type_list.h'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cudax/include/cuda/experimental/__execution/visit.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8927,6 +9351,10 @@ prs:
   deletions: 30
   changed_file_count: 4
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-9019
+  files_changed:
+  - cudax/include/cuda/experimental/__execution/visit.cuh
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 8927
   pr: 8927
   title: Use the new tuning API internally for `detail::segmented_radix_sort::dispatch`
@@ -8937,7 +9365,7 @@ prs:
   author: bernhardmgruber
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cub/benchmarks/bench/segmented_radix_sort/keys.cu, cub/cub/device/device_segmented_radix_sort.cuh, cub/cub/device/dispatch/dispatch_segmented_radix_sort.cuh, cub/test/catch2_test_device_segmented_radix_sort_env.cu'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_segmented_radix_sort.cuh, cub/cub/device/dispatch/dispatch_segmented_radix_sort.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -8972,6 +9400,11 @@ prs:
   deletions: 68
   changed_file_count: 4
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8927
+  files_changed:
+  - cub/cub/device/device_segmented_radix_sort.cuh
+  - cub/cub/device/dispatch/dispatch_segmented_radix_sort.cuh
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 8925
   pr: 8925
   title: Use the new tuning API internally for `detail::select|three_way_partition::dispatch` and `DevicePartition`
@@ -8982,7 +9415,7 @@ prs:
   author: bernhardmgruber
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cub/benchmarks/bench/partition/flagged.cu, cub/benchmarks/bench/partition/if.cu, cub/benchmarks/bench/partition/three_way.cu, cub/cub/device/device_partition.cuh'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_partition.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9017,6 +9450,10 @@ prs:
   deletions: 378
   changed_file_count: 6
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8925
+  files_changed:
+  - cub/cub/device/device_partition.cuh
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 8905
   pr: 8905
   title: '[STF] Add per-handle exec_place stream resources'
@@ -9027,8 +9464,10 @@ prs:
   author: caugonnet
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cudax/include/cuda/experimental/__places/exec/cuda_stream.cuh, cudax/include/cuda/experimental/__places/exec/green_context.cuh, cudax/include/cuda/experimental/__places/exec_place_resources.cuh,
-    cudax/include/cuda/experimental/__places/place_partition.cuh'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cudax/include/cuda/experimental/__places/exec/cuda_stream.cuh, cudax/include/cuda/experimental/__places/exec/green_context.cuh, cudax/include/cuda/experimental/__places/exec_place_resources.cuh,
+    cudax/include/cuda/experimental/__places/place_partition.cuh, cudax/include/cuda/experimental/__places/places.cuh, cudax/include/cuda/experimental/__stf/graph/graph_task.cuh, cudax/include/cuda/experimental/__stf/internal/async_resources_handle.cuh,
+    cudax/include/cuda/experimental/__stf/internal/backend_ctx.cuh, cudax/include/cuda/experimental/__stf/internal/stf_places_extended_exports.cuh, cudax/include/cuda/experimental/__stf/stream/interfaces/slice.cuh,
+    cudax/include/cuda/experimental/__stf/stream/internal/event_types.cuh, cudax/include/cuda/experimental/__stf/stream/reduction.cuh, cudax/include/cuda/experimental/__stf/stream/stream_ctx.cuh, cudax/include/cuda/experimental/__stf/stream/stream_task.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9089,6 +9528,23 @@ prs:
   deletions: 80
   changed_file_count: 22
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8905
+  files_changed:
+  - cudax/include/cuda/experimental/__places/exec/cuda_stream.cuh
+  - cudax/include/cuda/experimental/__places/exec/green_context.cuh
+  - cudax/include/cuda/experimental/__places/exec_place_resources.cuh
+  - cudax/include/cuda/experimental/__places/place_partition.cuh
+  - cudax/include/cuda/experimental/__places/places.cuh
+  - cudax/include/cuda/experimental/__stf/graph/graph_task.cuh
+  - cudax/include/cuda/experimental/__stf/internal/async_resources_handle.cuh
+  - cudax/include/cuda/experimental/__stf/internal/backend_ctx.cuh
+  - cudax/include/cuda/experimental/__stf/internal/stf_places_extended_exports.cuh
+  - cudax/include/cuda/experimental/__stf/stream/interfaces/slice.cuh
+  - cudax/include/cuda/experimental/__stf/stream/internal/event_types.cuh
+  - cudax/include/cuda/experimental/__stf/stream/reduction.cuh
+  - cudax/include/cuda/experimental/__stf/stream/stream_ctx.cuh
+  - cudax/include/cuda/experimental/__stf/stream/stream_task.cuh
+  files_reviewed_count: 22
+  scope_disposition: retained
 - number: 8880
   pr: 8880
   title: Use the new tuning API internally for `detail::select::dispatch` and `DeviceSelect`
@@ -9099,7 +9555,7 @@ prs:
   author: bernhardmgruber
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cub/benchmarks/bench/select/flagged.cu, cub/benchmarks/bench/select/if.cu, cub/benchmarks/bench/select/unique.cu, cub/cub/device/device_select.cuh'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_select.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9138,6 +9594,10 @@ prs:
   deletions: 758
   changed_file_count: 8
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8880
+  files_changed:
+  - cub/cub/device/device_select.cuh
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 8756
   pr: 8756
   title: Use the new tuning API internally for `detail::reduce_by_key::dispatch`
@@ -9148,7 +9608,7 @@ prs:
   author: bernhardmgruber
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cub/benchmarks/bench/reduce/by_key.cu, cub/benchmarks/bench/select/unique.cu, cub/cub/device/device_reduce.cuh, cub/test/catch2_test_device_reduce_env.cu'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cub/cub/device/device_reduce.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9178,6 +9638,10 @@ prs:
   deletions: 51
   changed_file_count: 4
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8756
+  files_changed:
+  - cub/cub/device/device_reduce.cuh
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 8190
   pr: 8190
   title: '[STF] Move unstable_unique from STF to generic cudax utility'
@@ -9188,8 +9652,7 @@ prs:
   author: caugonnet
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cudax/include/cuda/experimental/__stf/stream/internal/event_types.cuh, cudax/include/cuda/experimental/__stf/utility/unstable_unique.cuh, cudax/include/cuda/experimental/__utility/unstable_unique.cuh,
-    cudax/test/CMakeLists.txt'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cudax/include/cuda/experimental/__stf/stream/internal/event_types.cuh, cudax/include/cuda/experimental/__utility/unstable_unique.cuh'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9225,3 +9688,8 @@ prs:
   deletions: 180
   changed_file_count: 6
   artifact_dir: evidence/pull-bundles/cccl-cub/gh-8190
+  files_changed:
+  - cudax/include/cuda/experimental/__stf/stream/internal/event_types.cuh
+  - cudax/include/cuda/experimental/__utility/unstable_unique.cuh
+  files_reviewed_count: 6
+  scope_disposition: retained

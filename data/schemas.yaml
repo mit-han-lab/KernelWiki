@@ -13,6 +13,8 @@ source-pr:
     - url
     - source_category
     - architectures
+    - architecture_disposition
+    - architecture_evidence
     - tags
     - techniques
     - hardware_features
@@ -20,11 +22,27 @@ source-pr:
     - languages
     - captured_at
     - status
+    - inclusion_reason
+    - scope_disposition
+    - scope_evidence
+    - body_contract
+    - upstream_body_locator
+    - upstream_body_sha256
+    - upstream_excerpt_sha256
+    - upstream_files_sha256
   optional:
     - merge_sha
     - description
-    - inclusion_reason
     - changed_paths
+    - changed_files_count
+    - changed_files_enumerated_count
+    - changed_files_listing_complete
+    - changed_files_evidence_count
+    - changed_files_evidence_complete
+    - changed_files_evidence_method
+    - changed_files_evidence_receipt
+    - changed_paths_complete
+    - upstream_patches_complete
     - artifact_dir
   disallow_peer_of_artifact_dir:
     - diff_path
@@ -165,6 +183,7 @@ wiki-pattern:
   optional:
     - architectures
     - confidence
+    - blackwell_relevance
     - version_sensitive
   constraints:
     type: pattern
@@ -366,6 +385,7 @@ tool-versions-snapshot:
   tool_schema:
     required:
       - tool
+      - upstream_checked_at
       - releases
     constraints:
       tool: [triton, cutlass, cuda, ptx, cute-dsl, cutile, tilelang, tilus, jax-pallas]

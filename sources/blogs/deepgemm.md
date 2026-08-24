@@ -1,98 +1,43 @@
 ---
 id: blog-deepgemm
-title: DeepGEMM — FP8 GEMM Library
+title: DeepGEMM tensor-core kernel library
 author: DeepSeek AI
 url: https://github.com/deepseek-ai/DeepGEMM
 source_category: benchmark-blog
-architectures:
-- sm100
-- sm90
-tags:
-- gemm
-- fp8
-- fine-grained-quantization
-- block-scale
-- jit-compilation
-- tcgen05
-- wgmma
-retrieved_at: 2026-04-16
-artifact_dir: artifacts/blogs/deepgemm/code
+architectures: [sm100, sm90]
+tags: [gemm, fp8, fp4, fine-grained-quantization, block-scale, jit-compilation, grouped-gemm]
+retrieved_at: 2026-08-18
+source_commit: 559d79fb6994a58b8a15b4b93bf13ccc16edf247
 ---
 
-## Summary
+# DeepGEMM tensor-core kernel library
 
-DeepSeek's high-performance FP8 GEMM library with fine-grained scaling, supporting both Hopper and Blackwell.
+DeepGEMM's README at commit
+`559d79fb6994a58b8a15b4b93bf13ccc16edf247` describes a runtime-JIT CUDA
+library for FP8, FP4, BF16, grouped GEMMs, Mega MoE, and MQA-scoring kernels.
+It requires an SM90 or SM100 GPU.
 
-## Key Techniques
-- Fine-grained quantization: tile-wise 1×128 activations, block-wise 128×128 weights
-- SM90: WGMMA with Nc=128 CUDA core promotion (FP22→FP32)
-- SM100: tcgen05.mma with TMEM, packed UE8M0 scale format, all memory layouts
-- MoE grouped GEMMs: M-axis grouping, contiguous/masked/K-grouped layouts
-- JIT compilation via NVRTC
-- ~300 lines core kernel code
-- Up to 1550 TFLOPS on H800
+The README states these architecture-specific interface constraints:
 
-## Key Code
+- SM90 accepts NT layout and FP32 scaling factors.
+- SM100 accepts NT, TN, NN, and TT layouts and packed UE8M0 scaling factors.
+- M-grouped contiguous GEMMs keep N and K fixed and require each expert segment
+  to satisfy the library's queried M-block alignment.
+- M-grouped masked GEMMs accept a valid-M mask for graph-friendly decode.
+- K-grouped APIs serve weight-gradient workloads with fixed M and N.
 
-### Nc=128 CUDA-core promotion (Hopper SM90)
+The current README says kernels are compiled at runtime through a lightweight
+JIT module. NVRTC is optional rather than universal: the documented default
+compiler path is NVCC, and the README warns that enabling NVRTC can reduce
+performance on some cases.
 
-```cpp
-// On Hopper, the TC accumulator is only ~FP22-precise. DeepGEMM promotes
-// the partial sum to an FP32 CUDA-core accumulator every Nc=128 columns
-// (4 consecutive WGMMAs of n=32 each) to avoid precision drift.
-constexpr int Nc = 128;
-constexpr int WGMMA_N = 32;
+## Source-reported performance
 
-float cuda_core_acc[TILE_M][TILE_N] = {0};
+The 2025-04-18 news entry reports “up to 1550 TFLOPS” on H800 and links the
+associated PRs and commit. It does not attach that maximum to one shape in the
+README entry, so the value must not be generalized to arbitrary GEMMs.
 
-for (int k = 0; k < K; k += Nc) {
-    __half2 tc_acc[TILE_M][WGMMA_N];
-    memset(tc_acc, 0, sizeof(tc_acc));
-    for (int sub_k = 0; sub_k < Nc; sub_k += WGMMA_K) {
-        wgmma_mma_async(tc_acc, A_smem + sub_k, B_smem + sub_k);
-    }
-    wgmma_wait();
-    for (int m = 0; m < TILE_M; m++)
-        for (int n = 0; n < TILE_N; n++)
-            cuda_core_acc[m][n] += (float)tc_acc[m][n] * scale_a[m] * scale_b[n];
-}
-```
-
-### SM100 path — tcgen05.mma with UE8M0 block scaling
-
-```cpp
-// On Blackwell, tcgen05.mma consumes UE8M0 scale factors directly.
-// 4 UE8M0 values pack into a single uint32; TMEM accumulates in full FP32
-// precision so no CUDA-core promotion is needed.
-uint32_t packed_scales = pack_ue8m0(sf[0], sf[1], sf[2], sf[3]);
-asm volatile(
-    "tcgen05.mma.cta_group::1.kind::f8f6f4.block_scale "
-    "[%0], %1, %2, [%3], %4, 1;\n"
-    :: "r"(tmem_acc), "l"(desc_a), "l"(desc_b),
-       "r"(sf_tmem_addr), "r"(0));
-```
-
-### MoE grouped-GEMM launch
-
-```cpp
-// Grouped-GEMM packs a variable list of per-expert GEMMs into one kernel
-// launch via a prefix-sum offset array; layouts are contiguous (M-axis),
-// masked (variable-K), or K-grouped depending on router output.
-struct GroupedGemmArgs {
-    int num_groups;
-    int* m_prefix;                    // [num_groups+1]
-    const __nv_fp8_e4m3* A;
-    const __nv_fp8_e4m3* B;
-    const float* scales_a;
-    const float* scales_b;
-    __half* C;
-    int N, K;
-};
-
-__global__ void grouped_gemm_launch(GroupedGemmArgs args) {
-    int group = blockIdx.y;
-    int m_start = args.m_prefix[group];
-    int m_end   = args.m_prefix[group + 1];
-    // Dispatch a standard tile-level GEMM for [m_start, m_end) × N × K.
-}
-```
+Earlier local code blocks were removed because they were synthesized sketches,
+not excerpts from DeepGEMM. The repository's verbatim kernel bundle is kept
+separately under `artifacts/kernels/deepgemm/full/` with its own commit pin and
+hashes.

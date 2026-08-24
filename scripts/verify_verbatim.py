@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
-"""Byte-match every asset_mode=verbatim / upstream-patch file against upstream.
+"""Verify every asset_mode=verbatim / upstream-patch file against upstream.
 
 Walks artifacts/*/PROVENANCE.yaml, finds each files[*] whose mode is 'verbatim'
 or 'upstream-patch', fetches the upstream content via `gh api` (for verbatim)
-or `gh pr diff` (for upstream-patch), and compares bytes.
+or `gh pr diff` (for upstream-patch), and compares it with the local asset.
+
+Verbatim files are byte-compared. GitHub-generated PR diffs are compared after
+canonicalizing only the abbreviated object IDs on ``index`` lines. Git chooses
+the abbreviation length dynamically as a repository grows, so those IDs can
+lengthen even though the pinned PR patch is semantically byte-for-byte
+unchanged. The merge-commit prefix is still verified before patch comparison.
 
 Exit codes:
   0 — all verbatim/upstream-patch assets match their pinned upstream
@@ -25,6 +31,20 @@ from pathlib import Path
 import yaml
 import base64
 import json
+
+
+_PATCH_INDEX_RE = re.compile(
+    rb"^(index )[0-9a-fA-F]+(\.\.)[0-9a-fA-F]+(.*)$", re.MULTILINE
+)
+
+
+def canonicalize_upstream_patch(data):
+    """Remove Git's unstable abbreviation length from patch ``index`` lines.
+
+    The remainder of each index line (including file mode) and every patch
+    header/hunk byte remain part of the comparison oracle.
+    """
+    return _PATCH_INDEX_RE.sub(rb"\1<OLD>\2<NEW>\3", data)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS_DIR = REPO_ROOT / "artifacts"
@@ -292,11 +312,19 @@ def verify_bundle(bundle_root):
             errors.append(f"{_rel_to_repo(bundle_root)}/{lp}: upstream fetch failed: {e}")
             continue
 
-        if upstream_bytes != local_bytes:
+        comparable_local = local_bytes
+        comparable_upstream = upstream_bytes
+        comparison_label = mode
+        if mode == "upstream-patch":
+            comparable_local = canonicalize_upstream_patch(local_bytes)
+            comparable_upstream = canonicalize_upstream_patch(upstream_bytes)
+            comparison_label = "canonicalized upstream-patch"
+
+        if comparable_upstream != comparable_local:
             local_sha = hashlib.sha256(local_bytes).hexdigest()[:12]
             upstream_sha12 = hashlib.sha256(upstream_bytes).hexdigest()[:12]
             errors.append(
-                f"{_rel_to_repo(bundle_root)}/{lp}: {mode} byte mismatch "
+                f"{_rel_to_repo(bundle_root)}/{lp}: {comparison_label} mismatch "
                 f"(local {local_sha}..., upstream {upstream_sha12}...)"
             )
     return errors, env_errors

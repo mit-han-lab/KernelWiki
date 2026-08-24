@@ -7,6 +7,8 @@ import yaml
 from pathlib import Path
 from collections import defaultdict
 
+from pr_policy import ARCHITECTURE_FAMILY_PREFIXES
+
 REPO_ROOT = Path(__file__).parent.parent
 SOURCES_DIR = REPO_ROOT / "sources"
 WIKI_DIR = REPO_ROOT / "wiki"
@@ -319,12 +321,84 @@ def generate_by_language(pages):
     return "\n".join(lines) + "\n"
 
 
+def architecture_index_sets(pages):
+    """Return the canonical exact, family-only, and unknown index memberships."""
+    exact = defaultdict(list)
+    family_only = defaultdict(list)
+    unknown = []
+    for page in pages:
+        architectures = page.get("architectures") or []
+        disposition = page.get("architecture_disposition")
+        family_architectures = [
+            architecture for architecture in architectures
+            if architecture in ARCHITECTURE_FAMILY_PREFIXES
+        ]
+        # Hand-authored wiki/source pages do not carry the generated-PR
+        # disposition field.  Their declared family value must still be in the
+        # same index lane returned by the architecture query.
+        if disposition == "family" or family_architectures:
+            for architecture in family_architectures:
+                family_only[architecture].append(page)
+        if not architectures and disposition == "unknown":
+            unknown.append(page)
+        for architecture in architectures:
+            if architecture not in ARCHITECTURE_FAMILY_PREFIXES:
+                exact[architecture].append(page)
+    return exact, family_only, unknown
+
+
+def _architecture_page_table(lines, pages):
+    lines.extend(["| Page | Path |", "|------|------|"])
+    for page in sorted(pages, key=lambda value: value.get("_path", "")):
+        title = page.get("title", page.get("id", "Untitled"))
+        path = page["_path"]
+        lines.append(f"| [{title}]({qlink(path)}) | `{path}` |")
+    if not pages:
+        lines.append("| _None_ | |")
+    lines.append("")
+
+
+def generate_by_architecture(pages):
+    """Generate an architecture index with visible family-only and unknown lanes."""
+    exact, family_only, unknown = architecture_index_sets(pages)
+    lines = [
+        "# Query: By Architecture",
+        "",
+        "> Auto-generated. Do not edit manually. Exact sections contain only pages "
+        "carrying that exact value; family-only pages and validated source-PR unknowns "
+        "are intentionally separate. Non-PR sources with an empty architecture list have "
+        "no validated unknown disposition and are outside the unknown lane.",
+        "",
+    ]
+    for family in ARCHITECTURE_FAMILY_PREFIXES:
+        lines.extend([
+            f"## {family.title()} family-only",
+            "",
+            f"Pages with explicit generic {family.title()} evidence but no supported exact SM in that family.",
+            "",
+        ])
+        _architecture_page_table(lines, family_only.get(family, []))
+    lines.extend([
+        "## Architecture unknown",
+        "",
+        "Source-PR pages whose validated evidence review found no family-level or exact architecture signal.",
+        "",
+    ])
+    _architecture_page_table(lines, unknown)
+    lines.extend(["## Exact architectures", ""])
+    for architecture in sorted(exact):
+        lines.extend([f"### `{architecture}`", ""])
+        _architecture_page_table(lines, exact[architecture])
+    return "\n".join(lines) + "\n"
+
+
 def main():
     QUERIES_DIR.mkdir(exist_ok=True)
     pages = collect_all_pages()
     print(f"Collected {len(pages)} pages from sources/ and wiki/")
 
     generators = {
+        "by-architecture.md": generate_by_architecture,
         "by-problem.md": generate_by_problem,
         "by-technique.md": generate_by_technique,
         "by-hardware-feature.md": generate_by_hardware_feature,

@@ -14,6 +14,7 @@ Returns a ranked list of matching pages with titles, paths, and key frontmatter 
 """
 
 import argparse
+import copy
 import re
 import sys
 import yaml
@@ -22,6 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _wiki_root import WIKI_ROOT  # noqa: E402
+from pr_policy import architecture_matches_filter  # noqa: E402
 
 
 _ALIAS_CACHE = None
@@ -176,9 +178,11 @@ def filter_pages(pages, args):
                 continue
 
         if args.architecture:
-            archs = {a.lower() for a in (fm.get("architectures") or [])}
-            arch_variants = {v.lower() for v in expand_keyword(args.architecture)}
-            if not (archs & arch_variants):
+            if not architecture_matches_filter(
+                fm.get("architectures") or [],
+                str(fm.get("architecture_disposition", "")),
+                args.architecture,
+            ):
                 continue
 
         if args.symptom:
@@ -257,6 +261,20 @@ def filter_pages(pages, args):
     return out
 
 
+def architecture_filter_exclusion_counts(pages, requested):
+    """Counts disclosed when an exact query omits broader evidence classes."""
+    normalized = requested.lower().replace("_", "")
+    if normalized in {"blackwell", "hopper", "ampere", "ada", "unknown"}:
+        return None
+    family_only = sum(p["fm"].get("architecture_disposition") == "family" for p in pages)
+    unknown = sum(
+        p["fm"].get("architecture_disposition") == "unknown"
+        and not (p["fm"].get("architectures") or [])
+        for p in pages
+    )
+    return family_only, unknown
+
+
 def format_result(page, compact=False):
     """Format a single page as a readable line."""
     fm = page["fm"]
@@ -297,7 +315,7 @@ def main():
     parser.add_argument("--tag", help="Filter by tag (must appear in tags/techniques/hardware_features/kernel_types/languages)")
     parser.add_argument("--repo", help="Filter by source repo (partial match, e.g. 'cutlass')")
     parser.add_argument("--language", help="Filter by language/DSL (cute-dsl, cuda-cpp, ptx, triton, etc.)")
-    parser.add_argument("--architecture", help="Filter by architecture (sm100, sm100a, sm90, sm90a)")
+    parser.add_argument("--architecture", help="Filter by exact architecture, blackwell family hierarchy, or unknown")
     parser.add_argument("--symptom", help="Filter by pattern symptom (memory-bound, register-pressure, etc.)")
     parser.add_argument("--confidence", help="Filter by confidence (verified, source-reported, inferred, experimental)")
     parser.add_argument("--has-code", action="store_true", help="Only return pages whose artifact_dir contains at least one source file")
@@ -306,8 +324,27 @@ def main():
     parser.add_argument("--paths-only", action="store_true", help="Output only file paths, one per line")
     args = parser.parse_args()
 
-    pages = load_all_pages()
-    pages = filter_pages(pages, args)
+    all_pages = load_all_pages()
+    architecture_stats = None
+    if args.architecture:
+        without_architecture = copy.copy(args)
+        without_architecture.architecture = None
+        eligible_pages = filter_pages(all_pages, without_architecture)
+        pages = filter_pages(eligible_pages, args)
+        architecture_stats = architecture_filter_exclusion_counts(
+            eligible_pages, args.architecture
+        )
+    else:
+        pages = filter_pages(all_pages, args)
+
+    if architecture_stats is not None:
+        family_only, unknown = architecture_stats
+        print(
+            f"Exact architecture filter excluded {family_only} family-only "
+            f"page(s) and {unknown} architecture-unknown page(s); use "
+            "--architecture blackwell or --architecture unknown for those broader sets.",
+            file=sys.stderr,
+        )
 
     # Score by keywords if any. Flatten multi-word quoted args into tokens so
     # `query.py "how to fuse dual GEMM"` behaves like `query.py how to fuse dual GEMM`.

@@ -1,10 +1,13 @@
 ## Inclusion Policy for Phase 3 Code Capture
 ## Consumed by scripts/compute_core_prs.py
 ##
-## Two separate lanes (CuTe DSL and Triton) are classified with different
-## criteria because Triton on SM100 has no direct tcgen05/TMEM access
-## (see wiki/languages/triton-blackwell.md), so Triton's useful scope is
-## narrower than CuTe DSL's.
+## Two separate lanes (CuTe DSL and Triton) use different criteria. Since
+## Triton 3.6 (2026-01-21), the Triton backend lowers tcgen05 + TMEM on SM100,
+## but that compiler capability does not establish a universal lowering form
+## or performance result for every tl.dot shape. The Triton lane therefore
+## remains scoped to the three sub-scopes documented below; see
+## wiki/languages/triton-blackwell.md and the version-sensitive record named
+## by triton.description.
 
 cute-dsl:
   description: |
@@ -50,8 +53,8 @@ cute-dsl:
     # R19 tightening: language/tag alone is insufficient. If a PR is
     # flagged cute-dsl only via metadata (languages or tags) and none of
     # its changed_paths match the kernel/example globs above, skip it.
-    # Previously pr-vllm-39644 (only `tests/kernels/moe/test_cutedsl_moe.py`)
-    # was captured and shipped an empty bundle after SKIP_GLOBS.
+    # A test-only CuTe-DSL affinity PR previously entered this lane and
+    # produced an empty bundle after SKIP_GLOBS.
     - language_tag_only_without_kernel_path: true
 
   examples:
@@ -65,13 +68,9 @@ triton:
     Triton is a scoped Blackwell lane. As of Triton 3.6 (released
     2026-01-21), Triton has native SM100 lowering through tcgen05 + TMEM
     via descriptor/TMA + warp_specialize, tl.dot_scaled, and Gluon
-    multi-CTA / 2CTA, but production peak-performance leadership for
-    compute-bound matmul/attention on Blackwell still favors hand-written
-    CuTe-DSL / CUTLASS / FA-4 / TRT-LLM kernels for many workloads
-    (downstream evidence: pr-sglang-5390 measured CUTLASS tcgen05_mla
-    ~27% faster than the Triton MLA decode baseline; pr-sglang-21595
-    moved Blackwell datacenter multimodal attention default away from
-    triton_attn). We therefore capture Triton PRs in three sub-scopes
+    multi-CTA / 2CTA. Those compiler capabilities do not establish a
+    universal lowering form or performance result for every tl.dot shape.
+    We therefore capture Triton PRs in three sub-scopes
     that remain genuinely useful on Blackwell rather than mirroring the
     full CuTe-DSL lane.
 
@@ -93,8 +92,7 @@ triton:
         # backend-dispatch files (e.g. vllm/v1/attention/backends/
         # triton_attn.py, vllm/v1/attention/ops/triton_reshape_and_cache_
         # flash.py) that live outside any triton/ directory but are
-        # unambiguously Triton code. Widened in Round 17 after Codex
-        # flagged pr-vllm-37940 as a concrete miss.
+        # unambiguously Triton code. Widened after a concrete dispatch-path miss.
         changed_paths_match:
           - "**/triton_kernels/**"
           - "**/triton/**"
@@ -105,9 +103,8 @@ triton:
       match:
         languages_contains: triton
         # Match spaced and hyphenated wording variants because upstream
-        # titles routinely use "Fall back to triton MOE"
-        # (pr-sglang-21780) alongside the compound "fallback". Widened in
-        # Round 17.
+        # titles routinely use "Fall back to triton MOE" alongside the
+        # compound "fallback".
         description_contains_any:
           - "fallback"
           - "fall back"
@@ -122,8 +119,8 @@ triton:
     - runtime_config_only: "changed_paths_match_only ['**/config/**', '**/__init__.py']"
     # R19 tightening: benchmark-only PRs produce empty bundles after
     # SKIP_GLOBS in fetch_pr_diff.py, so drop them before they enter the
-    # captured core set. Concrete miss fixed: pr-sglang-20305, whose
-    # every changed_path was under benchmark/kernels/.
+    # captured core set; the motivating miss had every changed path under
+    # benchmark/kernels/.
     - benchmark_only: "changed_paths_match_only ['benchmark/**', '**/benchmark/**', 'benchmarks/**', '**/benchmarks/**', 'bench/**', '**/bench/**']"
 
   examples:

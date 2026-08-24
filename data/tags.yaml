@@ -3,12 +3,34 @@
 ## The validator (scripts/validate.py) rejects unknown tags.
 
 architectures:
+  - blackwell
+  - hopper
+  - ampere
+  - ada
+  - turing
+  - sm75
   - sm100
   - sm100a
+  - sm100f
+  - sm103
+  - sm103a
+  - sm103f
+  - sm110
+  - sm110a
+  - sm110f
+  - sm120a
+  - sm120f
+  - sm121
+  - sm121a
+  - sm121f
   - sm90
   - sm90a
   - sm120
   - sm80
+  - sm86
+  - sm87
+  - sm88
+  - sm89
 
 hardware_features:
   - tcgen05

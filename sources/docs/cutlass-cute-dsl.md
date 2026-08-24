@@ -13,6 +13,11 @@ retrieved_at: 2026-07-20
 Compiled from the CUTLASS repo `media/docs/pythonDSL/` rst sources (commit `ad9bd53bdaec27a2e88053d57322ccf74efe525e`, generated 2026-07-20).
 Python CuTe DSL docs only; C++ docs and empty API-reference stubs are excluded.
 
+Editorial link repair: the upstream auto-tuning page's stale PTX fragment
+`#tensorcore-5th-generation-family-instructions` is retargeted below to the
+current PTX ISA 9.3 fifth-generation instruction section, verified 2026-08-19;
+the surrounding upstream prose is unchanged.
+
 ## License
 
 This page reproduces documentation from the [CUTLASS repository](https://github.com/NVIDIA/cutlass) (`media/docs/pythonDSL/` at commit `ad9bd53bdaec27a2e88053d57322ccf74efe525e`), including its image assets, which are licensed under the BSD 3-Clause License:
@@ -3298,7 +3303,7 @@ The auto-tuning process typically involves the following steps:
 The search space defines the valid combinations of kernel parameters that can be used to run the kernels. Different inputs (shapes, data types, etc.) typically require different kernel parameters to achieve optimal performance. The search space is related to the kernel. We take the Blackwell GEMM persistent kernel as an example. The search space is as follows:
 
 - `mma_tiler_mn`: Defines the dimensions of the matrix tile that each Matrix Multiply-Accumulate (MMA) instruction processes in a single operation.
-- `cluster_shape_mn`: Specifies the number of CTAs along each dimension within a cluster. Refer [Parallel Thread Execution ISA documentation](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#tensorcore-5th-generation-family-instructions) for the possible mma tiler size and cluster shape for different tensor data types.
+- `cluster_shape_mn`: Specifies the number of CTAs along each dimension within a cluster. Refer [Parallel Thread Execution ISA documentation](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#tensorcore-5th-generation-instructions) for the possible mma tiler size and cluster shape for different tensor data types.
 - `use_2cta_instrs`: Whether to utilize Blackwell's 2 CTA instructions for MMA/Copy.
 - `use_tma_store`: Whether to use Tensor Memory Access (TMA) instructions to store the result back to global memory.
 

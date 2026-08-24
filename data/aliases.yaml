@@ -60,14 +60,18 @@ block-scale:
   - MX
 
 # Architecture names
-sm100:
+blackwell:
   - Blackwell
-  - blackwell
+
+sm100:
   - B200
-  - B100
   - GB200
-  - GB300
   - "SM100"
+
+sm103:
+  - B300
+  - GB300
+  - "SM103"
 
 sm90:
   - Hopper

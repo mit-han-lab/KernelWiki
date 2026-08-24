@@ -1,0 +1,36 @@
+schema_version: 1
+captured_at: "2026-08-18"
+purpose: Exact offline receipt for the selected release-of-record rows in data/tool-versions.yaml; it does not discover releases published after captured_at.
+tools:
+  triton:
+    upstream_checked_at: "2026-08-18"
+    authoritative_index: https://api.github.com/repos/triton-lang/triton/releases
+    releases:
+      - ["3.7.1", "2026-06-18"]
+      - ["3.7.0", "2026-05-07"]
+      - ["3.6.0", "2026-01-21"]
+      - ["3.5.1", "2025-11-12"]
+  cutlass:
+    upstream_checked_at: "2026-08-18"
+    authoritative_index: https://api.github.com/repos/NVIDIA/cutlass/releases
+    releases:
+      - ["4.7.0", "2026-08-13"]
+      - ["4.6.2", "2026-08-08"]
+      - ["4.6.1", "2026-07-15"]
+      - ["4.6.0", "2026-07-13"]
+      - ["4.5.0", "2026-05-13"]
+      - ["4.4.2", "2026-03-17"]
+      - ["4.4.0", "2026-02-26"]
+      - ["4.3.0", "2025-11-24"]
+      - ["3.8.0", "2025-02-21"]
+  cuda:
+    upstream_checked_at: "2026-08-18"
+    authoritative_index: https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/
+    supplementary_date_source: https://developer.nvidia.com/nsight-compute-history
+    releases:
+      - ["13.3 Update 1", "2026-06-29"]
+      - ["13.3", "2026-05-26"]
+      - ["13.2", "2026-03-09"]
+      - ["13.1", "2025-12-04"]
+      - ["13.0", "2025-08-04"]
+      - ["12.8", "2025-01-23"]

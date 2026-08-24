@@ -12,8 +12,8 @@ keywords_used:
 - moe
 - block_scale
 total_candidates: 37
-included: 10
-excluded: 5
+included: 8
+excluded: 7
 deferred: 22
 prs:
 - number: 316
@@ -32,8 +32,60 @@ prs:
   title: '[Public release 26/04] Introducing Mega MoE, FP4 Indexer and other features/fixes'
   date: '2026-04-17'
   decision: include
-  reason: Major DeepGEMM public release with Mega MoE (FP8 x FP4 fused MoE mega-kernel) and FP4 Indexer; SM100 kernel features
-  files_changed: []
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): deep_gemm/include/deep_gemm/comm/barrier.cuh, deep_gemm/include/deep_gemm/common/compile.cuh, deep_gemm/include/deep_gemm/common/cute_tie.cuh,
+    deep_gemm/include/deep_gemm/common/exception.cuh, deep_gemm/include/deep_gemm/common/math.cuh, deep_gemm/include/deep_gemm/common/tma_copy.cuh, deep_gemm/include/deep_gemm/common/types.cuh, deep_gemm/include/deep_gemm/common/utils.cuh,
+    deep_gemm/include/deep_gemm/epilogue/sm100_store_cd.cuh, deep_gemm/include/deep_gemm/epilogue/sm100_store_cd_swap_ab.cuh, deep_gemm/include/deep_gemm/epilogue/transform.cuh, deep_gemm/include/deep_gemm/impls/sm100_bf16_gemm.cuh,
+    deep_gemm/include/deep_gemm/impls/sm100_bmk_bnk_mn.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp4_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp4_paged_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_gemm_1d1d.cuh,
+    deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp8_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp8_paged_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm100_tf32_hc_prenorm_gemm.cuh,
+    deep_gemm/include/deep_gemm/impls/sm90_bf16_gemm.cuh, deep_gemm/include/deep_gemm/impls/sm90_bmk_bnk_mn.cuh, deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh, deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d2d.cuh,
+    deep_gemm/include/deep_gemm/impls/sm90_fp8_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm90_fp8_paged_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm90_tf32_hc_prenorm_gemm.cuh, deep_gemm/include/deep_gemm/impls/smxx_clean_logits.cuh,
+    deep_gemm/include/deep_gemm/impls/smxx_layout.cuh, deep_gemm/include/deep_gemm/layout/mega_moe.cuh, deep_gemm/include/deep_gemm/layout/sym_buffer.cuh, deep_gemm/include/deep_gemm/mma/sm100.cuh, deep_gemm/include/deep_gemm/mma/sm90.cuh,
+    deep_gemm/include/deep_gemm/ptx/ld_st.cuh, deep_gemm/include/deep_gemm/ptx/tcgen05.cuh, deep_gemm/include/deep_gemm/ptx/tma.cuh, deep_gemm/include/deep_gemm/ptx/utils.cuh, deep_gemm/include/deep_gemm/ptx/wgmma.cuh,
+    deep_gemm/include/deep_gemm/scheduler/gemm.cuh, deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh, deep_gemm/include/deep_gemm/scheduler/paged_mqa_logits.cuh'
+  files_changed:
+  - deep_gemm/include/deep_gemm/comm/barrier.cuh
+  - deep_gemm/include/deep_gemm/common/compile.cuh
+  - deep_gemm/include/deep_gemm/common/cute_tie.cuh
+  - deep_gemm/include/deep_gemm/common/exception.cuh
+  - deep_gemm/include/deep_gemm/common/math.cuh
+  - deep_gemm/include/deep_gemm/common/tma_copy.cuh
+  - deep_gemm/include/deep_gemm/common/types.cuh
+  - deep_gemm/include/deep_gemm/common/utils.cuh
+  - deep_gemm/include/deep_gemm/epilogue/sm100_store_cd.cuh
+  - deep_gemm/include/deep_gemm/epilogue/sm100_store_cd_swap_ab.cuh
+  - deep_gemm/include/deep_gemm/epilogue/transform.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_bf16_gemm.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_bmk_bnk_mn.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp4_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp4_paged_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_gemm_1d1d.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp8_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp8_paged_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_tf32_hc_prenorm_gemm.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_bf16_gemm.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_bmk_bnk_mn.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d1d.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_fp8_gemm_1d2d.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_fp8_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_fp8_paged_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_tf32_hc_prenorm_gemm.cuh
+  - deep_gemm/include/deep_gemm/impls/smxx_clean_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/smxx_layout.cuh
+  - deep_gemm/include/deep_gemm/layout/mega_moe.cuh
+  - deep_gemm/include/deep_gemm/layout/sym_buffer.cuh
+  - deep_gemm/include/deep_gemm/mma/sm100.cuh
+  - deep_gemm/include/deep_gemm/mma/sm90.cuh
+  - deep_gemm/include/deep_gemm/ptx/ld_st.cuh
+  - deep_gemm/include/deep_gemm/ptx/tcgen05.cuh
+  - deep_gemm/include/deep_gemm/ptx/tma.cuh
+  - deep_gemm/include/deep_gemm/ptx/utils.cuh
+  - deep_gemm/include/deep_gemm/ptx/wgmma.cuh
+  - deep_gemm/include/deep_gemm/scheduler/gemm.cuh
+  - deep_gemm/include/deep_gemm/scheduler/mega_moe.cuh
+  - deep_gemm/include/deep_gemm/scheduler/paged_mqa_logits.cuh
+  files_reviewed_count: 109
+  scope_disposition: retained
 - number: 292
   title: Fix sync issue of TMEM alloc/dealloc
   date: '2026-03-22'
@@ -193,7 +245,9 @@ prs:
   merged_at: '2026-05-08T08:00:55Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): deep_gemm/include/deep_gemm/comm/barrier.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp4_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp4_paged_mqa_logits.cuh,
+    deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh, deep_gemm/include/deep_gemm/impls/sm100_fp8_paged_mqa_logits.cuh, deep_gemm/include/deep_gemm/impls/sm90_fp8_paged_mqa_logits.cuh, deep_gemm/include/deep_gemm/layout/mega_moe.cuh,
+    deep_gemm/include/deep_gemm/ptx/ld_st.cuh, deep_gemm/include/deep_gemm/scheduler/paged_mqa_logits.cuh'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -267,6 +321,18 @@ prs:
   score: 71
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-328
+  files_changed:
+  - deep_gemm/include/deep_gemm/comm/barrier.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp4_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp4_paged_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp8_fp4_mega_moe.cuh
+  - deep_gemm/include/deep_gemm/impls/sm100_fp8_paged_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/impls/sm90_fp8_paged_mqa_logits.cuh
+  - deep_gemm/include/deep_gemm/layout/mega_moe.cuh
+  - deep_gemm/include/deep_gemm/ptx/ld_st.cuh
+  - deep_gemm/include/deep_gemm/scheduler/paged_mqa_logits.cuh
+  files_reviewed_count: 21
+  scope_disposition: retained
 - number: 88
   pr: 88
   title: Support TMA multicast on B with m_grouped_gemm_contiguous.
@@ -276,7 +342,7 @@ prs:
   merged_at: '2025-04-21T01:43:18Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): deep_gemm/include/deep_gemm/fp8_gemm.cuh, deep_gemm/include/deep_gemm/scheduler.cuh'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -323,6 +389,11 @@ prs:
   score: 61
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-88
+  files_changed:
+  - deep_gemm/include/deep_gemm/fp8_gemm.cuh
+  - deep_gemm/include/deep_gemm/scheduler.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 168
   pr: 168
   title: Fix performance issue of m-grouped contiguous GEMMs.
@@ -332,7 +403,7 @@ prs:
   merged_at: '2025-08-22T09:35:43Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): deep_gemm/include/deep_gemm/common/scheduler.cuh'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -366,6 +437,10 @@ prs:
   score: 42
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-168
+  files_changed:
+  - deep_gemm/include/deep_gemm/common/scheduler.cuh
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 86
   pr: 86
   title: Use swizzling instead of padding
@@ -375,7 +450,7 @@ prs:
   merged_at: '2025-04-14T07:20:58Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): deep_gemm/include/deep_gemm/fp8_gemm.cuh'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -410,6 +485,10 @@ prs:
   score: 33
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-86
+  files_changed:
+  - deep_gemm/include/deep_gemm/fp8_gemm.cuh
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 78
   pr: 78
   title: ' Solving bank conflict via padding and TMA 3D store'
@@ -419,7 +498,7 @@ prs:
   merged_at: '2025-04-03T08:06:10Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): deep_gemm/include/deep_gemm/fp8_gemm.cuh, deep_gemm/include/deep_gemm/tma_utils.cuh, deep_gemm/include/deep_gemm/utils.cuh'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -461,6 +540,12 @@ prs:
   score: 44
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-78
+  files_changed:
+  - deep_gemm/include/deep_gemm/fp8_gemm.cuh
+  - deep_gemm/include/deep_gemm/tma_utils.cuh
+  - deep_gemm/include/deep_gemm/utils.cuh
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 193
   pr: 193
   title: Fix multicast bug and optimize masked GEMM
@@ -470,7 +555,7 @@ prs:
   merged_at: '2025-09-12T09:12:27Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: csrc/jit_kernels/heuristics/common.hpp, csrc/jit_kernels/heuristics/sm100.hpp, csrc/jit_kernels/heuristics/sm90.hpp'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -511,6 +596,12 @@ prs:
   score: 44
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-193
+  files_changed:
+  - csrc/jit_kernels/heuristics/common.hpp
+  - csrc/jit_kernels/heuristics/sm100.hpp
+  - csrc/jit_kernels/heuristics/sm90.hpp
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 83
   pr: 83
   title: Use 1D TMA store instead of 3D
@@ -520,7 +611,7 @@ prs:
   merged_at: '2025-04-11T03:25:01Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): deep_gemm/include/deep_gemm/fp8_gemm.cuh, deep_gemm/include/deep_gemm/tma_utils.cuh'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -560,6 +651,11 @@ prs:
   score: 43
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-83
+  files_changed:
+  - deep_gemm/include/deep_gemm/fp8_gemm.cuh
+  - deep_gemm/include/deep_gemm/tma_utils.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 270
   pr: 270
   title: 'fix: use SM90ArchSpec instead of SM100ArchSpec in sm90_bf16_k_grouped_gemm'
@@ -567,9 +663,9 @@ prs:
   url: https://github.com/deepseek-ai/DeepGEMM/pull/270
   date: '2026-01-06'
   merged_at: '2026-01-06T01:56:33Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -609,6 +705,10 @@ prs:
   score: 39
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-270
+  files_changed:
+  - csrc/jit_kernels/impls/sm90_bf16_gemm.hpp
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 42
   pr: 42
   title: 'Performance: reducing the percentage of FFMA interleaving yields a sight performance gain, roughly 0.5%'
@@ -616,9 +716,9 @@ prs:
   url: https://github.com/deepseek-ai/DeepGEMM/pull/42
   date: '2025-03-05'
   merged_at: '2025-03-05T12:09:56Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -646,3 +746,7 @@ prs:
   score: 26
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/deepgemm/gh-42
+  files_changed:
+  - deep_gemm/jit/interleave_ffma.py
+  files_reviewed_count: 1
+  scope_disposition: removed

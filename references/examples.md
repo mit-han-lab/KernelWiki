@@ -16,7 +16,7 @@ Concrete patterns showing how to translate a user question into a navigation pat
 2. Read `wiki/kernels/fp8-block-scale-gemm.md` and `wiki/kernels/nvfp4-gemm.md`
 3. Follow `sources:` to concrete PRs: `pr-cutlass-2139` (blockwise+groupwise GEMM), `pr-vllm-13798` (FP8 GEMM)
 4. For optimization path, read `wiki/techniques/warp-specialization.md`, `wiki/techniques/persistent-kernels.md`
-5. For progression, cite the tcgen05 tutorial (`sources/blogs/tcgen05-tutorial.md`): Naive 17% → Swizzling 46% → Pipelining 62% → Warp Spec 80% → 2-SM 86% → CLC 98%
+5. For progression, cite the tcgen05 tutorial (`sources/blogs/tcgen05-tutorial.md`): Naive 17% → 128B-swizzled 3D TMA 46% → Pipelining 62% → Warp specialization 80% → 2-SM 86% → persistent static scheduling 98%
 
 **Command**:
 ```bash
@@ -32,7 +32,7 @@ python3 scripts/query.py --type kernel --tag gemm --architecture sm100
 2. Pattern page: `wiki/patterns/low-sm-utilization.md`
 3. Candidate techniques: `technique-persistent-kernels`, `technique-tile-scheduling`, `hw-clc`
 4. Read the CLC page: `wiki/hardware/clc.md` for code example
-5. Cite: tcgen05 tutorial showed 86% → 98% with persistent + CLC
+5. Cite: the tcgen05 tutorial showed 86% → 98% with static persistent scheduling. It presents CLC only as a possible follow-on exercise; use `wiki/hardware/clc.md` for the separate CLC mechanism.
 
 **Command**:
 ```bash
@@ -46,7 +46,7 @@ python3 scripts/get_page.py pattern-low-sm-utilization
 
 **Navigation path**:
 1. `queries/by-hardware-feature.md` → find `tcgen05` row → lists all relevant pages
-2. `queries/by-repo.md` → NVIDIA/cutlass section → 32 PRs
+2. `queries/by-repo.md` → NVIDIA/cutlass section
 3. Cross-reference via tag filter
 
 **Command**:
@@ -63,9 +63,9 @@ Tip: the `--tag` filter also accepts aliases, so `--tag UMMA` resolves to `tcgen
 
 **Navigation path**:
 1. Direct: `wiki/kernels/flash-attention-4.md`
-2. Performance: 1605 TFLOPS on B200 BF16 (71% utilization)
+2. Performance: up to 1613 TFLOPS on B200 BF16 (71%) in the paper's sweep
 3. Techniques used: ping-pong scheduling, software exp, 2-CTA backward
-4. Follow sources → `sources/docs/flash-attention-4.md` (paper), `sources/blogs/flash-attention-4.md` (Tri Dao blog)
+4. Follow sources → `sources/docs/flash-attention-4.md` (paper), `sources/blogs/flash-attention-4.md` (author blog)
 
 **Command**:
 ```bash
@@ -93,7 +93,7 @@ python3 scripts/get_page.py hw-tcgen05-mma
 
 **Navigation path**:
 1. `sources/contests/gpu-mode-nvfp4/` (4 problems)
-2. Each problem page has `submissions:` with rank 1/2/3 techniques
+2. Each problem page records the organizer task definition, speed-of-light values when published, and a dated leaderboard snapshot; no page declares a per-submission listing
 3. Read participant blogs: `sources/blogs/yue-nvfp4-hackathon.md`, `sources/blogs/amandeep-nvfp4-attempts.md`, `sources/blogs/simon-nvfp4-gemv.md`
 4. Techniques: PTX-level control, cache policy differentiation, register budgeting
 
@@ -109,7 +109,7 @@ python3 scripts/get_page.py contest-gpumode-p1
 
 **Navigation path**:
 1. `wiki/kernels/gated-delta-net.md` — conceptual + code
-2. `wiki/languages/triton-blackwell.md` — current Triton 3.6+ Blackwell lowering surfaces (tcgen05 + TMEM via descriptor/TMA + warp_specialize, `tl.dot_scaled`, Gluon multi-CTA); pre-3.6 historical context preserved in a clearly-marked subsection
+2. `wiki/languages/triton-blackwell.md` — current Triton 3.6+ Blackwell lowering surfaces (tcgen05 + TMEM via descriptor/TMA + warp_specialize, `tl.dot_scaled`, Gluon multi-CTA); its opening paragraph records that the earlier pre-3.6 no-TMEM/no-tcgen05 framing is obsolete for 3.6
 3. Source PRs: `pr-vllm-*` for gated_delta, FlashInfer GDN kernels
 
 **Command**:
@@ -124,7 +124,7 @@ python3 scripts/query.py "gated delta net decode" --language triton
 **Navigation path**:
 1. `wiki/patterns/memory-bound.md` — candidate techniques list
 2. `wiki/techniques/vectorized-loads.md` — wide loads + cache policies (covers `evict_first` / `no_allocate`)
-3. Best case study: `wiki/kernels/nvfp4-gemv.md` (2000μs → 22.4μs progression)
+3. Case study: `wiki/kernels/nvfp4-gemv.md` records the author's 22.392 μs final aggregate; the staged 2000 → 443 → 39 → 27 → 22.392 μs sequence is on `wiki/techniques/vectorized-loads.md`, where the source attributes each step to a combination of edits
 
 **Command**:
 ```bash

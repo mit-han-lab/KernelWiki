@@ -1,13 +1,12 @@
-## Tool releases of record for the version-sensitive registry.
+## Selected tool releases of record for the version-sensitive registry.
 ## Read by scripts/check_version_freshness.py and the validator's
 ## DEC-4 CUTLASS pinning rule (task5). Schema: data/schemas.yaml
 ## :: tool-versions-snapshot.
 ##
-## This file is deterministic and offline; entries are populated
-## from upstream release notes captured via Codex consult, never
-## from live network queries at validation time. Adding/updating
-## entries requires a fresh Codex consult to confirm release name +
-## date + channel.
+## This file is deterministic and offline. data/tool-release-receipt.yaml
+## records the exact authoritative release-list receipt used to populate it;
+## check_version_freshness.py requires the two files to agree. Validation does
+## not claim to discover releases published after that dated receipt.
 ##
 ## "needs-verification" sentinels mark fields the current refresh
 ## round did not authoritatively pin; future refresh rounds should
@@ -17,7 +16,28 @@
 
 tools:
   - tool: triton
+    upstream_checked_at: "2026-08-18"
     releases:
+      - name: "3.7.1"
+        released_at: "2026-06-18"
+        channel: stable
+        release_notes_url: "https://github.com/triton-lang/triton/releases/tag/v3.7.1"
+        evidence_source_ids:
+          - doc-triton-3.6-blackwell
+        notes: |
+          Current stable release at the 2026-08-18 audit cutoff. GitHub's
+          published_at timestamp is 2026-06-18T14:38:51Z. The Blackwell
+          capability boundary remains anchored to the 3.6 introduction notes;
+          3.7.1 was reviewed for continuity, not as a new provenance source.
+      - name: "3.7.0"
+        released_at: "2026-05-07"
+        channel: stable
+        release_notes_url: "https://github.com/triton-lang/triton/releases/tag/v3.7.0"
+        evidence_source_ids:
+          - doc-triton-3.6-blackwell
+        notes: |
+          GitHub's published_at timestamp is 2026-05-07T22:19:06Z. Retained as
+          a release-of-record between the 3.6 introduction and current 3.7.1.
       - name: "3.6.0"
         released_at: "2026-01-21"
         channel: stable
@@ -41,79 +61,146 @@ tools:
           release.
 
   - tool: cutlass
+    upstream_checked_at: "2026-08-18"
     releases:
+      - name: "4.7.0"
+        released_at: "2026-08-13"
+        channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.7.0"
+        evidence_source_ids:
+          - doc-cutlass-changelog-sm100
+        notes: |
+          Current stable release at the 2026-08-18 audit cutoff. The date is
+          GitHub's published_at date; CUTLASS's checked-in changelog labels the
+          release 2026-08-04.
+      - name: "4.6.2"
+        released_at: "2026-08-08"
+        channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.6.2"
+        evidence_source_ids:
+          - doc-cutlass-changelog-sm100
+        notes: GitHub published_at date from the audited release-list receipt.
+      - name: "4.6.1"
+        released_at: "2026-07-15"
+        channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.6.1"
+        evidence_source_ids:
+          - doc-cutlass-changelog-sm100
+        notes: GitHub published_at date from the audited release-list receipt.
+      - name: "4.6.0"
+        released_at: "2026-07-13"
+        channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.6.0"
+        evidence_source_ids:
+          - doc-cutlass-changelog-sm100
+        notes: |
+          First 4.6 minor release. The date is GitHub's published_at date;
+          CUTLASS's checked-in changelog labels the release 2026-07-01.
       - name: "4.5.0"
-        released_at: "2026-03-27"
+        released_at: "2026-05-13"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.5.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          Most recent CUTLASS stable release as of 2026-04-27. Wiki pages
-          with confidence: verified that mention CUTLASS 4.x SHOULD pin to
-          4.5.0 unless they specifically depend on a feature that arrived
-          in a later patch.
+          The date is GitHub's published_at date; CUTLASS's checked-in
+          changelog labels the release 2026-05-01.
       - name: "4.4.2"
-        released_at: "2026-03-13"
+        released_at: "2026-03-17"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.4.2"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          Last 4.4.x patch before 4.5.0.
+          The date is GitHub's published_at date; CUTLASS's checked-in
+          changelog labels the release 2026-03-13.
       - name: "4.4.0"
-        released_at: "2026-02-14"
+        released_at: "2026-02-26"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.4.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          4.4.0 minor release.
+          The date is GitHub's published_at date; CUTLASS's checked-in
+          changelog labels the release 2026-02-14.
       - name: "4.3.0"
-        released_at: "2025-11-21"
+        released_at: "2025-11-24"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v4.3.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          Pre-Blackwell-tutorial-rewrite era reference release.
+          The date is GitHub's published_at date; CUTLASS's checked-in
+          changelog labels the release 2025-11-21.
       - name: "3.8.0"
-        released_at: "2025-01-15"
+        released_at: "2025-02-21"
         channel: stable
+        release_notes_url: "https://github.com/NVIDIA/cutlass/releases/tag/v3.8.0"
         evidence_source_ids:
           - doc-cutlass-changelog-sm100
         notes: |
-          First CUTLASS release with Blackwell support. Some legacy wiki
-          pages reference "CUTLASS 3.x for SM100" (e.g. wiki/hardware/clc.md);
-          those should be reconciled to a current 4.x stable release in task12.
-          Date approximate from doc-cutlass-changelog-sm100 ("January 2025,
-          first Blackwell support").
+          First CUTLASS release with Blackwell support. The date is GitHub's
+          published_at date; CUTLASS's checked-in changelog labels the release
+          2025-01-25.
 
   - tool: cuda
+    upstream_checked_at: "2026-08-18"
     releases:
-      - name: "13.1"
-        released_at: "needs-verification"
+      - name: "13.3 Update 1"
+        released_at: "2026-06-29"
         channel: stable
+        release_notes_url: "https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/"
+        evidence_source_ids:
+          - doc-cuda-13
+        notes: |
+          Current stable toolkit update at the 2026-08-18 audit cutoff. NVIDIA's
+          Nsight Compute 2026.2.1 history identifies 2026-06-29 as the CUDA
+          Toolkit 13.3 Update 1 release date.
+      - name: "13.3"
+        released_at: "2026-05-26"
+        channel: stable
+        release_notes_url: "https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/"
+        evidence_source_ids:
+          - doc-cuda-13
+          - doc-cutile-python-dsl
+        notes: |
+          Base 13.3 release. NVIDIA's announcement is dated 2026-05-26. CUDA
+          Tile C++, CompileIQ, and CUDA Python 1.0 are release highlights.
+      - name: "13.2"
+        released_at: "2026-03-09"
+        channel: stable
+        release_notes_url: "https://developer.nvidia.com/blog/cuda-13-2-introduces-enhanced-cuda-tile-support-and-new-python-features/"
+        evidence_source_ids:
+          - doc-cutile-python-dsl
+        notes: |
+          NVIDIA's release announcement is dated 2026-03-09. It expanded CUDA
+          Tile support and corresponds to cuTile Python 1.2-era features.
+      - name: "13.1"
+        released_at: "2025-12-04"
+        channel: stable
+        release_notes_url: "https://developer.nvidia.com/blog/nvidia-cuda-13-1-powers-next-gen-gpu-programming-with-nvidia-cuda-tile-and-performance-gains/"
         evidence_source_ids:
           - doc-cuda-13
           - doc-cutile-python-dsl
         notes: |
           Introduced cuTile Python DSL (see sources/docs/cutile-python-dsl.md).
-          Driver requirement R580 minimum, R590 for tile profiling. Exact
-          release date pending future refresh-round capture.
+          NVIDIA's announcement is dated 2025-12-04.
       - name: "13.0"
-        released_at: "needs-verification"
+        released_at: "2025-08-04"
         channel: stable
+        release_notes_url: "https://developer.nvidia.com/blog/whats-new-and-important-in-cuda-toolkit-13-0/"
         evidence_source_ids:
           - doc-cuda-13
-          - pr-pytorch-175826
         notes: |
-          PyTorch inductor B200/SM100 lane was moved to 13.0 in pr-pytorch-175826
-          (cited as ecosystem-readiness anchor in data/triton-3.6-evidence.md).
-          Exact release date pending future refresh-round capture.
+          NVIDIA's CUDA 13.0 announcement is dated 2025-08-04.
       - name: "12.8"
-        released_at: "needs-verification"
+        released_at: "2025-01-23"
         channel: stable
+        release_notes_url: "https://docs.nvidia.com/cuda/archive/12.8.0/cuda-toolkit-release-notes/index.html"
         evidence_source_ids:
           - doc-cuda-13
           - pr-pytorch-150705
         notes: |
           First CUDA toolkit with full Blackwell/sm100 support. Required for
-          PyTorch's vec128 vectorized loads (pr-pytorch-150705). Exact
-          release date pending future refresh-round capture.
+          PyTorch's vec128 vectorized loads (pr-pytorch-150705). NVIDIA's
+          developer-tools archive lists 2025-01-23.

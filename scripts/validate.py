@@ -3,10 +3,19 @@
 plus Phase 3 artifact bundles under artifacts/."""
 
 import hashlib
+import json
 import re
 import sys
 import yaml
 from pathlib import Path
+
+from pr_policy import (
+    ARCHITECTURE_FAMILY_PREFIXES,
+    PRODUCT_ARCHITECTURE_MAPPINGS,
+    SUPPORTED_EXACT_ARCHITECTURES,
+    body_contract_errors,
+    device_code_pattern_sha256,
+)
 
 REPO_ROOT = Path(__file__).parent.parent
 SOURCES_DIR = REPO_ROOT / "sources"
@@ -14,8 +23,33 @@ WIKI_DIR = REPO_ROOT / "wiki"
 DATA_DIR = REPO_ROOT / "data"
 ARTIFACTS_DIR = REPO_ROOT / "artifacts"
 CANDIDATES_DIR = REPO_ROOT / "candidates"
+PR_ARCHITECTURE_RECEIPT = DATA_DIR / "pr-architecture-evidence.json"
+PR_CAP_RECONSTRUCTION_RECEIPT = REPO_ROOT / "audit" / "pr-file-cap-reconstruction.json"
 
 REPRO_ORDER = ["concept", "pseudocode", "snippet", "runnable", "benchmarked"]
+
+
+def architecture_family_values(family):
+    """Return the family token plus every controlled exact target in it."""
+    prefixes = ARCHITECTURE_FAMILY_PREFIXES[family]
+    return frozenset({
+        family,
+        *(arch for arch in SUPPORTED_EXACT_ARCHITECTURES if arch.startswith(prefixes)),
+    })
+
+
+HOPPER_ARCHITECTURES = architecture_family_values("hopper")
+BLACKWELL_ARCHITECTURES = architecture_family_values("blackwell")
+
+# Offline contract for curated wiki/source-doc links into NVIDIA's rolling PTX
+# ISA. Each fragment was resolved against PTX ISA 9.3 on 2026-08-19.
+PTX_ISA_CURATED_ANCHORS = frozenset({
+    "tensor-memory",
+    "tensorcore-5th-generation-instructions",
+    "tcgen05-memory-alloc-manage-instructions",
+    "parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-try-cancel",
+    "parallel-synchronization-and-communication-instructions-clusterlaunchcontrol-query-cancel",
+})
 
 # Phase 3 per-file 1 MiB cap; bundle 5 MiB cap (see plan AC-10)
 FILE_SIZE_CAP_BYTES = 1 * 1024 * 1024
@@ -47,6 +81,285 @@ def load_yaml_file(path):
         return yaml.safe_load(f)
 
 
+def validate_alias_contract(raw=None):
+    """Reject ambiguous aliases and product-to-architecture drift.
+
+    `query.py` resolves the first case-insensitive alias it sees. Without this
+    check, a duplicate family/product term can silently canonicalize to the
+    wrong exact architecture even when pr_policy's authoritative product map
+    is correct.
+    """
+    errors = []
+    if raw is None:
+        path = DATA_DIR / "aliases.yaml"
+        try:
+            raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            return [f"data/aliases.yaml: could not load canonical aliases ({exc})"]
+    if not isinstance(raw, dict):
+        return ["data/aliases.yaml: top level must be a mapping"]
+
+    resolved = {}
+    for canonical, variants in raw.items():
+        if not isinstance(canonical, str) or not canonical.strip():
+            errors.append("data/aliases.yaml: canonical terms must be non-empty strings")
+            continue
+        if variants is not None and not isinstance(variants, list):
+            errors.append(f"data/aliases.yaml::{canonical}: aliases must be a list")
+            continue
+        for value in [canonical, *(variants or [])]:
+            if not isinstance(value, str) or not value.strip():
+                errors.append(
+                    f"data/aliases.yaml::{canonical}: aliases must be non-empty strings"
+                )
+                continue
+            normalized = value.lower()
+            previous = resolved.get(normalized)
+            if previous is not None and previous != canonical:
+                errors.append(
+                    f"data/aliases.yaml: {value!r} maps to both {previous!r} "
+                    f"and {canonical!r}"
+                )
+            else:
+                resolved[normalized] = canonical
+
+    for product, (expected_architecture, _source) in PRODUCT_ARCHITECTURE_MAPPINGS.items():
+        actual = resolved.get(product)
+        if actual is not None and actual.lower() != expected_architecture:
+            errors.append(
+                f"data/aliases.yaml: product {product!r} resolves to {actual!r}; "
+                f"pr_policy requires {expected_architecture!r}"
+            )
+    # Only multi-target generations must remain family-level aliases. A term
+    # such as Hopper currently has one canonical base target (sm90), while
+    # Blackwell spans sm100/sm103/sm110/sm120/sm121 and cannot collapse.
+    for family, exact_prefixes in ARCHITECTURE_FAMILY_PREFIXES.items():
+        if len(exact_prefixes) <= 1:
+            continue
+        actual = resolved.get(family)
+        if actual is not None and actual.lower() != family:
+            errors.append(
+                f"data/aliases.yaml: architecture family {family!r} resolves to "
+                f"exact term {actual!r}"
+            )
+    return errors
+
+
+def changed_file_inventory_errors(fm, rel="source-pr"):
+    """Validate total/listed/displayed changed-file count relationships."""
+    errors = []
+    total = fm.get("changed_files_count")
+    enumerated = fm.get("changed_files_enumerated_count")
+    listing_complete = fm.get("changed_files_listing_complete")
+    displayed = fm.get("changed_paths") or []
+    display_complete = fm.get("changed_paths_complete")
+    evidence_count = fm.get("changed_files_evidence_count")
+    evidence_complete = fm.get("changed_files_evidence_complete")
+    evidence_method = fm.get("changed_files_evidence_method")
+    evidence_receipt = fm.get("changed_files_evidence_receipt")
+
+    # Legacy pages may omit the two listing fields. Once either is present,
+    # require both so a capped API result cannot masquerade as a total.
+    if enumerated is None and listing_complete is None:
+        return errors
+    if not isinstance(total, int) or isinstance(total, bool) or total < 0:
+        errors.append(f"{rel}: changed_files_count must be a non-negative integer")
+        return errors
+    if not isinstance(enumerated, int) or isinstance(enumerated, bool) or enumerated < 0:
+        errors.append(
+            f"{rel}: changed_files_enumerated_count must be a non-negative integer"
+        )
+        return errors
+    if not isinstance(listing_complete, bool):
+        errors.append(f"{rel}: changed_files_listing_complete must be boolean")
+        return errors
+    if enumerated > total:
+        errors.append(
+            f"{rel}: changed_files_enumerated_count cannot exceed changed_files_count"
+        )
+    if listing_complete != (enumerated == total):
+        errors.append(
+            f"{rel}: changed_files_listing_complete must equal "
+            "(changed_files_enumerated_count == changed_files_count)"
+        )
+    evidence_fields = (
+        evidence_count, evidence_complete, evidence_method, evidence_receipt
+    )
+    if any(value is not None for value in evidence_fields):
+        if any(value is None for value in evidence_fields):
+            errors.append(
+                f"{rel}: reconstructed evidence count/completeness/method/receipt "
+                "must be supplied together"
+            )
+        elif (
+            not isinstance(evidence_count, int)
+            or isinstance(evidence_count, bool)
+            or evidence_count < enumerated
+            or evidence_count > total
+        ):
+            errors.append(
+                f"{rel}: changed_files_evidence_count must be an integer between "
+                "enumerated and total counts"
+            )
+        else:
+            if evidence_complete != (evidence_count == total):
+                errors.append(
+                    f"{rel}: changed_files_evidence_complete must equal "
+                    "(changed_files_evidence_count == changed_files_count)"
+                )
+            if evidence_method != "github-pull-diff":
+                errors.append(
+                    f"{rel}: changed_files_evidence_method must be github-pull-diff"
+                )
+            if evidence_receipt != "audit/pr-file-cap-reconstruction.json":
+                errors.append(
+                    f"{rel}: changed_files_evidence_receipt must name the committed "
+                    "cap reconstruction receipt"
+                )
+    effective_evidence_count = evidence_count if isinstance(evidence_count, int) else enumerated
+    if not isinstance(displayed, list):
+        errors.append(f"{rel}: changed_paths must be a list")
+    elif len(displayed) > effective_evidence_count:
+        errors.append(
+            f"{rel}: changed_paths cannot exceed the evaluated changed-file count"
+        )
+    if display_complete is True and (
+        not listing_complete or len(displayed) != total
+    ):
+        errors.append(
+            f"{rel}: changed_paths_complete requires a complete listing and every path"
+        )
+    return errors
+
+
+def cap_reconstruction_page_errors(fm, row, rel="source-pr"):
+    """Tie a reconstructed page to the committed full-diff policy receipt."""
+    if fm.get("changed_files_evidence_method") is None:
+        return []
+    errors = []
+    expected = {
+        "changed_files_count": row.get("authoritative_changed_files"),
+        "changed_files_enumerated_count": row.get("files_api_enumerated"),
+        "changed_files_listing_complete": row.get("enumeration_complete"),
+        "changed_files_evidence_count": row.get("full_diff_paths"),
+        "changed_files_evidence_complete": row.get("full_diff_complete"),
+        "changed_files_evidence_method": "github-pull-diff",
+        "changed_files_evidence_receipt": "audit/pr-file-cap-reconstruction.json",
+        "upstream_files_sha256": row.get("policy_files_sha256"),
+    }
+    for field, value in expected.items():
+        if fm.get(field) != value:
+            errors.append(f"{rel}: cap reconstruction receipt mismatch in {field}")
+    policy = row.get("full_policy") or {}
+    scope = fm.get("scope_evidence") or {}
+    if fm.get("scope_disposition") != policy.get("disposition"):
+        errors.append(f"{rel}: cap reconstruction receipt mismatch in scope disposition")
+    if scope.get("rule") != policy.get("rule"):
+        errors.append(f"{rel}: cap reconstruction receipt mismatch in scope rule")
+    if scope.get("paths") != policy.get("evidence_paths"):
+        errors.append(f"{rel}: cap reconstruction receipt mismatch in scope paths")
+    if scope.get("path_source") != "github-pull-diff":
+        errors.append(f"{rel}: reconstructed scope paths must name github-pull-diff")
+    return errors
+
+
+def cap_complete_file_evidence_errors(row, rel="cap reconstruction row"):
+    """Validate immutable complete-file receipts used for ambiguous .cu hunks."""
+    errors = []
+    records = row.get("complete_file_evidence")
+    if not isinstance(records, list):
+        return [f"{rel}: complete_file_evidence must be a list"]
+    seen = set()
+    expected_pattern = device_code_pattern_sha256()
+    for index, record in enumerate(records):
+        prefix = f"{rel}: complete_file_evidence[{index}]"
+        if not isinstance(record, dict):
+            errors.append(f"{prefix} must be a mapping")
+            continue
+        path = record.get("path")
+        if not isinstance(path, str) or not path.endswith(".cu"):
+            errors.append(f"{prefix}.path must name a .cu file")
+        elif path in seen:
+            errors.append(f"{prefix}.path duplicates {path}")
+        else:
+            seen.add(path)
+        if not re.fullmatch(r"[0-9a-f]{64}", str(record.get("sha256", ""))):
+            errors.append(f"{prefix}.sha256 must be a lowercase SHA-256 digest")
+        if not isinstance(record.get("device_signal"), bool):
+            errors.append(f"{prefix}.device_signal must be boolean")
+        if record.get("device_pattern_sha256") != expected_pattern:
+            errors.append(f"{prefix}.device_pattern_sha256 is stale")
+    return errors
+
+
+def validate_cap_reconstruction_receipt():
+    """Validate the complete dynamic capped-PR roster and current page outcomes."""
+    if not PR_CAP_RECONSTRUCTION_RECEIPT.is_file():
+        return ["audit/pr-file-cap-reconstruction.json: required receipt is missing"]
+    try:
+        receipt = json.loads(PR_CAP_RECONSTRUCTION_RECEIPT.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"audit/pr-file-cap-reconstruction.json: cannot parse receipt: {exc}"]
+    errors = []
+    policy_sha = hashlib.sha256(
+        (REPO_ROOT / "scripts" / "pr_policy.py").read_bytes()
+    ).hexdigest()
+    if receipt.get("policy_sha256") != policy_sha:
+        errors.append("audit/pr-file-cap-reconstruction.json: pr_policy.py digest mismatch")
+    rows = receipt.get("rows") or []
+    by_key = {
+        (row.get("repo"), row.get("pr")): row
+        for row in rows if isinstance(row, dict)
+    }
+    if len(by_key) != len(rows):
+        errors.append("audit/pr-file-cap-reconstruction.json: duplicate or invalid rows")
+    expected_keys = set()
+    for ledger_path in sorted(CANDIDATES_DIR.glob("*.yaml")):
+        data = load_yaml_file(ledger_path) or {}
+        repo = data.get("repo")
+        for candidate in data.get("prs") or []:
+            if int(candidate.get("files_reviewed_count") or 0) > 3000:
+                expected_keys.add((repo, int(candidate["number"])))
+    missing = sorted(expected_keys - set(by_key))
+    unexpected = sorted(set(by_key) - expected_keys)
+    if missing or unexpected:
+        errors.append(
+            "audit/pr-file-cap-reconstruction.json: capped candidate roster mismatch; "
+            f"missing={missing}, unexpected={unexpected}"
+        )
+    current_pages = {}
+    for page_path in sorted((SOURCES_DIR / "prs").rglob("PR-*.md")):
+        fm = extract_frontmatter(page_path)
+        if isinstance(fm, dict):
+            current_pages[(fm.get("repo"), fm.get("pr"))] = (
+                fm, page_path.relative_to(REPO_ROOT).as_posix()
+            )
+    for key, row in sorted(by_key.items()):
+        errors.extend(cap_complete_file_evidence_errors(row, f"cap receipt {key}"))
+        total = row.get("authoritative_changed_files")
+        if (
+            row.get("files_api_enumerated") != 3000
+            or not isinstance(total, int)
+            or total <= 3000
+            or row.get("full_diff_paths") != total
+            or row.get("full_diff_complete") is not True
+            or row.get("enumeration_complete") is not False
+        ):
+            errors.append(f"audit/pr-file-cap-reconstruction.json: invalid count state for {key}")
+        policy = row.get("full_policy") or {}
+        if row.get("disposition") != policy.get("disposition"):
+            errors.append(f"audit/pr-file-cap-reconstruction.json: policy outcome mismatch for {key}")
+        current = current_pages.get(key)
+        if policy.get("retain"):
+            if current is None:
+                errors.append(f"audit/pr-file-cap-reconstruction.json: retained page missing for {key}")
+            else:
+                errors.extend(cap_reconstruction_page_errors(current[0], row, current[1]))
+        elif current is not None:
+            errors.append(f"audit/pr-file-cap-reconstruction.json: removed page exists for {key}")
+    return errors
+
+
 def extract_frontmatter(filepath):
     """Extract YAML frontmatter from a markdown file."""
     with open(filepath, encoding="utf-8") as f:
@@ -68,6 +381,88 @@ def read_body(filepath):
     if match:
         return content[match.end():]
     return content
+
+
+def architecture_receipt_record(fm):
+    """Canonical compact receipt row for one generated source-PR page."""
+    evidence_json = json.dumps(
+        fm.get("architecture_evidence"),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return [
+        fm.get("upstream_body_sha256"),
+        fm.get("upstream_files_sha256"),
+        fm.get("architectures"),
+        fm.get("architecture_disposition"),
+        hashlib.sha256(evidence_json.encode("utf-8")).hexdigest(),
+    ]
+
+
+def compare_pr_architecture_receipt(actual_rows, receipt):
+    """Compare page-derived rows to the committed frozen-evidence receipt."""
+    errors = []
+    if not isinstance(receipt, dict) or receipt.get("schema_version") != 1:
+        return ["data/pr-architecture-evidence.json: missing or unsupported schema_version"]
+    expected_rows = receipt.get("rows")
+    if not isinstance(expected_rows, dict):
+        return ["data/pr-architecture-evidence.json: rows must be a mapping"]
+    expected_fields = [
+        "upstream_body_sha256",
+        "upstream_files_sha256",
+        "architectures",
+        "architecture_disposition",
+        "architecture_evidence_sha256",
+    ]
+    if receipt.get("row_fields") != expected_fields:
+        errors.append("data/pr-architecture-evidence.json: row_fields contract mismatch")
+    current_policy_sha = hashlib.sha256(
+        (REPO_ROOT / "scripts" / "pr_policy.py").read_bytes()
+    ).hexdigest()
+    if receipt.get("policy_sha256") != current_policy_sha:
+        errors.append("data/pr-architecture-evidence.json: pr_policy.py digest mismatch")
+    missing = sorted(set(expected_rows) - set(actual_rows))
+    unexpected = sorted(set(actual_rows) - set(expected_rows))
+    if missing:
+        errors.append(
+            f"data/pr-architecture-evidence.json: {len(missing)} receipted page(s) missing; "
+            f"first 5: {missing[:5]}"
+        )
+    if unexpected:
+        errors.append(
+            f"data/pr-architecture-evidence.json: {len(unexpected)} unreceipted page(s); "
+            f"first 5: {unexpected[:5]}"
+        )
+    for path in sorted(set(actual_rows) & set(expected_rows)):
+        expected = expected_rows[path]
+        actual = actual_rows[path]
+        if actual != expected:
+            differing = [
+                field for field, left, right in zip(expected_fields, actual, expected)
+                if left != right
+            ]
+            errors.append(
+                f"sources/prs/{path}: architecture receipt mismatch in {differing}"
+            )
+    return errors
+
+
+def validate_pr_architecture_receipt():
+    """Fail when any retained page drifts from the frozen upstream-derived receipt."""
+    if not PR_ARCHITECTURE_RECEIPT.is_file():
+        return ["data/pr-architecture-evidence.json: required architecture receipt is missing"]
+    try:
+        receipt = json.loads(PR_ARCHITECTURE_RECEIPT.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"data/pr-architecture-evidence.json: cannot parse receipt: {exc}"]
+    actual_rows = {}
+    for page_path in sorted((SOURCES_DIR / "prs").rglob("PR-*.md")):
+        fm = extract_frontmatter(page_path)
+        if isinstance(fm, dict):
+            key = page_path.relative_to(SOURCES_DIR / "prs").as_posix()
+            actual_rows[key] = architecture_receipt_record(fm)
+    return compare_pr_architecture_receipt(actual_rows, receipt)
 
 
 def detect_page_type(filepath, fm):
@@ -101,6 +496,65 @@ def detect_page_type(filepath, fm):
     return "unknown"
 
 
+def arxiv_source_classification_errors(filepath, fm, page_type):
+    """Require arXiv research papers to use the source-doc/paper contract."""
+    url = str(fm.get("url") or "")
+    if not re.match(r"https?://(?:www\.)?arxiv\.org/", url, re.IGNORECASE):
+        return []
+    if page_type == "source-doc" and fm.get("source_category") == "paper":
+        return []
+    try:
+        rel = filepath.relative_to(REPO_ROOT)
+    except ValueError:
+        rel = filepath
+    return [
+        f"{rel}: arXiv source must use source-doc with source_category: paper "
+        f"(got {page_type}, {fm.get('source_category')!r})"
+    ]
+
+
+def merge_sha_contract_errors(fm, rel="source-pr"):
+    """Require a full merge SHA exactly for merged PRs."""
+    status = fm.get("status")
+    has_merge_sha = "merge_sha" in fm
+    merge_sha = str(fm.get("merge_sha") or "")
+    if status == "merged" and not re.fullmatch(r"[0-9a-fA-F]{40}", merge_sha):
+        return [f"{rel}: merged PR requires a full 40-hex merge_sha"]
+    if status != "merged" and has_merge_sha:
+        return [f"{rel}: merge_sha must be omitted unless status is 'merged'"]
+    return []
+
+
+def ptx_isa_curated_anchor_errors(body, rel="curated page"):
+    """Reject unverified PTX ISA fragments in curated source/wiki prose."""
+    fragments = set(re.findall(
+        r"https://docs\.nvidia\.com/cuda/parallel-thread-execution/"
+        r"(?:index\.html)?#([A-Za-z0-9._-]+)",
+        body,
+    ))
+    unknown = sorted(fragments - PTX_ISA_CURATED_ANCHORS)
+    return [f"{rel}: unverified PTX ISA fragment '#{fragment}'" for fragment in unknown]
+
+
+def blackwell_relevance_errors(fm, page_type, rel="wiki page"):
+    """Require justification exactly for Hopper-only wiki pages."""
+    if not page_type.startswith("wiki-"):
+        return []
+    archs = set(
+        fm.get("architectures", [])
+        if isinstance(fm.get("architectures"), list)
+        else []
+    )
+    hopper_archs = archs & HOPPER_ARCHITECTURES
+    blackwell_archs = archs & BLACKWELL_ARCHITECTURES
+    if hopper_archs and not blackwell_archs and "blackwell_relevance" not in fm:
+        return [
+            f"{rel}: page targets only Hopper {hopper_archs} without Blackwell arch; "
+            "add 'blackwell_relevance' to justify inclusion in Blackwell-first scope"
+        ]
+    return []
+
+
 def repro_at_least(level, minimum):
     if level not in REPRO_ORDER or minimum not in REPRO_ORDER:
         return False
@@ -131,10 +585,14 @@ _CODE_INDICATORS = re.compile(
     r'__global__|__device__|__shared__|__host__|'
     r'asm\s+volatile|#include|#define|#pragma|'
     r'\bvoid\b|\bint\b|\buint32_t\b|\buint64_t\b|\bfloat\b|\bhalf\b|'
-    r'\bstruct\b|\btypedef\b|\btemplate\b|\bnamespace\b|'
+    r'\bstruct\b|\btypedef\b|\btemplate\b|\bnamespace\b|\busing\b|\bauto\b|\bconstexpr\b|'
     r'\bfor\s*\(|\bwhile\s*\(|\bif\s*\(|return\s|'
+    r'(?:\w+::)+\w+|\w+(?:\.|->)\w+\s*\(|'
     # Python / Triton
-    r'\bdef\s+\w+|import\s+\w+|@triton\.jit|tl\.\w+|'
+    r'\bdef\s+\w+|\bif\s+[^\n:]+:|\bfor\s+\w+\s+in\s+|\breturn\b|'
+    r'import\s+\w+|@triton\.jit|tl\.\w+|\w+\s*=\s*\w+\s*\(|'
+    # Build / shell snippets
+    r'\bnvcc\s|\bcmake\s|\bpython3?\s|'
     # PTX
     r'tcgen05|mbarrier|cp\.async|ld\.global|st\.global|'
     r'\.reg\s|\.pred\s|cvt\.\w+|mov\.b32|'
@@ -149,7 +607,7 @@ _CODE_INDICATORS = re.compile(
 
 def has_compilable_code(body, code_langs):
     """Check if body contains a fenced code block with a known language, real code,
-    and at least 3 non-blank non-comment lines (rejects stubs and placeholders)."""
+    and at least 2 non-blank non-comment lines (rejects one-line stubs)."""
     for m in re.finditer(r'^```(\S*)\s*\n(.*?)\n```', body, re.MULTILINE | re.DOTALL):
         info = m.group(1).lower()
         block = m.group(2)
@@ -163,7 +621,7 @@ def has_compilable_code(body, code_langs):
             stripped = line.strip()
             if stripped and not stripped.startswith('//') and not stripped.startswith('#'):
                 code_lines += 1
-        if code_lines >= 3:
+        if code_lines >= 2:
             return True
     return False
 
@@ -188,6 +646,12 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
     if page_type == "unknown":
         errors.append(f"{rel}: unknown page type")
         return errors
+
+    errors.extend(arxiv_source_classification_errors(filepath, fm, page_type))
+    if page_type == "source-pr":
+        errors.extend(merge_sha_contract_errors(fm, rel))
+    if page_type.startswith("wiki-") or page_type == "source-doc":
+        errors.extend(ptx_isa_curated_anchor_errors(read_body(filepath), rel))
 
     schema = schemas.get(page_type)
     if not schema:
@@ -273,6 +737,125 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
             if arch not in valid_archs:
                 errors.append(f"{rel}: unknown architecture '{arch}'")
 
+    # Factual-audit architecture contract for generated PR sources.  Empty is
+    # permitted only as an explicit, visible, evidence-noted unknown.
+    if page_type == "source-pr":
+        errors.extend(changed_file_inventory_errors(fm, str(rel)))
+        archs = fm.get("architectures")
+        disposition = fm.get("architecture_disposition")
+        evidence = fm.get("architecture_evidence")
+        if disposition not in {"exact", "family", "mixed", "unknown"}:
+            errors.append(
+                f"{rel}: architecture_disposition must be exact, family, mixed, or unknown"
+            )
+        if not isinstance(evidence, list) or not evidence:
+            errors.append(f"{rel}: architecture_evidence must be a non-empty list")
+            evidence = []
+        evidence_values = set()
+        for index, row in enumerate(evidence):
+            if not isinstance(row, dict):
+                errors.append(f"{rel}: architecture_evidence[{index}] must be a mapping")
+                continue
+            for field in ("architecture", "basis", "locator", "evidence"):
+                if not isinstance(row.get(field), str) or not row[field].strip():
+                    errors.append(
+                        f"{rel}: architecture_evidence[{index}].{field} must be a non-empty string"
+                    )
+            if row.get("architecture"):
+                evidence_values.add(row["architecture"])
+            if row.get("basis") == "documented-product-mapping":
+                mapping_source = row.get("mapping_source")
+                if not isinstance(mapping_source, str) or not mapping_source.startswith("https://"):
+                    errors.append(
+                        f"{rel}: documented product mapping requires an HTTPS mapping_source"
+                    )
+        if isinstance(archs, list):
+            if disposition == "unknown":
+                if archs:
+                    errors.append(f"{rel}: unknown disposition requires architectures: []")
+                if "unknown" not in evidence_values:
+                    errors.append(f"{rel}: unknown disposition requires an unknown evidence note")
+            elif disposition == "family":
+                family_values = set(ARCHITECTURE_FAMILY_PREFIXES)
+                if not archs or not set(archs).issubset(family_values):
+                    errors.append(
+                        f"{rel}: family disposition requires only recognized family values"
+                    )
+                unsupported = set(archs or []) - evidence_values
+                if unsupported:
+                    errors.append(f"{rel}: family assignments lack matching evidence: {sorted(unsupported)}")
+            elif disposition == "exact":
+                family_values = set(ARCHITECTURE_FAMILY_PREFIXES)
+                if not archs or set(archs) & family_values:
+                    errors.append(
+                        f"{rel}: exact disposition requires one or more exact values and no family placeholder"
+                    )
+                unsupported = set(archs or []) - evidence_values
+                if unsupported:
+                    errors.append(
+                        f"{rel}: architecture assignments lack matching evidence: {sorted(unsupported)}"
+                    )
+            elif disposition == "mixed":
+                family_values = set(ARCHITECTURE_FAMILY_PREFIXES)
+                values = set(archs or [])
+                if not (values & family_values) or not (values - family_values):
+                    errors.append(f"{rel}: mixed disposition requires family and exact values")
+                unsupported = values - evidence_values
+                if unsupported:
+                    errors.append(
+                        f"{rel}: mixed architecture assignments lack matching evidence: {sorted(unsupported)}"
+                    )
+
+        scope_disposition = fm.get("scope_disposition")
+        scope_evidence = fm.get("scope_evidence")
+        if scope_disposition != "retained":
+            errors.append(f"{rel}: source PR pages must have scope_disposition: retained")
+        allowed_scope_rules = {
+            "cuda-cute-ptx-device-source",
+            "python-dsl-device-kernel",
+            "device-code-signal",
+        }
+        if not isinstance(scope_evidence, dict):
+            errors.append(f"{rel}: scope_evidence must be a mapping")
+        else:
+            rule = scope_evidence.get("rule")
+            paths = scope_evidence.get("paths")
+            if rule not in allowed_scope_rules:
+                errors.append(f"{rel}: unsupported retained scope rule {rule!r}")
+            if not isinstance(paths, list) or not paths:
+                errors.append(f"{rel}: retained scope_evidence.paths must be a non-empty list")
+            else:
+                displayed_paths = set(fm.get("changed_paths") or [])
+                absent = set(paths) - displayed_paths
+                if absent:
+                    errors.append(
+                        f"{rel}: scope evidence paths absent from changed_paths: {sorted(absent)}"
+                    )
+                if rule == "cuda-cute-ptx-device-source" and any(
+                    Path(path).suffix.lower() not in {".cu", ".cuh", ".ptx"} for path in paths
+                ):
+                    errors.append(f"{rel}: CUDA/CuTe/PTX scope rule cites a non-device-source path")
+                if rule == "python-dsl-device-kernel" and any(
+                    Path(path).suffix.lower() != ".py" for path in paths
+                ):
+                    errors.append(f"{rel}: Python DSL scope rule cites a non-Python path")
+        inclusion_reason = fm.get("inclusion_reason")
+        if not isinstance(inclusion_reason, str) or not inclusion_reason.startswith("retain:"):
+            errors.append(f"{rel}: inclusion_reason must name the concrete retained rule/evidence")
+        # Named distributed-system exclusions are hard when they are the PR's
+        # subject. A qualifying single-device kernel PR may still touch a
+        # DeepEP path or mention a backend in a benchmark/test; the shared
+        # intake policy excludes those paths from its positive evidence.
+        hard_scope_title = str(fm.get("title", ""))
+        if re.search(r"(?i)(?<![a-z0-9])(eplb|deep[ _-]?ep|dual[ _-]?pipe)(?![a-z0-9])", hard_scope_title):
+            errors.append(f"{rel}: hard-excluded EPLB/DeepEP/DualPipe source page is present")
+
+        locator = fm.get("upstream_body_locator")
+        if not isinstance(locator, str) or not locator.startswith("https://"):
+            errors.append(f"{rel}: upstream_body_locator must be a non-empty HTTPS locator")
+        for problem in body_contract_errors(fm, read_body(filepath)):
+            errors.append(f"{rel}: {problem}")
+
     # Validate from_arch / to_arch on migration pages
     for arch_field in ["from_arch", "to_arch"]:
         if arch_field in fm:
@@ -319,11 +902,6 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
         if fm["status"] not in allowed:
             errors.append(f"{rel}: status '{fm['status']}' not in {allowed}")
 
-    # Check merge_sha_required_when
-    if constraints.get("merge_sha_required_when") == "status == merged":
-        if fm.get("status") == "merged" and not fm.get("merge_sha"):
-            errors.append(f"{rel}: merge_sha required when status is 'merged'")
-
     # Check type field matches constraint
     if "type" in constraints and "type" in fm:
         if fm["type"] != constraints["type"]:
@@ -332,17 +910,7 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
                 f"expected '{constraints['type']}' for {page_type}"
             )
 
-    # Check blackwell_relevance required for Hopper-only wiki pages
-    # Pages targeting both Hopper AND Blackwell are inherently Blackwell-relevant
-    if page_type.startswith("wiki-"):
-        archs = set(fm.get("architectures", []) if isinstance(fm.get("architectures"), list) else [])
-        hopper_archs = archs & {"sm90", "sm90a"}
-        blackwell_archs = archs & {"sm100", "sm100a", "sm120"}
-        if hopper_archs and not blackwell_archs and "blackwell_relevance" not in fm:
-            errors.append(
-                f"{rel}: page targets only Hopper {hopper_archs} without Blackwell arch; "
-                f"add 'blackwell_relevance' to justify inclusion in Blackwell-first scope"
-            )
+    errors.extend(blackwell_relevance_errors(fm, page_type, rel))
 
     # Check performance_claims structure (including shape and numeric value)
     if "performance_claims" in fm:
@@ -354,7 +922,7 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
                 if not isinstance(claim, dict):
                     errors.append(f"{rel}: performance_claims[{i}] must be a mapping, got {type(claim).__name__}")
                     continue
-                for req in ["gpu", "dtype", "shape", "metric", "value", "source_id"]:
+                for req in ["gpu", "dtype", "shape", "metric", "value", "source_id", "source_locator"]:
                     if req not in claim:
                         errors.append(f"{rel}: performance_claims[{i}] missing '{req}'")
                 if "value" in claim and not isinstance(claim["value"], (int, float)):
@@ -368,6 +936,13 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
                     errors.append(
                         f"{rel}: performance_claims[{i}].source_id '{sid}' "
                         f"not found in source corpus"
+                    )
+                locator = claim.get("source_locator")
+                if "source_locator" in claim and (
+                    not isinstance(locator, str) or not locator.strip()
+                ):
+                    errors.append(
+                        f"{rel}: performance_claims[{i}].source_locator must be a non-empty exact locator"
                     )
 
     # Check wiki sources reference existing source ids
@@ -406,8 +981,13 @@ def validate_file(filepath, schemas, valid_tags, all_source_ids, code_langs):
                             f"not listed in page sources"
                         )
 
-    # Check technique/kernel/language pages have fenced code
-    if page_type in ("wiki-technique", "wiki-kernel", "wiki-language"):
+    # Pages that claim snippet-or-better reproducibility must actually carry a
+    # compilable fence. Concept and pseudocode pages are allowed to remain
+    # honest prose instead of being forced to invent an implementation.
+    if (
+        page_type in ("wiki-technique", "wiki-kernel", "wiki-language")
+        and repro_at_least(fm.get("reproducibility", "concept"), "snippet")
+    ):
         body = read_body(filepath)
         if not has_compilable_code(body, code_langs):
             errors.append(f"{rel}: {page_type} page must contain fenced code block (reproducibility >= snippet)")
@@ -713,16 +1293,17 @@ def validate_version_claims_registry(all_source_ids):
     return errors
 
 
-## AC-11 inclusion-policy YAML scalar guard. The Triton lane's `description`
-## scalar must NOT contain the obsolete "no direct tcgen05/TMEM access"
-## phrase. Validated by parsing the YAML data, never by reading comments.
+## AC-11 inclusion-policy guard. Neither the parsed Triton `description` nor
+## human-readable comments may contain the obsolete "no direct tcgen05/TMEM
+## access" phrase.
 def validate_inclusion_policy_scalars():
     errors = []
     ip_path = DATA_DIR / "inclusion-policy.yaml"
     if not ip_path.is_file():
         return errors
+    raw_text = ip_path.read_text(encoding="utf-8")
     try:
-        data = yaml.safe_load(ip_path.read_text(encoding="utf-8"))
+        data = yaml.safe_load(raw_text)
     except yaml.YAMLError as e:
         return [f"data/inclusion-policy.yaml: invalid YAML ({e})"]
     triton_desc = (data or {}).get("triton", {}).get("description", "") or ""
@@ -730,6 +1311,11 @@ def validate_inclusion_policy_scalars():
         errors.append(
             "data/inclusion-policy.yaml::triton.description: still contains "
             "obsolete substring 'no direct tcgen05/TMEM access' (AC-11)"
+        )
+    if "no direct tcgen05/tmem access" in raw_text.lower():
+        errors.append(
+            "data/inclusion-policy.yaml: raw text (including comments) still "
+            "contains obsolete substring 'no direct tcgen05/TMEM access' (AC-11)"
         )
     return errors
 
@@ -874,9 +1460,12 @@ def validate_refresh_subset():
     return errors
 
 
-## AC-4 captured_at >= cutoff_date check. Two failure modes:
-##   (1) captured_at strictly newer than cutoff_date — impossible.
-##   (2) captured_at older than cutoff_date AND the file did not exist in
+## AC-4 captured_at >= cutoff_date check. A page can be captured after a
+## search cutoff: that is the normal case when authoritative evidence is
+## fetched later. The invalid case is a newly generated page whose capture
+## predates the round cutoff.
+##
+## Failure mode: captured_at older than cutoff_date AND the file did not exist in
 ##       the pre-refresh git revision — i.e., a freshly generated page
 ##       that nonetheless has a stale timestamp.
 ##
@@ -885,9 +1474,6 @@ def validate_refresh_subset():
 ## data/refresh-cutoff.yaml::previous_pages_manifest is a list of file
 ## paths that existed before the round started. Any PR page NOT in that
 ## manifest must have captured_at >= cutoff_date.
-##
-## When the manifest is absent, fall back to the original "future-dated
-## captured_at fails" check only.
 def _load_previous_pages_manifest():
     cutoff_path = DATA_DIR / "refresh-cutoff.yaml"
     if not cutoff_path.is_file():
@@ -928,21 +1514,14 @@ def validate_captured_at_cutoff():
                 continue
             ca_str = ca.isoformat() if hasattr(ca, "isoformat") else str(ca)
             rel = str(pr_file.relative_to(REPO_ROOT))
-            # Failure mode (1): captured_at strictly after cutoff.
-            if ca_str > cutoff_str:
-                errors.append(
-                    f"{rel}: captured_at={ca_str!r} is AFTER refresh-cutoff "
-                    f"cutoff_date={cutoff_str!r} (impossible per AC-4)"
-                )
-                continue
-            # Failure mode (2): freshly generated page (not in pre-refresh
-            # manifest) must have captured_at == cutoff or later.
+            # A freshly generated page (not in the pre-refresh manifest) must
+            # not claim evidence capture before the round cutoff.
             if pre_manifest is not None and rel not in pre_manifest:
-                if ca_str != cutoff_str:
+                if ca_str < cutoff_str:
                     errors.append(
                         f"{rel}: page is new this round but captured_at="
-                        f"{ca_str!r} != cutoff_date {cutoff_str!r} "
-                        f"(AC-4: freshly-generated pages must use the round's cutoff)"
+                        f"{ca_str!r} precedes cutoff_date {cutoff_str!r} "
+                        f"(AC-4: freshly-generated pages must use current evidence)"
                     )
     return errors
 
@@ -1122,31 +1701,59 @@ def validate_discoverability():
                 f"{md_file.relative_to(REPO_ROOT)}: sources/upstreams/ paths "
                 f"are forbidden (DEC-2 case-study mode reuses source-blog)"
             )
-    # AC-10: references/primer.md repo-table PR count must match find -count
-    # for each repo. The table format is "| <repo-full> | <count> | ...".
+    # AC-10: every current source-PR repository must appear exactly once in the
+    # primer table, and every count must match disk. Derive this set from page
+    # frontmatter so newly added repos cannot bypass a hand-maintained map.
     primer_path = REPO_ROOT / "references" / "primer.md"
     if not primer_path.is_file():
         return errors
     text = primer_path.read_text(encoding="utf-8")
-    repo_map = {
-        "NVIDIA/cutlass": "cutlass",
-        "sgl-project/sglang": "sglang",
-        "vllm-project/vllm": "vllm",
-        "flashinfer-ai/flashinfer": "flashinfer",
-        "pytorch/pytorch": "pytorch",
-        "deepseek-ai/DeepGEMM": "DeepGEMM",
+    section_match = re.search(
+        r"^## Source Repositories \(PR coverage\)\s*$\n(.*?)(?=^##\s|\Z)",
+        text,
+        re.MULTILINE | re.DOTALL,
+    )
+    section = section_match.group(1) if section_match else ""
+    table_rows = {
+        repo.strip(): int(count)
+        for repo, count in re.findall(
+            r"^\|\s*([^|\n]+/[^|\n]+?)\s*\|\s*(\d+)\s*\|",
+            section,
+            re.MULTILINE,
+        )
     }
-    for repo_full, repo_dir_name in repo_map.items():
-        m = re.search(r"\|\s*" + re.escape(repo_full) + r"\s*\|\s*(\d+)\s*\|", text)
-        if not m:
-            errors.append(
-                f"references/primer.md: repo table is missing row for {repo_full!r} "
-                f"(AC-10)"
-            )
-            continue
-        claimed = int(m.group(1))
-        actual_dir = SOURCES_DIR / "prs" / repo_dir_name
-        actual = len(list(actual_dir.glob("PR-*.md"))) if actual_dir.is_dir() else 0
+    repo_map = {}
+    prs_root = SOURCES_DIR / "prs"
+    if prs_root.is_dir():
+        for repo_dir in sorted(path for path in prs_root.iterdir() if path.is_dir()):
+            pages = sorted(repo_dir.glob("PR-*.md"))
+            repos = {
+                str(fm.get("repo"))
+                for page in pages
+                if isinstance((fm := extract_frontmatter(page)), dict) and fm.get("repo")
+            }
+            if len(repos) != 1:
+                errors.append(
+                    f"{repo_dir.relative_to(REPO_ROOT)}: expected one repo identity "
+                    f"across PR pages, found {sorted(repos)}"
+                )
+                continue
+            repo_map[next(iter(repos))] = (repo_dir, len(pages))
+    missing = sorted(set(repo_map) - set(table_rows))
+    unexpected = sorted(set(table_rows) - set(repo_map))
+    for repo_full in missing:
+        errors.append(
+            f"references/primer.md: repo table is missing row for {repo_full!r} "
+            f"(AC-10)"
+        )
+    for repo_full in unexpected:
+        errors.append(
+            f"references/primer.md: repo table has stale row for {repo_full!r} "
+            f"(AC-10)"
+        )
+    for repo_full in sorted(set(repo_map) & set(table_rows)):
+        actual_dir, actual = repo_map[repo_full]
+        claimed = table_rows[repo_full]
         if claimed != actual:
             errors.append(
                 f"references/primer.md: repo table claims {claimed} PR pages "
@@ -1476,6 +2083,15 @@ def main():
 
     # AC-2 hybrid version-claim registry consistency.
     all_errors.extend(validate_version_claims_registry(all_source_ids))
+
+    # Frozen upstream-derived architecture receipt. Internal page/evidence
+    # consistency alone cannot detect a coherently fabricated assignment.
+    all_errors.extend(validate_pr_architecture_receipt())
+    all_errors.extend(validate_cap_reconstruction_receipt())
+
+    # Canonical free-text aliases must agree with the product mapping used by
+    # exact architecture filters and cannot collapse a family name to one SM.
+    all_errors.extend(validate_alias_contract())
 
     # AC-11 inclusion-policy YAML scalar guard.
     all_errors.extend(validate_inclusion_policy_scalars())

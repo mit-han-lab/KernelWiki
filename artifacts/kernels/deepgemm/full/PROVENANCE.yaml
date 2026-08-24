@@ -5,12 +5,10 @@ license: MIT
 retrieved_at: '2026-04-27'
 asset_mode: verbatim
 size_cap_truncated: false
-generated_by: Phase 3 Round 3 task49 (DeepGEMM verbatim anchor); re-pinned to current HEAD in Phase 4 R6-4
-source_pr_id: pr-sglang-21239
+generated_by: Phase 3 Round 3 task49 (DeepGEMM verbatim anchor); re-pinned to current HEAD in Phase 4 R6-4; unrelated CI patch removed by 2026-08-18 factual audit
 notes: |
   Bundle contains the verbatim DeepGEMM SM90 + SM100 FP8 GEMM kernel templates
-  (with Nc=128 CUDA-core promotion on SM90) plus the sglang PR that integrates
-  DeepGEMM into SGLang. Re-pinned in Phase 4 Round 6 R6-4 from the original
+  (with Nc=128 CUDA-core promotion on SM90). Re-pinned in Phase 4 Round 6 R6-4 from the original
   Phase 3 SHA 7f2a703e (2026-04-17) to current HEAD 891d57b4 (2026-04-27).
   The two .cuh files are byte-identical between those SHAs (SHA-256 unchanged):
   upstream made no changes to deep_gemm/include/deep_gemm/impls/sm{90,100}_fp8_gemm_1d1d.cuh
@@ -18,12 +16,6 @@ notes: |
   and Mega MoE benchmarks", PR-316) touched other parts of the repo. Re-pinning
   metadata is therefore a no-op on byte content but updates the audit trail.
 files:
-- local_path: sglang-PR-21239-deepgemm-integration.patch
-  role: pr-diff
-  mode: upstream-patch
-  upstream_repo: sgl-project/sglang    # per-file override (bundle cites DeepGEMM)
-  upstream_sha: "260abe1f"
-  sha256: 0ea1b5b0ad1d923c1fd5006c98c80a390c09d9b9d908be14386c4350a4f44443
 - local_path: sm90_fp8_gemm_1d1d.cuh
   role: upstream-file
   mode: verbatim

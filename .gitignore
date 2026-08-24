@@ -3,3 +3,9 @@
 .claude/
 __pycache__/
 *.pyc
+
+# skill evolve
+plan.md
+audit/claude-round-*.json
+audit/claude-findings-disposition.md
+.worklog/

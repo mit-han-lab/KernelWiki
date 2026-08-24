@@ -1,62 +1,55 @@
 ---
 id: technique-chunk-parallelism
-title: "Chunk-Based Parallelism for Linear Attention"
+title: "Chunk-Based Parallelism for Linear Recurrent Models"
 type: technique
-architectures: [sm100, sm90]
-tags: [chunk-parallelism, linear-attention, gated-delta-net, pipeline-stages]
+architectures: [sm90]
+tags: [chunk-parallelism, linear-attention, triton]
 confidence: source-reported
 reproducibility: snippet
 prerequisites: []
 related: [kernel-gated-delta-net, kernel-nsa]
-sources: [blog-gated-delta-net, blog-nsa, doc-tfla]
-blackwell_relevance: "Chunk size scales with TMEM capacity on Blackwell; larger chunks = better tensor core utilization."
+sources: [blog-gated-delta-net, doc-tfla]
+blackwell_relevance: "The decomposition is relevant to recurrent-model kernels on newer GPUs, but the cited TFLA implementation reports H100 results and does not establish a Blackwell-specific path."
 ---
 
-# Chunk-Based Parallelism
+# Chunk-Based Parallelism for Linear Recurrent Models
 
-## Overview
+## What the pattern means
 
-Linear attention variants (GatedDeltaNet, RetNet, Mamba) have O(n) complexity but naive implementations are sequential. Chunk-based parallelism divides the sequence into chunks of size C, computes within each chunk in parallel (matmul-friendly), and propagates state between chunks sequentially.
+A recurrent sequence can be partitioned into chunks while preserving the state
+passed from one chunk to the next. Work inside a chunk can expose matrix
+operations and sequence parallelism, but the state dependency between chunks
+still has to be respected by the algorithm or by separate kernel launches.
 
-## Pattern
+TFLA adds a second level of sequence tiling inside each chunk for mLSTM. The
+paper and companion repository describe this as removing the earlier fixed
+chunk-size limit. They do not prescribe one generally optimal chunk size;
+selection depends on the model dimensions, sequence length, implementation,
+and target GPU.
+
+## Upstream usage excerpt
+
+This excerpt is contiguous with the companion repository's README at commit
+`5b98ff8e2bec189b3d3c249405bab5149564d6f8`. The tensors are created immediately
+above it in that README. It selects the published TFLA mLSTM implementation;
+it is not presented as a Gated DeltaNet kernel.
 
 ```python
-@triton.jit
-def chunk_parallel_linear_attn(Q, K, V, State, Output,
-                                chunk_size: tl.constexpr,
-                                d: tl.constexpr):
-    # Grid: (num_chunks, num_heads, batch)
-    chunk_id = tl.program_id(0)
+from mlstm_kernels.torch.chunkwise.triton_xl_chunk import mlstm_chunkwise__xl_chunk
 
-    # Load chunk of Q, K, V
-    q = tl.load(Q + chunk_id * chunk_size * d + offsets)  # [C, d]
-    k = tl.load(K + chunk_id * chunk_size * d + offsets)
-    v = tl.load(V + chunk_id * chunk_size * d + offsets)
-
-    # Intra-chunk: parallel O(C^2) attention-like compute
-    scores = tl.dot(q, tl.trans(k))
-    o_intra = tl.dot(scores, v)
-
-    # Inter-chunk: sequential state propagation
-    state = tl.load(State)  # From previous chunk
-    o_inter = tl.dot(q, state)
-
-    # Combine and update state
-    output = o_intra + o_inter
-    state = update_state(state, k, v)
-
-    tl.store(Output + offsets, output)
-    tl.store(State, state)
+matH1 = mlstm_chunkwise__xl_chunk(
+    q=matQ, k=matK, v=matV, i=vecI, f=vecF, return_last_states=False, chunk_size=256
+)
 ```
 
-## Size Tradeoff
+## Correctness boundary
 
-- **Small chunks (C=32)**: low latency decode, fewer intermediate materializations
-- **Large chunks (C=256-512)**: better tensor core utilization, higher throughput for prefill
-- **TFLA (Tiled FLA)**: two-level tiling allows arbitrary chunk sizes via recursive tiling
+Chunks cannot be launched independently while all of them read and overwrite a
+single unsynchronized state buffer. A valid implementation must preserve the
+model's exact recurrence, normalization and stabilization rules, initial state,
+and chunk-boundary handoff. Decode is normally recurrent; chunkwise parallelism
+primarily addresses sequence processing such as training or prefill.
 
-## When To Use
-
-- Linear attention (O(n) complexity)
-- Recurrent state models (Mamba, GatedDeltaNet, Delta Rule)
-- Hybrid architectures mixing linear + full attention (Qwen3-Next uses 3:1 ratio)
+Gated DeltaNet and other linear recurrent models may also use chunkwise
+formulations, but the TFLA source cited here evaluates mLSTM. Transfer to another
+recurrence requires separate mathematical and implementation evidence.

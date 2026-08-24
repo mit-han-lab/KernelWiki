@@ -15,21 +15,22 @@ See `SKILL.md` (skill entry point) and `references/examples.md` for query patter
 ### Direct navigation (when skill not available)
 
 1. **Start**: Read `index.md` for curated top-level navigation
-2. **By problem**: Read `queries/by-problem.md` → find symptom → follow links to pattern pages
-3. **By technique**: Read `queries/by-technique.md` → find technique → follow to technique page
-4. **By hardware**: Read `queries/by-hardware-feature.md` → find feature → follow to hardware page
-5. **By kernel type**: Read `queries/by-kernel-type.md` → find type → follow to kernel pages
-6. **By language**: Read `queries/by-language.md` → find DSL → follow to language page
-7. **By repo**: Read `queries/by-repo.md` → find repository → see all PRs
-8. **Deep dive**: From any wiki page, follow `sources:` IDs to raw source data
+2. **By architecture**: Read `queries/by-architecture.md` → choose exact, family-only, or validated-unknown evidence
+3. **By problem**: Read `queries/by-problem.md` → find symptom → follow links to pattern pages
+4. **By technique**: Read `queries/by-technique.md` → find technique → follow to technique page
+5. **By hardware**: Read `queries/by-hardware-feature.md` → find feature → follow to hardware page
+6. **By kernel type**: Read `queries/by-kernel-type.md` → find type → follow to kernel pages
+7. **By language**: Read `queries/by-language.md` → find DSL → follow to language page
+8. **By repo**: Read `queries/by-repo.md` → find repository → see all PRs
+9. **Deep dive**: From any wiki page, follow `sources:` IDs to raw source data
 
 ## Three-Layer Architecture
 
 ### Layer 1: Sources (`sources/`)
 Raw data. Each file has YAML frontmatter with a unique `id`.
 - `sources/prs/{repo}/PR-{N}.md` — One file per relevant PR
-- `sources/contests/{contest}/*.md` — Competition problems and solutions
-- `sources/docs/*.md` — Official NVIDIA doc summaries
+- `sources/contests/{contest}/*.md` — Competition problem definitions, organizer speed-of-light data, and dated leaderboard/results snapshots (no per-submission solutions)
+- `sources/docs/*.md` — Official-document and research-paper summaries (`source_category: official-doc` or `paper`); `sources/docs/images/` holds reproduced figure assets
 - `sources/blogs/*.md` — Community blog post summaries
 
 ### Layer 2: Wiki (`wiki/`)
@@ -69,7 +70,9 @@ Alias mappings in `data/aliases.yaml` map canonical terms to known synonyms:
 - `tcgen05` = UMMA = tensor_core_gen05
 - `tmem` = tensor-memory = TMEM
 - `clc` = Cluster Launch Control = CLC
-- `sm100` = Blackwell = B200
+- `blackwell` = Blackwell family
+- `sm100` = B200 = GB200
+- `sm103` = B300 = GB300
 - `sm90` = Hopper = H100
 
 ## Confidence Rules
@@ -95,11 +98,12 @@ Alias mappings in `data/aliases.yaml` map canonical terms to known synonyms:
 performance_claims:
   - gpu: B200
     dtype: bf16
-    shape: "M=4096, N=4096, K=4096"
+    shape: "paper-reported B200 BF16 sweep; exact maximizing shape not stated"
     metric: TFLOPS
-    value: 1605
+    value: 1613
     utilization: "71%"
     source_id: doc-flash-attention-4
+    source_locator: "arXiv 2603.05451 abstract and §5"
 ```
 
 ## Tooling
@@ -111,7 +115,7 @@ performance_claims:
 
 ## Scope Rules
 
-- **Blackwell-first**: SM100 content is primary. SM90 only with explicit `blackwell_relevance`.
+- **Blackwell-first**: SM100 content is primary. Hopper-only wiki pages require explicit `blackwell_relevance`; source pages preserve upstream evidence and are exempt.
 - **Kernel-only**: No distributed system topics (DeepEP, DualPipe, EPLB excluded).
 - **English canonical**: All content in English.
 - **First-class DSLs**: CuTe DSL, CUDA C++, PTX, Triton. Others mentioned but no dedicated pages.

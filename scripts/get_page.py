@@ -110,7 +110,7 @@ def _resolve_artifact_dir(page_path, fm):
     # an artifact bundle. Skip the fallback when the manifest explicitly
     # declares no code — this keeps `get_page.py --include-code` and
     # `query.py --has-code` consistent for blogs like
-    # `blog-blackwell-microbenchmarking` that ship zero code.
+    # source blogs that ship zero code.
     if parts[1] == "blogs":
         manifest_path = abs_path / "MANIFEST.yaml"
         if manifest_path.is_file():

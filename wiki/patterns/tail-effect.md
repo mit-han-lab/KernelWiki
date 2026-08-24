@@ -6,39 +6,21 @@ tags: [persistent-kernel, clc, tile-scheduling]
 symptoms: [tail-effect, low-sm-utilization, wave-quantization]
 candidate_techniques: [technique-persistent-kernels, hw-clc, technique-tile-scheduling]
 related: [pattern-low-sm-utilization]
-sources: [doc-nvidia-tuning-guide, blog-tcgen05-tutorial, pr-cutlass-2161]
+sources: [doc-blackwell-microbenchmarking, doc-ptx-isa-sm100]
 ---
 
-## Symptom
+# Tail effect
 
-Performance drops for problem sizes where total_tiles % num_SMs != 0. The last wave of tiles runs with many SMs idle.
+When a static grid contains a non-multiple of the number of simultaneously resident CTAs, its last wave cannot occupy every available slot. Confirm the effect from the actual grid, occupancy limit, and CTA durations; `num_tiles % num_SMs` is only the one-resident-CTA-per-SM special case.
 
-## Likely Causes
+For example, the locally verified NVIDIA B200 exposes 148 SMs. Under the simplifying assumption of one resident CTA per SM and equal-duration tiles, a 150-CTA grid has a first wave of 148 CTAs and a final wave of two CTAs, leaving 146 SMs without work during that final wave.
 
-1. **Wave quantization**: Grid of N tiles on M SMs takes ceil(N/M) waves; last wave may use only N%M SMs
-2. **Static assignment**: stride-by-gridDim leaves remainder tiles on few SMs
-3. **Non-persistent launch**: each kernel launch has fixed grid, no dynamic rebalancing
+Persistent scheduling or CLC can reduce launch overhead and redistribute uneven work. Neither can make 150 independent tile tasks occupy more than 150 tile-time slots, so they do not eliminate the final lack of parallelism in this example.
 
-## Candidate Techniques
+## What to measure
 
-| Technique | Effect |
-|---|---|
-| [CLC](../hardware/clc.md) | Hardware dynamic scheduling, SMs grab tiles on-demand |
-| [Persistent kernels](../techniques/persistent-kernels.md) | SM-count grid, iterate over tiles, no wave boundary |
-| [Tile scheduling](../techniques/tile-scheduling.md) | Raster order, swizzle patterns for better distribution |
-
-## Example
-
-```
-// B200: 142 SMs
-// Problem: 150 tiles
-// Without CLC: 2 waves (142 + 8), last wave uses only 8 SMs (5.6%)
-// With CLC: single persistent wave, all 142 SMs stay busy
-//
-// Impact: 86% → 98% of cuBLAS (tcgen05 tutorial data)
-```
-
-## Caveats
-- Only significant for moderate tile counts (< 4× SM count)
-- For very large problems, tail effect is amortized across many waves
-- CLC only on SM100 datacenter
+- resident CTAs per SM for the actual kernel;
+- grid and logical tile counts;
+- per-CTA duration variance;
+- time spent in the final wave;
+- changes in cache locality or synchronization introduced by the alternative scheduler.

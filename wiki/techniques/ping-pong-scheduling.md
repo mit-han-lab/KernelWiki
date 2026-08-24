@@ -2,83 +2,39 @@
 id: technique-ping-pong-scheduling
 title: Ping-Pong Scheduling
 type: technique
-architectures:
-- sm100
-tags:
-- ping-pong-scheduling
-- warp-specialization
-- tmem
-- pipeline-stages
+architectures: [sm100]
+tags: [ping-pong-scheduling, warp-specialization, tmem, pipeline-stages]
 confidence: source-reported
 reproducibility: snippet
-prerequisites:
-- hw-tmem
-- technique-warp-specialization
-related:
-- kernel-flash-attention-4
-- technique-double-buffering
-sources:
-- blog-flash-attention-4
-- doc-flash-attention-4
-- blog-tcgen05-tutorial
-artifact_dir: artifacts/kernels/ping-pong-scheduling
+prerequisites: [hw-tmem, technique-warp-specialization]
+related: [kernel-flash-attention-4, technique-double-buffering]
+sources: [blog-flash-attention-4, doc-flash-attention-4]
 ---
 
 # Ping-Pong Scheduling
 
-## Overview
+FlashAttention-4 processes two query tiles per CTA and alternates their matrix-multiply and softmax work. While one tile advances through tensor-core work, a dedicated softmax warpgroup can process the other tile's intermediate state. Synchronization and a separate correction stage keep dependencies explicit.
 
-Ping-pong scheduling alternates two query tiles within a single CTA so the softmax warpgroup never stalls waiting for MMA. Introduced in FlashAttention-4 to exploit Blackwell's asymmetric hardware (2× tensor cores, same SFU count as Hopper).
+The technique is useful because FA4's forward pass must overlap resources whose throughput scaled differently on Blackwell. It aims to improve overlap; it does not prove that either resource remains busy continuously.
 
-## Pattern
+## Requirements
 
-```cuda
-// Two 128-token query tiles per CTA, alternating through the mainloop
-// Warpgroup 0: softmax for tile A while MMA runs on tile B
-// Warpgroup 1: softmax for tile B while MMA runs on tile A
+- separate live storage for both tiles, including their TMEM-backed intermediates;
+- producer/consumer barriers whose phases cannot be confused across iterations;
+- an epilogue/correction schedule that does not overwrite a tile before its consumers finish;
+- enough loop work to amortize the extra storage and synchronization.
 
-__global__ void fa4_ping_pong_attn(...) {
-    int wg = warp_group_id();
+Use the FA4 implementation for exact code. The earlier local “full implementation” was an unrelated CUTLASS backward-attention file, and the teaching skeleton was not upstream FA4 code; both were removed.
 
-    // TMEM holds accumulators for BOTH tiles
-    uint32_t tmem_A = tmem_alloc(256);
-    uint32_t tmem_B = tmem_alloc(256);
+At the implementation commit pinned by `doc-flash-attention-4`, the SM100
+forward kernel dispatches two softmax roles to distinct stage arguments:
 
-    for (int k = 0; k < num_kv_tiles; k++) {
-        if (wg == 0) {
-            // Compute softmax for tile A (previous MMA output)
-            softmax_normalize(tmem_A);
-            // Issue MMA for tile B next
-            tcgen05_mma(Q_B_smem, K_smem[k], tmem_B);
-        } else {
-            softmax_normalize(tmem_B);
-            tcgen05_mma(Q_A_smem, K_smem[k], tmem_A);
-        }
-        mbarrier_arrive(&ping_pong_sync);
-        mbarrier_wait(&ping_pong_sync);
-    }
-}
+```python
+if warp_idx < self.softmax1_warp_ids[0]:
+    softmax_loop(stage=0, tStS=tStS)
+if warp_idx < self.correction_warp_ids[0] and warp_idx >= self.softmax1_warp_ids[0]:
+    softmax_loop(stage=1, tStS=tStS)
 ```
 
-## Why It Helps on Blackwell
-
-- Tensor core throughput doubled (B200 vs H100) but SFU count unchanged
-- Single-tile schedule would leave SFU idle while MMA runs, and vice versa
-- Ping-pong keeps both units 100% busy
-- FA4 achieves 1605 TFLOPS BF16 (71% utilization) with this pattern
-
-## When To Use
-
-- Compute-bound attention kernels on Blackwell
-- Kernels where softmax/epilogue is SFU-heavy
-- Not useful on Hopper (balance is different)
-
-## Full Reference Implementation
-
-Verbatim upstream code lives in [`artifacts/kernels/ping-pong-scheduling/full/`](../../artifacts/kernels/ping-pong-scheduling/full/); labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/ping-pong-scheduling/variants/`](../../artifacts/kernels/ping-pong-scheduling/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
-
-Query via:
-
-```bash
-python3 scripts/get_page.py technique-ping-pong-scheduling --include-code
-```
+This is a contiguous excerpt from `flash_attn/cute/flash_fwd_sm100.py`; the
+surrounding pipeline and barriers define when each stage may run.

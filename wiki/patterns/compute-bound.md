@@ -11,37 +11,34 @@ sources: [doc-nvidia-tuning-guide, blog-tcgen05-tutorial, blog-flash-attention-4
 
 ## Symptom
 
-Tensor core utilization below 70%. Memory bandwidth is not saturated. Kernel is compute-bound but not reaching peak FLOPS.
+Tensor-core work is the limiting path, measured memory bandwidth is not saturated, and achieved throughput is materially below the appropriate roofline. Do not use a universal utilization cutoff; compare the kernel with a shape- and datatype-matched bound.
 
 ## Likely Causes
 
 1. **Pipeline bubbles**: MMA stalled waiting for data from TMA
 2. **Non-matmul overhead**: Softmax, activation functions, reductions consuming cycles
-3. **Single-SM MMA tiles too small**: Not fully utilizing available compute
-4. **Epilogue blocking mainloop**: TMEM reads blocking next MMA
+3. **Insufficient arithmetic intensity**: the selected tile/decomposition does not keep the tensor pipeline fed
+4. **Serialized epilogue work**: output conversion or stores delay the next mainloop iteration
 
 ## Candidate Techniques
 
 | Technique | Effect |
 |---|---|
-| [2-SM cooperative](../hardware/2sm-cooperative.md) | Double effective MMA tile (m256×n256), 2× compute per cycle |
+| [2-SM cooperative](../hardware/2sm-cooperative.md) | Let a paired CTA group issue a supported collective MMA and share operand traffic |
 | [Pipeline stages](../techniques/pipeline-stages.md) | Overlap TMA load with MMA compute |
-| [Warp specialization](../techniques/warp-specialization.md) | Dedicated warps for TMA/MMA/epilogue, no stalls |
+| [Warp specialization](../techniques/warp-specialization.md) | Assign issuing and epilogue roles so independent phases can overlap |
 | [Epilogue fusion](../techniques/epilogue-fusion.md) | Overlap epilogue with next tile's MMA |
 | [Software exponential](../techniques/software-exp.md) | Distribute non-matmul ops across FMA units (FA4) |
 
 ## Example: FlashAttention-4
 
-```
-// Problem: Blackwell doubles tensor core throughput but SFU count unchanged
-// SFU bottleneck: exp() for softmax
-//
-// Solution: Software 2^x via Cody-Waite + Horner polynomial
-// Distributes across FMA units, multiplying exponential throughput
-// Result: 1605 TFLOPS (71% utilization) on B200
-```
+The FlashAttention-4 article reports that Blackwell's tensor throughput grew
+faster than its special-function throughput for the comparison it presents.
+Its kernel therefore evaluates a software exponential using range reduction and
+a polynomial on general arithmetic units. That is a source-reported design for
+the stated attention workload, not a general instruction replacement.
 
 ## Caveats
-- 2-SM cooperative requires cluster configuration and identical SMEM layouts
-- Pipeline depth tuning is workload-dependent (3-5 stages typical)
+- 2-SM cooperative requires a compatible cluster launch and operand layout
+- Pipeline depth is workload- and resource-dependent
 - Software-emulated transcendentals trade accuracy for throughput

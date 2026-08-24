@@ -12,8 +12,8 @@ keywords_used:
 - dsa
 - tma
 total_candidates: 236
-included: 152
-excluded: 22
+included: 101
+excluded: 73
 deferred: 62
 prs:
 - number: 13340
@@ -25,7 +25,8 @@ prs:
   merged_at: '2026-05-07T09:39:36Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/executor/cache_transmission/cacheSplitConcat.cu, cpp/tensorrt_llm/kernels/fusedCatFp4.cu, cpp/tensorrt_llm/kernels/indexerKCacheGather.cu,
+    cpp/tensorrt_llm/kernels/indexerKCacheScatter.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -110,6 +111,13 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: lfr-0531
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13340
+  files_changed:
+  - cpp/tensorrt_llm/executor/cache_transmission/cacheSplitConcat.cu
+  - cpp/tensorrt_llm/kernels/fusedCatFp4.cu
+  - cpp/tensorrt_llm/kernels/indexerKCacheGather.cu
+  - cpp/tensorrt_llm/kernels/indexerKCacheScatter.cu
+  files_reviewed_count: 34
+  scope_disposition: retained
 - number: 10479
   pr: 10479
   title: '[None] [feat] Add densegemm backend for MoE'
@@ -119,7 +127,7 @@ prs:
   merged_at: '2026-04-01T10:25:10Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/moe_as_dense_gemm/fc1.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/moe_as_dense_gemm/fc2.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -177,6 +185,12 @@ prs:
   score: 73
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10479
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/moe_as_dense_gemm/fc1.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/moe_as_dense_gemm/fc2.py
+  files_reviewed_count: 17
+  scope_disposition: retained
 - number: 11589
   pr: 11589
   title: '[TRTLLM-10004][feat] Enable GEMM -> AR with GEMM output in registered buffers'
@@ -184,9 +198,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/11589
   date: '2026-04-27'
   merged_at: '2026-04-27T15:46:41Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: only distributed-system implementation path(s) qualified: cpp/tensorrt_llm/thop/allreduceOp.cpp'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -251,6 +265,17 @@ prs:
   score: 71
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11589
+  files_changed:
+  - cpp/tensorrt_llm/nanobind/thop/bindings.cpp
+  - cpp/tensorrt_llm/thop/CMakeLists.txt
+  - cpp/tensorrt_llm/thop/allocateOutput.cpp
+  - cpp/tensorrt_llm/thop/allreduceOp.cpp
+  - cpp/tensorrt_llm/thop/cublasFp4ScaledMM.cpp
+  - cpp/tensorrt_llm/thop/cublasScaledMM.cpp
+  - cpp/tensorrt_llm/thop/cublasScaledMM.h
+  - cpp/tensorrt_llm/thop/cudaNvfp4MM.cpp
+  files_reviewed_count: 34
+  scope_disposition: removed
 - number: 11897
   pr: 11897
   title: '[TRTLLM-10990][feat] Fuse SwiGLU and quant into shared expert'
@@ -260,7 +285,7 @@ prs:
   merged_at: '2026-05-07T02:40:52Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/dense_blockscaled_gemm_swiglu_fusion.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -313,6 +338,11 @@ prs:
   score: 66
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11897
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/dense_blockscaled_gemm_swiglu_fusion.py
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 8886
   pr: 8886
   title: '[None][feat] Enable EPLB for trtllm-gen and cutlass backend'
@@ -320,9 +350,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/8886
   date: '2025-11-12'
   merged_at: '2025-11-12T20:30:28Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: distributed-system topic matched ''EPLB'' in PR title'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -375,6 +405,17 @@ prs:
   score: 65
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-8886
+  files_changed:
+  - tensorrt_llm/_torch/models/modeling_gpt_oss.py
+  - tensorrt_llm/_torch/modules/fused_moe/create_moe.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_cute_dsl.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_cutlass.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_trtllm_gen.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_wide_ep.py
+  - tensorrt_llm/_torch/modules/fused_moe/interface.py
+  - tensorrt_llm/_torch/modules/fused_moe/moe_load_balancer.py
+  files_reviewed_count: 17
+  scope_disposition: removed
 - number: 10130
   pr: 10130
   title: '[TRTLLM-9457][feat] Add cute dsl fp8 gemm for Blackwell'
@@ -384,7 +425,7 @@ prs:
   merged_at: '2026-02-06T01:49:31Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockwise_gemm/blockwise_gemm.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -435,6 +476,11 @@ prs:
   score: 64
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10130
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockwise_gemm/blockwise_gemm.py
+  files_reviewed_count: 16
+  scope_disposition: retained
 - number: 12079
   pr: 12079
   title: '[None][feat] CuteDSL MOE: Add raster along M/N support for blockscaled contiguous backbone kernel'
@@ -444,7 +490,7 @@ prs:
   merged_at: '2026-03-23T14:12:50Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -486,6 +532,10 @@ prs:
   score: 60
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12079
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm.py
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 8501
   pr: 8501
   title: '[None][fix] Fix the performance issue of FP8 blockwise grouped GEMM when using attention DP'
@@ -495,7 +545,7 @@ prs:
   merged_at: '2025-10-27T02:18:20Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -538,6 +588,10 @@ prs:
   score: 57
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-8501
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 9729
   pr: 9729
   title: '[None][feat] add fp4 gemm + allreduce'
@@ -545,9 +599,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/9729
   date: '2026-01-13'
   merged_at: '2026-01-13T13:11:13Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: distributed-system topic matched ''allreduce'' in PR title'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -590,6 +644,17 @@ prs:
   score: 57
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9729
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/allreduce_gemm/allreduce_gemm_impl_sm100.h
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/allreduce_gemm/allreduce_gemm_runner.cu
+  - cpp/tensorrt_llm/thop/CMakeLists.txt
+  - cpp/tensorrt_llm/thop/fusedGemmAllreduceOp.cpp
+  - tensorrt_llm/_torch/custom_ops/torch_custom_ops.py
+  - tensorrt_llm/_torch/models/modeling_llama.py
+  - tensorrt_llm/_torch/modules/linear.py
+  - tests/unittest/_torch/multi_gpu/test_linear.py
+  files_reviewed_count: 8
+  scope_disposition: removed
 - number: 9025
   pr: 9025
   title: '[None][feat] Update TRTLLM MoE cubins; reduce mxfp4 weight padding requirement; tighten TMA bound'
@@ -597,9 +662,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/9025
   date: '2025-11-17'
   merged_at: '2025-11-17T02:04:29Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1434 authoritative changed file(s)'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -652,6 +717,17 @@ prs:
   score: 56
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9025
+  files_changed:
+  - cpp/include/tensorrt_llm/common/cudaUtils.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/batchedGemm/KernelRunner.cpp
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/batchedGemm/KernelRunner.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/batchedGemm/trtllmGen_bmm_export/.clang-format
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/batchedGemm/trtllmGen_bmm_export/BatchedGemmEnums.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/batchedGemm/trtllmGen_bmm_export/BatchedGemmInterface.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/batchedGemm/trtllmGen_bmm_export/BatchedGemmOptions.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/batchedGemm/trtllmGen_bmm_export/GemmGatedActOptions.h
+  files_reviewed_count: 1434
+  scope_disposition: removed
 - number: 10987
   pr: 10987
   title: '[TRTLLM-9831][perf] Use TMA.RED to improve effective memory bandwidth'
@@ -661,7 +737,7 @@ prs:
   merged_at: '2026-01-27T08:15:32Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/utils.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -704,6 +780,11 @@ prs:
   score: 55
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10987
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/utils.py
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 11652
   pr: 11652
   title: '[None][feat] NVFP4 TRTLLM-Gen MoE for AutoDeploy (Nemotron Super)'
@@ -765,7 +846,7 @@ prs:
   merged_at: '2026-05-07T00:59:11Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -820,6 +901,10 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: Barry-Delaney
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13767
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu
+  files_reviewed_count: 20
+  scope_disposition: retained
 - number: 6809
   pr: 6809
   title: '[OMNIML-2336][feat] Add NVFP4 x FP8'
@@ -829,7 +914,7 @@ prs:
   merged_at: '2025-09-04T16:03:38Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: cpp/tensorrt_llm/kernels/trtllmGenKernels/gemm/trtllmGen_gemm_export/KernelParams.h'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -878,6 +963,10 @@ prs:
   score: 48
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-6809
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/gemm/trtllmGen_gemm_export/KernelParams.h
+  files_reviewed_count: 147
+  scope_disposition: retained
 - number: 10226
   pr: 10226
   title: '[TRTLLM-9798][feat] Change to use new DeepGEMM MQA sm100 kernel for MTP-3'
@@ -885,9 +974,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/10226
   date: '2025-12-24'
   merged_at: '2025-12-24T06:39:12Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -925,6 +1014,11 @@ prs:
   score: 47
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10226
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  - tests/unittest/_torch/attention/sparse/test_dsa_indexer.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 4867
   pr: 4867
   title: 'feat: Add w4a8_mxfp4_fp8 quantization recipe.'
@@ -934,7 +1028,8 @@ prs:
   merged_at: '2025-06-16T03:30:58Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: cpp/tensorrt_llm/kernels/cutlass_kernels/fp4_gemm/fp4_gemm_template.h, cpp/tensorrt_llm/kernels/cutlass_kernels/fp4_gemm/mxfp8_mxfp4_gemm_template_sm100.h,
+    cpp/tensorrt_llm/kernels/cutlass_kernels/include/fp4_gemm.h, cpp/tensorrt_llm/kernels/internal_cutlass_kernels/include/fp4_gemm.h'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -985,6 +1080,13 @@ prs:
   score: 43
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-4867
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/fp4_gemm/fp4_gemm_template.h
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/fp4_gemm/mxfp8_mxfp4_gemm_template_sm100.h
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/include/fp4_gemm.h
+  - cpp/tensorrt_llm/kernels/internal_cutlass_kernels/include/fp4_gemm.h
+  files_reviewed_count: 23
+  scope_disposition: retained
 - number: 10339
   pr: 10339
   title: '[TRTLLM-9661][chore] Further reduce tuning time for cuteDSL nvFP4 dense gemm.'
@@ -992,9 +1094,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/10339
   date: '2026-01-08'
   merged_at: '2026-01-08T02:21:02Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1031,6 +1133,10 @@ prs:
   score: 43
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10339
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 12320
   pr: 12320
   title: '[None][feat] Support update weight for nvfp4'
@@ -1040,7 +1146,7 @@ prs:
   merged_at: '2026-05-02T15:15:28Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1086,6 +1192,10 @@ prs:
   score: 41
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12320
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu
+  files_reviewed_count: 16
+  scope_disposition: retained
 - number: 13740
   pr: 13740
   title: '[https://nvbugs/6108841][fix] add hidden_dim=6144 router GEMM instantiation for GLM-5'
@@ -1095,7 +1205,7 @@ prs:
   merged_at: '2026-05-14T16:59:51Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/dsv3MinLatencyKernels/dsv3RouterGemm.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1130,6 +1240,10 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: yijingl-nvidia
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13740
+  files_changed:
+  - cpp/tensorrt_llm/kernels/dsv3MinLatencyKernels/dsv3RouterGemm.cu
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 11899
   pr: 11899
   title: '[TRTLLM-10421][perf] Add fused cat+fp8_quantize CUDA kernel for DSA indexer'
@@ -1139,7 +1253,7 @@ prs:
   merged_at: '2026-03-10T10:13:37Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/fusedCatFp8.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1173,6 +1287,10 @@ prs:
   score: 38
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11899
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fusedCatFp8.cu
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 13938
   pr: 13938
   title: '[None][feat] Keep DSv4 o_a_proj as FP8, and port vLLM''s fused_inv_rope_fp8_quant'
@@ -1182,7 +1300,7 @@ prs:
   merged_at: '2026-05-10T07:37:50Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/triton_fused_inv_rope_fp8_quant.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1228,6 +1346,10 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: lishicheng1996-nv
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13938
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/triton_fused_inv_rope_fp8_quant.py
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 13117
   pr: 13117
   title: '[None][feat] Add FP4 residual quantization kernel without channel reo…'
@@ -1237,7 +1359,7 @@ prs:
   merged_at: '2026-04-24T09:27:36Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/arcquantFP4.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1272,6 +1394,10 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: Tracin
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13117
+  files_changed:
+  - cpp/tensorrt_llm/kernels/arcquantFP4.cu
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 10327
   pr: 10327
   title: '[None][fix] impl fused triton kernel for e8m0 resmooth to reduce memory footprint'
@@ -1281,7 +1407,7 @@ prs:
   merged_at: '2026-01-16T06:13:18Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/quantization/utils/fp8_utils.py'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1315,6 +1441,10 @@ prs:
   score: 35
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10327
+  files_changed:
+  - tensorrt_llm/quantization/utils/fp8_utils.py
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 13452
   pr: 13452
   title: '[TRTLLM-11285][perf] Force enable TF32 tensor cores for DSA indexer fused GEMM'
@@ -1322,9 +1452,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13452
   date: '2026-05-01'
   merged_at: '2026-05-01T01:18:12Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1355,6 +1485,10 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: peihu-nv
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13452
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 13628
   pr: 13628
   title: '[None][feat] Fuse FP8 1x128 quantize + UE8M0 scale pack on SM100'
@@ -1364,7 +1498,7 @@ prs:
   merged_at: '2026-04-30T07:34:06Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/cutlass_kernels/fp8_blockscale_gemm/fp8_blockscale_quant_packed.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1406,6 +1540,10 @@ prs:
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   author: lishicheng1996-nv
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13628
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/fp8_blockscale_gemm/fp8_blockscale_quant_packed.cu
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 8620
   pr: 8620
   title: '[None][feat] Enable nvfp4 cuda core for sm120'
@@ -1415,7 +1553,7 @@ prs:
   merged_at: '2025-10-29T04:39:03Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/weightOnlyBatchedGemv/cudaCoreGemmNVFP4.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1446,6 +1584,10 @@ prs:
   score: 31
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-8620
+  files_changed:
+  - cpp/tensorrt_llm/kernels/weightOnlyBatchedGemv/cudaCoreGemmNVFP4.cu
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 11165
   pr: 11165
   title: '[https://nvbugs/5799917][fix] Recover from CUTLASS MoE doActivation perf regression for MXFP4/NVFP4 dtype'
@@ -1455,7 +1597,7 @@ prs:
   merged_at: '2026-02-26T04:16:06Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1488,6 +1630,10 @@ prs:
   score: 31
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11165
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 11733
   pr: 11733
   title: '[https://nvbugs/5799917][fix] Recover from CUTLASS MoE doActivation perf regression for MXFP4/NVFP4 dtype'
@@ -1497,7 +1643,7 @@ prs:
   merged_at: '2026-02-26T08:00:12Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1527,6 +1673,10 @@ prs:
   score: 31
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11733
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 11774
   pr: 11774
   title: '[None][fix] Fix SM120 issue for rms_norm with nvfp4_quant_fusion'
@@ -1534,9 +1684,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/11774
   date: '2026-03-03'
   merged_at: '2026-03-03T05:37:06Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1567,6 +1717,10 @@ prs:
   score: 31
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11774
+  files_changed:
+  - tensorrt_llm/_torch/modules/rms_norm.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 9854
   pr: 9854
   title: '[None][feat] Port fp4 quantization kernel optimization from FlashInfer'
@@ -1576,7 +1730,7 @@ prs:
   merged_at: '2025-12-10T12:13:49Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/quantization.cuh'
   inclusion_reason: Inspect scale layout, accumulator type, tile/schedule choice, epilogue fusion, and partial-tile guards before deriving a candidate.
   seed_source: legacy-pr-index
   primary_category: gemm_quant
@@ -1607,6 +1761,10 @@ prs:
   score: 27
   ncu_hint: Tensor pipe %, DRAM/L2 bytes, active cycles, register pressure, and scale-load traffic.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9854
+  files_changed:
+  - cpp/tensorrt_llm/kernels/quantization.cuh
+  files_reviewed_count: 1
+  scope_disposition: retained
 - number: 7937
   pr: 7937
   title: '[None][feat] GPT-OSS Sm120/Sm121 Support'
@@ -1616,7 +1774,7 @@ prs:
   merged_at: '2025-10-06T20:59:06Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: cpp/kernels/fmha_v2/src/fmha/fragment.h, cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/launchers/moe_gemm_tma_ws_launcher.inl'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -1673,6 +1831,11 @@ prs:
   score: 75
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-7937
+  files_changed:
+  - cpp/kernels/fmha_v2/src/fmha/fragment.h
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/launchers/moe_gemm_tma_ws_launcher.inl
+  files_reviewed_count: 69
+  scope_disposition: retained
 - number: 11990
   pr: 11990
   title: '[None][feat] GLM 5 support and DSA MTP fixes'
@@ -1680,9 +1843,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/11990
   date: '2026-03-18'
   merged_at: '2026-03-18T04:38:40Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 22 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -1742,6 +1905,17 @@ prs:
   score: 74
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11990
+  files_changed:
+  - docs/source/deployment-guide/deployment-guide-for-glm-5-on-trtllm.md
+  - docs/source/deployment-guide/index.rst
+  - docs/source/media/glm_5_fp8_perf.png
+  - tensorrt_llm/_torch/attention_backend/interface.py
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  - tensorrt_llm/_torch/model_config.py
+  - tensorrt_llm/_torch/models/modeling_deepseekv3.py
+  - tensorrt_llm/_torch/models/modeling_speculative.py
+  files_reviewed_count: 22
+  scope_disposition: removed
 - number: 11993
   pr: 11993
   title: '[#11694][feat] AutoDeploy: Improve the piecewise CG memory usage'
@@ -1749,9 +1923,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/11993
   date: '2026-03-18'
   merged_at: '2026-03-18T22:24:03Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 23 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -1812,6 +1986,17 @@ prs:
   score: 73
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11993
+  files_changed:
+  - examples/auto_deploy/model_registry/configs/qwen3.5_moe_35b.yaml
+  - examples/auto_deploy/model_registry/configs/qwen3.5_moe_400b.yaml
+  - tensorrt_llm/_torch/auto_deploy/compile/backends/torch_cudagraph.py
+  - tensorrt_llm/_torch/auto_deploy/compile/piecewise_runner.py
+  - tensorrt_llm/_torch/auto_deploy/compile/piecewise_utils.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/attention/flashinfer_attention.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/attention/torch_backend_attention.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/attention/triton_attention.py
+  files_reviewed_count: 23
+  scope_disposition: removed
 - number: 12612
   pr: 12612
   title: '[None][feat] Trtllm-gen FMHA JIT support'
@@ -1821,7 +2006,7 @@ prs:
   merged_at: '2026-04-07T02:48:16Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/indexerTopK.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/fmhaReduction.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/prepareCustomMask.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -1878,6 +2063,12 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: yunruis
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12612
+  files_changed:
+  - cpp/tensorrt_llm/kernels/indexerTopK.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/fmhaReduction.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/prepareCustomMask.cu
+  files_reviewed_count: 3126
+  scope_disposition: retained
 - number: 11697
   pr: 11697
   title: '[TRTLLM-11092][feat] add support for visual gen FA4 attention backend'
@@ -1887,7 +2078,15 @@ prs:
   merged_at: '2026-03-12T04:19:17Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/ampere_helpers.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/barrier.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/blackwell_helpers.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/block_info.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/block_sparse_utils.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/compute_block_sparsity.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/copy_utils.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/fast_math.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd_postprocess.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd_preprocess.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd_sm90.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_fwd_combine.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/hopper_helpers.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/interface.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/mask.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/mma_sm100_desc.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/pack_gqa.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/paged_kv.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/pipeline.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/seqlen_info.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/softmax.py, tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/tile_scheduler.py,
+    tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/utils.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -1943,6 +2142,33 @@ prs:
   score: 68
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11697
+  files_changed:
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/ampere_helpers.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/barrier.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/blackwell_helpers.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/block_info.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/block_sparse_utils.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/compute_block_sparsity.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/copy_utils.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/fast_math.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd_postprocess.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd_preprocess.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_bwd_sm90.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/flash_fwd_combine.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/hopper_helpers.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/interface.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/mask.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/mma_sm100_desc.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/pack_gqa.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/paged_kv.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/pipeline.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/seqlen_info.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/softmax.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/tile_scheduler.py
+  - tensorrt_llm/_torch/visual_gen/jit_kernels/flash_attention/cute/utils.py
+  files_reviewed_count: 54
+  scope_disposition: retained
 - number: 12385
   pr: 12385
   title: '[None][feat] Temporally-Correlated Heuristic-guided Indexer TopK for Sparse Attention'
@@ -1952,7 +2178,7 @@ prs:
   merged_at: '2026-04-03T06:03:28Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu, cpp/tensorrt_llm/kernels/heuristic_topk.cuh, cpp/tensorrt_llm/kernels/indexerTopK.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2003,6 +2229,12 @@ prs:
   score: 67
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12385
+  files_changed:
+  - cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu
+  - cpp/tensorrt_llm/kernels/heuristic_topk.cuh
+  - cpp/tensorrt_llm/kernels/indexerTopK.cu
+  files_reviewed_count: 14
+  scope_disposition: retained
 - number: 13219
   pr: 13219
   title: '[TRTLLM-34871][feat] Add cute dsl FP8 paged MQA logits decode kernel'
@@ -2012,7 +2244,7 @@ prs:
   merged_at: '2026-05-09T04:03:37Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/paged_mqa_logits/fp8_paged_mqa_logits.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2071,6 +2303,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: limin2021
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13219
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/paged_mqa_logits/fp8_paged_mqa_logits.py
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 13929
   pr: 13929
   title: '[TRTLLM-35237][feat] Add cute dsl FP4 paged MQA logits decode kernel'
@@ -2080,7 +2317,8 @@ prs:
   merged_at: '2026-05-14T05:12:50Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/paged_mqa_logits/fp4_paged_mqa_logits.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/paged_mqa_logits/fp8_paged_mqa_logits.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2138,6 +2376,12 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: limin2021
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13929
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/paged_mqa_logits/fp4_paged_mqa_logits.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/paged_mqa_logits/fp8_paged_mqa_logits.py
+  files_reviewed_count: 14
+  scope_disposition: retained
 - number: 13595
   pr: 13595
   title: '[None][feat] Enable EPLB for DeepSeek-V4'
@@ -2145,9 +2389,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13595
   date: '2026-04-29'
   merged_at: '2026-04-29T11:25:53Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: distributed-system topic matched ''EPLB'' in PR title'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2196,6 +2440,14 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: Barry-Delaney
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13595
+  files_changed:
+  - tensorrt_llm/_torch/models/modeling_deepseekv4.py
+  - tensorrt_llm/_torch/modules/fused_moe/moe_load_balancer.py
+  - tensorrt_llm/tokenizer/deepseek_v4/tokenizer.py
+  - tests/integration/defs/accuracy/test_llm_api_pytorch.py
+  - tests/integration/test_lists/test-db/l0_dgx_b200.yml
+  files_reviewed_count: 5
+  scope_disposition: removed
 - number: 11718
   pr: 11718
   title: '[TRTLLM-11119][feat] Blackwell SageAttention, Integrate into AttentionOp API'
@@ -2205,7 +2457,7 @@ prs:
   merged_at: '2026-04-02T02:21:06Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/common/sageQuant.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2254,6 +2506,10 @@ prs:
   score: 56
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11718
+  files_changed:
+  - cpp/tensorrt_llm/common/sageQuant.cu
+  files_reviewed_count: 119
+  scope_disposition: retained
 - number: 13505
   pr: 13505
   title: '[None][perf] Drop cubin and Eliminate ~6s FMHA JIT recompile in eager generation by aligning kernel selection with CUDA graph warmup'
@@ -2261,9 +2517,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13505
   date: '2026-05-06'
   merged_at: '2026-05-06T03:47:30Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4483 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2317,6 +2573,17 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: yunruis
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13505
+  files_changed:
+  - cpp/tensorrt_llm/common/attentionOp.cpp
+  - cpp/tensorrt_llm/kernels/decoderMaskedMultiheadAttention/xqaParams.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvCausalP32VarSeqQ128Kv128PersistentContext_cubin.cpp
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvCausalP32VarSeqQ128Kv128StaticContext_cubin.cpp
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvDenseP32MultiCtasKvCgaVarSeqQ16Kv128StaticSwapsAbForGen_cubin.cpp
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvDenseP32MultiCtasKvCgaVarSeqQ8Kv128StaticSwapsAbForGen_cubin.cpp
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvDenseP32MultiCtasKvVarSeqQ16Kv128StaticSwapsAbForGen_cubin.cpp
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvDenseP32MultiCtasKvVarSeqQ8Kv128StaticSwapsAbForGen_cubin.cpp
+  files_reviewed_count: 4483
+  scope_disposition: removed
 - number: 13570
   pr: 13570
   title: '[TRTLLM-12128][feat] enable SageAttention for Wan/FLUX (new commits)'
@@ -2324,9 +2591,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13570
   date: '2026-05-12'
   merged_at: '2026-05-12T04:58:16Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 17 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2377,6 +2644,17 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: xrq-phys
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13570
+  files_changed:
+  - cpp/tensorrt_llm/thop/attentionOp.cpp
+  - examples/visual_gen/README.md
+  - examples/visual_gen/visual_gen_flux.py
+  - examples/visual_gen/visual_gen_ltx2.py
+  - examples/visual_gen/visual_gen_wan_i2v.py
+  - examples/visual_gen/visual_gen_wan_t2v.py
+  - tensorrt_llm/_torch/attention_backend/trtllm.py
+  - tensorrt_llm/_torch/visual_gen/attention_backend/parallel.py
+  files_reviewed_count: 17
+  scope_disposition: removed
 - number: 12731
   pr: 12731
   title: '[None][feat] Optimize mamba SSD prefill and extend flashinfer dispatch'
@@ -2386,7 +2664,7 @@ prs:
   merged_at: '2026-05-12T04:54:16Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/modules/mamba/fuse_elementwise_ops.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2429,6 +2707,10 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: Wanli-Jiang
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12731
+  files_changed:
+  - tensorrt_llm/_torch/modules/mamba/fuse_elementwise_ops.py
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 8405
   pr: 8405
   title: '[TRTLLM-8535][feat] Support DeepSeek V3.2 with FP8 + BF16 KV cache/NVFP4 + BF16 KV cache'
@@ -2438,7 +2720,7 @@ prs:
   merged_at: '2025-10-24T17:40:42Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/attention_backend/sparse/kernel.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2500,6 +2782,10 @@ prs:
   score: 52
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-8405
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/kernel.py
+  files_reviewed_count: 43
+  scope_disposition: retained
 - number: 6538
   pr: 6538
   title: '[None][feat] Use Separate QKV Input Layout for Context MLA'
@@ -2566,7 +2852,7 @@ prs:
   merged_at: '2026-01-12T00:26:11Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/kernels/xqa/gmma.cuh, cpp/kernels/xqa/mha.cu, cpp/kernels/xqa/mha_sm90.cu, cpp/kernels/xqa/mha_stdheaders.cuh'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2614,6 +2900,13 @@ prs:
   score: 51
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10264
+  files_changed:
+  - cpp/kernels/xqa/gmma.cuh
+  - cpp/kernels/xqa/mha.cu
+  - cpp/kernels/xqa/mha_sm90.cu
+  - cpp/kernels/xqa/mha_stdheaders.cuh
+  files_reviewed_count: 18
+  scope_disposition: retained
 - number: 13477
   pr: 13477
   title: '[None][perf] Scheme X L2-aware dispatcher and PDL launchers for sparse-attention GVR Top-K'
@@ -2623,7 +2916,7 @@ prs:
   merged_at: '2026-04-30T09:01:52Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu, cpp/tensorrt_llm/kernels/heuristic_topk.cuh, cpp/tensorrt_llm/kernels/indexerTopK.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2665,6 +2958,12 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: longcheng-nv
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13477
+  files_changed:
+  - cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu
+  - cpp/tensorrt_llm/kernels/heuristic_topk.cuh
+  - cpp/tensorrt_llm/kernels/indexerTopK.cu
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 12062
   pr: 12062
   title: '[TRTLLM-11540][feat] Add EAGLE3 dynamic tree speculative decoding support'
@@ -2674,7 +2973,8 @@ prs:
   merged_at: '2026-04-12T01:50:08Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/speculativeDecoding/dynamicTreeKernels.cu, cpp/tensorrt_llm/kernels/speculativeDecoding/kvCacheUpdateKernels.cu,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/prepareCustomMask.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2730,6 +3030,12 @@ prs:
   score: 47
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12062
+  files_changed:
+  - cpp/tensorrt_llm/kernels/speculativeDecoding/dynamicTreeKernels.cu
+  - cpp/tensorrt_llm/kernels/speculativeDecoding/kvCacheUpdateKernels.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/prepareCustomMask.cu
+  files_reviewed_count: 36
+  scope_disposition: retained
 - number: 12503
   pr: 12503
   title: '[https://nvbugs/5983390][perf] Split MLA DSA custom op for piecewise CUDA graph capture'
@@ -2737,9 +3043,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12503
   date: '2026-03-31'
   merged_at: '2026-03-31T12:53:37Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2779,6 +3085,13 @@ prs:
   score: 46
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12503
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  - tensorrt_llm/_torch/compilation/piecewise_optimizer.py
+  - tensorrt_llm/_torch/compilation/utils.py
+  - tensorrt_llm/_torch/modules/attention.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 13808
   pr: 13808
   title: '[None][feat] Update FMHA cubins for head_dim 80'
@@ -2786,9 +3099,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13808
   date: '2026-05-13'
   merged_at: '2026-05-13T05:08:52Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2822,6 +3135,13 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: yuxianq
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13808
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fmhaDispatcher.cpp
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/kernelMetaInfo.h
+  - tests/unittest/trt/attention/test_gpt_attention.py
+  - tests/unittest/utils/util.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 12055
   pr: 12055
   title: '[TRTLLM-11285][feat] Fuse indexer wk + weights_proj into single GEMM in TF32 for DS-V3.2'
@@ -2829,9 +3149,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12055
   date: '2026-03-18'
   merged_at: '2026-03-18T06:01:54Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2863,6 +3183,13 @@ prs:
   score: 41
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12055
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  - tensorrt_llm/_torch/modules/attention.py
+  - tests/unittest/_torch/attention/sparse/test_short_seq_mha.py
+  - tests/unittest/_torch/attention/sparse/test_sparse_mla_forward.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 12470
   pr: 12470
   title: '[None][feat] Support sparse mqa/gqa attention'
@@ -2872,7 +3199,7 @@ prs:
   merged_at: '2026-04-19T03:33:27Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/fmhaReduction.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/prepareCustomMask.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2918,6 +3245,11 @@ prs:
   score: 40
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12470
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/fmhaReduction.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/prepareCustomMask.cu
+  files_reviewed_count: 3298
+  scope_disposition: retained
 - number: 12937
   pr: 12937
   title: '[TRTLLM-11485][feat] Feature rework: Add SageAttention refreshed kernels (attentionOp only)'
@@ -2927,7 +3259,7 @@ prs:
   merged_at: '2026-04-23T08:02:25Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/common/sageQuant.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -2970,6 +3302,10 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: xrq-phys
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12937
+  files_changed:
+  - cpp/tensorrt_llm/common/sageQuant.cu
+  files_reviewed_count: 3750
+  scope_disposition: retained
 - number: 13652
   pr: 13652
   title: '[None][feat] Add DeepSeekV4 attention kernels'
@@ -2979,7 +3315,7 @@ prs:
   merged_at: '2026-05-09T07:02:38Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/mlaKernels.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/fmhaReduction.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3027,6 +3363,11 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: heyuhhh
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13652
+  files_changed:
+  - cpp/tensorrt_llm/kernels/mlaKernels.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/fmhaReduction.cu
+  files_reviewed_count: 3058
+  scope_disposition: retained
 - number: 12642
   pr: 12642
   title: '[None][feat] Add triton paged attention for AutoDeploy'
@@ -3036,7 +3377,7 @@ prs:
   merged_at: '2026-04-02T20:29:22Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/auto_deploy/custom_ops/attention/triton_paged_attention.py'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3070,6 +3411,10 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: nvchenghaoz
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12642
+  files_changed:
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/attention/triton_paged_attention.py
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 13802
   pr: 13802
   title: '[None][fix] Use compressed lengths for DeepSeek-V4 indexer'
@@ -3077,9 +3422,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13802
   date: '2026-05-07'
   merged_at: '2026-05-07T07:03:39Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3115,6 +3460,13 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: mingyangHao
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13802
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  - tests/integration/defs/accuracy/test_llm_api_pytorch.py
+  - tests/integration/test_lists/test-db/l0_dgx_b300_ds.yml
+  - tests/unittest/_torch/attention/sparse/dsa/test_dsa_indexer.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 12445
   pr: 12445
   title: '[https://nvbugs/5983390][fix] Remove redundant D2H sync to optimize perf'
@@ -3122,9 +3474,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12445
   date: '2026-03-24'
   merged_at: '2026-03-24T15:28:11Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3151,6 +3503,10 @@ prs:
   score: 32
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12445
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 12519
   pr: 12519
   title: '[#12634][feat] AutoDeploy: Support rank 256 MLA in flashinfer_mla'
@@ -3158,9 +3514,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12519
   date: '2026-04-11'
   merged_at: '2026-04-11T10:22:49Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 7 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3191,6 +3547,16 @@ prs:
   score: 31
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12519
+  files_changed:
+  - tensorrt_llm/_torch/auto_deploy/compile/piecewise_utils.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/README.md
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/mla/__init__.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/mla/flashinfer_trtllm_mla.py
+  - tensorrt_llm/_torch/auto_deploy/transform/library/kvcache.py
+  - tests/unittest/auto_deploy/singlegpu/custom_ops/mla/test_flashinfer_trtllm_mla_op.py
+  - tests/unittest/auto_deploy/singlegpu/transformations/library/test_kv_cache.py
+  files_reviewed_count: 7
+  scope_disposition: removed
 - number: 13103
   pr: 13103
   title: '[None][feat] Optimize causal_conv1d prefill and decode kernels'
@@ -3200,7 +3566,7 @@ prs:
   merged_at: '2026-04-22T13:16:04Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/causalConv1d/causalConv1d.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3228,6 +3594,10 @@ prs:
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   author: Wanli-Jiang
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13103
+  files_changed:
+  - cpp/tensorrt_llm/kernels/causalConv1d/causalConv1d.cu
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 10742
   pr: 10742
   title: '[https://nvbugs/5669671][fix] Support GuidedDecoder with sharded logits (pick #10698)'
@@ -3237,7 +3607,7 @@ prs:
   merged_at: '2026-01-16T13:22:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/logitsBitmask.cu'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3271,6 +3641,10 @@ prs:
   score: 28
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10742
+  files_changed:
+  - cpp/tensorrt_llm/kernels/logitsBitmask.cu
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 11381
   pr: 11381
   title: '[None][feat] Remove non flash attetnion style fmha_v2 kernel for hopper'
@@ -3278,9 +3652,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/11381
   date: '2026-02-26'
   merged_at: '2026-02-26T03:07:40Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Preserve page/KV/layout and plan-run contracts; profile memory traffic separately from math utilization.
   seed_source: legacy-pr-index
   primary_category: attention_kv
@@ -3310,6 +3684,11 @@ prs:
   score: 26
   ncu_hint: Long scoreboard, L2/DRAM traffic, global-load sectors, tensor pipe %, and shared-memory bank conflicts.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11381
+  files_changed:
+  - cpp/kernels/fmha_v2/setup.py
+  - cpp/tensorrt_llm/kernels/contextFusedMultiHeadAttention/fmhaRunner.cpp
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 12136
   pr: 12136
   title: '[None][feat] Add DWDP (Distributed Weight Data Parallelism) support for MoE inference'
@@ -3319,7 +3698,8 @@ prs:
   merged_at: '2026-04-02T03:51:59Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3377,6 +3757,12 @@ prs:
   score: 71
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12136
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py
+  files_reviewed_count: 23
+  scope_disposition: retained
 - number: 10201
   pr: 10201
   title: '[TRTLLM-9831][perf] Enable 2CTA with autotune for CuteDSL MoE and Grouped GEMM optimizations'
@@ -3386,7 +3772,8 @@ prs:
   merged_at: '2025-12-25T14:04:20Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_swiglu_fusion.py'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3440,6 +3827,13 @@ prs:
   score: 68
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10201
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_swiglu_fusion.py
+  files_reviewed_count: 15
+  scope_disposition: retained
 - number: 12738
   pr: 12738
   title: '[None][feat] Add bf16 trtllm-gen moe support through flashinfer.'
@@ -3447,9 +3841,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12738
   date: '2026-04-30'
   merged_at: '2026-04-30T13:44:49Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 13 authoritative changed file(s)'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3500,6 +3894,17 @@ prs:
   score: 63
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12738
+  files_changed:
+  - jenkins/L0_Test.groovy
+  - tensorrt_llm/_torch/modules/fused_moe/configurable_moe.py
+  - tensorrt_llm/_torch/modules/fused_moe/create_moe.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_trtllm_gen.py
+  - tensorrt_llm/_torch/modules/fused_moe/moe_op_backend.py
+  - tensorrt_llm/_torch/modules/fused_moe/quantization.py
+  - tests/integration/defs/.test_durations
+  - tests/integration/defs/accuracy/test_llm_api_pytorch.py
+  files_reviewed_count: 13
+  scope_disposition: removed
 - number: 10042
   pr: 10042
   title: '[None][perf] Add more optimization options for MOE CuteDSL finalized kernel'
@@ -3509,7 +3914,7 @@ prs:
   merged_at: '2025-12-18T14:49:29Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3554,6 +3959,10 @@ prs:
   score: 61
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10042
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 7761
   pr: 7761
   title: '[TRTLLM-8637][feat] Optimize the routing kernel for DeepseekV3 (MoE CUTLASS backend); Add support for 384 experts (MoE TRTLLM backend)'
@@ -3563,7 +3972,9 @@ prs:
   merged_at: '2025-10-20T02:08:32Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/moeTopKFuncs.cuh, cpp/tensorrt_llm/kernels/noAuxTcKernels.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingDeepSeek.cu,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernel.cuh, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernelTopK.cuh, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingLlama4.cu,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingRenormalize.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3615,6 +4026,16 @@ prs:
   score: 59
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-7761
+  files_changed:
+  - cpp/tensorrt_llm/kernels/moeTopKFuncs.cuh
+  - cpp/tensorrt_llm/kernels/noAuxTcKernels.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingDeepSeek.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernel.cuh
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernelTopK.cuh
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingLlama4.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingRenormalize.cu
+  files_reviewed_count: 19
+  scope_disposition: retained
 - number: 9852
   pr: 9852
   title: '[None][feat] Fused kernels (qknormrope + moe routing) and two-model MTP support for glm4moe'
@@ -3624,7 +4045,7 @@ prs:
   merged_at: '2025-12-14T02:47:24Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/fusedQKNormRopeKernel.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3665,6 +4086,10 @@ prs:
   score: 56
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9852
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fusedQKNormRopeKernel.cu
+  files_reviewed_count: 11
+  scope_disposition: retained
 - number: 11143
   pr: 11143
   title: '[None][feat] fuse shared to sparse experts in TRT-LLM Gen MoE'
@@ -3674,7 +4099,7 @@ prs:
   merged_at: '2026-02-04T03:25:18Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingDeepSeek.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3721,6 +4146,10 @@ prs:
   score: 55
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11143
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingDeepSeek.cu
+  files_reviewed_count: 14
+  scope_disposition: retained
 - number: 11510
   pr: 11510
   title: '[None][feat] Add support for expert_number<=2048 and K<=32'
@@ -3730,7 +4159,10 @@ prs:
   merged_at: '2026-03-05T02:24:11Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/noAuxTcKernels.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernel.cuh, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernelTopK.cuh,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingLlama4.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/RoutingDeepSeekCommon.cuh, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/launchClusterKernel.cu,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/launchCoopKernel.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/launchMainKernel.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/RoutingRenormalizeCommon.cuh,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchBlockKernel.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchClusterKernel.cu, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchHistogramScoresKernel.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3777,6 +4209,21 @@ prs:
   score: 51
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11510
+  files_changed:
+  - cpp/tensorrt_llm/kernels/noAuxTcKernels.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernel.cuh
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingKernelTopK.cuh
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingLlama4.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/RoutingDeepSeekCommon.cuh
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/launchClusterKernel.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/launchCoopKernel.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingDeepSeek/launchMainKernel.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/RoutingRenormalizeCommon.cuh
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchBlockKernel.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchClusterKernel.cu
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchHistogramScoresKernel.cu
+  files_reviewed_count: 30
+  scope_disposition: retained
 - number: 9838
   pr: 9838
   title: '[https://nvbugs/5726962][feat] Apply fusion for W4AFP8_AWQ MoE'
@@ -3786,7 +4233,7 @@ prs:
   merged_at: '2026-01-06T02:16:42Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3829,6 +4276,10 @@ prs:
   score: 50
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9838
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/moe_gemm/moe_kernels.cu
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 12201
   pr: 12201
   title: '[None][feat] Add fused allreduce+RMSNorm op and optional residual in …'
@@ -3836,9 +4287,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12201
   date: '2026-03-18'
   merged_at: '2026-03-18T18:23:43Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: distributed-system topic matched ''allreduce'' in PR title'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3875,6 +4326,17 @@ prs:
   score: 50
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12201
+  files_changed:
+  - cpp/tensorrt_llm/kernels/communicationKernels/allReduceFusionKernels.cu
+  - cpp/tensorrt_llm/kernels/communicationKernels/allReduceFusionKernels.h
+  - cpp/tensorrt_llm/kernels/communicationKernels/moeAllReduceFusionKernels.cu
+  - cpp/tensorrt_llm/kernels/customAllReduceKernels.cu
+  - cpp/tensorrt_llm/kernels/customAllReduceKernels.h
+  - cpp/tensorrt_llm/thop/allreduceOp.cpp
+  - tensorrt_llm/_torch/distributed/ops.py
+  - tensorrt_llm/functional.py
+  files_reviewed_count: 9
+  scope_disposition: removed
 - number: 12046
   pr: 12046
   title: '[https://nvbugs/5955188][fix] Fix harmony parsers and WAR routing PDL for agentic coding use cases'
@@ -3882,9 +4344,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12046
   date: '2026-03-13'
   merged_at: '2026-03-13T05:42:45Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 10 authoritative changed file(s)'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3923,6 +4385,17 @@ prs:
   score: 45
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12046
+  files_changed:
+  - cpp/tensorrt_llm/common/envUtils.cpp
+  - cpp/tensorrt_llm/common/envUtils.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/runner.cu
+  - jenkins/L0_Test.groovy
+  - tensorrt_llm/executor/postproc_worker.py
+  - tensorrt_llm/executor/result.py
+  - tensorrt_llm/serve/harmony_adapter.py
+  - tensorrt_llm/serve/openai_server.py
+  files_reviewed_count: 10
+  scope_disposition: removed
 - number: 9087
   pr: 9087
   title: '[None][fix] support topk autotuner input for expert slot per group larger than 32'
@@ -3932,7 +4405,7 @@ prs:
   merged_at: '2025-11-14T00:37:21Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingDeepSeek.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -3965,6 +4438,10 @@ prs:
   score: 44
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9087
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/RoutingDeepSeek.cu
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 10532
   pr: 10532
   title: '[None][feat] MiniMax M2 support'
@@ -3972,9 +4449,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/10532
   date: '2026-01-14'
   merged_at: '2026-01-14T09:38:59Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 8 authoritative changed file(s)'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4012,6 +4489,17 @@ prs:
   score: 43
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10532
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/runner.h
+  - tensorrt_llm/_torch/models/__init__.py
+  - tensorrt_llm/_torch/models/modeling_minimaxm2.py
+  - tensorrt_llm/_torch/modules/fused_moe/__init__.py
+  - tensorrt_llm/_torch/modules/fused_moe/routing.py
+  - tests/integration/defs/accuracy/references/gsm8k.yaml
+  - tests/integration/defs/accuracy/test_llm_api_pytorch.py
+  - tests/integration/test_lists/test-db/l0_dgx_b200.yml
+  files_reviewed_count: 8
+  scope_disposition: removed
 - number: 13997
   pr: 13997
   title: '[None][feat] enable TRTLLM-Gen internal routing'
@@ -4019,9 +4507,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13997
   date: '2026-05-13'
   merged_at: '2026-05-13T09:22:02Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 5 authoritative changed file(s)'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4060,6 +4548,14 @@ prs:
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   author: tcherckez-nvidia
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13997
+  files_changed:
+  - examples/auto_deploy/model_registry/configs/super_v3.yaml
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fused_moe/trtllm_moe.py
+  - tensorrt_llm/_torch/auto_deploy/transform/library/fused_moe.py
+  - tensorrt_llm/_torch/auto_deploy/transform/library/multi_stream_moe.py
+  - tests/unittest/auto_deploy/singlegpu/transformations/library/test_moe_fusion.py
+  files_reviewed_count: 5
+  scope_disposition: removed
 - number: 13433
   pr: 13433
   title: '[None][perf] Extend customMoeRouting kernel to support Qwen3.5'
@@ -4069,7 +4565,7 @@ prs:
   merged_at: '2026-04-29T02:28:28Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/customMoeRoutingKernels.cu, cpp/tensorrt_llm/kernels/moeTopKFuncs.cuh'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4106,6 +4602,11 @@ prs:
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   author: nv-guomingz
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13433
+  files_changed:
+  - cpp/tensorrt_llm/kernels/customMoeRoutingKernels.cu
+  - cpp/tensorrt_llm/kernels/moeTopKFuncs.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 9175
   pr: 9175
   title: '[None][feat] TRT-LLM Gen MoE optimize DeepSeek Fp8 activation kernel'
@@ -4115,7 +4616,7 @@ prs:
   merged_at: '2025-11-21T14:35:00Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4147,6 +4648,10 @@ prs:
   score: 36
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9175
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 12456
   pr: 12456
   title: '[None][perf] add Dynamic SMEM block routing in MOE'
@@ -4156,7 +4661,7 @@ prs:
   merged_at: '2026-03-24T02:27:40Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/RoutingRenormalizeCommon.cuh, cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchBlockKernel.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4184,6 +4689,11 @@ prs:
   score: 35
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12456
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/RoutingRenormalizeCommon.cuh
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/routingRenormalize/launchBlockKernel.cu
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 8675
   pr: 8675
   title: '[TRTLLM-8827] [feat] Enable low precision alltoall for Cutlass and TRTLLMGen backends'
@@ -4191,9 +4701,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/8675
   date: '2025-10-28'
   merged_at: '2025-10-28T23:56:48Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: distributed-system topic matched ''alltoall'' in PR title'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4222,6 +4732,14 @@ prs:
   score: 32
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-8675
+  files_changed:
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_cutlass.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_trtllm_gen.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_wide_ep.py
+  - tensorrt_llm/_torch/modules/fused_moe/interface.py
+  - tests/unittest/_torch/modules/test_fused_moe.py
+  files_reviewed_count: 5
+  scope_disposition: removed
 - number: 13811
   pr: 13811
   title: '[None][feat] Indexer topk opt'
@@ -4231,7 +4749,7 @@ prs:
   merged_at: '2026-05-08T06:21:59Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/indexerTopK.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4262,6 +4780,10 @@ prs:
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   author: pcastonguay
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13811
+  files_changed:
+  - cpp/tensorrt_llm/kernels/indexerTopK.cu
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 13207
   pr: 13207
   title: '[None][fix] Propagate init_load_balancer to DeepGemmFusedMoE in create_moe_backend'
@@ -4269,9 +4791,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13207
   date: '2026-04-23'
   merged_at: '2026-04-23T06:39:15Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4301,6 +4823,10 @@ prs:
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   author: qiaoxj07
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13207
+  files_changed:
+  - tensorrt_llm/_torch/modules/fused_moe/create_moe.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 11501
   pr: 11501
   title: '[None][feat] TRT-LLM Gen MoE finalize kernel optimization'
@@ -4310,7 +4836,7 @@ prs:
   merged_at: '2026-03-01T15:45:22Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu'
   inclusion_reason: Separate routing, permutation, top-k, and expert GEMM costs; keep tail-token and expert-layout tests attached to the idea.
   seed_source: legacy-pr-index
   primary_category: moe_routing
@@ -4333,6 +4859,10 @@ prs:
   score: 16
   ncu_hint: Tensor pipe %, SM imbalance, branch divergence, L2 traffic, permutation traffic, and synchronization stalls.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11501
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 11273
   pr: 11273
   title: '[None][feat] Optimize super-v3 nvfp4 for better perf'
@@ -4342,7 +4872,8 @@ prs:
   merged_at: '2026-02-12T14:25:31Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/causalConv1d/causalConv1d.cu, cpp/tensorrt_llm/kernels/fusedActivationQuant.cu, cpp/tensorrt_llm/kernels/fusedLayernormKernels/low_latency_layernorm.cuh,
+    cpp/tensorrt_llm/kernels/fusedLayernormKernels/ws_layernorm.cuh'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4405,6 +4936,13 @@ prs:
   score: 71
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11273
+  files_changed:
+  - cpp/tensorrt_llm/kernels/causalConv1d/causalConv1d.cu
+  - cpp/tensorrt_llm/kernels/fusedActivationQuant.cu
+  - cpp/tensorrt_llm/kernels/fusedLayernormKernels/low_latency_layernorm.cuh
+  - cpp/tensorrt_llm/kernels/fusedLayernormKernels/ws_layernorm.cuh
+  files_reviewed_count: 27
+  scope_disposition: retained
 - number: 12163
   pr: 12163
   title: '[None][feat] Minimax RMS norm optimization'
@@ -4412,9 +4950,10 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12163
   date: '2026-04-20'
   merged_at: '2026-04-20T01:37:27Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: only distributed-system implementation path(s) qualified: cpp/tensorrt_llm/kernels/communicationKernels/MiniMaxReduceRMSKernel.cu, cpp/tensorrt_llm/kernels/communicationKernels/MiniMaxReduceRMSKernel.h,
+    cpp/tensorrt_llm/thop/allreduceOp.cpp'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4455,6 +4994,17 @@ prs:
   score: 62
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12163
+  files_changed:
+  - cpp/tensorrt_llm/kernels/communicationKernels/MiniMaxReduceRMSKernel.cu
+  - cpp/tensorrt_llm/kernels/communicationKernels/MiniMaxReduceRMSKernel.h
+  - cpp/tensorrt_llm/thop/allreduceOp.cpp
+  - tensorrt_llm/_torch/custom_ops/cpp_custom_ops.py
+  - tensorrt_llm/_torch/distributed/__init__.py
+  - tensorrt_llm/_torch/distributed/ops.py
+  - tensorrt_llm/_torch/models/modeling_minimaxm2.py
+  - tests/microbenchmarks/minimax_all_reduce.py
+  files_reviewed_count: 9
+  scope_disposition: removed
 - number: 12946
   pr: 12946
   title: '[#12784][feat] AutoDeploy: Optimize DeepSeek-R1 model performance'
@@ -4464,7 +5014,7 @@ prs:
   merged_at: '2026-05-08T18:28:52Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/auto_deploy/mlir/codegen/triton_emitter.py'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4524,6 +5074,10 @@ prs:
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   author: taylor-yb-lee
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12946
+  files_changed:
+  - tensorrt_llm/_torch/auto_deploy/mlir/codegen/triton_emitter.py
+  files_reviewed_count: 44
+  scope_disposition: retained
 - number: 13892
   pr: 13892
   title: '[None][perf] mHC fused_hc kernel optimizations + DS-V4 entry-boundary RMSNorm fold-in'
@@ -4533,7 +5087,8 @@ prs:
   merged_at: '2026-05-12T07:40:46Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/mhcKernels/fused_tf32_pmap_gemm.cuh, cpp/tensorrt_llm/kernels/mhcKernels/mhcFusedHcKernel.cu, cpp/tensorrt_llm/kernels/mhcKernels/mhcKernels.cu,
+    cpp/tensorrt_llm/kernels/mhcKernels/mhc_fused_fma.cuh'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4574,6 +5129,13 @@ prs:
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   author: mingyangHao
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13892
+  files_changed:
+  - cpp/tensorrt_llm/kernels/mhcKernels/fused_tf32_pmap_gemm.cuh
+  - cpp/tensorrt_llm/kernels/mhcKernels/mhcFusedHcKernel.cu
+  - cpp/tensorrt_llm/kernels/mhcKernels/mhcKernels.cu
+  - cpp/tensorrt_llm/kernels/mhcKernels/mhc_fused_fma.cuh
+  files_reviewed_count: 10
+  scope_disposition: retained
 - number: 9905
   pr: 9905
   title: '[None][feat] Adding torch ext API for FusedAddRMSNormQuant kernel'
@@ -4583,7 +5145,7 @@ prs:
   merged_at: '2026-01-14T23:29:15Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/fusedLayernormKernels/low_latency_layernorm.cuh, cpp/tensorrt_llm/kernels/fusedLayernormKernels/ws_layernorm.cuh'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4622,6 +5184,11 @@ prs:
   score: 50
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9905
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fusedLayernormKernels/low_latency_layernorm.cuh
+  - cpp/tensorrt_llm/kernels/fusedLayernormKernels/ws_layernorm.cuh
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 11869
   pr: 11869
   title: '[None][feat] Add fused DiT QK Norm + RoPE CUDA kernel for FLUX'
@@ -4631,7 +5198,7 @@ prs:
   merged_at: '2026-04-04T07:29:45Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/fusedDiTQKNormRopeKernel.cu, cpp/tensorrt_llm/kernels/fusedQKNormRopeKernel.cu'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4671,6 +5238,11 @@ prs:
   score: 49
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11869
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fusedDiTQKNormRopeKernel.cu
+  - cpp/tensorrt_llm/kernels/fusedQKNormRopeKernel.cu
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 11473
   pr: 11473
   title: '[None][feat] Optimize by fuse nvfp4_quant to layernorm_gated for mamba2_mixer'
@@ -4680,7 +5252,7 @@ prs:
   merged_at: '2026-03-07T01:38:47Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/fusedGatedRMSNormQuant/fusedGatedRMSNormQuant.cu, cpp/tensorrt_llm/kernels/fusedGatedRMSNormQuant/fusedGatedRMSNormQuant.cuh'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4724,6 +5296,11 @@ prs:
   score: 46
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11473
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fusedGatedRMSNormQuant/fusedGatedRMSNormQuant.cu
+  - cpp/tensorrt_llm/kernels/fusedGatedRMSNormQuant/fusedGatedRMSNormQuant.cuh
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 13033
   pr: 13033
   title: '[None][feat] Update rms_norm + fp4_qaunt kernel supporting more dim'
@@ -4733,7 +5310,8 @@ prs:
   merged_at: '2026-04-18T13:32:25Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/fusedLayernormKernels/fp4_converter.cuh, cpp/tensorrt_llm/kernels/fusedLayernormKernels/low_latency_layernorm.cuh,
+    cpp/tensorrt_llm/kernels/fusedLayernormKernels/ws_layernorm.cuh'
   inclusion_reason: Look for fusion, vectorization, dtype conversion, and store-traffic reductions before changing math.
   seed_source: legacy-pr-index
   primary_category: norm_elementwise
@@ -4769,6 +5347,12 @@ prs:
   score: 46
   ncu_hint: DRAM %, L2 bytes, global load/store sectors, eligible warps, and long scoreboard.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13033
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fusedLayernormKernels/fp4_converter.cuh
+  - cpp/tensorrt_llm/kernels/fusedLayernormKernels/low_latency_layernorm.cuh
+  - cpp/tensorrt_llm/kernels/fusedLayernormKernels/ws_layernorm.cuh
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 9486
   pr: 9486
   title: '[TRTLLM-8958][feat] and [TRTLLM-8960]: create ConfigurableMoE and support TRTLLMGenFusedMoE as backend'
@@ -4776,9 +5360,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/9486
   date: '2025-12-01'
   merged_at: '2025-12-01T00:37:07Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: only distributed-system implementation path(s) qualified: tensorrt_llm/_torch/modules/fused_moe/communication/deep_ep.py, tensorrt_llm/_torch/modules/fused_moe/communication/deep_ep_low_latency.py'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -4832,6 +5416,17 @@ prs:
   score: 75
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9486
+  files_changed:
+  - tensorrt_llm/_torch/model_config.py
+  - tensorrt_llm/_torch/models/modeling_deepseekv3.py
+  - tensorrt_llm/_torch/models/modeling_gpt_oss.py
+  - tensorrt_llm/_torch/models/modeling_hunyuan_moe.py
+  - tensorrt_llm/_torch/models/modeling_utils.py
+  - tensorrt_llm/_torch/modules/fused_moe/communication/__init__.py
+  - tensorrt_llm/_torch/modules/fused_moe/communication/allgather_reducescatter.py
+  - tensorrt_llm/_torch/modules/fused_moe/communication/base.py
+  files_reviewed_count: 23
+  scope_disposition: removed
 - number: 10429
   pr: 10429
   title: '[None] [feat] Add test script and raster M for gather fc1 kernel'
@@ -4841,7 +5436,7 @@ prs:
   merged_at: '2026-01-07T01:31:50Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -4880,6 +5475,10 @@ prs:
   score: 60
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10429
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 12581
   pr: 12581
   title: '[https://nvbugs/5983390][perf] Multiple host perf optimizations for DSA part'
@@ -4889,7 +5488,7 @@ prs:
   merged_at: '2026-04-02T13:26:08Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/convertReqIndexToGlobal.cu, cpp/tensorrt_llm/kernels/indexerKCacheGather.cu'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -4935,6 +5534,11 @@ prs:
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   author: hyukn
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12581
+  files_changed:
+  - cpp/tensorrt_llm/kernels/convertReqIndexToGlobal.cu
+  - cpp/tensorrt_llm/kernels/indexerKCacheGather.cu
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 12322
   pr: 12322
   title: '[https://nvbugs/5983390][perf] Kernel fusions in _gather_k_cache_for_chunk of Indexer in DSA'
@@ -4944,7 +5548,7 @@ prs:
   merged_at: '2026-03-21T05:53:27Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/attention_backend/sparse/kernel.py'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -4982,6 +5586,10 @@ prs:
   score: 44
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12322
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/kernel.py
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 12537
   pr: 12537
   title: '[None][feat] Add Mamba2 MTP SSM cache CUDA kernel for tree-based speculative decoding'
@@ -4991,7 +5599,7 @@ prs:
   merged_at: '2026-04-01T03:01:49Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/mamba2MTPSSMCache/mamba2MTPSSMCacheKernel.cuh'
   inclusion_reason: 'Transfer primitive policy carefully: coalescing, shared-memory staging, partial tiles, and determinism are part of the contract.'
   seed_source: legacy-pr-index
   primary_category: memory_primitives
@@ -5030,6 +5638,10 @@ prs:
   score: 41
   ncu_hint: DRAM throughput, L2 hit rate, memory sectors, shared-memory conflicts, and synchronization overhead.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12537
+  files_changed:
+  - cpp/tensorrt_llm/kernels/mamba2MTPSSMCache/mamba2MTPSSMCacheKernel.cuh
+  files_reviewed_count: 14
+  scope_disposition: retained
 - number: 9811
   pr: 9811
   title: '[None][feat] spark cublas LUT table for llama-8b-bf16 perf'
@@ -5078,7 +5690,7 @@ prs:
   merged_at: '2026-03-23T09:03:23Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk_cluster.py'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -5121,6 +5733,11 @@ prs:
   score: 61
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12354
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk_cluster.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 10190
   pr: 10190
   title: '[None][feat] sm100 weight-only kernel'
@@ -5130,7 +5747,10 @@ prs:
   merged_at: '2026-01-05T01:44:36Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: added device-code construct in: cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/detail/collective/mixed_input_utils.hpp, cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/collective/builders/sm100_umma_builder_weightonly.inl,
+    cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/collective/collective_mma_sm100_weightonly.hpp, cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/collective/sm100_mma_warpspecialized_mixed_input.hpp,
+    cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/kernel/fpA_intB_gemm.h, cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/kernel/mixed_gemm_B_layout.h, cpp/tensorrt_llm/kernels/cutlass_kernels/cutlass_preprocessors.cpp,
+    cpp/tensorrt_llm/kernels/cutlass_kernels/fpA_intB_gemm/launchers/fpA_intB_launcher_sm100.inl'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -5185,6 +5805,17 @@ prs:
   score: 56
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10190
+  files_changed:
+  - cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/detail/collective/mixed_input_utils.hpp
+  - cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/collective/builders/sm100_umma_builder_weightonly.inl
+  - cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/collective/collective_mma_sm100_weightonly.hpp
+  - cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/collective/sm100_mma_warpspecialized_mixed_input.hpp
+  - cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/kernel/fpA_intB_gemm.h
+  - cpp/tensorrt_llm/cutlass_extensions/include/cutlass_extensions/gemm/kernel/mixed_gemm_B_layout.h
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/cutlass_preprocessors.cpp
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/fpA_intB_gemm/launchers/fpA_intB_launcher_sm100.inl
+  files_reviewed_count: 26
+  scope_disposition: retained
 - number: 13169
   pr: 13169
   title: '[https://nvbugs/5945047][fix] Fix cluster launch enablement for SM120 GPUs in allReduce fusion'
@@ -5192,9 +5823,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13169
   date: '2026-05-13'
   merged_at: '2026-05-13T01:13:35Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: distributed-system topic matched ''allReduce'' in PR title'
   inclusion_reason: 'Extract the architecture assumption first: SM target, TMA/WGMMA/tcgen path, cluster use, and pipeline stages.'
   seed_source: legacy-pr-index
   primary_category: arch_pipeline
@@ -5240,6 +5871,11 @@ prs:
   ncu_hint: Tensor pipe %, memory pipe utilization, barrier stalls, wait groups, and occupancy.
   author: ziyixiong-nv
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13169
+  files_changed:
+  - cpp/tensorrt_llm/kernels/communicationKernels/allReduceFusionKernels.cu
+  - tests/integration/test_lists/waives.txt
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 10043
   pr: 10043
   title: '[TRTLLM-9992][perf] Enable PDL for CuteDSL kernels and overlap MoeOutputMemset'
@@ -5249,7 +5885,9 @@ prs:
   merged_at: '2025-12-20T08:12:41Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_swiglu_fusion.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/dense_blockscaled_gemm_persistent.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/utils.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5304,6 +5942,15 @@ prs:
   score: 68
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10043
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_swiglu_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/dense_blockscaled_gemm_persistent.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/utils.py
+  files_reviewed_count: 14
+  scope_disposition: retained
 - number: 12074
   pr: 12074
   title: '[TRTLLM-11289][feat] Integrate CuteDSL''s bf16 dense GEMMs'
@@ -5313,7 +5960,7 @@ prs:
   merged_at: '2026-04-30T08:17:05Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/dense_gemm_persistent.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5371,6 +6018,11 @@ prs:
   score: 68
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12074
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/dense_gemm_persistent.py
+  files_reviewed_count: 13
+  scope_disposition: retained
 - number: 10088
   pr: 10088
   title: '[None][feat] CuteDSL MOE FC1 Enhancement'
@@ -5380,7 +6032,8 @@ prs:
   merged_at: '2026-01-06T01:30:43Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_swiglu_fusion.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/custom_pipeline.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5427,6 +6080,13 @@ prs:
   score: 66
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10088
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_finalize_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_grouped_gemm_swiglu_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/custom_pipeline.py
+  files_reviewed_count: 9
+  scope_disposition: retained
 - number: 12884
   pr: 12884
   title: '[TRTLLM-11585][feat] Add CUTEDSL moe backend for nemotron-h'
@@ -5436,7 +6096,7 @@ prs:
   merged_at: '2026-05-10T05:51:18Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_act_fusion.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5489,6 +6149,10 @@ prs:
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   author: Wanli-Jiang
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12884
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_act_fusion.py
+  files_reviewed_count: 12
+  scope_disposition: retained
 - number: 9618
   pr: 9618
   title: '[TRTLLM-9685] [feat] Add gather fc1 kernel by cuteDSL'
@@ -5498,7 +6162,8 @@ prs:
   merged_at: '2025-12-11T08:21:33Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/custom_pipeline.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5545,6 +6210,12 @@ prs:
   score: 63
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9618
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/blockscaled_contiguous_gather_grouped_gemm_swiglu_fusion.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/custom_pipeline.py
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 11900
   pr: 11900
   title: '[TRTLLM-10407][feat] Integrate CuTE DSL top-k kernel for Blackwell'
@@ -5554,7 +6225,8 @@ prs:
   merged_at: '2026-03-09T05:36:03Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/block_scan.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/filtered_top_k_decode_varlen.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/filtered_top_k_varlen_util.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5599,6 +6271,13 @@ prs:
   score: 63
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11900
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/block_scan.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/filtered_top_k_decode_varlen.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/filtered_top_k_varlen_util.py
+  files_reviewed_count: 6
+  scope_disposition: retained
 - number: 12236
   pr: 12236
   title: '[TRTLLM-10407][perf] Enable CuteDSL indexer_top_k in model'
@@ -5608,7 +6287,7 @@ prs:
   merged_at: '2026-03-19T04:05:36Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5651,6 +6330,11 @@ prs:
   score: 57
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12236
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk.py
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 12506
   pr: 12506
   title: '[None][feat] Add PDL support to CuTE DSL top-k kernels'
@@ -5660,7 +6344,8 @@ prs:
   merged_at: '2026-03-25T14:30:46Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/filtered_top_k_decode_varlen.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk.py,
+    tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk_cluster.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5705,6 +6390,12 @@ prs:
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   author: limin2021
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12506
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/filtered_top_k_decode_varlen.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/top_k/single_pass_multi_cta_radix_topk_cluster.py
+  files_reviewed_count: 3
+  scope_disposition: retained
 - number: 12799
   pr: 12799
   title: '[TRTLLM-11797][feat] Add cutedsl moe backend supporting for qwen3.5.'
@@ -5712,9 +6403,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/12799
   date: '2026-04-13'
   merged_at: '2026-04-13T01:56:08Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5750,6 +6441,13 @@ prs:
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   author: nv-guomingz
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12799
+  files_changed:
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_cute_dsl.py
+  - tests/integration/defs/accuracy/test_llm_api_pytorch.py
+  - tests/integration/test_lists/qa/llm_function_core.txt
+  - tests/integration/test_lists/test-db/l0_dgx_b200.yml
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 11181
   pr: 11181
   title: '[https://nvbugs/5854860][fix] Fix cutedsl argmax on sm120'
@@ -5759,7 +6457,7 @@ prs:
   merged_at: '2026-02-04T22:15:32Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/argmax.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5789,6 +6487,10 @@ prs:
   score: 38
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11181
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/argmax.py
+  files_reviewed_count: 2
+  scope_disposition: retained
 - number: 11769
   pr: 11769
   title: '[https://nvbugs/5885070][fix] fix deepeplowlatency with cutedsl moe backend'
@@ -5796,9 +6498,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/11769
   date: '2026-03-02'
   merged_at: '2026-03-02T07:11:40Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5828,6 +6530,10 @@ prs:
   score: 37
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11769
+  files_changed:
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_cute_dsl.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 10476
   pr: 10476
   title: '[TRTLLM-10276][feat] Integrate cutedsl argmax kernel'
@@ -5837,7 +6543,7 @@ prs:
   merged_at: '2026-01-27T03:08:48Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/argmax.py'
   inclusion_reason: 'Treat compiler/runtime integration as part of the kernel: launch wrapper, cache/JIT behavior, generated code, and build flags need tests.'
   seed_source: legacy-pr-index
   primary_category: compiler_runtime
@@ -5867,6 +6573,10 @@ prs:
   score: 31
   ncu_hint: Generated kernel shape, launch overhead, occupancy, register pressure, and compile-time-selected schedule.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10476
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/argmax.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 13873
   pr: 13873
   title: '[TRTLLM-12503][feat] Parallel VAE independent scaling and fix arg passing'
@@ -5874,9 +6584,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/13873
   date: '2026-05-14'
   merged_at: '2026-05-14T01:36:13Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 25 authoritative changed file(s)'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -5939,6 +6649,17 @@ prs:
   score: 70
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13873
+  files_changed:
+  - docs/source/models/visual-generation.md
+  - examples/visual_gen/README.md
+  - examples/visual_gen/configs/wan2.2-t2v-fp4-1gpu.yaml
+  - examples/visual_gen/configs/wan2.2-t2v-fp4-4gpu.yaml
+  - examples/visual_gen/configs/wan2.2-t2v-fp8-8gpu.yaml
+  - examples/visual_gen/visual_gen_wan_i2v.py
+  - examples/visual_gen/visual_gen_wan_t2v.py
+  - tensorrt_llm/_torch/visual_gen/config.py
+  files_reviewed_count: 25
+  scope_disposition: removed
 - number: 10279
   pr: 10279
   title: '[TRTLLM-10147][perf] Balanced random MoE workload generator for CuteDSL kernel UT, autotuner and layerwise benchmark'
@@ -5946,9 +6667,9 @@ prs:
   url: https://github.com/NVIDIA/TensorRT-LLM/pull/10279
   date: '2026-01-25'
   merged_at: '2026-01-25T13:02:30Z'
-  decision: include
+  decision: exclude
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'remove: no positive device-kernel implementation in 6 authoritative changed file(s)'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -5983,6 +6704,15 @@ prs:
   score: 49
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-10279
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_cute_dsl.py
+  - tensorrt_llm/tools/layer_wise_benchmarks/runner.py
+  - tests/scripts/cute_dsl_kernels/README.md
+  - tests/scripts/cute_dsl_kernels/moe_workload_generator.py
+  - tests/unittest/_torch/thop/parallel/test_cute_dsl_moe.py
+  files_reviewed_count: 6
+  scope_disposition: removed
 - number: 7524
   pr: 7524
   title: '[None][chore] Fix kernel launch param and add TRTLLM MoE backend test'
@@ -5992,7 +6722,7 @@ prs:
   merged_at: '2025-09-09T15:45:36Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -6031,6 +6761,10 @@ prs:
   score: 48
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-7524
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 13052
   pr: 13052
   title: '[#12716][feat] Fused cross-head QK Norm + RoPE kernel for WAN'
@@ -6040,7 +6774,7 @@ prs:
   merged_at: '2026-05-13T15:23:59Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/fusedDiTQKNormRopeKernel.cu'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -6079,6 +6813,10 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: anikaj-eng
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13052
+  files_changed:
+  - cpp/tensorrt_llm/kernels/fusedDiTQKNormRopeKernel.cu
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 13658
   pr: 13658
   title: '[None][test] add Nemotron Ultra V3 AutoDeploy accuracy test'
@@ -6140,7 +6878,7 @@ prs:
   merged_at: '2025-09-23T03:26:25Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -6173,6 +6911,10 @@ prs:
   score: 39
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-7755
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/blockScaleMoe/DevKernel.cu
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 13761
   pr: 13761
   title: '[None][perf] Optimize DeepSeek-V4 compressor BF16 input'
@@ -6182,7 +6924,7 @@ prs:
   merged_at: '2026-05-07T03:12:05Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/compressorKernels/compressorKernels.cu'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -6213,6 +6955,10 @@ prs:
   score: 32
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13761
+  files_changed:
+  - cpp/tensorrt_llm/kernels/compressorKernels/compressorKernels.cu
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 9924
   pr: 9924
   title: '[TRTLLM-9493][feat] Add helixPostProcessNative kernel for cp_dim=2'
@@ -6222,7 +6968,7 @@ prs:
   merged_at: '2025-12-13T00:49:26Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/helixKernels.cu'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -6252,6 +6998,10 @@ prs:
   score: 28
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-9924
+  files_changed:
+  - cpp/tensorrt_llm/kernels/helixKernels.cu
+  files_reviewed_count: 5
+  scope_disposition: retained
 - number: 13771
   pr: 13771
   title: '[None][fix] Fix fused MHC for DeepSeek-V4-Pro hidden size'
@@ -6261,7 +7011,7 @@ prs:
   merged_at: '2026-05-05T18:13:08Z'
   decision: include
   status: merged
-  reason: legacy PR seed promoted into PR-diff corpus
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/mhcKernels/mhcFusedHcKernel.cu'
   inclusion_reason: Mine shape sets, tolerance rules, warmup logic, and profile commands before mutating code.
   seed_source: legacy-pr-index
   primary_category: benchmark_test
@@ -6288,6 +7038,10 @@ prs:
   ncu_hint: Use the PR's benchmark/profile command as the first replay target.
   author: pcastonguay
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13771
+  files_changed:
+  - cpp/tensorrt_llm/kernels/mhcKernels/mhcFusedHcKernel.cu
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 14106
   pr: 14106
   title: '[None][fix] Add SPDX Apache-2.0 headers and fix license compliance for llm-c standalone repo'
@@ -9159,10 +9913,9 @@ prs:
   date: '2026-05-20'
   merged_at: '2026-05-20T07:35:19Z'
   author: kaiyux
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: .claude/skills/ad-layer-visualizer/scripts/extract_trace_kernels.py, .claude/skills/kernel-cute-writing/scripts/benchmark_kernel.py, .claude/skills/kernel-cute-writing/scripts/verify_kernel.py,
-    .claude/skills/kernel-tileir-optimization/scripts/classify_kernel.py'
+  reason: 'remove: no positive device-kernel implementation in 37 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9247,6 +10000,17 @@ prs:
   deletions: 1382
   changed_file_count: 37
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14344
+  files_changed:
+  - .claude/agents/ad-onboard-reviewer.md
+  - .claude/agents/perf-test-sync.md
+  - .claude/skills/ad-accuracy-debug/SKILL.md
+  - .claude/skills/ad-add-fusion-transformation/SKILL.md
+  - .claude/skills/ad-graph-dump/SKILL.md
+  - .claude/skills/ad-layer-visualizer/SKILL.md
+  - .claude/skills/ad-layer-visualizer/scripts/extract_trace_kernels.py
+  - .claude/skills/ad-layer-visualizer/scripts/render_layer.py
+  files_reviewed_count: 37
+  scope_disposition: removed
 - number: 14332
   pr: 14332
   title: '[None][test] Waive 1 failed cases for main in QA CI'
@@ -9664,8 +10428,9 @@ prs:
   author: heyuhhh
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvCausalP32VarSeqQ128Kv128PersistentContext.cubin.tar.zst, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvCausalP32VarSeqQ128Kv128StaticContext.cubin.tar.zst,
-    cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvCustomP32MultiCtasKvCgaVarSeqQ128Kv128StaticKeepsAbForGen.cubin.tar.zst, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/cubin/FmhaSm100aKernel_QE4m3KvE2m1OE4m3H128PagedKvCustomP32MultiCtasKvCgaVarSeqQ16Kv128StaticSwapsAbForGen.cubin.tar.zst'
+  reason: 'retain: added device-code construct in: cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassPipeline.h, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm100Pipeline.h,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm100TileScheduler.h, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm90Pipeline.h,
+    cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm90TileScheduler.h, cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/Utils.h'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9824,6 +10589,15 @@ prs:
   deletions: 5716
   changed_file_count: 3000
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14291
+  files_changed:
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassPipeline.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm100Pipeline.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm100TileScheduler.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm90Pipeline.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/CutlassSm90TileScheduler.h
+  - cpp/tensorrt_llm/kernels/trtllmGenKernels/fmha/trtllmGen_fmha_export/trtllm/dev/Utils.h
+  files_reviewed_count: 3045
+  scope_disposition: retained
 - number: 14283
   pr: 14283
   title: '[None][test] Waive 5 failed cases for main in QA CI'
@@ -9869,9 +10643,9 @@ prs:
   date: '2026-05-20'
   merged_at: '2026-05-20T03:02:39Z'
   author: heyuhhh
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/model_config.py'
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -9900,6 +10674,11 @@ prs:
   deletions: 10
   changed_file_count: 2
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14282
+  files_changed:
+  - tensorrt_llm/_torch/model_config.py
+  - tests/integration/test_lists/waives.txt
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 14281
   pr: 14281
   title: '[None][fix] Update the OSS headers in derived FLA ops and AD modeling code'
@@ -9908,10 +10687,9 @@ prs:
   date: '2026-05-19'
   merged_at: '2026-05-19T21:37:59Z'
   author: bmarimuthu-nv
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/chunk.py, tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/fused_recurrent.py, tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/utils.py,
-    tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/wy_fast.py'
+  reason: 'remove: no positive device-kernel implementation in 52 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10009,6 +10787,17 @@ prs:
   deletions: 2
   changed_file_count: 52
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14281
+  files_changed:
+  - examples/auto_deploy/llmc/_license_data.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/chunk.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/fused_recurrent.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/utils.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fla/delta_rule/wy_fast.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fla/fla_backend_delta.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fla/fla_backend_gated_delta.py
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/fla/fla_delta.py
+  files_reviewed_count: 52
+  scope_disposition: removed
 - number: 14276
   pr: 14276
   title: '[None][fix] Handle unset attention_dp_relax in ADP routers'
@@ -10017,9 +10806,9 @@ prs:
   date: '2026-05-20'
   merged_at: '2026-05-20T01:01:45Z'
   author: peihu-nv
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/scheduling_params.py'
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10042,6 +10831,11 @@ prs:
   deletions: 2
   changed_file_count: 2
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14276
+  files_changed:
+  - tensorrt_llm/scheduling_params.py
+  - tests/unittest/_torch/executor/test_adp_router.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 14261
   pr: 14261
   title: '[https://nvbugs/6185234][fix] DeepSeek-V3.2 tokenizer load on transformers 5.x'
@@ -10119,9 +10913,9 @@ prs:
   date: '2026-05-20'
   merged_at: '2026-05-20T07:00:41Z'
   author: yuxianq
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/attention_backend/interface.py, tensorrt_llm/_torch/attention_backend/sparse/dsa.py, tensorrt_llm/_torch/attention_backend/trtllm.py, tensorrt_llm/_torch/models/modeling_qwen.py'
+  reason: 'remove: no positive device-kernel implementation in 6 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10157,6 +10951,15 @@ prs:
   deletions: 27
   changed_file_count: 6
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14244
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/interface.py
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  - tensorrt_llm/_torch/attention_backend/trtllm.py
+  - tensorrt_llm/_torch/models/modeling_qwen.py
+  - tensorrt_llm/_torch/models/modeling_seedoss.py
+  - tensorrt_llm/_torch/modules/attention.py
+  files_reviewed_count: 6
+  scope_disposition: removed
 - number: 14243
   pr: 14243
   title: '[https://nvbugs/6094208][fix] AutoDeploy: skip bf16 Nemotron-Nano-V3 accuracy test on <80GB GPUs'
@@ -10354,7 +11157,7 @@ prs:
   author: longcheng-nv
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu, cpp/tensorrt_llm/kernels/heuristicTopKDecode.h, cpp/tensorrt_llm/kernels/indexerTopK.cu, tensorrt_llm/_torch/attention_backend/sparse/dsa.py'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu, cpp/tensorrt_llm/kernels/indexerTopK.cu'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10397,6 +11200,11 @@ prs:
   deletions: 41
   changed_file_count: 7
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14219
+  files_changed:
+  - cpp/tensorrt_llm/kernels/heuristicTopKDecode.cu
+  - cpp/tensorrt_llm/kernels/indexerTopK.cu
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 14215
   pr: 14215
   title: '[https://nvbugs/6184143][chore] AutoDeploy Waive DeciLM and GraniteMoEHybrid failures'
@@ -10435,9 +11243,9 @@ prs:
   date: '2026-05-19'
   merged_at: '2026-05-19T03:04:38Z'
   author: qiaoxj07
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/modules/fused_moe/mega_moe/mega_moe_deepgemm.py'
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10471,6 +11279,10 @@ prs:
   deletions: 0
   changed_file_count: 1
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14213
+  files_changed:
+  - tensorrt_llm/_torch/modules/fused_moe/mega_moe/mega_moe_deepgemm.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 14195
   pr: 14195
   title: '[None][doc] Update spec dec support matrices'
@@ -10509,10 +11321,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T08:16:00Z'
   author: bmarimuthu-nv
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tests/unittest/auto_deploy/_utils_test/torch_attention_reference.py, tests/unittest/auto_deploy/multigpu/custom_ops/test_moe_ep.py, tests/unittest/auto_deploy/multigpu/custom_ops/test_mxfp4_moe_ep.py,
-    tests/unittest/auto_deploy/singlegpu/custom_ops/attention/test_attention_op.py'
+  reason: 'remove: no positive device-kernel implementation in 97 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10678,6 +11489,17 @@ prs:
   deletions: 0
   changed_file_count: 97
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14193
+  files_changed:
+  - tensorrt_llm/_torch/auto_deploy/config/default.yaml
+  - tensorrt_llm/_torch/auto_deploy/config/transformers.yaml
+  - tests/unittest/auto_deploy/_utils_test/_custom_op_utils.py
+  - tests/unittest/auto_deploy/_utils_test/_dist_test_utils.py
+  - tests/unittest/auto_deploy/_utils_test/_graph_test_helpers.py
+  - tests/unittest/auto_deploy/_utils_test/_model_test_utils.py
+  - tests/unittest/auto_deploy/_utils_test/_torch_test_utils.py
+  - tests/unittest/auto_deploy/_utils_test/torch_attention_reference.py
+  files_reviewed_count: 97
+  scope_disposition: removed
 - number: 14185
   pr: 14185
   title: '[https://nvbugs/6162128][tests] Skip nano v3 E2E tests entirely on G/B300'
@@ -10722,9 +11544,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T01:15:19Z'
   author: longlee0622
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/quantization/quantize_by_modelopt.py'
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10747,6 +11569,10 @@ prs:
   deletions: 50
   changed_file_count: 1
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14179
+  files_changed:
+  - tensorrt_llm/quantization/quantize_by_modelopt.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 14172
   pr: 14172
   title: '[https://nvbugs/6025177][test] rcca tests using kimi k2.5 fp4'
@@ -10755,9 +11581,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T05:50:09Z'
   author: xinhe-nv
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tests/unittest/llmapi/apps/_test_openai_kv_cache_contamination.py'
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10785,6 +11611,13 @@ prs:
   deletions: 2
   changed_file_count: 4
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14172
+  files_changed:
+  - tests/integration/defs/test_e2e.py
+  - tests/integration/test_lists/qa/llm_function_core.txt
+  - tests/integration/test_lists/test-db/l0_dgx_b200.yml
+  - tests/unittest/llmapi/apps/_test_openai_kv_cache_contamination.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 14169
   pr: 14169
   title: '[https://nvbugs/6163030][fix] Unwaive testcase'
@@ -10854,9 +11687,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T20:14:37Z'
   author: cascade812
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/custom_ops/torch_custom_ops.py'
+  reason: 'remove: no positive device-kernel implementation in 1 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -10892,6 +11725,10 @@ prs:
   deletions: 8
   changed_file_count: 1
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14165
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/torch_custom_ops.py
+  files_reviewed_count: 1
+  scope_disposition: removed
 - number: 14149
   pr: 14149
   title: '[None][fix] Handle DeepSeek-V4 fused A scale shape'
@@ -10982,7 +11819,7 @@ prs:
   author: Hudayday
   decision: include
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/attention_backend/flashinfer.py, tensorrt_llm/_torch/attention_backend/triton_prefill.py, tensorrt_llm/_torch/models/modeling_gemma4.py, tensorrt_llm/_torch/models/modeling_gemma4mm.py'
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/attention_backend/triton_prefill.py'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11032,6 +11869,10 @@ prs:
   deletions: 16
   changed_file_count: 7
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14134
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/triton_prefill.py
+  files_reviewed_count: 7
+  scope_disposition: retained
 - number: 14120
   pr: 14120
   title: '[None][feat] Enable 2 DSv4 perf optimizations by default'
@@ -11040,9 +11881,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T09:02:16Z'
   author: lishicheng1996-nv
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/custom_ops/torch_custom_ops.py, tensorrt_llm/_torch/modules/attention.py'
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11076,6 +11917,11 @@ prs:
   deletions: 2
   changed_file_count: 2
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14120
+  files_changed:
+  - tensorrt_llm/_torch/custom_ops/torch_custom_ops.py
+  - tensorrt_llm/_torch/modules/attention.py
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 14069
   pr: 14069
   title: '[https://nvbugs/6152892][fix] Fix Triton MOE memory free when no swizzling enabled'
@@ -11084,9 +11930,9 @@ prs:
   date: '2026-05-17'
   merged_at: '2026-05-17T19:20:51Z'
   author: dongfengy
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/modules/fused_moe/fused_moe_triton.py'
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11135,6 +11981,13 @@ prs:
   deletions: 15
   changed_file_count: 4
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-14069
+  files_changed:
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_triton.py
+  - tests/integration/defs/accuracy/test_llm_api_pytorch.py
+  - tests/integration/defs/conftest.py
+  - tests/integration/test_lists/waives.txt
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 13975
   pr: 13975
   title: '[None][perf] Add CUDA q_b norm for DeepSeek V4'
@@ -11145,7 +11998,7 @@ prs:
   author: mingyangHao
   decision: include
   status: merged
-  reason: 'file-path kernel signal: cpp/tensorrt_llm/kernels/deepseekV4QNormKernel.cu, cpp/tensorrt_llm/kernels/deepseekV4QNormKernel.h, cpp/tensorrt_llm/thop/CMakeLists.txt, cpp/tensorrt_llm/thop/deepseekV4QNormOp.cpp'
+  reason: 'retain: CUDA/CuTe/PTX device implementation path(s): cpp/tensorrt_llm/kernels/deepseekV4QNormKernel.cu'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11182,6 +12035,10 @@ prs:
   deletions: 9
   changed_file_count: 8
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13975
+  files_changed:
+  - cpp/tensorrt_llm/kernels/deepseekV4QNormKernel.cu
+  files_reviewed_count: 8
+  scope_disposition: retained
 - number: 13968
   pr: 13968
   title: '[None][fix] Fix bugs related with nemotron-nas model'
@@ -11312,8 +12169,7 @@ prs:
   author: JacobHu-NV
   decision: include
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/custom_ops/cute_dsl_custom_ops.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/moe_as_dense_gemm/fc2.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/utils.py,
-    tests/scripts/cute_dsl_kernels/moe_as_dense_gemm/run_moe_as_dense_gemm_fc2.py'
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/cute_dsl_kernels/blackwell/moe_as_dense_gemm/fc2.py, tensorrt_llm/_torch/cute_dsl_kernels/blackwell/utils.py'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11369,6 +12225,11 @@ prs:
   deletions: 230
   changed_file_count: 4
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13833
+  files_changed:
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/moe_as_dense_gemm/fc2.py
+  - tensorrt_llm/_torch/cute_dsl_kernels/blackwell/utils.py
+  files_reviewed_count: 4
+  scope_disposition: retained
 - number: 13689
   pr: 13689
   title: '[None][feat] Add bf16 trtllm moe through flashinfer.'
@@ -11377,10 +12238,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T02:14:53Z'
   author: nv-guomingz
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/modules/fused_moe/configurable_moe.py, tensorrt_llm/_torch/modules/fused_moe/create_moe.py, tensorrt_llm/_torch/modules/fused_moe/fused_moe_trtllm_gen.py,
-    tensorrt_llm/_torch/modules/fused_moe/moe_op_backend.py'
+  reason: 'remove: no positive device-kernel implementation in 15 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11438,6 +12298,17 @@ prs:
   deletions: 58
   changed_file_count: 15
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13689
+  files_changed:
+  - tensorrt_llm/_torch/modules/fused_moe/configurable_moe.py
+  - tensorrt_llm/_torch/modules/fused_moe/create_moe.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_trtllm_gen.py
+  - tensorrt_llm/_torch/modules/fused_moe/moe_op_backend.py
+  - tensorrt_llm/_torch/modules/fused_moe/moe_scheduler.py
+  - tensorrt_llm/_torch/modules/fused_moe/quantization.py
+  - tests/integration/defs/.test_durations
+  - tests/integration/defs/accuracy/references/gsm8k.yaml
+  files_reviewed_count: 15
+  scope_disposition: removed
 - number: 13630
   pr: 13630
   title: '[#13580][fix] AutoDeploy: Support Gemma3n/4 E2B variants'
@@ -11448,8 +12319,7 @@ prs:
   author: bmarimuthu-nv
   decision: include
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/auto_deploy/compile/backends/torch_cudagraph.py, tensorrt_llm/_torch/auto_deploy/custom_ops/attention/triton_paged_attention.py, tensorrt_llm/_torch/auto_deploy/models/custom/modeling_gemma3n.py,
-    tensorrt_llm/_torch/auto_deploy/models/custom/modeling_gemma4.py'
+  reason: 'retain: Python DSL device-kernel implementation added in: tensorrt_llm/_torch/auto_deploy/custom_ops/attention/triton_paged_attention.py'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11527,6 +12397,10 @@ prs:
   deletions: 203
   changed_file_count: 26
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13630
+  files_changed:
+  - tensorrt_llm/_torch/auto_deploy/custom_ops/attention/triton_paged_attention.py
+  files_reviewed_count: 26
+  scope_disposition: retained
 - number: 13575
   pr: 13575
   title: '[TRTLLM-12316][feat] Integrate FP4 indexer for DSv4'
@@ -11535,10 +12409,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T02:18:47Z'
   author: mikeiovine
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/attention_backend/sparse/deepseek_v4/cache_manager.py, tensorrt_llm/_torch/attention_backend/sparse/deepseek_v4/deepseek_v4.py, tensorrt_llm/_torch/attention_backend/sparse/dsa.py,
-    tensorrt_llm/_torch/model_config.py'
+  reason: 'remove: no positive device-kernel implementation in 13 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11595,6 +12468,17 @@ prs:
   deletions: 189
   changed_file_count: 13
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13575
+  files_changed:
+  - tensorrt_llm/_torch/attention_backend/sparse/deepseek_v4/cache_manager.py
+  - tensorrt_llm/_torch/attention_backend/sparse/deepseek_v4/deepseek_v4.py
+  - tensorrt_llm/_torch/attention_backend/sparse/dsa.py
+  - tensorrt_llm/_torch/model_config.py
+  - tensorrt_llm/_torch/modules/attention.py
+  - tensorrt_llm/llmapi/llm_args.py
+  - tests/integration/test_lists/test-db/l0_dgx_b200.yml
+  - tests/unittest/_torch/attention/sparse/deepseek_v4/test_deepseek_v4_cache_manager.py
+  files_reviewed_count: 13
+  scope_disposition: removed
 - number: 13401
   pr: 13401
   title: '[TRTLLM-11127][feat] add W4A8_MXFP4_FP8 MoE unit test support'
@@ -11603,9 +12487,9 @@ prs:
   date: '2026-05-19'
   merged_at: '2026-05-19T13:19:29Z'
   author: xxi-nv
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tests/unittest/_torch/modules/moe/moe_test_utils.py, tests/unittest/_torch/modules/moe/quantize_utils.py, tests/unittest/_torch/modules/moe/test_moe_backend.py, tests/unittest/_torch/modules/moe/test_moe_module.py'
+  reason: 'remove: no positive device-kernel implementation in 4 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11652,6 +12536,13 @@ prs:
   deletions: 14
   changed_file_count: 4
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-13401
+  files_changed:
+  - tests/unittest/_torch/modules/moe/moe_test_utils.py
+  - tests/unittest/_torch/modules/moe/quantize_utils.py
+  - tests/unittest/_torch/modules/moe/test_moe_backend.py
+  - tests/unittest/_torch/modules/moe/test_moe_module.py
+  files_reviewed_count: 4
+  scope_disposition: removed
 - number: 13349
   pr: 13349
   title: '[https://nvbugs/6094108][fix] Fix Qwen3-30B-A3B NVFP4 tep4 CUTLASS MoE test OOM on B300'
@@ -11733,9 +12624,9 @@ prs:
   date: '2026-05-18'
   merged_at: '2026-05-18T01:49:54Z'
   author: sunnyqgg
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: tensorrt_llm/_torch/models/modeling_deepseekv3.py'
+  reason: 'remove: no positive device-kernel implementation in 2 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11759,6 +12650,11 @@ prs:
   deletions: 7
   changed_file_count: 2
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-12530
+  files_changed:
+  - tensorrt_llm/_torch/models/modeling_deepseekv3.py
+  - tests/integration/test_lists/waives.txt
+  files_reviewed_count: 2
+  scope_disposition: removed
 - number: 11561
   pr: 11561
   title: '[None][fix] Fix int4 awq for sm120/121'
@@ -11767,10 +12663,9 @@ prs:
   date: '2026-05-20'
   merged_at: '2026-05-20T01:14:02Z'
   author: pamelap-nvidia
-  decision: include
+  decision: exclude
   status: merged
-  reason: 'file-path kernel signal: cpp/tensorrt_llm/kernels/cutlass_kernels/cutlass_heuristic.cpp, tensorrt_llm/_torch/custom_ops/torch_custom_ops.py, tensorrt_llm/_torch/modules/fused_moe/fused_moe_cutlass.py,
-    tensorrt_llm/quantization/functional.py'
+  reason: 'remove: no positive device-kernel implementation in 8 authoritative changed file(s)'
   inclusion_reason: Merged CUDA/kernel optimization PR with changed files matching existing corpus kernel paths or kernel source signals.
   seed_source: github-search
   tags:
@@ -11833,3 +12728,14 @@ prs:
   deletions: 22
   changed_file_count: 8
   artifact_dir: evidence/pull-bundles/tensorrt-llm/gh-11561
+  files_changed:
+  - cpp/tensorrt_llm/kernels/cutlass_kernels/cutlass_heuristic.cpp
+  - tensorrt_llm/_torch/custom_ops/torch_custom_ops.py
+  - tensorrt_llm/_torch/modules/fused_moe/fused_moe_cutlass.py
+  - tensorrt_llm/quantization/functional.py
+  - tests/integration/test_lists/test-db/l0_rtx_pro_6000.yml
+  - tests/unittest/_torch/thop/parallel/test_finegrained_mixed_dtype_gemm.py
+  - tests/unittest/_torch/thop/parallel/test_w4a16_linear.py
+  - tests/unittest/_torch/thop/parallel/test_w4a8_linear.py
+  files_reviewed_count: 8
+  scope_disposition: removed

@@ -38,4 +38,10 @@ When the skill is actually engaged, a typical query reads `SKILL.md` plus one or
 
 ## Bound Compliance
 
-Phase 3 Round 2 working-tree is 9.30 MiB across 998 files. That is under the AC-10 lower-bound ceiling of 25 MiB and the 6000-file budget, with 15.7 MiB / 5002 files of headroom for future captures. Re-run `scripts/repo_size_check.py` any time to reconfirm.
+The Phase 3 Round 2 working tree was 9.30 MiB across 998 files, under the
+25 MiB AC-10 size ceiling with 15.7 MiB of size headroom. AC-10's separate
+6,000-file budget applies only to files under `artifacts/`; this historical
+memo did not preserve that artifact-file count, so it makes no historical
+file-headroom claim. Re-running `scripts/repo_size_check.py` reports the current
+working-tree size and enforces the current `artifacts/` file budget; it does
+not enforce a whole-working-tree file-count budget.

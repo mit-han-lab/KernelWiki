@@ -19,7 +19,7 @@ Trigger this skill when the user asks about:
 - **DSLs for Blackwell** — CuTe DSL, CUDA C++ with PTX inline, Triton on Blackwell
 - **Hopper → Blackwell migration** — wgmma → tcgen05, register → TMEM accumulators
 - **PR references** — "how did vLLM/SGLang/FlashInfer/CUTLASS/PyTorch implement X for SM100?"
-- **Competition solutions** — GPU Mode NVFP4 hackathon, FlashInfer MLSys 2026 submissions
+- **Competition context** — GPU Mode NVFP4 hackathon and FlashInfer MLSys 2026 task definitions, speed-of-light data, and dated results snapshots; participant write-ups are separate blog sources
 
 Do NOT use this skill for:
 
@@ -57,8 +57,8 @@ python3 scripts/get_page.py kernel-flash-attention-4 --body-only
 ### Path 3: Regex text search across wiki bodies and PR pages
 
 ```bash
-python3 scripts/grep_wiki.py "tcgen05\\.fence"
-python3 scripts/grep_wiki.py "2-CTA backward" --only wiki
+python3 scripts/grep_wiki.py "tcgen05" --only wiki
+python3 scripts/grep_wiki.py "two-CTA" --only wiki
 python3 scripts/grep_wiki.py "nvfp4" "block_scale" --any
 ```
 
@@ -66,8 +66,9 @@ python3 scripts/grep_wiki.py "nvfp4" "block_scale" --any
 
 Auto-generated under `queries/`:
 
+- `queries/by-architecture.md` — exact SM, family-only, and validated-unknown architecture evidence
 - `queries/by-problem.md` — symptom → pattern page → candidate techniques
-- `queries/by-technique.md` — 15 techniques with architectures, confidence, reproducibility, source count
+- `queries/by-technique.md` — 17 techniques with architectures, confidence, reproducibility, source count
 - `queries/by-hardware-feature.md` — tcgen05/tmem/clc/tma/nvfp4/etc. → related wiki + PR pages
 - `queries/by-kernel-type.md` — gemm/attention/moe/mla/gated-delta-net → pages
 - `queries/by-language.md` — cute-dsl/cuda-cpp/ptx/triton → guide page + related kernels/sources
@@ -94,13 +95,13 @@ When answering from this KB:
 ## Knowledge Base Contents
 
 - Source PR pages, synthesized wiki pages, blog/doc/contest summaries, candidate ledgers, query indices, and artifact bundles.
-- **Verbatim/extracted/derived asset bundles** in `artifacts/` (PR diffs, kernel files, blog code) — pinned to upstream SHAs via `PROVENANCE.yaml`
+- **Verbatim upstream asset bundles** in `artifacts/` (PR patches and complete kernel files or excerpts) — pinned to upstream SHAs via `PROVENANCE.yaml`
 - **Auto-generated query indices** in `queries/`
 - **Controlled vocabulary** (80+ tags) in `data/tags.yaml`, alias map in `data/aliases.yaml`
 - **Hybrid version-claim registry** — per-page `version_sensitive: <id>` pointers + `data/version-claims.yaml` central registry, validated for bidirectional consistency
 - **Status script** `scripts/repo_status.py` — current corpus counts
 - **Validator** `scripts/validate.py` — schema, link, artifact, and ledger checks
-- **Blackwell-first** — SM90 pages only appear when they carry explicit `blackwell_relevance`
+- **Blackwell-first** — Hopper-only wiki pages carry explicit `blackwell_relevance`; source pages preserve upstream evidence and are exempt
 
 To refresh the corpus: run `scripts/refresh_candidate_ledger.py`, regenerate PR pages and query indices, then validate.
 
@@ -108,5 +109,5 @@ To refresh the corpus: run `scripts/refresh_candidate_ledger.py`, regenerate PR 
 
 - Every `verified` page has official-doc + upstream-code evidence
 - Every technique/kernel/language page has a compilable snippet
-- Every PR page has `inclusion_reason` and `status: merged`
-- All Hopper-inclusive pages have explicit `blackwell_relevance`
+- Every PR page has `inclusion_reason` and an evidence-backed status; current distribution: 942 merged, 2 closed without merge
+- All Hopper-only wiki pages have explicit `blackwell_relevance`; source pages are exempt

@@ -2,8 +2,8 @@
 """Text search across wiki bodies and source PR descriptions.
 
 Usage:
-    grep_wiki.py "tcgen05.fence"
-    grep_wiki.py "2-CTA backward" --only wiki
+    grep_wiki.py "tcgen05" --only wiki
+    grep_wiki.py "two-CTA" --only wiki
     grep_wiki.py "ping-pong" --context 3
     grep_wiki.py "nvfp4 block_scale" --any     # match if ANY word appears
 

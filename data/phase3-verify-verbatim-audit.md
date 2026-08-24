@@ -1,8 +1,13 @@
 # Phase 3 SHA-pinned strict verify audit log
 
-Captured: 2026-04-17T23:37:21Z (R25 refresh: same 7 pytorch PRs refetched again after the R25 atomic-swap changes; the gh abbreviation cache flipped between sessions, so local diff.patch bytes needed re-alignment with the upstream 12-char abbreviation.)
+Historical capture: 2026-04-17T23:37:21Z (R25 refresh: same 7 pytorch PRs refetched again after the R25 atomic-swap changes; the gh abbreviation cache flipped between sessions, so local diff.patch bytes needed re-alignment with the upstream 12-char abbreviation.)
 Command : `python3 scripts/verify_verbatim.py --strict`
 Exit    : 0 (documented contract: 0 = full-corpus upstream byte-match; 1 = --strict content mismatch; 2 = env failure)
+
+The environment, scope, and stdout below are preserved as the dated historical
+capture, not presented as the current corpus size. The post-Round-24 worktree
+has 37 provenance bundles; strict verification again exits 0 and reports all
+37 as matching upstream.
 
 ## Environment
 
@@ -11,7 +16,7 @@ gh version 2.90.0 (2026-04-16)
   ✓ Logged in to github.com account DongyunZou (/home/dongyun/.config/gh/hosts.yml)
 ```
 
-## Scope
+## Historical scope
 
 - 87 asset bundles under `artifacts/` (89 post-R32 − 2 more blog
   extraction bundles that turned `code_present: false` in R35 after
@@ -23,7 +28,7 @@ gh version 2.90.0 (2026-04-16)
   (`DP=8, EP=8, TP=1`, `vllm serve ... --tensor-parallel-size 8`).)
 - 301 files with `mode: verbatim` or `mode: upstream-patch` and no `size_cap_truncated` marker (was 310; minus the files in the 3 dropped vendor-prefixed PR bundles and the pseudo-code file in ping-pong-scheduling/full)
 
-## stdout
+## Historical stdout
 
 ```
 Verified 87 bundle(s).
@@ -48,8 +53,9 @@ path Codex's review environment takes.
 
 1. Install gh CLI and run `gh auth login`.
 2. From the repo root: `python3 scripts/verify_verbatim.py --strict`.
-3. Compare the exit code + stdout against this log. In a network-capable
-   environment the expected exit is 0 and the stdout is
-   "Verified 76 bundle(s). / All verbatim/upstream-patch assets match upstream."
+3. In a network-capable environment, require exit 0 and the final stdout line
+   `All verbatim/upstream-patch assets match upstream.` The preceding
+   `Verified N bundle(s).` count follows the current corpus; at the
+   post-Round-24 state it is `Verified 37 bundle(s).`
 4. In an offline environment the verifier correctly exits 2 (`ENV:` stream),
    NOT 1 — proving the contract separates env failure from content mismatch.

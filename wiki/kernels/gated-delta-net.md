@@ -1,271 +1,55 @@
 ---
 id: kernel-gated-delta-net
-title: Gated Delta Net — Linear Attention
+title: Gated Delta Network kernels
 type: kernel
-architectures:
-- sm100
-- sm90
-tags:
-- gated-delta-net
-- linear-attention
-- attention
+architectures: [sm100, sm90]
+tags: [gated-delta-net, linear-attention, triton, kernel-fusion]
 confidence: source-reported
 reproducibility: snippet
-kernel_types:
-- gated-delta-net
-- linear-attention
-- decode
-- prefill
-- attention
-languages:
-- triton
-- cuda-cpp
-related:
-- technique-pipeline-stages
-sources:
-- blog-gated-delta-net
-- doc-tfla
-- pr-vllm-37303
-performance_claims:
-- gpu: H100
-  dtype: bf16
-  shape: seqlen=8192, qk_dim=4, v_dim=8, d=128
-  metric: speedup
-  value: 10
-  utilization: vs Qwen3-32B at 32K+ context, O(n) linear complexity
-  source_id: blog-gated-delta-net
-blackwell_relevance: Blackwell prefill kernel in progress; decode done for both SM90/SM100.
-  TFLA uses tcgen05 PTX on Blackwell.
+kernel_types: [gated-delta-net, linear-attention]
+languages: [triton, python]
+related: [technique-kernel-fusion, pattern-memory-bound]
+sources: [blog-gated-delta-net, contest-flashinfer-track-c, pr-sglang-21019]
+performance_claims: []
+blackwell_relevance: The FlashInfer contest targeted B200 Gated Delta Net decode and prefill; the retained SGLang projection-fusion example was reported on H200 and is not presented as a Blackwell-specific kernel.
 artifact_dir: artifacts/kernels/gated-delta-net
 ---
 
-# Gated Delta Net -- Linear Attention
+# Gated Delta Network kernels
 
-## Overview
+Gated Delta Networks combine a gated recurrent state update with a delta-rule
+correction. Implementations commonly separate or fuse projections, local
+convolution, recurrence/chunk processing, normalization, and output projection.
+The exact recurrence must come from the paper or implementation; a simple gated
+outer-product update is not an equivalent substitute.
 
-Gated Delta Networks (GatedDeltaNet) replace standard O(n^2) attention with an O(n) linear attention mechanism that uses a delta rule for error-correcting memory updates and exponential gating for adaptive decay. Published at ICLR 2025 by NVlabs, GatedDeltaNet is deployed in production in Qwen3-Next-80B (3:1 hybrid ratio with full attention) and Qwen3.5 (262K context window).
+## Retained implementation excerpt
 
-The key advantage is O(1) per-token cost during decoding: the recurrent state is a fixed-size matrix that gets updated with each new token, eliminating the KV cache growth problem entirely.
-
-## Architecture in Qwen3-Next
-
-```
-Qwen3-Next-80B: 48 layers
-Pattern: 12 x (3 x [GatedDeltaNet -> MoE] -> [Full Attention -> MoE])
-
-Layer distribution:
-  - 36 GatedDeltaNet layers (75%): O(n) linear attention
-  - 12 Full Attention layers  (25%): Standard GQA for global retrieval
-  - All layers followed by MoE: 512 experts, ~19 active per token
-
-Total: 80B parameters, only 3B active per token
-```
-
-## Delta Rule Mechanism
-
-Unlike standard linear attention (which uses simple additive updates to the recurrent state), the delta rule performs targeted error-correcting updates:
+SGLang PR 21019 fuses the split/reshape/concatenate work around Qwen3.5's GDN
+projection. It is not the recurrent update itself. This contiguous excerpt from
+the captured Triton file shows its interleaved-input stores:
 
 ```python
-# Standard linear attention (additive):
-#   S_t = S_{t-1} + v_t @ k_t^T
-#
-# Delta rule (error-correcting):
-#   S_t = S_{t-1} + (v_t - S_{t-1} @ k_t) @ k_t^T
-#                    ^^^^^^^^^^^^^^^^^^^^^^^^
-#                    Error correction term
-
-def delta_rule_step(S, k, v, beta, alpha):
-    """
-    Single step of gated delta rule update.
-
-    S: recurrent state [d_k, d_v] (the "memory matrix")
-    k: key vector [d_k]
-    v: value vector [d_v]
-    beta: exponential gate (learned, controls decay)
-    alpha: delta gate (learned, controls update strength)
-    """
-    # Retrieve what the current state "thinks" about this key
-    v_retrieved = S @ k  # [d_v]
-
-    # Error: difference between true value and retrieved value
-    delta = v - v_retrieved  # [d_v]
-
-    # Gated update: decay old state, add error-corrected new info
-    S_new = beta * S + alpha * (delta[:, None] @ k[None, :])
-    #       ^^^^^^       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    #       decay         error-correcting update
-
-    return S_new
+tl.store(blk_q_st_ptr, tl.load(blk_q_ptr))
+tl.store(blk_k_st_ptr, tl.load(blk_k_ptr))
+tl.store(blk_v_st_ptr, tl.load(blk_v_ptr))
+tl.store(blk_z_st_ptr, tl.load(blk_z_ptr))
 ```
 
-## Chunk-Based Parallel Prefill
+The full upstream file supports both the interleaved Qwen3-Next layout and the
+contiguous Qwen3.5 layout. Layout identity is therefore a correctness condition,
+not a performance-only choice.
 
-During prefill, sequences are divided into chunks that can be processed in parallel. Within each chunk, the inter-token dependencies are resolved via a causal linear recurrence; across chunks, the recurrent state is propagated sequentially.
+## Evidence and reproduction boundary
 
-```python
-import triton
-import triton.language as tl
+- The NVlabs repository provides the research reference and points to FLA for
+  a faster variable-length implementation.
+- The FlashInfer MLSys 2026 page identifies a B200 Gated Delta Net track and
+  winner names, but publishes no latency or throughput table.
+- The retained SGLang PR description reports an H200 projection-fusion
+  benchmark; it does not validate a `tcgen05.mma` form or a universal GDN
+  mainloop.
 
-@triton.jit
-def gated_delta_net_chunk_fwd(
-    Q_ptr, K_ptr, V_ptr, Beta_ptr, O_ptr, State_ptr,
-    SEQ_LEN: tl.constexpr,
-    CHUNK_SIZE: tl.constexpr,    # e.g., 64 or 128
-    D_QK: tl.constexpr,         # qk_dim * d = 4 * 128 = 512
-    D_V: tl.constexpr,          # v_dim * d = 8 * 128 = 1024
-):
-    """
-    Chunk-parallel forward pass for GatedDeltaNet.
-    Two levels of parallelism:
-      1. Across chunks (parallel after inter-chunk state propagation)
-      2. Within chunks (parallel via matrix operations)
-    """
-    chunk_id = tl.program_id(0)
-    batch_id = tl.program_id(1)
-    head_id = tl.program_id(2)
-
-    chunk_start = chunk_id * CHUNK_SIZE
-
-    # Load recurrent state from previous chunk
-    # S shape: [D_QK, D_V]
-    S = tl.load(State_ptr + (batch_id * NUM_HEADS + head_id) * D_QK * D_V
-                + tl.arange(0, D_QK)[:, None] * D_V
-                + tl.arange(0, D_V)[None, :])
-
-    # Intra-chunk computation
-    for t in range(CHUNK_SIZE):
-        pos = chunk_start + t
-
-        # Load q, k, v, beta for this token
-        q = tl.load(Q_ptr + pos * D_QK + tl.arange(0, D_QK))
-        k = tl.load(K_ptr + pos * D_QK + tl.arange(0, D_QK))
-        v = tl.load(V_ptr + pos * D_V + tl.arange(0, D_V))
-        beta = tl.load(Beta_ptr + pos)
-
-        # Output: query the state
-        o = tl.sum(S * q[:, None], axis=0)  # [D_V]
-
-        # Delta rule update
-        v_retrieved = tl.sum(S * k[:, None], axis=0)
-        delta = v - v_retrieved
-
-        # Gated state update
-        S = beta * S + delta[:, None] * k[None, :]  # [D_QK, D_V]
-
-        # Store output
-        tl.store(O_ptr + pos * D_V + tl.arange(0, D_V), o)
-
-    # Store final state for next chunk
-    tl.store(State_ptr + (batch_id * NUM_HEADS + head_id) * D_QK * D_V
-             + tl.arange(0, D_QK)[:, None] * D_V
-             + tl.arange(0, D_V)[None, :], S)
-```
-
-## Streaming Decode Kernel
-
-During autoregressive decoding, each new token only requires one state update -- O(1) per token regardless of context length.
-
-```python
-@triton.jit
-def gated_delta_net_decode(
-    Q_ptr, K_ptr, V_ptr, Beta_ptr, O_ptr, State_ptr,
-    D_QK: tl.constexpr,
-    D_V: tl.constexpr,
-):
-    """
-    Single-token decode: O(1) per token.
-    The recurrent state replaces the KV cache entirely.
-    State size: D_QK * D_V (e.g., 512 * 1024 = 512K floats per head)
-    """
-    batch_id = tl.program_id(0)
-    head_id = tl.program_id(1)
-
-    # Load persistent recurrent state
-    state_offset = (batch_id * NUM_HEADS + head_id) * D_QK * D_V
-    S = tl.load(State_ptr + state_offset
-                + tl.arange(0, D_QK)[:, None] * D_V
-                + tl.arange(0, D_V)[None, :])
-
-    # Load new token
-    q = tl.load(Q_ptr + tl.arange(0, D_QK))
-    k = tl.load(K_ptr + tl.arange(0, D_QK))
-    v = tl.load(V_ptr + tl.arange(0, D_V))
-    beta = tl.load(Beta_ptr)
-
-    # Query state for output
-    o = tl.sum(S * q[:, None], axis=0)
-
-    # Update state with delta rule
-    v_retrieved = tl.sum(S * k[:, None], axis=0)
-    delta = v - v_retrieved
-    S = beta * S + delta[:, None] * k[None, :]
-
-    # Store
-    tl.store(O_ptr + tl.arange(0, D_V), o)
-    tl.store(State_ptr + state_offset
-             + tl.arange(0, D_QK)[:, None] * D_V
-             + tl.arange(0, D_V)[None, :], S)
-```
-
-## TFLA: Tiled Flash Linear Attention
-
-TFLA adds a second level of tiling within chunks, enabling arbitrarily large chunk sizes. It emits matmuls as inline PTX assembly for both Hopper (WGMMA) and Blackwell (tcgen05).
-
-```cpp
-// TFLA: Inline PTX for Blackwell tcgen05 matmul within chunk tiles
-// Two levels of parallelism: standard chunkwise + tiling within chunks
-
-// SM100 path: tcgen05.mma for intra-chunk matrix operations
-asm volatile(
-    "tcgen05.mma.cta_group::1.kind::f16f16f32"
-    " [%0], %1, %2;"
-    :
-    : "l"(tmem_addr), "l"(a_smem_addr), "l"(b_smem_addr)
-);
-```
-
-## Implementations
-
-Two main implementations exist:
-
-| Implementation | Source | Notes |
-|----------------|--------|-------|
-| NVlabs/GatedDeltaNet | Reference | Triton kernels, research quality |
-| FLA (Flash Linear Attention) | Recommended | Optimized, significantly faster, variable-length support |
-
-## FlashInfer MLSys 2026 Contest
-
-GatedDeltaNet is Track C of the FlashInfer MLSys 2026 contest:
-- Parameters: qk_dim=4, v_dim=8, d=128
-- Benchmarks: decode `qk4_v8_d128_k_last`, prefill `qk4_v8_d128_k_last`
-- Status: decode done for both Hopper and Blackwell; prefill done on Hopper, in progress for Blackwell
-
-## When to Use
-
-- Long-context inference (32K+) where O(n) scaling provides major throughput gains
-- Hybrid architectures combining linear attention (75% of layers) with full attention (25%)
-- Streaming decode where O(1) per-token cost eliminates KV cache growth
-
-## Caveats
-
-- Triton-based kernels have CPU launch overhead impacting small decode batches; use CUDA graph mode via vLLM
-- Recurrent state size (D_QK * D_V per head) can be large -- 512K floats for typical configs
-- Quality depends on the learned gating; not a drop-in replacement for standard attention without retraining
-- Attention output gating (in Qwen3.5) is required to eliminate Attention Sink and Massive Activation problems
-
-## Sources
-
-- [GatedDeltaNet (ICLR 2025)](https://github.com/NVlabs/GatedDeltaNet)
-- [TFLA paper](https://arxiv.org/abs/2503.14376)
-- [Qwen3-Next NVIDIA blog](https://developer.nvidia.com/blog/new-open-source-qwen3-next-models-preview-hybrid-moe-architecture-delivering-improved-accuracy-and-accelerated-parallel-processing-across-nvidia-platform/)
-- [FlashInfer MLSys 2026 Contest](https://mlsys26.flashinfer.ai/)
-
-## Full Reference Implementation
-
-Verbatim upstream code lives in [`artifacts/kernels/gated-delta-net/full/`](../../artifacts/kernels/gated-delta-net/full/); labeled derived variants (each with the required `// provenance: derived from ...; not upstream code` header) live in [`artifacts/kernels/gated-delta-net/variants/`](../../artifacts/kernels/gated-delta-net/variants/). Every file's SHA-256 and upstream-pinning metadata is in `PROVENANCE.yaml` inside each bundle.
-
-Query via:
-
-```bash
-python3 scripts/get_page.py kernel-gated-delta-net --include-code
-```
+The former synthetic prefill/decode kernels and invalid tcgen inline PTX were
+removed. Reproduction requires an upstream implementation plus its model
+layout, recurrence parameters, state initialization, dtype, and tolerance.

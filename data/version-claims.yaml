@@ -22,8 +22,8 @@ claims:
   - id: vs-triton-3.6-blackwell-tcgen05
     tool: triton
     claim_valid_for: ">=3.6"
-    last_verified_release: "3.6.0"
-    last_verified_at: 2026-04-27
+    last_verified_release: "3.7.1"
+    last_verified_at: 2026-08-18
     applies_to:
       - wiki/languages/triton-blackwell.md
       - references/primer.md
@@ -32,35 +32,16 @@ claims:
     source_ids:
       - doc-triton-3.6-blackwell
       - pr-vllm-34597
-      - pr-vllm-29339
       - pr-sglang-22079
       - pr-sglang-21019
-      - pr-sglang-5390
-      - pr-sglang-21595
-      - pr-pytorch-175826
     notes: |
-      Tracks the claim that Triton 3.6+ has native Blackwell (SM100) lowering
-      paths through tcgen05.mma + TMEM (descriptor/TMA + warp_specialize on
-      tl.dot, plus Gluon multi-CTA + 2CTA on tcgen05_mma_scaled), replacing
-      the obsolete 3.5-era "no tcgen05 / no TMEM" framing. Supporting evidence:
-      data/triton-3.6-evidence.md memo plus the official release notes
-      (doc-triton-3.6-blackwell). AC-1.1 "new tracked-repo PR page demonstrates
-      a kernel" anchor: pr-vllm-34597 (post-refresh; vLLM "[Kernel] Add FP8 KV
-      cache support to Triton MLA decode attention", merged 2026-02-16, sm100,
-      directly modifying @triton.jit kernels in vllm/v1/attention/ops/
-      triton_decode_attention.py with tl.dot matmul + vllm/v1/attention/
-      backends/mla/triton_mla.py; Triton kernel shipped verbatim under
-      artifacts/prs/vllm/PR-34597/ pinned at SHA a1257fd1). Supplementary
-      post-refresh anchor: pr-vllm-29339 (Triton 3.6 triton_kernels library
-      scoped to [sm100, sm90] for MXFP4 dispatch-gate, merged 2025-11-24).
-      Pre-refresh historical anchors retained as supplementary context (each
-      appears in data/refresh-cutoff.yaml::previous_pages_manifest):
-      pr-sglang-22079 (Gemma4 NVFP4 Triton attention kernel doing real tl.dot
-      matmul on [sm100, sm90], merged 2026-04-03), pr-sglang-21019
-      (memory-rearrangement Triton kernel on SM100, merged 2026-03-20, no
-      tl.dot), pr-sglang-5390, pr-sglang-21595, pr-pytorch-175826 (ecosystem
-      context). The strongest possible demonstrations of the 3.6 Blackwell-
-      native paths (descriptor/TMA + warp_specialize, tl.dot_scaled, Gluon
-      multi-CTA/2CTA) have NOT been found in any tracked-downstream merged
-      PR locally; future refresh rounds should backfill such an anchor when
-      one becomes available.
+      Tracks the claim that Triton 3.6 contains Blackwell TMEM, tcgen05,
+      warp-specialization, scaled-MMA, and initial multi-CTA infrastructure.
+      The official release notes establish compiler capability. Retained
+      downstream anchors pr-vllm-34597 and pr-sglang-22079 demonstrate real
+      tl.dot kernels on SM100 paths; pr-sglang-21019 demonstrates an SM100
+      Triton memory-rearrangement kernel but not MMA lowering. These sources
+      do not prove a particular instruction form or performance for every
+      tl.dot shape. The 3.7.0 and 3.7.1 release records were checked on
+      2026-08-18 for continuity; the capability provenance remains the 3.6
+      release where these features were introduced.

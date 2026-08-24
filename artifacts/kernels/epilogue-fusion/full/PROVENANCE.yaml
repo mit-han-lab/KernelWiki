@@ -15,9 +15,3 @@ files:
   upstream_repo: vllm-project/vllm
   upstream_sha: ed7a29d9
   upstream_path: csrc/quantization/fp4/nvfp4_scaled_mm_kernels.cu
-- local_path: tmem-load-into-registers-for-epilogue.cu
-  sha256: 8f594e1bc797f434be05602f0dd2be872927b618b37b177fe70071febb86e6ea
-  role: extracted-block
-  mode: extracted
-  upstream_path: sources/blogs/colfax-cutlass-blackwell.md
-  heading_path: '## Key Code > ### TMEM load into registers for epilogue'
