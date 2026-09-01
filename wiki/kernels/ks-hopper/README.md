@@ -4,6 +4,10 @@
 
 其他 NVIDIA GPU 架构及 AMD、昇腾等非 Hopper 平台的专用优化 Skill 不应存放在本目录中。若某项方法具有跨平台通用性，也应围绕 Hopper 架构的实际约束、实现和验证方式编写。
 
+## 已收录 Skills
+
+- [`profile-and-optimize-vllm-kernels`](profile-and-optimize-vllm-kernels/SKILL.md)：从真实 vLLM E2E、mapping/formal trace 和 leaf kernel 占比出发，完成 Hopper kernel 热点选择、源码优化、精度门禁、镜像替换及交错 E2E 验收；包含 FlashMLA split/combine 案例。
+
 ## 目标
 
 - 将 NVIDIA Hopper 架构 Kernel 优化经验整理为可执行、可复用的 Skill。

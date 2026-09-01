@@ -1,0 +1,4 @@
+interface:
+  display_name: "Profile and Optimize vLLM Kernels"
+  short_description: "Profile Hopper vLLM workloads and optimize GPU kernels"
+  default_prompt: "Use $profile-and-optimize-vllm-kernels to profile a Hopper vLLM workload, rank GPU kernel hotspots, implement one controlled optimization, and validate correctness and E2E performance."
