@@ -1,0 +1,3 @@
+interface:
+  display_name: "Hopper FlashInfer AllReduce"
+  short_description: "优化和验证 Hopper FlashInfer AllReduce 路径"
