@@ -1,0 +1,25 @@
+# provenance: derived from doc-ptx-isa-sm100; output of sm120_block_scale_probe.cu on RTX PRO 6000 Blackwell, CUDA 13.0, 2026-10-01; not upstream code
+mxf4nvf4 4X  thread-id-a 0 thread-id-b 0 : maxrel 0.00e+00 PASS
+mxf4nvf4 4X  thread-id-a 0 thread-id-b 1 : maxrel 0.00e+00 PASS
+mxf4nvf4 4X  thread-id-a 0 thread-id-b 2 : maxrel 0.00e+00 PASS
+mxf4nvf4 4X  thread-id-a 0 thread-id-b 3 : maxrel 0.00e+00 PASS
+mxf4nvf4 4X  thread-id-a 1 thread-id-b 0 : maxrel 0.00e+00 PASS
+mxf4nvf4 4X  thread-id-a 1 thread-id-b 1 : maxrel 0.00e+00 PASS
+mxf4nvf4 4X  thread-id-a 1 thread-id-b 2 : maxrel 0.00e+00 PASS
+mxf4nvf4 4X  thread-id-a 1 thread-id-b 3 : maxrel 0.00e+00 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 0 thread-id-b 1  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 1 thread-id-b 0  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 3 thread-id-b 0  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 1 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 1 thread-id-a 0 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 3 thread-id-a 0 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 1 thread-id-a 1 byte-id-b 1 thread-id-b 1  B lanes q!=thread-id-b poisoned=0 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 0 thread-id-b 1  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 1 thread-id-b 0  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 0 byte-id-b 3 thread-id-b 0  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 0 thread-id-a 1 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 1 thread-id-a 0 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 3 thread-id-a 0 byte-id-b 0 thread-id-b 0  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS
+mxf8f6f4 1X  byte-id-a 1 thread-id-a 1 byte-id-b 1 thread-id-b 1  B lanes q!=thread-id-b poisoned=1 : maxrel 1.18e-07 PASS

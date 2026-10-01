@@ -1,0 +1,21 @@
+origin_url: https://github.com/heygen-com/prodai/pull/1692
+upstream_repo: heygen-com/prodai
+license: MIT
+retrieved_at: '2026-10-01'
+asset_mode: derived
+derived_from: [doc-ptx-isa-sm100]
+generated_by: manual
+notes: >-
+  First-party lane-poisoning probe of the SM120 block-scaled mma.sync operand layouts (kind::mxf4nvf4
+  scale_vec::4X and kind::mxf8f6f4 scale_vec::1X). Lanes a hypothesis says are not read hold poisoned scales,
+  so a PASS proves the selector semantics. Built with nvcc 13.0 -gencode arch=compute_120a,code=sm_120a; run on
+  an RTX PRO 6000 Blackwell (188 SMs). The .out file is the complete program output.
+files:
+- local_path: sm120_block_scale_probe.cu
+  role: derived-source
+  mode: derived
+  sha256: dc9ac71440d530946b6404fdbb667bc9f6338ab54646f01126bbe8e1fbebc0e4
+- local_path: sm120_block_scale_probe.out
+  role: bench-record
+  mode: derived
+  sha256: f6034eb658ab2647ac40a7df1a8751d1ccae7da5c9bc3ea8f26226f008689e3f

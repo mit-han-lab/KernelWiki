@@ -1124,6 +1124,7 @@ Source-PR pages whose validated evidence review found no family-level or exact a
 | [[Perf] Batch invariance with Cutlass fp8 support, 28.9% E2E latency improvement](../sources/prs/vllm/PR-40408.md) | `sources/prs/vllm/PR-40408.md` |
 | [Cluster Launch Control (CLC)](../wiki/hardware/clc.md) | `wiki/hardware/clc.md` |
 | [Programmatic Dependent Launch / Grid Dependency Control](../wiki/hardware/pdl-gdc.md) | `wiki/hardware/pdl-gdc.md` |
+| [SM120 Block-Scaled mma.sync (mxf4nvf4 / mxf8f6f4) Operand Layouts](../wiki/hardware/sm120-block-scaled-mma-sync.md) | `wiki/hardware/sm120-block-scaled-mma-sync.md` |
 
 ### `sm120a`
 

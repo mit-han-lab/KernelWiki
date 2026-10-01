@@ -34,6 +34,7 @@ See [references/examples.md](references/examples.md) for 10 worked query pattern
 - [hw-tma](wiki/hardware/tma.md) — Tensor Memory Accelerator (async bulk loads)
 - [hw-2sm-cooperative](wiki/hardware/2sm-cooperative.md) — Two-SM cooperative MMA
 - [hw-nvfp4](wiki/hardware/nvfp4.md) — NVFP4 and block-scaled narrow precision
+- [hw-sm120-block-scaled-mma-sync](wiki/hardware/sm120-block-scaled-mma-sync.md) — SM120 block-scaled `mma.sync` (`kind::mxf4nvf4` 4X, `kind::mxf8f6f4` 1X) operand and scale-selector layouts, probed
 - [hw-pdl-gdc](wiki/hardware/pdl-gdc.md) — Programmatic Dependent Launch / Grid Dependency Control
 
 ## Optimization Techniques
