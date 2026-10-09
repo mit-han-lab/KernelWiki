@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
 """Unified query tool for the Blackwell kernel wiki.
 
-Supports natural-language keyword queries, tag filters, repo filters, and type filters.
+Finds keyword candidates with aliases and metadata filters. Results are paginated
+in path order; the calling LLM judges relevance from the evidence, not a score.
 
 Usage:
-    query.py "how to fuse gate-up GEMM"
+    query.py "gate-up GEMM" --match all --type kernel
     query.py --tag nvfp4 --type kernel
     query.py --repo cutlass --limit 20
     query.py --language cute-dsl
     query.py --symptom memory-bound
 
-Returns a ranked list of matching pages with titles, paths, and key frontmatter fields.
+Returns matching pages with titles, paths, metadata and bounded match excerpts.
 """
 
 import argparse
 import copy
 import re
 import sys
-from collections import defaultdict
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -115,35 +116,51 @@ def detect_page_type(fm, path):
     return "unknown"
 
 
-def score_keyword_match(fm, body, keywords):
-    """Score a page by keyword matches in title, tags, and body (title > tags > body).
-
-    Each user keyword is expanded through the alias map so that typing 'UMMA'
-    also scores 'tcgen05', 'B200' also scores 'sm100', etc.
-    """
-    score = 0
-    title_text = str(fm.get("title", "")).lower()
-    tag_text = " ".join(
+def keyword_matches(fm, body, keywords):
+    """Report matching variants by field, preserving the original OR/alias recall."""
+    metadata = " ".join(
         str(v) for k in ("tags", "techniques", "hardware_features", "kernel_types",
                           "languages", "aliases", "symptoms")
         for v in (fm.get(k) or [])
-    ).lower()
-    body_lower = body.lower()
-    for kw in keywords:
-        best_variant_score = 0
-        for variant in expand_keyword(kw):
-            v_l = variant.lower()
-            variant_score = 0
-            if v_l in title_text:
-                variant_score += 10
-            if v_l in tag_text:
-                variant_score += 5
-            body_hits = body_lower.count(v_l)
-            variant_score += min(body_hits, 3)
-            if variant_score > best_variant_score:
-                best_variant_score = variant_score
-        score += best_variant_score
-    return score
+    )
+    variants = list(dict.fromkeys(
+        variant.lower() for kw in keywords for variant in expand_keyword(kw) if variant
+    ))
+    matches = {}
+    for name, text in (("title", str(fm.get("title", ""))),
+                       ("metadata", metadata), ("body", body)):
+        matched = [variant for variant in variants if variant in text.lower()]
+        if matched:
+            matches[name] = matched
+    return matches
+
+
+def select_candidates(pages, keywords, match_mode="any"):
+    """Select keyword matches without assigning relevance scores or priorities."""
+    keyword_groups = [
+        {variant.lower() for variant in expand_keyword(keyword)} for keyword in keywords
+    ] if match_mode == "all" else []
+    candidates = []
+    for page in pages:
+        matches = keyword_matches(page["fm"], page["body"], keywords)
+        if not keywords or matches:
+            matched_terms = {term for terms in matches.values() for term in terms}
+            if not all(group & matched_terms for group in keyword_groups):
+                continue
+            candidates.append(dict(page, _matches=matches))
+    return sorted(candidates, key=lambda page: page["path"])
+
+
+def match_excerpt(body, variants, width=240):
+    """Preview the first body match in context, not a generated summary."""
+    text = " ".join(body.split())
+    positions = [text.lower().find(" ".join(term.split())) for term in variants]
+    positions = [pos for pos in positions if pos >= 0]
+    if not positions:
+        return ""
+    start = max(0, min(positions) - width // 3)
+    end = min(len(text), start + width)
+    return ("…" if start else "") + text[start:end] + ("…" if end < len(text) else "")
 
 
 def filter_pages(pages, args):
@@ -284,15 +301,27 @@ def format_result(page, compact=False):
     path = page["path"]
     pid = fm.get("id", "")
     ptype = page.get("_ptype", "?")
+    matches = page.get("_matches", {})
+    matched = "; ".join(f"{field}: {', '.join(terms)}" for field, terms in matches.items())
+    excerpt = match_excerpt(page["body"], matches.get("body", []))
 
     if compact:
-        return f"  [{ptype}] {pid}: {title}  ({path})"
+        result = f"  [{ptype}] {pid}: {title}  ({path})"
+        if matched:
+            result += f" | matches: {matched}"
+        if excerpt:
+            result += f" | first body match: {excerpt}"
+        return result
 
     # Rich: include key metadata
     lines = [f"## {title}"]
     lines.append(f"- **id**: `{pid}`")
     lines.append(f"- **type**: `{ptype}`")
     lines.append(f"- **path**: `{path}`")
+    if matched:
+        lines.append(f"- **matches**: {matched}")
+    if excerpt:
+        lines.append(f"- **first body match (excerpt)**: {excerpt}")
     if "architectures" in fm:
         lines.append(f"- **architectures**: {fm['architectures']}")
     for k in ("confidence", "reproducibility"):
@@ -312,7 +341,9 @@ def format_result(page, compact=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Query the Blackwell kernel wiki")
-    parser.add_argument("query", nargs="*", help="Free-text keywords")
+    parser.add_argument("query", nargs="*", help="Whitespace-separated keywords; no relevance scoring")
+    parser.add_argument("--match", choices=("any", "all"), default="any",
+                        help="Match any keyword (default), or every keyword; aliases are alternatives per keyword, not phrase matching")
     parser.add_argument("--type", help="Filter by page type (kernel, technique, hardware, pattern, language, migration, pr, blog, doc, contest)")
     parser.add_argument("--tag", help="Filter by tag (must appear in tags/techniques/hardware_features/kernel_types/languages)")
     parser.add_argument("--repo", help="Filter by source repo (partial match, e.g. 'cutlass')")
@@ -322,9 +353,12 @@ def main():
     parser.add_argument("--confidence", help="Filter by confidence (verified, source-reported, inferred, experimental)")
     parser.add_argument("--has-code", action="store_true", help="Only return pages whose artifact_dir contains at least one source file")
     parser.add_argument("--limit", type=int, default=10, help="Max results (default 10)")
+    parser.add_argument("--offset", type=int, default=0, help="Skip this many matching candidates (default 0)")
     parser.add_argument("--compact", action="store_true", help="Compact one-line-per-result output")
     parser.add_argument("--paths-only", action="store_true", help="Output only file paths, one per line")
     args = parser.parse_args()
+    if args.limit < 1 or args.offset < 0:
+        parser.error("--limit must be positive and --offset must be nonnegative")
 
     all_pages = load_all_pages()
     architecture_stats = None
@@ -348,33 +382,41 @@ def main():
             file=sys.stderr,
         )
 
-    # Score by keywords if any. Flatten multi-word quoted args into tokens so
-    # `query.py "how to fuse dual GEMM"` behaves like `query.py how to fuse dual GEMM`.
+    # Match keywords without scoring. Flatten multi-word quoted args into tokens so
+    # `query.py "gate-up GEMM"` behaves like `query.py gate-up GEMM`.
     keywords = []
     for q in args.query:
         for tok in re.split(r"\s+", q.strip()):
             if tok:
                 keywords.append(tok)
-    if keywords:
-        for p in pages:
-            p["_score"] = score_keyword_match(p["fm"], p["body"], keywords)
-        pages = [p for p in pages if p["_score"] > 0]
-        pages.sort(key=lambda x: (-x["_score"], x["path"]))
-    else:
-        pages.sort(key=lambda x: x["path"])
-
-    pages = pages[:args.limit]
+    candidates = select_candidates(pages, keywords, match_mode=args.match)
+    total = len(candidates)
+    pages = candidates[args.offset:args.offset + args.limit]
+    summary = f"{len(pages)} candidate(s) shown; {total} total matches; path order, not relevance order."
+    if pages:
+        summary += f" Showing {args.offset + 1}–{args.offset + len(pages)}."
+    if args.offset + len(pages) < total:
+        summary += f" More candidates: repeat with the same query/filters and --offset {args.offset + len(pages)}."
+    if total:
+        type_counts = Counter(detect_page_type(p["fm"], p["path"]) for p in candidates)
+        summary += "\nTypes across all matches: " + ", ".join(
+            f"{ptype}={type_counts[ptype]}" for ptype in sorted(type_counts)
+        ) + ". Use --type to narrow."
 
     if args.paths_only:
+        print(summary, file=sys.stderr)
         for p in pages:
             print(p["path"])
         return
 
     if not pages:
-        print("No matching pages.")
+        if total:
+            print(f"No candidates at offset {args.offset}; {total} total matches. Use a smaller --offset.")
+        else:
+            print("No matching pages.")
         return
 
-    print(f"# {len(pages)} result(s)")
+    print(f"# {summary}")
     print()
     for p in pages:
         print(format_result(p, compact=args.compact))

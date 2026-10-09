@@ -7,7 +7,7 @@
 ## Recommended Query Tools (for LLM agents)
 
 ```bash
-python3 scripts/query.py "<natural language>" [--tag <t>] [--type <kernel|technique|pr|...>]
+python3 scripts/query.py "<keywords>" [--tag <t>] [--type <kernel|technique|pr|...>]
 python3 scripts/get_page.py <page-id-or-path> [--follow-sources]
 python3 scripts/grep_wiki.py "<regex>" [--only wiki|sources]
 ```

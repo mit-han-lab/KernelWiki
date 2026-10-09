@@ -1,5 +1,35 @@
 # Validation results
 
+## Candidate retrieval validation
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests -p 'test_*.py'` | pass — 171 tests in 43.342 seconds |
+| `python3 scripts/validate.py` | pass — 1,041 files, 989 source IDs, 37 bundles, 14 candidate ledgers |
+| `bash tests/check_yaml_fallback.sh` | pass — works without host PyYAML |
+| `python3 -S scripts/query.py 'pipeline' --type pattern --limit 1 --compact` | pass — total count, next offset and body excerpt displayed |
+| `python3 -S scripts/query.py 'low SM utilization' --match all --type pattern --compact` | pass — 6 candidates, including `pattern-low-sm-utilization`; counts by page type and match evidence displayed |
+| Default OR candidate-set comparison against `master:scripts/query.py` | identical matching paths for 10 queries across 1,041 pages; optional AND mode deliberately narrows recall |
+| `python3 scripts/repo_size_check.py` | pass — 24.08 MiB below the 25 MiB ceiling; 422 artifact files |
+| `python3 -m py_compile scripts/query.py tests/test_query_candidates.py` | pass |
+| `git diff --check` | pass |
+
+Without narrowing, `low SM utilization` matches 834 pages and the target pattern
+appears at position 813 in path order. The optional AND/type filters put it among
+six candidates; they do not rank those candidates or remove path-order bias from
+the default query. Whole-set type counts help the agent see evidence classes
+missing from a partial batch. Retrieval quality still depends on query choices
+and actual source reading.
+
+The external skill-creator `quick_validate.py` rejects the pre-existing
+`argument-hint` frontmatter key. This change preserves that frontmatter;
+repository validation and documented-command tests pass. These checks verify
+retrieval mechanics, not the LLM's selection quality. Kernel-performance
+ablations have not run; the historical upstream-evidence audit below was not
+rerun for this retrieval change.
+
+## Historical corpus audit
+
 Environment: isolated `/tmp/kernelwiki-factual-audit-venv-20260818` with
 PyYAML 6.0.3. Final post-quorum rerun after clean Rounds 31 and 32:
 2026-08-20 UTC.

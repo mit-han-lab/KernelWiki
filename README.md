@@ -56,19 +56,28 @@ All tools run from the skill root, no env var needed.
 
 | Tool | Purpose |
 |---|---|
-| `scripts/query.py` | Unified search across source and wiki pages (keywords + filters + alias-aware) |
-| `scripts/get_page.py` | Fetch any page by `id` or path; `--follow-sources` expands cited sources |
-| `scripts/grep_wiki.py` | Regex text search across wiki bodies and PR pages |
+| `scripts/query.py` | Keyword/alias candidate discovery with filters, match excerpts and pagination; no relevance scoring |
+| `scripts/get_page.py` | Read a known page by ID or path; `--follow-sources` previews cited sources |
+| `scripts/grep_wiki.py` / `rg -F` | Regex/literal text search; use `--only artifacts` or an artifact path to locate captured code |
 
 Examples:
 
 ```bash
-python3 scripts/query.py "ping-pong attention" --limit 5
+python3 scripts/query.py "ping-pong attention" --match all --limit 5
 python3 scripts/query.py --tag UMMA --type hardware --compact          # alias → tcgen05
 python3 scripts/query.py --architecture B200 --type kernel             # alias → sm100
 python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
+
+The LLM chooses reading priorities using the current task, profiling evidence,
+hardware compatibility and implementation detail. `query.py` only selects
+matching candidates and presents them in stable path order, with counts by page
+type and `--offset` pagination. Use `--match all` to require every keyword;
+the default `--match any` accepts any keyword. It makes no model calls and assigns
+no relevance scores. Combine candidate discovery, text search and direct reading as needed;
+verify relevant sources before turning a candidate into an optimization plan.
+See [selection and ablation examples](references/examples.md#llm-selected-reading-priorities).
 
 ## Companion Docs
 

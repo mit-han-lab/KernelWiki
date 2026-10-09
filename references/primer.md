@@ -153,7 +153,9 @@ When the user types one of these, match to the canonical term shown:
 | GDN, GatedDeltaNet, gated delta rule | `gated-delta-net` |
 | NSA, native sparse attention | `sparse-attention` |
 
-The `query.py` tool applies these automatically when scoring and when using `--tag`.
+The `query.py` tool expands single-token aliases when matching keywords and
+accepts whole aliases with `--tag`. Quoted keyword queries still split on
+whitespace; use the canonical term for a multiword alias.
 
 ---
 

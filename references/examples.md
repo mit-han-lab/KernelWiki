@@ -7,6 +7,65 @@ version_sensitive:
 
 Concrete patterns showing how to translate a user question into a navigation path and synthesize an answer.
 
+## LLM-selected reading priorities
+
+`query.py` returns candidates in path order. The LLM, using the task and current
+measurements, decides which pages deserve closer reading. For a single-GPU GEMM
+with measured pipeline stalls, a possible discovery step is:
+
+```bash
+python3 scripts/query.py "pipeline" --type pattern --limit 5
+python3 scripts/get_page.py pattern-pipeline-stalls --follow-sources
+```
+
+A useful selection reason is: “Read `pattern-pipeline-stalls` first because the
+current measurement shows producer/consumer waits; then inspect its sources for
+stage ownership and resource costs.” This is a reading priority, not evidence
+that adding stages will improve this kernel. Source previews are only 500
+characters; fetch the relevant source page or read the applicable code sections.
+
+When a concrete instruction is known, direct text search may be a better entry:
+
+```bash
+rg -l -F 'mbarrier' artifacts/prs/cutlass
+python3 scripts/get_page.py hw-mbarrier
+```
+
+Use the candidate total and next-offset hint to see whether more pages remain.
+For example, these commands inspect two different batches of the same query:
+
+```bash
+python3 scripts/query.py "pipeline" --limit 5 --offset 0 --compact
+python3 scripts/query.py "pipeline" --limit 5 --offset 5 --compact
+```
+
+The earliest paths are not inherently more relevant. If a batch is unhelpful,
+use the counts by page type to refine filters, inspect further batches or switch
+tools. By default, adding query words broadens the OR match. `--match all`
+requires every keyword or its canonical alias, even across different fields:
+
+```bash
+python3 scripts/query.py "low SM utilization" --match all --type pattern
+```
+
+This narrows candidates without assigning priority. It can also exclude useful
+pages that use different terminology; relax the query when needed. Quoted input
+still splits into words. Use canonical terms for multiword aliases, or `rg -F`
+for literal phrases. Preserve hardware and single-GPU constraints when judging
+applicability. Use new profiling evidence to revise priorities, and return to experiments once a concrete change
+can be tested. Do not infer a lack of evidence from one partial batch.
+
+For ablations, compare fixed commits of `master` and `search-engine` with the
+same corpus, model, tasks, hardware and budget. Ensure the agent loads `SKILL.md`
+and runs scripts from the intended checkout; an installed skill may resolve to
+another clone. Record the resolved repository root and commit for each run.
+Record tool/query calls, candidate
+batches, actual page/code reads, selection reasons and resulting kernel timings
+in the experiment log. The scripts do not automatically capture LLM selections.
+This branch comparison measures removal of heuristic scoring, candidate-display
+and filtering changes, and the new selection guidance together; isolate them
+separately if causal attribution is needed.
+
 ---
 
 ## Example 1: "How do I write a fast GEMM kernel on B200?"
@@ -114,7 +173,7 @@ python3 scripts/get_page.py contest-gpumode-p1
 
 **Command**:
 ```bash
-python3 scripts/query.py "gated delta net decode" --language triton
+python3 scripts/query.py "GDN decode" --match all --language triton
 ```
 
 ---

@@ -6,7 +6,18 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Current full discovery gate — 2026-08-19 UTC
+## Candidate retrieval regression gate
+
+Result: **pass — 171 tests**, 43.342 seconds with the workspace's `python3`.
+
+The 13 added tests cover unscored path ordering, alias/OR recall, optional AND
+filtering across fields, match excerpts, existing filters and output modes,
+complete pagination, total/next-page disclosure, counts by page type before
+pagination, and invalid or out-of-range pagination. The audit-count check permits
+added tests
+while still requiring the recorded totals to match discovery.
+
+## Prior full discovery gate — 2026-08-19 UTC
 
 Command: `python3 -m unittest discover -s tests -p 'test_*.py'`
 
