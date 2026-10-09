@@ -56,9 +56,9 @@ All tools run from the skill root, no env var needed.
 
 | Tool | Purpose |
 |---|---|
-| `scripts/query.py` | Keyword/alias candidate discovery with filters, match excerpts and pagination; no relevance scoring |
-| `scripts/get_page.py` | Read a known page by ID or path; `--follow-sources` previews cited sources |
-| `scripts/grep_wiki.py` / `rg -F` | Regex/literal text search; use `--only artifacts` or an artifact path to locate captured code |
+| `scripts/query.py` | Preferred unified search: keyword/alias candidates with filters, match excerpts and pagination; the calling LLM ranks candidates |
+| `scripts/get_page.py` | Read selected pages by ID or path; `--follow-sources` previews cited sources |
+| `scripts/grep_wiki.py` / `rg -F` | Supplementary regex/literal search; use `--only artifacts` or an artifact path to locate captured code |
 
 Examples:
 
@@ -70,13 +70,14 @@ python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
 
-The LLM chooses reading priorities using the current task, profiling evidence,
-hardware compatibility and implementation detail. `query.py` only selects
-matching candidates and presents them in stable path order, with counts by page
-type and `--offset` pagination. Use `--match all` to require every keyword;
-the default `--match any` accepts any keyword. It makes no model calls and assigns
-no relevance scores. Combine candidate discovery, text search and direct reading as needed;
-verify relevant sources before turning a candidate into an optimization plan.
+Start with unified search through `query.py`, then let the calling LLM rank and
+select candidates using the current task, profiling evidence, hardware
+compatibility and implementation detail. Read selected pages and verify their
+sources/code before forming an optimization plan; use text search for supporting
+details or gaps. The script presents candidates in stable path order with counts
+by page type and `--offset` pagination. It makes no model calls or relevance
+judgments. Use `--match all` to require every keyword; the default `--match any`
+accepts any keyword.
 See [selection and ablation examples](references/examples.md#llm-selected-reading-priorities).
 
 ## Companion Docs

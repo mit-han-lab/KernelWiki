@@ -9,22 +9,37 @@ Concrete patterns showing how to translate a user question into a navigation pat
 
 ## LLM-selected reading priorities
 
-`query.py` returns candidates in path order. The LLM, using the task and current
-measurements, decides which pages deserve closer reading. For a single-GPU GEMM
-with measured pipeline stalls, a possible discovery step is:
+Start research with unified search through `query.py`. It returns candidates in
+path order; the calling LLM ranks them for the current task and measurements,
+then reads the selected pages. For a single-GPU GEMM with measured pipeline
+stalls, first retrieve candidates:
 
 ```bash
 python3 scripts/query.py "pipeline" --type pattern --limit 5
+```
+
+The current corpus returns `pattern-compute-bound` before
+`pattern-pipeline-stalls` in path order. Given measured producer/consumer waits,
+an example LLM reading order is:
+
+1. `pattern-pipeline-stalls`: directly addresses the observed waits; inspect its
+   sources for stage ownership and resource costs.
+2. `pattern-compute-bound`: helps check broader compute-efficiency limits if the
+   stall evidence does not explain the full gap.
+
+This ordering follows the observed bottleneck and can change with new evidence.
+It does not establish that adding stages improves the kernel. Read the selected
+page and follow its sources:
+
+```bash
 python3 scripts/get_page.py pattern-pipeline-stalls --follow-sources
 ```
 
-A useful selection reason is: “Read `pattern-pipeline-stalls` first because the
-current measurement shows producer/consumer waits; then inspect its sources for
-stage ownership and resource costs.” This is a reading priority, not evidence
-that adding stages will improve this kernel. Source previews are only 500
-characters; fetch the relevant source page or read the applicable code sections.
+Source previews are only 500 characters; fetch the relevant source page or read
+the applicable code sections.
 
-When a concrete instruction is known, direct text search may be a better entry:
+For example, after selecting that page, use supplementary text search to locate
+the referenced synchronization mechanism in captured code:
 
 ```bash
 rg -l -F 'mbarrier' artifacts/prs/cutlass
@@ -40,8 +55,9 @@ python3 scripts/query.py "pipeline" --limit 5 --offset 5 --compact
 ```
 
 The earliest paths are not inherently more relevant. If a batch is unhelpful,
-use the counts by page type to refine filters, inspect further batches or switch
-tools. By default, adding query words broadens the OR match. `--match all`
+use the counts by page type to refine filters, reformulate the query or inspect
+further batches before ranking a shortlist. By default, adding query words
+broadens the OR match. `--match all`
 requires every keyword or its canonical alias, even across different fields:
 
 ```bash
@@ -52,19 +68,21 @@ This narrows candidates without assigning priority. It can also exclude useful
 pages that use different terminology; relax the query when needed. Quoted input
 still splits into words. Use canonical terms for multiword aliases, or `rg -F`
 for literal phrases. Preserve hardware and single-GPU constraints when judging
-applicability. Use new profiling evidence to revise priorities, and return to experiments once a concrete change
-can be tested. Do not infer a lack of evidence from one partial batch.
+applicability. Use new profiling evidence to revise priorities, and return to
+experiments once a concrete change can be tested. The LLM can only rank inspected
+candidates; do not infer a lack of evidence from one partial batch.
 
 For ablations, compare fixed commits of `master` and `search-engine` with the
 same corpus, model, tasks, hardware and budget. Ensure the agent loads `SKILL.md`
 and runs scripts from the intended checkout; an installed skill may resolve to
 another clone. Record the resolved repository root and commit for each run.
-Record tool/query calls, candidate
-batches, actual page/code reads, selection reasons and resulting kernel timings
-in the experiment log. The scripts do not automatically capture LLM selections.
-This branch comparison measures removal of heuristic scoring, candidate-display
-and filtering changes, and the new selection guidance together; isolate them
-separately if causal attribution is needed.
+Both versions prefer unified search as the research entry point. Record query
+calls, candidate batches, the LLM's ordered selections and reasons, actual
+page/code reads and resulting kernel timings in the experiment log. The scripts
+do not automatically capture LLM selections. The intended change is from
+heuristic result ranking to task-dependent LLM ranking of retrieved candidates.
+The branch also changes candidate display and filtering, so isolate those
+separately if attributing an outcome specifically to ranking.
 
 ---
 

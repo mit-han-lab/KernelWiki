@@ -40,35 +40,36 @@ that `pip`, a virtualenv, network access, or a pre-installed PyYAML package is
 available. `requirements.txt` is optional and only installs the faster host
 implementation.
 
-### Let the LLM choose reading priorities
+### Path 1: Unified search (preferred), then LLM ranking
 
-Use keyword search to discover candidates, `rg -F` / `grep_wiki.py` to locate
-specific text or code, and `get_page.py` or direct reading for known pages and
-files. Choose and combine these entry points according to the missing evidence.
-
-The LLM decides which candidates to read first by considering the current
-operator and bottleneck, hardware/dtype/layout compatibility, source evidence,
-and actionable implementation detail. Give a brief relevance reason when
-explaining a selection; numerical relevance scores are optional judgments, not
-measured speedups. Update priorities when profiling changes the question. For
-single-GPU work, focus on compute, memory/layout, pipeline and tail efficiency.
-
-Read the relevant source/code sections before recommending a change. Reuse
-evidence already read and return to experiments once there is a concrete change
-to test. See [candidate selection examples](references/examples.md#llm-selected-reading-priorities).
-
-### Path 1: Keyword candidates and metadata filters
+Start knowledge-base research with `query.py`. Translate the user's question
+into focused keywords and metadata filters to retrieve candidate pages.
 
 `query.py` finds candidates without relevance scoring. Results are in stable
 file-path order, which says nothing about importance. Each result includes
 metadata, matched terms and, when the body matched, a short excerpt around its
-first match. The LLM judges relevance from these clues and further reading.
+first match. The calling LLM compares this evidence and produces an ordered
+shortlist of page IDs or paths with brief reasons for the reading priorities.
+
+Rank candidates using the current operator and measured bottleneck,
+hardware/dtype/layout compatibility, source evidence and actionable implementation
+detail. For single-GPU work, focus on compute, memory/layout, pipeline and tail
+efficiency. These priorities depend on the task; revise them as profiling and
+source reading provide new evidence. Numerical scores are optional judgments,
+not measured speedups.
+
+Read the selected pages with `get_page.py` or direct file reads, then inspect
+their relevant source/code sections before recommending a change. Use `rg -F`
+or `grep_wiki.py` as supplementary tools to locate exact text/code or check gaps
+left by unified search. Their output order is not a relevance ranking. Reuse
+evidence already read and return to experiments once there is a concrete change
+to test. See [candidate ranking examples](references/examples.md#llm-selected-reading-priorities).
 
 Use focused English keywords or technical identifiers. The default `--match any`
 accepts any keyword/alias, so adding words broadens the candidate set. Use
 `--match all` to require every keyword (or its canonical alias) somewhere in the
 page, and metadata filters to narrow further. If this excludes useful evidence,
-relax the query or try another entry point. These are case-insensitive substring
+relax or reformulate the query. These are case-insensitive substring
 matches; quoted input still splits on whitespace, not into literal phrases.
 Use canonical terms for multiword aliases and `rg -F` for literal text.
 The script does not interpret natural-language intent, single-GPU scope or negation.
@@ -87,11 +88,14 @@ and `--architecture` accept aliases — `--tag UMMA` matches `tcgen05`,
 
 The output reports total matches, counts by page type across the entire candidate
 set, and the next offset when more candidates exist. Use these counts to choose
-a `--type` filter, inspect further batches or switch to text search when needed;
+a `--type` filter or inspect further batches before selecting a shortlist;
 the first batch is not a shortlist of the most relevant pages. With `--paths-only`,
 pagination information goes to stderr so stdout remains one path per line.
 
 ### Path 2: Fetch a specific page by id or path
+
+Use this to read candidates selected by the LLM, follow their cited sources, or
+open a page the user explicitly identified.
 
 ```bash
 python3 scripts/get_page.py kernel-flash-attention-4
@@ -103,7 +107,10 @@ python3 scripts/get_page.py kernel-flash-attention-4 --body-only
 `--follow-sources` previews only the first 500 characters of each source body.
 Fetch the cited page itself and read applicable code sections for more evidence.
 
-### Path 3: Keyword and regex search across text and code
+### Path 3: Supplementary text and code search
+
+After unified search, use these tools to locate implementation details or
+investigate evidence missing from the candidate pages.
 
 ```bash
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
@@ -129,7 +136,7 @@ Auto-generated under `queries/`:
 
 Companion docs under `references/`:
 
-- `references/primer.md` — topic map: hardware features, techniques, symptoms, canonical page IDs. Read this first when the question is broad.
+- `references/primer.md` — topic map: hardware features, techniques, symptoms, canonical page IDs. Use it to refine queries when the question is broad.
 - `references/schema.md` — condensed frontmatter schema, confidence rules, reproducibility ladder, controlled vocabulary, canonical aliases.
 - `references/examples.md` — 10 worked query patterns mapping user questions → command sequences → synthesis.
 
