@@ -40,62 +40,67 @@ that `pip`, a virtualenv, network access, or a pre-installed PyYAML package is
 available. `requirements.txt` is optional and only installs the faster host
 implementation.
 
-### Path 1: Unified search (preferred), then LLM ranking
+### Path 1: Unified search with a task-specific strategy
 
-Start knowledge-base research with `query.py`. Translate the user's question
-into focused keywords and metadata filters to retrieve candidate pages.
+Use `query.py` as the research entry point. Read
+[the strategy interface](references/search-strategies.md), copy
+`scripts/strategy_template.py` outside the wiki as `strategy.py`, and adapt its
+`retrieve(index, context)` function to the current question and profiling evidence.
+Keep generated strategies, task context and run logs outside the shared corpus.
 
-`query.py` finds candidates without relevance scoring. Results are in stable
-file-path order, which says nothing about importance. Each result includes
-metadata, matched terms and, when the body matched, a short excerpt around its
-first match. The calling LLM compares this evidence and produces an ordered
-shortlist of page IDs or paths with brief reasons for the reading priorities.
-
-Rank candidates using the current operator and measured bottleneck,
-hardware/dtype/layout compatibility, source evidence and actionable implementation
-detail. For single-GPU work, focus on compute, memory/layout, pipeline and tail
-efficiency. These priorities depend on the task; revise them as profiling and
-source reading provide new evidence. Numerical scores are optional judgments,
-not measured speedups.
-
-Read the selected pages with `get_page.py` or direct file reads, then inspect
-their relevant source/code sections before recommending a change. Use `rg -F`
-or `grep_wiki.py` as supplementary tools to locate exact text/code or check gaps
-left by unified search. Their output order is not a relevance ranking. Reuse
-evidence already read and return to experiments once there is a concrete change
-to test. See [candidate ranking examples](references/examples.md#llm-selected-reading-priorities).
-
-Use focused English keywords or technical identifiers. The default `--match any`
-accepts any keyword/alias, so adding words broadens the candidate set. Use
-`--match all` to require every keyword (or its canonical alias) somewhere in the
-page, and metadata filters to narrow further. If this excludes useful evidence,
-relax or reformulate the query. These are case-insensitive substring
-matches; quoted input still splits on whitespace, not into literal phrases.
-Use canonical terms for multiword aliases and `rg -F` for literal text.
-The script does not interpret natural-language intent, single-GPU scope or negation.
+The fixed index supplies corpus loading, OR keyword/alias matching, metadata
+filters and page access. Your strategy chooses queries, combinations, selection
+and candidate order. `index.search()` returns every match without a score or
+count cutoff. Master's keyword score is available only as an optional helper.
+Use one or several queries as appropriate; no fixed route count or quota applies.
 
 ```bash
-python3 scripts/query.py "gate-up GEMM" --match all --type kernel
+python3 scripts/query.py --strategy <strategy.py> --context <context.json> --run-dir <run-dir> --compact
+```
+
+`query.py` preserves strategy order, deduplicates pages and emits a prefix within
+`--max-chars` (default 16,000 characters, not tokens). In strategy mode there is
+no default candidate-count cap; optional `--limit` caps the number emitted.
+The summary and receipt disclose omissions. There is no fixed relationship
+between candidate count and how many pages you ultimately choose to read.
+
+Assess the returned candidates using the current operator, measured bottleneck,
+hardware/dtype/layout compatibility and actionable evidence. For single-GPU work,
+consider compute, memory/layout, pipeline and tail efficiency. These judgments
+belong to the calling LLM; the Python script makes no model calls. Read promising
+pages, revise judgments when their full text changes applicability, and adjust
+the strategy if a mechanism is missing. Return to experiments once the evidence
+supports a concrete change. A first-match excerpt is not an article abstract.
+
+For auditable experiments, pass the same `--run-dir` and the returned `--query-id`
+to `get_page.py`. It records the content returned, including source previews and
+code; it cannot establish what the model attended to. Direct `cat`/`rg` reads are
+not automatically traced. Use `get_page.py` for the actual evidence reads you
+want recorded, including artifact paths. Explain selections in the experiment
+conversation; do not treat candidate order as a completed relevance ranking.
+
+The ordinary CLI remains available with master's scoring and `--limit` behavior
+(default 10 candidates), subject to the character budget:
+
+```bash
+python3 scripts/query.py "gate-up GEMM" --type kernel
 python3 scripts/query.py --tag nvfp4 --type kernel
 python3 scripts/query.py --repo cutlass --limit 20
 python3 scripts/query.py --symptom tail-effect --compact
 ```
 
-Filters and output controls: `--match any|all`, `--type`, `--tag`, `--repo`, `--language`, `--architecture`,
-`--symptom`, `--confidence`, `--limit`, `--offset`, `--compact`, `--paths-only`. `--tag`
-and `--architecture` accept aliases — `--tag UMMA` matches `tcgen05`,
-`--architecture B200` matches `sm100`, etc.
-
-The output reports total matches, counts by page type across the entire candidate
-set, and the next offset when more candidates exist. Use these counts to choose
-a `--type` filter or inspect further batches before selecting a shortlist;
-the first batch is not a shortlist of the most relevant pages. With `--paths-only`,
-pagination information goes to stderr so stdout remains one path per line.
+Existing filters: `--type`, `--tag`, `--repo`, `--language`, `--architecture`,
+`--symptom`, `--confidence`, `--has-code`. CLI filters constrain every strategy
+route. Keywords match case-insensitive substrings with OR; quoted arguments still
+split on whitespace. Use canonical terms for multiword aliases, and `rg -F` for
+literal phrases. The script does not infer task intent or single-GPU scope.
 
 ### Path 2: Fetch a specific page by id or path
 
 Use this to read candidates selected by the LLM, follow their cited sources, or
-open a page the user explicitly identified.
+open a page the user explicitly identified. Add `--run-dir <run-dir> --query-id
+<query-id>` to associate each read with its retrieval; direct artifact paths also
+work.
 
 ```bash
 python3 scripts/get_page.py kernel-flash-attention-4

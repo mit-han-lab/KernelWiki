@@ -7,82 +7,42 @@ version_sensitive:
 
 Concrete patterns showing how to translate a user question into a navigation path and synthesize an answer.
 
-## LLM-selected reading priorities
+## Task-specific retrieval and reading
 
-Start research with unified search through `query.py`. It returns candidates in
-path order; the calling LLM ranks them for the current task and measurements,
-then reads the selected pages. For a single-GPU GEMM with measured pipeline
-stalls, first retrieve candidates:
+Start with the [strategy workflow](search-strategies.md). The calling LLM adapts
+an independent Python strategy to the operator, measurements and evidence gaps;
+`query.py` executes it using the same corpus, aliases and filters as ordinary
+search. The runner controls output size, while the LLM selects relevant evidence.
 
-```bash
-python3 scripts/query.py "pipeline" --type pattern --limit 5
-```
+For measured GEMM pipeline waits, one possible strategy queries the symptom,
+stage-ownership primitives and implementation examples. This is an example of
+query decomposition, not a required number of routes. A single focused query may
+already be sufficient; multiple routes can introduce duplicates or displace
+useful results under an output budget.
 
-The current corpus returns `pattern-compute-bound` before
-`pattern-pipeline-stalls` in path order. Given measured producer/consumer waits,
-an example LLM reading order is:
-
-1. `pattern-pipeline-stalls`: directly addresses the observed waits; inspect its
-   sources for stage ownership and resource costs.
-2. `pattern-compute-bound`: helps check broader compute-efficiency limits if the
-   stall evidence does not explain the full gap.
-
-This ordering follows the observed bottleneck and can change with new evidence.
-It does not establish that adding stages improves the kernel. Read the selected
-page and follow its sources:
+Read promising pages and follow their sources:
 
 ```bash
 python3 scripts/get_page.py pattern-pipeline-stalls --follow-sources
-```
-
-Source previews are only 500 characters; fetch the relevant source page or read
-the applicable code sections.
-
-For example, after selecting that page, use supplementary text search to locate
-the referenced synchronization mechanism in captured code:
-
-```bash
-rg -l -F 'mbarrier' artifacts/prs/cutlass
 python3 scripts/get_page.py hw-mbarrier
 ```
 
-Use the candidate total and next-offset hint to see whether more pages remain.
-For example, these commands inspect two different batches of the same query:
+For an experiment, add `--run-dir <run-dir> --query-id <query-id>` to each read.
+Source previews contain only the first 500 body characters; read the source
+itself when that preview is insufficient. Use supplementary literal or regex
+search to locate code, then fetch the relevant artifact path with `get_page.py`
+when the returned code needs to be recorded.
 
 ```bash
-python3 scripts/query.py "pipeline" --limit 5 --offset 0 --compact
-python3 scripts/query.py "pipeline" --limit 5 --offset 5 --compact
+rg -l -F 'mbarrier' artifacts/prs/cutlass
 ```
 
-The earliest paths are not inherently more relevant. If a batch is unhelpful,
-use the counts by page type to refine filters, reformulate the query or inspect
-further batches before ranking a shortlist. By default, adding query words
-broadens the OR match. `--match all`
-requires every keyword or its canonical alias, even across different fields:
-
-```bash
-python3 scripts/query.py "low SM utilization" --match all --type pattern
-```
-
-This narrows candidates without assigning priority. It can also exclude useful
-pages that use different terminology; relax the query when needed. Quoted input
-still splits into words. Use canonical terms for multiword aliases, or `rg -F`
-for literal phrases. Preserve hardware and single-GPU constraints when judging
-applicability. Use new profiling evidence to revise priorities, and return to
-experiments once a concrete change can be tested. The LLM can only rank inspected
-candidates; do not infer a lack of evidence from one partial batch.
-
-For ablations, compare fixed commits of `master` and `search-engine` with the
-same corpus, model, tasks, hardware and budget. Ensure the agent loads `SKILL.md`
-and runs scripts from the intended checkout; an installed skill may resolve to
-another clone. Record the resolved repository root and commit for each run.
-Both versions prefer unified search as the research entry point. Record query
-calls, candidate batches, the LLM's ordered selections and reasons, actual
-page/code reads and resulting kernel timings in the experiment log. The scripts
-do not automatically capture LLM selections. The intended change is from
-heuristic result ranking to task-dependent LLM ranking of retrieved candidates.
-The branch also changes candidate display and filtering, so isolate those
-separately if attributing an outcome specifically to ranking.
+For ablations, fix corpus, model, tasks, hardware and total research budget.
+Record the generated strategy, context, emitted and omitted candidates, actual
+page/code output, and resulting kernel timings. The receipts describe tool
+activity; they do not measure model attention or prove selection quality. Compare
+with a competent master workflow that can reformulate queries and follow links.
+Distinguish gains from new candidate coverage, richer excerpts and LLM selection.
 
 ---
 
@@ -191,7 +151,7 @@ python3 scripts/get_page.py contest-gpumode-p1
 
 **Command**:
 ```bash
-python3 scripts/query.py "GDN decode" --match all --language triton
+python3 scripts/query.py "GDN decode" --language triton
 ```
 
 ---

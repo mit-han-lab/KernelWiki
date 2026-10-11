@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Unified query tool for the Blackwell kernel wiki.
 
-Finds keyword candidates with aliases and metadata filters. Results are paginated
-in path order; the calling LLM judges relevance from the evidence, not a score.
+Run an LLM-authored strategy against reusable keyword/alias/filter primitives.
+The calling LLM assesses returned candidates; this script makes no model calls.
+Without --strategy, retain master's keyword ranking and --limit semantics.
 
 Usage:
-    query.py "gate-up GEMM" --match all --type kernel
+    query.py "gate-up GEMM" --type kernel
     query.py --tag nvfp4 --type kernel
     query.py --repo cutlass --limit 20
     query.py --language cute-dsl
@@ -15,11 +16,14 @@ Returns matching pages with titles, paths, metadata and bounded match excerpts.
 """
 
 import argparse
+import contextlib
 import copy
+import io
+import json
 import re
 import sys
-from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _yaml_compat import yaml  # noqa: E402
@@ -27,9 +31,12 @@ from _yaml_compat import yaml  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _wiki_root import WIKI_ROOT  # noqa: E402
 from pr_policy import architecture_matches_filter  # noqa: E402
+from _retrieval_log import RunLog, digest  # noqa: E402
 
 
 _ALIAS_CACHE = None
+FILTER_NAMES = ("type", "tag", "repo", "language", "architecture", "symptom",
+                "confidence", "has_code")
 
 
 def load_alias_expansions():
@@ -135,20 +142,133 @@ def keyword_matches(fm, body, keywords):
     return matches
 
 
-def select_candidates(pages, keywords, match_mode="any"):
-    """Select keyword matches without assigning relevance scores or priorities."""
-    keyword_groups = [
-        {variant.lower() for variant in expand_keyword(keyword)} for keyword in keywords
-    ] if match_mode == "all" else []
+def score_keyword_match(fm, body, keywords):
+    """Master's score: built-in ordering, or an explicit strategy helper."""
+    title = str(fm.get("title", "")).lower()
+    metadata = " ".join(
+        str(v) for k in ("tags", "techniques", "hardware_features", "kernel_types",
+                          "languages", "aliases", "symptoms")
+        for v in (fm.get(k) or [])
+    ).lower()
+    body = body.lower()
+    score = 0
+    for keyword in keywords:
+        variant_scores = []
+        for variant in expand_keyword(keyword):
+            term = variant.lower()
+            variant_scores.append(
+                10 * (term in title) + 5 * (term in metadata) + min(body.count(term), 3)
+            )
+        score += max(variant_scores)
+    return score
+
+
+def select_candidates(pages, keywords):
+    """Select OR keyword matches without assigning relevance scores or priorities."""
     candidates = []
     for page in pages:
         matches = keyword_matches(page["fm"], page["body"], keywords)
         if not keywords or matches:
-            matched_terms = {term for terms in matches.values() for term in terms}
-            if not all(group & matched_terms for group in keyword_groups):
-                continue
             candidates.append(dict(page, _matches=matches))
     return sorted(candidates, key=lambda page: page["path"])
+
+
+def query_keywords(text):
+    return text.split()
+
+
+class StrategyIndex:
+    """Untruncated retrieval primitives; a strategy owns selection and ordering."""
+
+    def __init__(self, pages):
+        self._pages = sorted(pages, key=lambda page: page["path"])
+        self._by_id = {p["fm"].get("id", p["path"]): p for p in self._pages}
+        self._by_path = {p["path"]: p for p in self._pages}
+        self.matches = {}
+        self.searches = []
+        self.reads = []
+
+    def _page(self, identifier):
+        if not isinstance(identifier, str):
+            raise ValueError("strategy page references must be IDs or relative paths")
+        page = self._by_id.get(identifier) or self._by_path.get(identifier)
+        if page is None:
+            raise ValueError(f"unknown page or excluded by CLI filters: {identifier}")
+        return page
+
+    def search(self, query="", **filters):
+        """Return ALL OR/alias matches in path order, without a relevance cutoff."""
+        if not isinstance(query, str):
+            raise ValueError("search query must be a string")
+        if set(filters) - set(FILTER_NAMES):
+            raise ValueError(f"unknown filters: {sorted(set(filters) - set(FILTER_NAMES))}")
+        for key, value in filters.items():
+            expected = bool if key == "has_code" else str
+            if value is not None and not isinstance(value, expected):
+                raise ValueError(f"filter {key} must be {expected.__name__}")
+        args = SimpleNamespace(**{name: filters.get(name) for name in FILTER_NAMES})
+        pages = select_candidates(filter_pages(self._pages, args), query_keywords(query))
+        ids = []
+        for page in pages:
+            identifier = page["fm"].get("id", page["path"])
+            ids.append(identifier)
+            matches = self.matches.setdefault(identifier, {})
+            for field, terms in page["_matches"].items():
+                matches[field] = list(dict.fromkeys(matches.get(field, []) + terms))
+        self.searches.append({"query": query, "filters": filters,
+                              "matched_ids": ids.copy(), "match_count": len(ids)})
+        return ids
+
+    def metadata(self, identifier):
+        """Copy frontmatter; edits to the copy cannot change the corpus."""
+        return copy.deepcopy(self._page(identifier)["fm"])
+
+    def read(self, identifier):
+        """Read body for strategy logic, logged separately from LLM page reads."""
+        page = self._page(identifier)
+        self.reads.append({"id": page["fm"].get("id", page["path"]),
+                           "path": page["path"], "body_sha256": digest(page["body"]),
+                           "body_chars": len(page["body"])})
+        return page["body"]
+
+    def keyword_score(self, identifier, query):
+        """Optional master's heuristic. Never invoked automatically in strategy mode."""
+        page = self._page(identifier)
+        return score_keyword_match(page["fm"], page["body"], query_keywords(query))
+
+    def candidates(self, identifiers):
+        if not isinstance(identifiers, (list, tuple)):
+            raise ValueError("retrieve(index, context) must return a list of page IDs or paths")
+        seen, pages = set(), []
+        for identifier in identifiers:
+            page = self._page(identifier)
+            canonical = page["fm"].get("id", page["path"])
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            pages.append(dict(page, _matches=self.matches.get(canonical, {})))
+        return pages
+
+
+class StrategyOutput(io.TextIOBase):
+    """Keep accidental strategy prints out of the candidate output budget."""
+    def __init__(self):
+        self.text = ""
+        self.total_chars = 0
+
+    def write(self, text):
+        self.total_chars += len(text)
+        self.text += text[:max(0, 4096 - len(self.text))]
+        return len(text)
+
+
+def execute_strategy(source, path, index, context):
+    namespace = {"__name__": "kernelwiki_strategy", "__file__": str(path)}
+    exec(compile(source, str(path), "exec"), namespace)
+    retrieve = namespace.get("retrieve")
+    if not callable(retrieve):
+        raise ValueError("strategy must define retrieve(index, context)")
+    return index.candidates(retrieve(index, copy.deepcopy(context)))
 
 
 def match_excerpt(body, variants, width=240):
@@ -304,13 +424,19 @@ def format_result(page, compact=False):
     matches = page.get("_matches", {})
     matched = "; ".join(f"{field}: {', '.join(terms)}" for field, terms in matches.items())
     excerpt = match_excerpt(page["body"], matches.get("body", []))
+    excerpt_label = "first body match"
+    if not excerpt:
+        excerpt = " ".join(page["body"].split())[:240]
+        excerpt_label = "body preview"
 
     if compact:
         result = f"  [{ptype}] {pid}: {title}  ({path})"
+        if fm.get("architectures"):
+            result += f" | architectures: {', '.join(fm['architectures'])}"
         if matched:
             result += f" | matches: {matched}"
         if excerpt:
-            result += f" | first body match: {excerpt}"
+            result += f" | {excerpt_label}: {excerpt}"
         return result
 
     # Rich: include key metadata
@@ -321,7 +447,7 @@ def format_result(page, compact=False):
     if matched:
         lines.append(f"- **matches**: {matched}")
     if excerpt:
-        lines.append(f"- **first body match (excerpt)**: {excerpt}")
+        lines.append(f"- **{excerpt_label} (excerpt)**: {excerpt}")
     if "architectures" in fm:
         lines.append(f"- **architectures**: {fm['architectures']}")
     for k in ("confidence", "reproducibility"):
@@ -339,11 +465,35 @@ def format_result(page, compact=False):
     return "\n".join(lines)
 
 
+def render_candidates(pages, *, limit, max_chars, compact, paths_only,
+                      order, query_id=None):
+    """Emit a prefix of strategy order; disclose every omission in the receipt."""
+    def header(count):
+        text = (f"{count} candidate(s); {len(pages)} proposed; "
+                f"{len(pages) - count} omitted by output limits. Order: {order}.\n")
+        if query_id:
+            text += f"query_id={query_id}\n"
+        text += ("Assess relevance for the current task, then read selected pages. "
+                 "If evidence is missing, revise the strategy or output budget.\n")
+        return text
+
+    chosen, cards = [], []
+    considered = pages if limit is None else pages[:limit]
+    for page in considered:
+        card = page["path"] + "\n" if paths_only else format_result(page, compact=compact) + "\n\n"
+        if len(header(len(chosen) + 1)) + sum(map(len, cards)) + len(card) > max_chars:
+            break
+        chosen.append(page)
+        cards.append(card)
+    summary = header(len(chosen))
+    if len(summary) > max_chars:
+        raise ValueError("--max-chars is too small for the result summary")
+    return summary, "".join(cards), chosen
+
+
 def main():
     parser = argparse.ArgumentParser(description="Query the Blackwell kernel wiki")
-    parser.add_argument("query", nargs="*", help="Whitespace-separated keywords; no relevance scoring")
-    parser.add_argument("--match", choices=("any", "all"), default="any",
-                        help="Match any keyword (default), or every keyword; aliases are alternatives per keyword, not phrase matching")
+    parser.add_argument("query", nargs="*", help="Whitespace-separated keywords for OR candidate retrieval")
     parser.add_argument("--type", help="Filter by page type (kernel, technique, hardware, pattern, language, migration, pr, blog, doc, contest)")
     parser.add_argument("--tag", help="Filter by tag (must appear in tags/techniques/hardware_features/kernel_types/languages)")
     parser.add_argument("--repo", help="Filter by source repo (partial match, e.g. 'cutlass')")
@@ -352,13 +502,47 @@ def main():
     parser.add_argument("--symptom", help="Filter by pattern symptom (memory-bound, register-pressure, etc.)")
     parser.add_argument("--confidence", help="Filter by confidence (verified, source-reported, inferred, experimental)")
     parser.add_argument("--has-code", action="store_true", help="Only return pages whose artifact_dir contains at least one source file")
-    parser.add_argument("--limit", type=int, default=10, help="Max results (default 10)")
-    parser.add_argument("--offset", type=int, default=0, help="Skip this many matching candidates (default 0)")
+    parser.add_argument("--strategy", type=Path, help="Python file defining retrieve(index, context)")
+    parser.add_argument("--context", type=Path, help="JSON object with task context for the strategy")
+    parser.add_argument("--run-dir", type=Path, help="Directory for strategy, query, candidate and reading receipts; required with --strategy")
+    parser.add_argument("--limit", type=int,
+                        help="Maximum emitted candidates (default 10 without a strategy; no count cap with a strategy)")
+    parser.add_argument("--max-chars", type=int, default=16000,
+                        help="Maximum candidate output characters including summary (default 16000; not a token count)")
     parser.add_argument("--compact", action="store_true", help="Compact one-line-per-result output")
     parser.add_argument("--paths-only", action="store_true", help="Output only file paths, one per line")
     args = parser.parse_args()
-    if args.limit < 1 or args.offset < 0:
-        parser.error("--limit must be positive and --offset must be nonnegative")
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be positive")
+    if args.max_chars < 512:
+        parser.error("--max-chars must be at least 512")
+    if args.strategy and not args.run_dir:
+        parser.error("--strategy requires --run-dir to retain the generated strategy and retrieval trace")
+    if args.context and not args.strategy:
+        parser.error("--context requires --strategy")
+
+    context, source, log, query_id = {}, None, None, None
+    try:
+        if args.context:
+            context = json.loads(args.context.read_text(encoding="utf-8"))
+            if not isinstance(context, dict):
+                raise ValueError("--context must contain a JSON object")
+        if args.query:
+            context["query"] = " ".join(args.query)
+        else:
+            context.setdefault("query", "")
+        limit = args.limit if args.strategy or args.limit is not None else 10
+        context["budget"] = {"max_chars": args.max_chars, "limit": limit}
+        if args.strategy:
+            args.strategy = args.strategy.expanduser().resolve()
+            source = args.strategy.read_bytes()
+        if args.run_dir:
+            log = RunLog(args.run_dir)
+            query_id, _ = log.start_query(
+                WIKI_ROOT, context, vars(args), source, args.strategy,
+            )
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
 
     all_pages = load_all_pages()
     architecture_stats = None
@@ -382,46 +566,53 @@ def main():
             file=sys.stderr,
         )
 
-    # Match keywords without scoring. Flatten multi-word quoted args into tokens so
-    # `query.py "gate-up GEMM"` behaves like `query.py gate-up GEMM`.
-    keywords = []
-    for q in args.query:
-        for tok in re.split(r"\s+", q.strip()):
-            if tok:
-                keywords.append(tok)
-    candidates = select_candidates(pages, keywords, match_mode=args.match)
-    total = len(candidates)
-    pages = candidates[args.offset:args.offset + args.limit]
-    summary = f"{len(pages)} candidate(s) shown; {total} total matches; path order, not relevance order."
-    if pages:
-        summary += f" Showing {args.offset + 1}–{args.offset + len(pages)}."
-    if args.offset + len(pages) < total:
-        summary += f" More candidates: repeat with the same query/filters and --offset {args.offset + len(pages)}."
-    if total:
-        type_counts = Counter(detect_page_type(p["fm"], p["path"]) for p in candidates)
-        summary += "\nTypes across all matches: " + ", ".join(
-            f"{ptype}={type_counts[ptype]}" for ptype in sorted(type_counts)
-        ) + ". Use --type to narrow."
-
-    if args.paths_only:
-        print(summary, file=sys.stderr)
-        for p in pages:
-            print(p["path"])
-        return
-
-    if not pages:
-        if total:
-            print(f"No candidates at offset {args.offset}; {total} total matches. Use a smaller --offset.")
+    index = StrategyIndex(pages)
+    diagnostics = StrategyOutput()
+    try:
+        if args.strategy:
+            with contextlib.redirect_stdout(diagnostics), contextlib.redirect_stderr(diagnostics):
+                proposed = execute_strategy(source, args.strategy, index, context)
+            order = "strategy"
         else:
-            print("No matching pages.")
-        return
+            keywords = query_keywords(context["query"])
+            proposed = index.candidates(index.search(context["query"]))
+            if keywords:
+                proposed.sort(key=lambda p: (-score_keyword_match(p["fm"], p["body"], keywords), p["path"]))
+            order = "master keyword score" if keywords else "master path order"
+        summary, output, emitted = render_candidates(
+            proposed, limit=limit, max_chars=args.max_chars, compact=args.compact,
+            paths_only=args.paths_only, order=order, query_id=query_id,
+        )
+    except (Exception, SystemExit) as error:
+        if log:
+            log.finish_query(query_id, {"status": "error", "error": str(error),
+                             "error_type": type(error).__name__, "searches": index.searches,
+                             "strategy_reads": index.reads}, "", diagnostics.text)
+        parser.error(f"retrieval failed: {error}")
 
-    print(f"# {summary}")
-    print()
-    for p in pages:
-        print(format_result(p, compact=args.compact))
-        if not args.compact:
-            print()
+    if log:
+        corpus = [{"path": p["path"], "fm": p["fm"], "body": p["body"]}
+                  for p in sorted(all_pages, key=lambda p: p["path"])]
+        emitted_ids = [p["fm"].get("id", p["path"]) for p in emitted]
+        proposed_ids = [p["fm"].get("id", p["path"]) for p in proposed]
+        matched_ids = set(identifier for search in index.searches for identifier in search["matched_ids"])
+        log.finish_query(query_id, {
+            "status": "ok", "mode": "strategy" if args.strategy else "builtin",
+            "corpus_pages": len(all_pages),
+            "corpus_sha256": digest(json.dumps(corpus, sort_keys=True, default=str)),
+            "searches": index.searches, "strategy_reads": index.reads,
+            "proposed_ids": proposed_ids, "emitted_ids": emitted_ids,
+            "omitted_by_output_limits": proposed_ids[len(emitted):],
+            "matched_but_not_proposed": sorted(matched_ids - set(proposed_ids)),
+            "budget": context["budget"], "output_chars": len(summary) + len(output),
+            "strategy_diagnostic_chars": diagnostics.total_chars,
+            "candidate_matches": {identifier: index.matches.get(identifier, {}) for identifier in emitted_ids},
+        }, summary + output, diagnostics.text)
+    if args.paths_only:
+        print(summary, end="", file=sys.stderr)
+        print(output, end="")
+    else:
+        print(summary + output, end="")
 
 
 if __name__ == "__main__":

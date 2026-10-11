@@ -1,32 +1,43 @@
 # Validation results
 
-## Candidate retrieval validation
+## Strategy retrieval validation
 
 | Check | Result |
 | --- | --- |
-| `python3 -m unittest discover -s tests -p 'test_*.py'` | pass — 171 tests in 43.342 seconds |
-| `python3 scripts/validate.py` | pass — 1,041 files, 989 source IDs, 37 bundles, 14 candidate ledgers |
-| `bash tests/check_yaml_fallback.sh` | pass — works without host PyYAML |
-| `python3 -S scripts/query.py 'pipeline' --type pattern --limit 1 --compact` | pass — total count, next offset and body excerpt displayed |
-| `python3 -S scripts/query.py 'low SM utilization' --match all --type pattern --compact` | pass — 6 candidates, including `pattern-low-sm-utilization`; counts by page type and match evidence displayed |
-| Default OR candidate-set comparison against `master:scripts/query.py` | identical matching paths for 10 queries across 1,041 pages; optional AND mode deliberately narrows recall |
-| `python3 scripts/repo_size_check.py` | pass — 24.08 MiB below the 25 MiB ceiling; 422 artifact files |
-| `python3 -m py_compile scripts/query.py tests/test_query_candidates.py` | pass |
-| `git diff --check` | pass |
+| `python3 -m unittest discover -s tests -p 'test_*.py'` | pass — 180 tests in 34.810 seconds |
+| Strategy, output-budget and reading-receipt regression tests | pass — 22 tests |
+| `python3 scripts/validate.py` | pass — 1,041 pages, 989 source IDs, 37 bundles and 14 candidate ledgers |
+| `bash tests/check_yaml_fallback.sh` | pass — offline bundled YAML |
+| Real-corpus strategy → bounded candidates → linked page read | pass under `python3 -S` — 8 proposals, 5 emitted, 3 omitted; 2,417 characters within a 2,600-character budget; 2 linked read receipts including source previews and full/truncated code |
+| Built-in keyword/filter candidate ordering against `master:scripts/query.py` | pass — 15 CLI path lists identical; scores and OR recall identical for 11 queries across 1,041 pages |
+| `get_page.py` output without logging against master | pass — 5 full/body/frontmatter/source-preview/code output comparisons match exactly |
+| `python3 scripts/repo_size_check.py` | pass — 24.11 MiB, 1,593 files and 422 artifacts, below the 25 MiB ceiling |
+| Python compilation and `git diff --check` | pass |
 
-Without narrowing, `low SM utilization` matches 834 pages and the target pattern
-appears at position 813 in path order. The optional AND/type filters put it among
-six candidates; they do not rank those candidates or remove path-order bias from
-the default query. Whole-set type counts help the agent see evidence classes
-missing from a partial batch. Retrieval quality still depends on query choices
-and actual source reading.
+The runner executes an independently generated `retrieve(index, context)`
+strategy. Index searches expose all matches without automatic scoring or a count
+cutoff. The strategy chooses proposals and order; the runner deduplicates and
+applies an optional candidate limit plus a character budget. Without a strategy,
+ordinary keyword/alias/filter search retains master's ordering and default limit.
 
-The external skill-creator `quick_validate.py` rejects the pre-existing
-`argument-hint` frontmatter key. This change preserves that frontmatter;
-repository validation and documented-command tests pass. These checks verify
-retrieval mechanics, not the LLM's selection quality. Kernel-performance
-ablations have not run; the historical upstream-evidence audit below was not
-rerun for this retrieval change.
+Each strategy query saves the executed source, context, engine snapshot, corpus
+hash, searches, proposed/emitted/omitted candidates and output. Strategy body
+reads and content returned by the page reader have separate records. Page-reading
+receipts preserve source previews, metadata-only reads and truncated artifacts as
+such; they are not evidence of model attention. Direct external reads are not
+intercepted. The scripts make no model API calls.
+
+The corpus (`wiki`, `sources`, `artifacts`, `data`, `queries`) and `grep_wiki.py`
+remain unchanged from master. The existing page-reader behavior is extended with
+optional reading receipts. Generated task context and run artifacts belong outside
+the shared wiki. Only public corpus content and temporary validation runs were used; no private task files were read or modified.
+
+The external skill-creator validator was rerun and rejects the pre-existing
+`argument-hint` frontmatter key. The complete frontmatter is unchanged from master;
+repository validation and documented-command tests pass. Retrieval and
+logging checks do not measure LLM selection quality or kernel performance. No
+GPU ablation was run for this change, and the historical upstream-evidence audit
+below was not rerun.
 
 ## Historical corpus audit
 

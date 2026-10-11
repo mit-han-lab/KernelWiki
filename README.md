@@ -56,29 +56,35 @@ All tools run from the skill root, no env var needed.
 
 | Tool | Purpose |
 |---|---|
-| `scripts/query.py` | Preferred unified search: keyword/alias candidates with filters, match excerpts and pagination; the calling LLM ranks candidates |
-| `scripts/get_page.py` | Read selected pages by ID or path; `--follow-sources` previews cited sources |
+| `scripts/query.py` | Unified entry point: execute an LLM-authored strategy and emit candidates within an output budget |
+| `scripts/get_page.py` | Read pages/code; optional `--run-dir` records full reads, previews and code output |
 | `scripts/grep_wiki.py` / `rg -F` | Supplementary regex/literal search; use `--only artifacts` or an artifact path to locate captured code |
 
 Examples:
 
 ```bash
-python3 scripts/query.py "ping-pong attention" --match all --limit 5
+python3 scripts/query.py "ping-pong attention" --limit 5
 python3 scripts/query.py --tag UMMA --type hardware --compact          # alias → tcgen05
 python3 scripts/query.py --architecture B200 --type kernel             # alias → sm100
 python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
 
-Start with unified search through `query.py`, then let the calling LLM rank and
-select candidates using the current task, profiling evidence, hardware
-compatibility and implementation detail. Read selected pages and verify their
-sources/code before forming an optimization plan; use text search for supporting
-details or gaps. The script presents candidates in stable path order with counts
-by page type and `--offset` pagination. It makes no model calls or relevance
-judgments. Use `--match all` to require every keyword; the default `--match any`
-accepts any keyword.
-See [selection and ablation examples](references/examples.md#llm-selected-reading-priorities).
+For task-specific retrieval, copy `scripts/strategy_template.py` as an independent
+`strategy.py` and let the calling LLM adapt its queries and candidate selection.
+Run it through `query.py --strategy <strategy.py> --run-dir <run-dir>` with optional
+JSON task context. The index returns untruncated matches; the runner preserves
+strategy order and bounds candidate output by characters. No fixed candidate
+multiplier or model API call is involved. The LLM judges relevance and reads the
+selected evidence.
+
+Each logged query saves its strategy source, context, runtime snapshot, searches,
+proposed/emitted/omitted candidates and exact output. `get_page.py --run-dir
+<run-dir> --query-id <query-id>` records subsequent page and code output. Keep
+experiment artifacts outside the corpus. Ordinary keyword commands retain
+master's ranking and default limit of 10 candidates.
+
+See [strategy API, budgets and experiment records](references/search-strategies.md).
 
 ## Companion Docs
 

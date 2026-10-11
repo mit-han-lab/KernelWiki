@@ -6,16 +6,18 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Candidate retrieval regression gate
+## Strategy retrieval regression gate
 
-Result: **pass — 171 tests**, 43.342 seconds with the workspace's `python3`.
+Result: **pass — 180 tests**, 34.810 seconds with the workspace's `python3`.
 
-The 13 added tests cover unscored path ordering, alias/OR recall, optional AND
-filtering across fields, match excerpts, existing filters and output modes,
-complete pagination, total/next-page disclosure, counts by page type before
-pagination, and invalid or out-of-range pagination. The audit-count check permits
-added tests
-while still requiring the recorded totals to match discovery.
+The 22 retrieval tests cover uncapped OR/alias recall, existing filters, metadata
+isolation, strategy ordering and deduplication, optional master scoring, variable
+route counts, bounded excerpts, independent count/character budgets, exact source
+and context snapshots, output omissions, error receipts, captured diagnostics,
+and page/body/frontmatter/source-preview/code reading records linked to query IDs.
+The audit-count check permits added tests while requiring the recorded total to
+match discovery. Ordinary keyword queries retain master's candidate ordering;
+strategy mode has no mandatory scoring or candidate multiplier.
 
 ## Prior full discovery gate — 2026-08-19 UTC
 

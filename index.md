@@ -6,9 +6,12 @@
 
 ## Recommended Query Tools (for LLM agents)
 
-Start with `query.py` for unified candidate search. The calling LLM ranks and
-selects useful pages, then reads them with `get_page.py` or direct file reads.
-Use text search to locate supporting code or fill evidence gaps.
+Use `query.py` as the unified entry point. For task-specific retrieval, the
+calling LLM writes an independent strategy using the
+[strategy template and index API](references/search-strategies.md). The runner
+executes it, limits candidate output and records the retrieval. The LLM then
+judges relevance and reads selected pages with `get_page.py`; pass the run
+directory to record those reads. Text search can locate supporting code.
 
 ```bash
 python3 scripts/query.py "<keywords>" [--tag <t>] [--type <kernel|technique|pr|...>]

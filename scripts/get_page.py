@@ -11,6 +11,8 @@ Usage:
 """
 
 import argparse
+import contextlib
+import io
 import re
 import sys
 from pathlib import Path
@@ -19,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _yaml_compat import yaml  # noqa: E402
 
 from _wiki_root import WIKI_ROOT  # noqa: E402
+from _retrieval_log import RunLog, read_entry  # noqa: E402
 
 
 def find_page(lookup):
@@ -126,15 +129,7 @@ def _resolve_artifact_dir(page_path, fm):
     return str(candidate), abs_path, True
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Get a wiki page by id or path")
-    parser.add_argument("lookup", help="Page id (e.g. kernel-flash-attention-4) or relative path")
-    parser.add_argument("--body-only", action="store_true", help="Print only the body (skip frontmatter)")
-    parser.add_argument("--frontmatter-only", action="store_true", help="Print only the frontmatter as YAML")
-    parser.add_argument("--follow-sources", action="store_true", help="Also print 500-char excerpt from each cited source")
-    parser.add_argument("--include-code", action="store_true", help="After the page body, print all files under the page's artifact_dir (Phase 3)")
-    args = parser.parse_args()
-
+def display_page(args, reads):
     page_path = find_page(args.lookup)
     if not page_path:
         print(f"ERROR: No page found for '{args.lookup}'", file=sys.stderr)
@@ -145,17 +140,21 @@ def main():
 
     if args.frontmatter_only:
         if fm:
-            print(yaml.dump(fm, allow_unicode=True, sort_keys=False))
+            shown = yaml.dump(fm, allow_unicode=True, sort_keys=False)
+            print(shown)
+            reads.append(read_entry(WIKI_ROOT, page_path, content, "frontmatter", shown))
         return
 
     if args.body_only:
         print(body)
+        reads.append(read_entry(WIKI_ROOT, page_path, content, "body", body))
         return
 
     # Default: full page, prefixed with a path header for context
     print(f"# {page_path.relative_to(WIKI_ROOT)}")
     print()
     print(content)
+    reads.append(read_entry(WIKI_ROOT, page_path, content, "full", content))
 
     if args.follow_sources and fm and "sources" in fm:
         print()
@@ -173,6 +172,7 @@ def main():
                 print()
                 print(excerpt)
                 print()
+                reads.append(read_entry(WIKI_ROOT, src_page, src_content, "source-preview", excerpt))
 
     if args.include_code:
         ad, ad_path, is_fallback = _resolve_artifact_dir(page_path, fm)
@@ -208,13 +208,17 @@ def main():
                 print()
                 try:
                     body_bytes = f.read_bytes()
+                    full_bytes = body_bytes
                     if f.stat().st_size > 200 * 1024:
                         print(f"*(file is {f.stat().st_size} bytes; showing first 200 KiB)*")
                         body_bytes = body_bytes[:200 * 1024]
                     print("```" + (f.suffix.lstrip(".") or ""))
-                    print(body_bytes.decode("utf-8", errors="replace"))
+                    shown = body_bytes.decode("utf-8", errors="replace")
+                    print(shown)
                     print("```")
                     print()
+                    view = "artifact-prefix" if len(full_bytes) > len(body_bytes) else "artifact-full"
+                    reads.append(read_entry(WIKI_ROOT, f, full_bytes, view, shown))
                 except Exception as e:
                     print(f"*(could not read: {e})*")
                     print()
@@ -227,6 +231,35 @@ def main():
         else:
             print()
             print(f"*(artifact_dir '{ad}' not found on disk)*")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Get a wiki page by id or path")
+    parser.add_argument("lookup", help="Page id (e.g. kernel-flash-attention-4) or relative path")
+    parser.add_argument("--body-only", action="store_true", help="Print only the body (skip frontmatter)")
+    parser.add_argument("--frontmatter-only", action="store_true", help="Print only the frontmatter as YAML")
+    parser.add_argument("--follow-sources", action="store_true", help="Also print 500-char excerpt from each cited source")
+    parser.add_argument("--include-code", action="store_true", help="After the page body, print all files under the page's artifact_dir (Phase 3)")
+    parser.add_argument("--run-dir", type=Path, help="Save the returned page/code content and read receipt in this experiment directory")
+    parser.add_argument("--query-id", help="Associate this read with a query ID from the same --run-dir")
+    args = parser.parse_args()
+    if args.query_id and not args.run_dir:
+        parser.error("--query-id requires --run-dir")
+    if not args.run_dir:
+        display_page(args, [])
+        return
+    try:
+        log = RunLog(args.run_dir)
+        if args.query_id:
+            log.query_directory(args.query_id)
+        output, reads = io.StringIO(), []
+        with contextlib.redirect_stdout(output):
+            display_page(args, reads)
+        text = output.getvalue()
+        log.record_read(WIKI_ROOT, vars(args), reads, text, args.query_id)
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    print(text, end="")
 
 
 if __name__ == "__main__":
