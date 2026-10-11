@@ -6,15 +6,16 @@
 
 ## Recommended Query Tools (for LLM agents)
 
-Use `query.py` as the unified entry point. For task-specific retrieval, the
-calling LLM writes an independent strategy using the
-[strategy template and index API](references/search-strategies.md). The runner
-executes it, limits candidate output and records the retrieval. The LLM then
-judges relevance and reads selected pages with `get_page.py`; pass the run
-directory to record those reads. Text search can locate supporting code.
+Use `query.py` as the unified entry point. The calling LLM explicitly chooses
+master's scoring, interleaved query routes, or an independent Python strategy
+using the [strategy template and index API](references/search-strategies.md).
+The runner executes it, limits candidate output and records retrieval. The LLM
+judges relevance, reads evidence with `get_page.py`, and adjusts its queries or
+strategy as measurements change. Keep strategy/context/logs in the optimization
+workspace's writable `tmp/`, and pass the run directory to record page reads.
 
 ```bash
-python3 scripts/query.py "<keywords>" [--tag <t>] [--type <kernel|technique|pr|...>]
+python3 scripts/query.py "<keywords>" --strategy <master|interleave|strategy.py> --run-dir <run-dir> [--tag <t>] [--type <kernel|technique|pr|...>]
 python3 scripts/get_page.py <page-id-or-path> [--follow-sources]
 python3 scripts/grep_wiki.py "<regex>" [--only wiki|sources]
 ```

@@ -116,7 +116,7 @@ All page IDs below resolve via `get_page.py <id>`. All paths are relative to the
 | NVIDIA/TensorRT-LLM | 88 | `candidates/tensorrt-llm.yaml` |
 | tile-ai/tilelang | 19 | `candidates/tilelang.yaml` |
 
-Query by repo: `python3 scripts/query.py --repo <name>`.
+Query by repo: `python3 scripts/query.py --strategy master --run-dir <run-dir> --repo <name>`.
 
 ---
 

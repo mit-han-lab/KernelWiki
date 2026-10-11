@@ -1,36 +1,88 @@
 # Task-specific search strategies
 
-The calling LLM writes an independent Python strategy for the current task.
-`query.py` supplies stable retrieval primitives, executes that strategy and emits
-candidate cards within a budget. The LLM assesses those cards and reads useful
-pages. No model API is called by the scripts.
+The calling LLM chooses a supplied strategy or writes an independent Python
+strategy for the current task. `query.py` supplies stable retrieval primitives,
+executes that choice and emits candidate cards within a budget. The LLM assesses
+those cards, reads useful pages and revises the retrieval as evidence changes.
+No model API is called by the scripts.
 
 ## Start a run
 
-Keep generated code, task context and logs outside the shared wiki. This example
-uses a temporary directory; choose a persistent experiment directory when results
-need to survive temporary-file cleanup.
+Keep generated code, task context and logs outside the shared wiki. Run the
+following from the **optimization workspace**, using its writable `tmp/`.
+Replace the wiki path with the checkout being evaluated. The scripts resolve the
+corpus from their own location and user-supplied paths from the caller's working
+directory. Neither queries nor page reads need access to system `/tmp`.
 
 ```bash
-search_run=$(mktemp -d /tmp/kernelwiki-search.XXXXXX)
-cp scripts/strategy_template.py "$search_run/strategy.py"
+wiki_root="/path/to/KernelWiki"
+search_run="$PWD/tmp/kernelwiki-search"
+mkdir -p "$search_run"
 cat > "$search_run/context.json" <<'JSON'
 {
   "task": "Inspect a single-GPU Blackwell GEMM with producer/consumer waits",
+  "rationale": "Compare the measured stall with synchronization primitives",
   "queries": [
-    {"query": "pipeline", "type": "pattern"},
-    {"query": "mbarrier", "type": "hardware"}
+    {"query": "pipeline", "type": "pattern", "rule": "master"},
+    {"query": "mbarrier", "type": "hardware", "rule": "keyword"}
   ]
 }
 JSON
-python3 ./scripts/query.py --strategy "$search_run/strategy.py" --context "$search_run/context.json" --run-dir "$search_run" --max-chars 12000 --compact
+python3 "$wiki_root/scripts/query.py" --strategy interleave --context "$search_run/context.json" --run-dir "$search_run" --max-chars 12000 --compact
 ```
 
-Adapt `retrieve()` before using the template for an actual task. The starter
-interleaves all matches from the supplied queries and removes duplicates. That
-policy is only an executable example: it assigns no relevance scores and can
-still present low-value candidates. The LLM may change routes, filters, ordering
-and selection, or use a single query. There are no fixed per-route quotas.
+Use a new subdirectory for a separate experiment; query snapshots within each
+run are already unique. If local `tmp/` is unavailable, pass another writable
+experiment directory explicitly.
+
+## Choose or compose a strategy
+
+`--strategy` and `--run-dir` are required. Missing or failing strategies do not
+silently switch to master. A bare keyword command from the earlier interface
+must now explicitly select its policy.
+
+| Selection | Behavior | When to consider it |
+| --- | --- | --- |
+| `--strategy master` | One query, master's score with path ties; filter-only results in path order | A focused keyword query or a baseline ordering |
+| `--strategy interleave` | Round-robin distinct results from caller-defined routes, with no per-route quota | Compare mechanisms, symptoms or implementations without pooling every term into one score |
+| `--strategy <file.py>` | Execute `retrieve(index, context)` written or adapted by the LLM | Custom filtering, ordering, merging or selection based on task evidence |
+
+For a focused master query, reusing the variables above:
+
+```bash
+python3 "$wiki_root/scripts/query.py" "pipeline stalls" --strategy master --run-dir "$search_run" --limit 12 --compact
+```
+
+The number 12 is an example caller choice, not a default. Master preserves
+title +10, metadata +5 and capped body scoring; it has **no implicit top-10 cap**
+here. Use `--limit 10` to reproduce that count, subject to the output budget.
+This strategy uses `context.query` or CLI keywords and CLI filters; it rejects
+`context.queries` instead of silently ignoring a multi-query plan.
+
+For interleave, `context.queries` is a list of route objects containing `query`,
+optional filters and `rule`. `rule: "master"` explicitly scores that route;
+`rule: "keyword"` (the route default) enumerates all matches in path order.
+Duplicate pages do not consume a route's next turn. Without `queries`, one route
+uses `context.query`. Route order is caller-chosen, not a semantic ranking.
+
+For custom logic, copy the template and edit `retrieve()` before running:
+
+```bash
+cp "$wiki_root/scripts/strategy_template.py" "$search_run/strategy.py"
+python3 "$wiki_root/scripts/query.py" --strategy "$search_run/strategy.py" --context "$search_run/context.json" --run-dir "$search_run" --compact
+```
+
+The starter calls `index.interleave()`; the LLM may replace it with
+`index.master()`, combine rules or select candidates using metadata/body evidence.
+There are no fixed route counts or candidate multipliers. Multiple queries can
+expose additional evidence but also displace useful pages under a budget.
+
+After reading, use the operator, hardware, dtype/layout and measured bottleneck
+to judge relevance. For example, if a pipeline hypothesis is unsupported and
+measurements point to tile tails, revise the queries toward tile scheduling;
+do not just increase the same weights. Preserve the rationale, phase and prior
+query ID in context or the conversation when useful. Python does not choose
+queries from natural language or update the strategy by itself.
 
 ## Strategy contract
 
@@ -43,6 +95,8 @@ different retrieval policy.
 | API | Behavior |
 | --- | --- |
 | `index.search(query="", **filters)` | All matching page IDs, without relevance scoring or count truncation; path order is deterministic enumeration |
+| `index.master(query="", **filters)` | All matches in master's score/path order, with no count truncation |
+| `index.interleave(routes)` | Combine route objects with `rule="keyword"` or `rule="master"`, deduplicating while taking turns |
 | `index.metadata(id_or_path)` | A copy of the page's frontmatter |
 | `index.read(id_or_path)` | Body text for Python strategy logic; recorded as a strategy read |
 | `index.keyword_score(id_or_path, query)` | Optional master heuristic: title +10, metadata +5, body hits capped at 3, best alias variant per keyword |
@@ -75,7 +129,7 @@ or queries performed outside the index API are not automatically traced.
 
 - `--max-chars` defaults to 16,000 and bounds candidate text plus its summary.
   It is a character budget, not a model-specific token estimate.
-- With `--strategy`, there is no default candidate-count cap. Optional `--limit`
+- For every strategy, there is no default candidate-count cap. Optional `--limit`
   is a maximum number of candidates to emit, with no multiplier or final-N role.
 - The runner emits a prefix of strategy order. When the next complete card does
   not fit, it stops and records the remaining IDs. An oversized first card can
@@ -95,9 +149,11 @@ judgments after reading. A strategy's numeric score or output order is not an
 LLM assessment. Runtime task information guides the LLM's strategy generation;
 Python does not automatically interpret natural-language intent.
 
-Without `--strategy`, ordinary queries use master's keyword ordering (path order
-without keywords) and default `--limit 10`, also subject to `--max-chars`.
-`--run-dir` can record this mode for a baseline experiment.
+For ablations, fix overall research budgets and include strategy generation and
+revision in the cost. Per-query character limits do not cap cumulative queries
+or full-page reads. Compare against the separate master checkout for the original
+workflow; selecting `--strategy master` here isolates ordering but retains the
+new excerpts, budgets and logging.
 
 ## Record retrieval and reading
 
@@ -112,7 +168,7 @@ previous strategy snapshot:
     request.json       # CLI arguments, script/corpus commits, runtime and hashes
     context.json
     aliases.yaml       # alias snapshot, when present in the corpus
-    strategy.py        # exact executed source; absent for built-in mode
+    strategy.py        # exact executed source, including named strategies
     engine/            # retrieval and page-reader script snapshots
     result.json        # corpus hash, searches, proposals, output omissions
     output.txt

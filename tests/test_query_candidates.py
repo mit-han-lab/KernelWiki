@@ -3,6 +3,7 @@
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -52,6 +53,41 @@ class StrategyIndexTests(unittest.TestCase):
         result = query.execute_strategy(source, 'strategy.py', index, {})
         self.assertEqual(list(reversed(sorted(str(i) for i in range(50)))), [p['path'] for p in result])
 
+    def test_generated_strategy_supports_dataclasses_and_module_introspection(self):
+        source = b'''from __future__ import annotations
+from dataclasses import dataclass
+import sys
+@dataclass
+class Route:
+    query: str
+def retrieve(index, context):
+    assert sys.modules[__name__].retrieve is retrieve
+    return index.search(Route(context["query"]).query)
+'''
+        index = query.StrategyIndex([page('a', title='TMA')])
+        previous = sys.modules.pop('kernelwiki_strategy', None)
+        try:
+            result = query.execute_strategy(source, 'strategy.py', index, {'query': 'TMA'})
+            self.assertEqual(['a'], [p['path'] for p in result])
+            self.assertNotIn('kernelwiki_strategy', sys.modules)
+        finally:
+            if previous is not None:
+                sys.modules['kernelwiki_strategy'] = previous
+
+    def test_strategy_module_is_restored_after_success_and_failures(self):
+        existing = object()
+        sources = [b'def retrieve(index, context):\n    return []\n',
+                   b'def retrieve(index, context):\n    raise RuntimeError("broken")\n',
+                   b'raise RuntimeError("import failed")', b'syntax error!',
+                   b'def retrieve(index, context):\n    return ["missing"]\n']
+        for source in sources:
+            with self.subTest(source=source), patch.dict(sys.modules, kernelwiki_strategy=existing):
+                try:
+                    query.execute_strategy(source, 'strategy.py', query.StrategyIndex([]), {})
+                except (RuntimeError, SyntaxError, ValueError):
+                    pass
+                self.assertIs(existing, sys.modules['kernelwiki_strategy'])
+
     def test_duplicates_and_path_id_references_are_canonicalized(self):
         p = page('wiki/a.md', body='TMA')
         p['fm']['id'] = 'hw-a'
@@ -69,6 +105,35 @@ class StrategyIndexTests(unittest.TestCase):
         self.assertEqual(18, index.keyword_score('a', 'UMMA'))
         body = index.read('a')
         self.assertEqual(digest(body), index.reads[0]['body_sha256'])
+
+    def test_master_preserves_alias_scores_and_path_ties_without_count_cap(self):
+        pages = [page(f'{i:02d}', body='tcgen05') for i in range(40)]
+        pages[0]['fm']['id'] = 'z-id'  # Ties use page paths, not IDs.
+        pages[1]['fm']['id'] = 'a-id'
+        pages[-1]['fm'].update(title='UMMA tcgen05', tags=['tcgen05'])
+        pages[-1]['body'] = 'tcgen05 ' * 100
+        index = query.StrategyIndex(pages)
+        ids = index.master('UMMA')
+        self.assertEqual(40, len(ids))
+        self.assertEqual(['39', 'z-id', 'a-id'], ids[:3])
+        self.assertEqual(18, index.keyword_score(ids[0], 'UMMA'))
+        self.assertEqual('master', index.searches[-1]['rule'])
+        self.assertEqual(ids, index.searches[-1]['ordered_ids'])
+
+    def test_mixed_routes_skip_duplicates_without_losing_another_routes_turn(self):
+        index = query.StrategyIndex([
+            page('a', body='TMA wait'), page('b', body='TMA'),
+            page('c', body='wait'), page('z', title='TMA', body='wait'),
+        ])
+        routes = [{'query': 'TMA', 'rule': 'master'}, {'query': 'wait', 'rule': 'keyword'}]
+        original = json.dumps(routes)
+        self.assertEqual(['z', 'a', 'b', 'c'], index.interleave(routes))
+        self.assertEqual(['master', 'keyword'], [s['rule'] for s in index.searches])
+        self.assertEqual(original, json.dumps(routes))
+        self.assertEqual([], index.interleave([]))
+        for invalid in ('TMA', [None], [{'rule': 'typo'}], [{'limit': 10}]):
+            with self.subTest(routes=invalid), self.assertRaises(ValueError):
+                index.interleave(invalid)
 
     def test_template_supports_variable_route_counts_without_quotas(self):
         index = query.StrategyIndex([page('a', 'TMA'), page('b', 'TMA'), page('c', 'wait')])
@@ -113,6 +178,9 @@ class StrategyCLITests(unittest.TestCase):
     def strategy_cli(self, *args):
         return self.cli('--strategy', self.strategy, '--run-dir', self.run, *args)
 
+    def master_cli(self, *args):
+        return self.cli('--strategy', 'master', '--run-dir', self.run, *args)
+
     def receipts(self):
         return sorted((self.run / 'queries').glob('*/result.json'))
 
@@ -125,15 +193,70 @@ class StrategyCLITests(unittest.TestCase):
         self.assertIsNone(result['budget']['limit'])
         self.assertEqual(40, len(result['emitted_ids']))
 
-    def test_limit_is_exact_candidate_count_and_plain_query_keeps_master_order(self):
+    def test_explicit_master_preserves_order_and_limit_is_optional_for_all_strategies(self):
         self.pages[-1]['fm']['tags'] = ['tma']
-        stdout, _ = self.cli('TMA', '--limit', 3, '--paths-only')
+        stdout, _ = self.master_cli('TMA', '--limit', 3, '--paths-only')
         self.assertEqual(3, len(stdout.splitlines()))
         self.assertEqual(self.pages[-1]['path'], stdout.splitlines()[0])
-        stdout, _ = self.cli('TMA', '--paths-only')
-        self.assertEqual(10, len(stdout.splitlines()))
+        stdout, _ = self.master_cli('TMA', '--paths-only')
+        self.assertEqual(40, len(stdout.splitlines()))
         stdout, _ = self.strategy_cli('TMA', '--limit', 3, '--paths-only')
         self.assertEqual([p['path'] for p in self.pages[:3]], stdout.splitlines())
+
+    def test_missing_or_unknown_strategy_does_not_run_master_or_create_a_log(self):
+        for args in (('TMA', '--run-dir', self.run),
+                     ('--strategy', 'typo', '--run-dir', self.run),
+                     ('--strategy', 'master', 'TMA')):
+            with self.subTest(args=args), self.assertRaises(SystemExit) as raised:
+                self.cli(*args)
+            self.assertEqual(2, raised.exception.code)
+            self.assertFalse(self.run.exists())
+
+    def test_builtin_strategies_snapshot_source_and_record_explicit_choice(self):
+        for name in ('master', 'interleave'):
+            self.cli('TMA', '--strategy', name, '--run-dir', self.run, '--limit', 2)
+        for receipt in self.receipts():
+            folder = receipt.parent
+            request = json.loads((folder / 'request.json').read_text())
+            choice = request['arguments']['strategy']
+            self.assertEqual(choice, json.loads(receipt.read_text())['strategy'])
+            self.assertEqual(query.BUILTIN_STRATEGIES[choice].read_bytes(),
+                             (folder / 'strategy.py').read_bytes())
+
+    def test_interleave_uses_context_routes_and_master_rejects_silently_ignoring_them(self):
+        self.pages[-1]['fm'].update(title='mbarrier', tags=['tma'])
+        context = self.directory / 'context.json'
+        context.write_text(json.dumps({'rationale': 'Compare transfer and synchronization',
+                                      'queries': [{'query': 'TMA', 'rule': 'master'},
+                                                  {'query': 'mbarrier'}]}))
+        stdout, _ = self.cli('--strategy', 'interleave', '--run-dir', self.run,
+                             '--context', context, '--paths-only', '--limit', 3)
+        self.assertEqual(self.pages[-1]['path'], stdout.splitlines()[1])
+        receipt = json.loads(self.receipts()[0].read_text())
+        self.assertEqual(['master', 'keyword'], [r['rule'] for r in receipt['searches']])
+        with self.assertRaises(SystemExit):
+            self.master_cli('--context', context)
+        self.assertTrue(any(json.loads(p.read_text())['status'] == 'error' for p in self.receipts()))
+
+    def test_relative_paths_use_optimization_workspace_without_system_temp(self):
+        optimization = self.directory / 'optimization'
+        local_tmp = optimization / 'tmp'
+        local_tmp.mkdir(parents=True)
+        (local_tmp / 'strategy.py').write_bytes(self.strategy.read_bytes())
+        (local_tmp / 'context.json').write_text('{"query": "TMA"}')
+        previous = Path.cwd()
+        try:
+            os.chdir(optimization)
+            with patch('tempfile.mkstemp', side_effect=PermissionError('system tmp unavailable')), \
+                    patch('tempfile.mkdtemp', side_effect=PermissionError('system tmp unavailable')):
+                self.cli('--strategy', 'tmp/strategy.py', '--context', 'tmp/context.json',
+                         '--run-dir', 'tmp/search', '--limit', 2)
+                self.cli('TMA', '--strategy', 'master', '--run-dir', 'tmp/search', '--limit', 2)
+        finally:
+            os.chdir(previous)
+        receipts = list((local_tmp / 'search/queries').glob('*/result.json'))
+        self.assertEqual(2, len(receipts))
+        self.assertTrue(all(json.loads(p.read_text())['status'] == 'ok' for p in receipts))
 
     def test_budget_covers_summary_and_preserves_order_in_all_modes(self):
         for flags in ([], ['--compact'], ['--paths-only']):
@@ -213,16 +336,16 @@ class StrategyCLITests(unittest.TestCase):
 
     def test_invalid_arguments_and_context_are_rejected(self):
         for args in (('--limit', 0), ('--limit', -1), ('--max-chars', 511),
-                     ('--offset', 0), ('--match', 'all'), ('--strategy', self.strategy)):
+                     ('--offset', 0), ('--match', 'all')):
             with self.subTest(args=args), self.assertRaises(SystemExit):
-                self.cli(*args)
+                self.strategy_cli(*args)
         context = self.directory / 'context.json'
         context.write_text('[]')
         with self.assertRaises(SystemExit):
             self.strategy_cli('--context', context)
 
     def test_filter_only_and_empty_results_remain_usable(self):
-        stdout, _ = self.cli('--type', 'hardware', '--limit', 2, '--paths-only')
+        stdout, _ = self.master_cli('--type', 'hardware', '--limit', 2, '--paths-only')
         self.assertEqual([p['path'] for p in self.pages[:2]], stdout.splitlines())
         stdout, _ = self.strategy_cli('nonexistentidentifier')
         self.assertIn('0 candidate(s); 0 proposed', stdout)

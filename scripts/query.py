@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Unified query tool for the Blackwell kernel wiki.
 
-Run an LLM-authored strategy against reusable keyword/alias/filter primitives.
+Run an explicitly chosen strategy against reusable keyword/alias/filter primitives.
 The calling LLM assesses returned candidates; this script makes no model calls.
-Without --strategy, retain master's keyword ranking and --limit semantics.
+Master's scoring is one selectable strategy, with no implicit candidate-count cap.
 
 Usage:
-    query.py "gate-up GEMM" --type kernel
-    query.py --tag nvfp4 --type kernel
-    query.py --repo cutlass --limit 20
-    query.py --language cute-dsl
-    query.py --symptom memory-bound
+    query.py "gate-up GEMM" --strategy master --run-dir ./tmp/search --limit 20
+    query.py --strategy interleave --context ./tmp/context.json --run-dir ./tmp/search
+    query.py --strategy ./tmp/strategy.py --run-dir ./tmp/search
+
+Relative paths are resolved from the caller's working directory, not the wiki.
 
 Returns matching pages with titles, paths, metadata and bounded match excerpts.
 """
@@ -23,7 +23,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _yaml_compat import yaml  # noqa: E402
@@ -37,6 +37,10 @@ from _retrieval_log import RunLog, digest  # noqa: E402
 _ALIAS_CACHE = None
 FILTER_NAMES = ("type", "tag", "repo", "language", "architecture", "symptom",
                 "confidence", "has_code")
+BUILTIN_STRATEGIES = {
+    name: Path(__file__).resolve().parent / "strategies" / f"{name}.py"
+    for name in ("master", "interleave")
+}
 
 
 def load_alias_expansions():
@@ -143,7 +147,7 @@ def keyword_matches(fm, body, keywords):
 
 
 def score_keyword_match(fm, body, keywords):
-    """Master's score: built-in ordering, or an explicit strategy helper."""
+    """Master's score, used only when a strategy explicitly selects it."""
     title = str(fm.get("title", "")).lower()
     metadata = " ".join(
         str(v) for k in ("tags", "techniques", "hardware_features", "kernel_types",
@@ -215,9 +219,46 @@ class StrategyIndex:
             matches = self.matches.setdefault(identifier, {})
             for field, terms in page["_matches"].items():
                 matches[field] = list(dict.fromkeys(matches.get(field, []) + terms))
-        self.searches.append({"query": query, "filters": filters,
+        self.searches.append({"query": query, "filters": filters, "rule": "keyword",
                               "matched_ids": ids.copy(), "match_count": len(ids)})
         return ids
+
+    def master(self, query="", **filters):
+        """All matches in master's score/path order, without its default limit."""
+        ids = self.search(query, **filters)
+        if query_keywords(query):
+            ids.sort(key=lambda identifier: (
+                -self.keyword_score(identifier, query), self._page(identifier)["path"],
+            ))
+        self.searches[-1].update(rule="master", ordered_ids=ids.copy())
+        return ids
+
+    def interleave(self, routes):
+        """Round-robin distinct results from caller-chosen queries and rules."""
+        if not isinstance(routes, list):
+            raise ValueError("queries must be a list of route objects")
+        groups = []
+        for route in routes:
+            if not isinstance(route, dict):
+                raise ValueError("each query route must be an object")
+            options = dict(route)
+            rule = options.pop("rule", "keyword")
+            if rule not in ("keyword", "master"):
+                raise ValueError(f"unknown route rule: {rule}; choose keyword or master")
+            search = self.master if rule == "master" else self.search
+            groups.append(iter(search(**options)))
+        seen, candidates = set(), []
+        while groups:
+            active = []
+            for group in groups:
+                for identifier in group:
+                    if identifier not in seen:
+                        seen.add(identifier)
+                        candidates.append(identifier)
+                        active.append(group)
+                        break
+            groups = active
+        return candidates
 
     def metadata(self, identifier):
         """Copy frontmatter; edits to the copy cannot change the corpus."""
@@ -232,7 +273,7 @@ class StrategyIndex:
         return page["body"]
 
     def keyword_score(self, identifier, query):
-        """Optional master's heuristic. Never invoked automatically in strategy mode."""
+        """Helper for policies that explicitly select master's heuristic."""
         page = self._page(identifier)
         return score_keyword_match(page["fm"], page["body"], query_keywords(query))
 
@@ -263,12 +304,37 @@ class StrategyOutput(io.TextIOBase):
 
 
 def execute_strategy(source, path, index, context):
-    namespace = {"__name__": "kernelwiki_strategy", "__file__": str(path)}
-    exec(compile(source, str(path), "exec"), namespace)
-    retrieve = namespace.get("retrieve")
-    if not callable(retrieve):
-        raise ValueError("strategy must define retrieve(index, context)")
-    return index.candidates(retrieve(index, copy.deepcopy(context)))
+    # Standard-library helpers such as dataclasses resolve annotations through
+    # sys.modules. Give generated code normal module semantics during execution.
+    module_name = "kernelwiki_strategy"
+    module = ModuleType(module_name)
+    module.__file__ = str(path)
+    missing = object()
+    previous = sys.modules.get(module_name, missing)
+    sys.modules[module_name] = module
+    try:
+        exec(compile(source, str(path), "exec"), module.__dict__)
+        retrieve = getattr(module, "retrieve", None)
+        if not callable(retrieve):
+            raise ValueError("strategy must define retrieve(index, context)")
+        return index.candidates(retrieve(index, copy.deepcopy(context)))
+    finally:
+        if previous is missing:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous
+
+
+def resolve_strategy(selection):
+    """Named policies and generated files use the same execution/logging path."""
+    if selection in BUILTIN_STRATEGIES:
+        return BUILTIN_STRATEGIES[selection]
+    path = Path(selection).expanduser().resolve()
+    if not path.is_file():
+        raise ValueError(
+            f"strategy not found: {selection}; choose master, interleave, or a Python file"
+        )
+    return path
 
 
 def match_excerpt(body, variants, width=240):
@@ -502,11 +568,13 @@ def main():
     parser.add_argument("--symptom", help="Filter by pattern symptom (memory-bound, register-pressure, etc.)")
     parser.add_argument("--confidence", help="Filter by confidence (verified, source-reported, inferred, experimental)")
     parser.add_argument("--has-code", action="store_true", help="Only return pages whose artifact_dir contains at least one source file")
-    parser.add_argument("--strategy", type=Path, help="Python file defining retrieve(index, context)")
+    parser.add_argument("--strategy", required=True, metavar="master|interleave|PATH",
+                        help="Explicit policy: master's scoring, interleaved queries, or a Python file")
     parser.add_argument("--context", type=Path, help="JSON object with task context for the strategy")
-    parser.add_argument("--run-dir", type=Path, help="Directory for strategy, query, candidate and reading receipts; required with --strategy")
+    parser.add_argument("--run-dir", type=Path, required=True,
+                        help="Writable experiment directory, e.g. ./tmp/kernelwiki-search in the optimization workspace")
     parser.add_argument("--limit", type=int,
-                        help="Maximum emitted candidates (default 10 without a strategy; no count cap with a strategy)")
+                        help="Optional maximum emitted candidates; no default count cap for any strategy")
     parser.add_argument("--max-chars", type=int, default=16000,
                         help="Maximum candidate output characters including summary (default 16000; not a token count)")
     parser.add_argument("--compact", action="store_true", help="Compact one-line-per-result output")
@@ -516,12 +584,7 @@ def main():
         parser.error("--limit must be positive")
     if args.max_chars < 512:
         parser.error("--max-chars must be at least 512")
-    if args.strategy and not args.run_dir:
-        parser.error("--strategy requires --run-dir to retain the generated strategy and retrieval trace")
-    if args.context and not args.strategy:
-        parser.error("--context requires --strategy")
-
-    context, source, log, query_id = {}, None, None, None
+    context = {}
     try:
         if args.context:
             context = json.loads(args.context.read_text(encoding="utf-8"))
@@ -531,16 +594,13 @@ def main():
             context["query"] = " ".join(args.query)
         else:
             context.setdefault("query", "")
-        limit = args.limit if args.strategy or args.limit is not None else 10
-        context["budget"] = {"max_chars": args.max_chars, "limit": limit}
-        if args.strategy:
-            args.strategy = args.strategy.expanduser().resolve()
-            source = args.strategy.read_bytes()
-        if args.run_dir:
-            log = RunLog(args.run_dir)
-            query_id, _ = log.start_query(
-                WIKI_ROOT, context, vars(args), source, args.strategy,
-            )
+        context["budget"] = {"max_chars": args.max_chars, "limit": args.limit}
+        strategy_path = resolve_strategy(args.strategy)
+        source = strategy_path.read_bytes()
+        log = RunLog(args.run_dir)
+        query_id, _ = log.start_query(
+            WIKI_ROOT, context, vars(args), source, strategy_path,
+        )
     except (OSError, ValueError) as error:
         parser.error(str(error))
 
@@ -569,18 +629,11 @@ def main():
     index = StrategyIndex(pages)
     diagnostics = StrategyOutput()
     try:
-        if args.strategy:
-            with contextlib.redirect_stdout(diagnostics), contextlib.redirect_stderr(diagnostics):
-                proposed = execute_strategy(source, args.strategy, index, context)
-            order = "strategy"
-        else:
-            keywords = query_keywords(context["query"])
-            proposed = index.candidates(index.search(context["query"]))
-            if keywords:
-                proposed.sort(key=lambda p: (-score_keyword_match(p["fm"], p["body"], keywords), p["path"]))
-            order = "master keyword score" if keywords else "master path order"
+        with contextlib.redirect_stdout(diagnostics), contextlib.redirect_stderr(diagnostics):
+            proposed = execute_strategy(source, strategy_path, index, context)
+        order = f"strategy {args.strategy}" if args.strategy in BUILTIN_STRATEGIES else "custom strategy"
         summary, output, emitted = render_candidates(
-            proposed, limit=limit, max_chars=args.max_chars, compact=args.compact,
+            proposed, limit=args.limit, max_chars=args.max_chars, compact=args.compact,
             paths_only=args.paths_only, order=order, query_id=query_id,
         )
     except (Exception, SystemExit) as error:
@@ -597,7 +650,7 @@ def main():
         proposed_ids = [p["fm"].get("id", p["path"]) for p in proposed]
         matched_ids = set(identifier for search in index.searches for identifier in search["matched_ids"])
         log.finish_query(query_id, {
-            "status": "ok", "mode": "strategy" if args.strategy else "builtin",
+            "status": "ok", "mode": "strategy", "strategy": args.strategy,
             "corpus_pages": len(all_pages),
             "corpus_sha256": digest(json.dumps(corpus, sort_keys=True, default=str)),
             "searches": index.searches, "strategy_reads": index.reads,

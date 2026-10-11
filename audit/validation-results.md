@@ -1,6 +1,38 @@
 # Validation results
 
-## Strategy retrieval validation
+## Explicit strategy selection validation
+
+Follow-up review reproduced and fixed a strategy-loader bug: dataclasses with
+postponed annotations could not resolve their module. Strategies now execute
+with a registered module, restoring the prior registry state on success or failure.
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 188 tests in 55.648 seconds |
+| Focused retrieval suite | pass — 30 tests |
+| Explicit master against original master | pass — 15 CLI path lists with the same limit; identical scores for 11 queries over 1,041 pages |
+| Offline named/custom strategy smoke | pass — master, interleave and a dataclass-based custom strategy, each under 2,600 characters; 3 linked page reads |
+| Page output against master | pass — 5 full/body/frontmatter/source-preview/code comparisons |
+| Optimization-local paths | pass — relative strategy/context/run paths resolve in the caller's workspace; temporary-file allocation can be unavailable |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.13 MiB, 1,595 files, 422 artifacts; ceiling 25 MiB |
+
+Named `master`, `interleave` and generated Python files share one execution and
+logging path. Every query requires `--strategy` and `--run-dir`; all candidate
+count caps are explicit. Master scoring is preserved as an option. The examples
+place generated files under the optimization workspace's writable `tmp/`.
+
+The skill now asks the calling LLM to choose and revise queries, rules, candidate
+selection and reading based on task evidence. The scripts make no model calls.
+No GPU ablation or retrieval-quality claim is made. Validation uses public corpus
+content and `.worklog/strategy-validation/` / `.worklog/strategy-review/`, with no
+private task reads or writes.
+The external skill validator still rejects the pre-existing `argument-hint` key;
+frontmatter is byte-identical to master. Repository and documented-command checks
+pass. Earlier validation below describes the preceding interface.
+
+## Prior strategy retrieval validation
 
 | Check | Result |
 | --- | --- |

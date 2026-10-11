@@ -29,7 +29,11 @@ Do NOT use this skill for:
 
 ## How To Query
 
-All commands below run from the skill directory (the clone root — the directory this `SKILL.md` lives in). The scripts auto-resolve the wiki root; **no environment variable required**.
+The scripts auto-resolve the wiki root; **no environment variable required**.
+You may invoke their absolute paths from the optimization workspace. Relative
+strategy, context and run paths resolve from the calling directory. In examples
+using `scripts/...`, run from the skill directory and set `search_run` to an
+absolute path under the optimization workspace's writable `tmp/` directory.
 
 ### Runtime dependencies
 
@@ -40,27 +44,43 @@ that `pip`, a virtualenv, network access, or a pre-installed PyYAML package is
 available. `requirements.txt` is optional and only installs the faster host
 implementation.
 
-### Path 1: Unified search with a task-specific strategy
+### Path 1: Unified search with an explicitly chosen strategy
 
-Use `query.py` as the research entry point. Read
-[the strategy interface](references/search-strategies.md), copy
-`scripts/strategy_template.py` outside the wiki as `strategy.py`, and adapt its
-`retrieve(index, context)` function to the current question and profiling evidence.
-Keep generated strategies, task context and run logs outside the shared corpus.
+Use `query.py` as the research entry point and explicitly choose `--strategy`:
+
+- `master`: reuse master's keyword score for a focused query.
+- `interleave`: combine queries from context; each route can choose master's
+  score or unscored keyword enumeration.
+- A Python file: adapt `scripts/strategy_template.py` when the task benefits from
+  custom combination, selection or ordering. Reuse a suitable strategy when possible.
+
+Choose using the current question, measured bottleneck and evidence gaps; master
+is one useful option, not a mandatory first step. For a new measurement or missing
+mechanism, revise the query/context or strategy. Record the reason for the choice
+in the context or conversation; do not treat arbitrary new numeric weights as
+proof of better relevance. Read [the strategy interface](references/search-strategies.md)
+for route examples and the writable-workspace setup.
+
+Keep generated strategies, task context and logs in the optimization workspace's
+`tmp/kernelwiki-search/` (or another explicitly writable experiment directory),
+outside the shared wiki corpus. Do not assume system `/tmp` is writable. The
+caller supplies `--run-dir`; the scripts do not allocate system temporary files.
 
 The fixed index supplies corpus loading, OR keyword/alias matching, metadata
 filters and page access. Your strategy chooses queries, combinations, selection
 and candidate order. `index.search()` returns every match without a score or
-count cutoff. Master's keyword score is available only as an optional helper.
+count cutoff. `index.master()` is the optional scored equivalent, and
+`index.interleave()` can combine either rule across queries.
 Use one or several queries as appropriate; no fixed route count or quota applies.
 
 ```bash
-python3 scripts/query.py --strategy <strategy.py> --context <context.json> --run-dir <run-dir> --compact
+python3 scripts/query.py --strategy <master|interleave|strategy.py> --context <context.json> --run-dir <run-dir> --compact
 ```
 
 `query.py` preserves strategy order, deduplicates pages and emits a prefix within
-`--max-chars` (default 16,000 characters, not tokens). In strategy mode there is
-no default candidate-count cap; optional `--limit` caps the number emitted.
+`--max-chars` (default 16,000 characters, not tokens). No strategy, including
+master, has a default candidate-count cap. Choose optional `--limit` and the
+character budget based on the task, or follow the fixed experiment budget.
 The summary and receipt disclose omissions. There is no fixed relationship
 between candidate count and how many pages you ultimately choose to read.
 
@@ -79,14 +99,16 @@ not automatically traced. Use `get_page.py` for the actual evidence reads you
 want recorded, including artifact paths. Explain selections in the experiment
 conversation; do not treat candidate order as a completed relevance ranking.
 
-The ordinary CLI remains available with master's scoring and `--limit` behavior
-(default 10 candidates), subject to the character budget:
+Select master explicitly when its rule suits the query. Its ranking is preserved;
+candidate count is caller-controlled. Omitting `--strategy` is an error, with no
+implicit fallback. For examples below, set the writable run directory first:
 
 ```bash
-python3 scripts/query.py "gate-up GEMM" --type kernel
-python3 scripts/query.py --tag nvfp4 --type kernel
-python3 scripts/query.py --repo cutlass --limit 20
-python3 scripts/query.py --symptom tail-effect --compact
+search_run="<optimization-directory>/tmp/kernelwiki-search"
+python3 scripts/query.py --strategy master --run-dir "$search_run" "gate-up GEMM" --type kernel
+python3 scripts/query.py --strategy master --run-dir "$search_run" --tag nvfp4 --type kernel
+python3 scripts/query.py --strategy master --run-dir "$search_run" --repo cutlass --limit 20
+python3 scripts/query.py --strategy master --run-dir "$search_run" --symptom tail-effect --compact
 ```
 
 Existing filters: `--type`, `--tag`, `--repo`, `--language`, `--architecture`,

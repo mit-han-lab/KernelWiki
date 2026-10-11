@@ -6,7 +6,29 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Strategy retrieval regression gate
+## Explicit strategy selection regression gate
+
+Result: **pass — 188 tests**, 55.648 seconds with the workspace's `python3`.
+The focused retrieval suite passes **30 tests**, including named master/interleave strategies, mixed route rules,
+duplicate handling, required explicit selection, caller-controlled counts,
+named-strategy snapshots, and optimization-local paths without system temporary
+file allocation. Documentation commands now supply explicit policies and use an
+isolated writable run directory during validation. Validation scratch uses
+`.worklog/strategy-validation/`; `TMPDIR` points to its local `tmp/` for tests.
+Follow-up review fixed the strategy loader for dataclasses with postponed
+annotations. Regressions cover module introspection and restoration of prior
+module state after successful execution, import errors and retrieval failures.
+
+Real-corpus checks compare 11 query scores over 1,041 pages and 15 limited CLI
+path lists against `master:scripts/query.py`. All match with explicit
+`--strategy master --limit 10`. Offline smoke runs exercise master, interleave
+and an adapted Python strategy from a simulated optimization directory, writing
+only to its `tmp/` and linking three subsequent page reads. The follow-up run in
+`.worklog/strategy-review/` also uses a dataclass-based custom strategy and
+compares five page-reader outputs against master. This checks behavior, not
+retrieval relevance or kernel performance.
+
+## Prior strategy retrieval regression gate
 
 Result: **pass — 180 tests**, 34.810 seconds with the workspace's `python3`.
 

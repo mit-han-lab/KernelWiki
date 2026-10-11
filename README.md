@@ -31,7 +31,8 @@ Smoke test:
 
 ```bash
 cd ~/.claude/skills/KernelWiki
-python3 scripts/query.py --tag nvfp4 --type kernel --compact
+search_run="<optimization-directory>/tmp/kernelwiki-search"
+python3 scripts/query.py --strategy master --run-dir "$search_run" --tag nvfp4 --type kernel --compact
 python3 scripts/get_page.py kernel-flash-attention-4 --frontmatter-only
 ```
 
@@ -52,37 +53,45 @@ export BLACKWELL_WIKI_ROOT=/path/to/KernelWiki
 
 ## Query Tools
 
-All tools run from the skill root, no env var needed.
+Tools locate the wiki from their script path. Use absolute script paths from the
+optimization workspace, or run these relative-script examples from the skill root.
+Set `search_run` to an absolute writable path under the optimization workspace's
+`tmp/`; system `/tmp` access is unnecessary.
 
 | Tool | Purpose |
 |---|---|
-| `scripts/query.py` | Unified entry point: execute an LLM-authored strategy and emit candidates within an output budget |
+| `scripts/query.py` | Unified entry point: explicitly select master, interleave or an LLM-authored strategy; emit candidates within a budget |
 | `scripts/get_page.py` | Read pages/code; optional `--run-dir` records full reads, previews and code output |
 | `scripts/grep_wiki.py` / `rg -F` | Supplementary regex/literal search; use `--only artifacts` or an artifact path to locate captured code |
 
 Examples:
 
 ```bash
-python3 scripts/query.py "ping-pong attention" --limit 5
-python3 scripts/query.py --tag UMMA --type hardware --compact          # alias → tcgen05
-python3 scripts/query.py --architecture B200 --type kernel             # alias → sm100
+python3 scripts/query.py --strategy master --run-dir "$search_run" "ping-pong attention" --limit 5
+python3 scripts/query.py --strategy master --run-dir "$search_run" --tag UMMA --type hardware --compact          # alias → tcgen05
+python3 scripts/query.py --strategy master --run-dir "$search_run" --architecture B200 --type kernel             # alias → sm100
 python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
 
-For task-specific retrieval, copy `scripts/strategy_template.py` as an independent
-`strategy.py` and let the calling LLM adapt its queries and candidate selection.
-Run it through `query.py --strategy <strategy.py> --run-dir <run-dir>` with optional
-JSON task context. The index returns untruncated matches; the runner preserves
-strategy order and bounds candidate output by characters. No fixed candidate
-multiplier or model API call is involved. The LLM judges relevance and reads the
-selected evidence.
+The calling LLM chooses `--strategy master` for the original keyword scoring,
+`--strategy interleave` for a context-defined combination of queries, or a Python
+file for custom selection and ordering. Interleave routes can individually use
+master scoring or unscored keyword enumeration. Copy `scripts/strategy_template.py`
+into the optimization workspace's `tmp/` when custom logic is useful. The model
+chooses queries and candidates, reads evidence, and revises the strategy when
+measurements change. The scripts make no model API calls.
+
+Every query requires an explicit strategy and `--run-dir`. No strategy has a
+default candidate-count limit; optional `--limit` and the adjustable character
+budget control output. There is no implicit master fallback or fixed candidate
+multiplier. The index exposes all matches before strategy selection.
 
 Each logged query saves its strategy source, context, runtime snapshot, searches,
 proposed/emitted/omitted candidates and exact output. `get_page.py --run-dir
 <run-dir> --query-id <query-id>` records subsequent page and code output. Keep
-experiment artifacts outside the corpus. Ordinary keyword commands retain
-master's ranking and default limit of 10 candidates.
+experiment artifacts outside the corpus. Master remains an explicit scoring
+option; use `--limit 10` when that count is wanted for comparison.
 
 See [strategy API, budgets and experiment records](references/search-strategies.md).
 

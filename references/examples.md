@@ -9,10 +9,19 @@ Concrete patterns showing how to translate a user question into a navigation pat
 
 ## Task-specific retrieval and reading
 
-Start with the [strategy workflow](search-strategies.md). The calling LLM adapts
-an independent Python strategy to the operator, measurements and evidence gaps;
-`query.py` executes it using the same corpus, aliases and filters as ordinary
-search. The runner controls output size, while the LLM selects relevant evidence.
+Start with the [strategy workflow](search-strategies.md). The calling LLM chooses
+master's scoring, interleaved queries or an independent Python strategy based on
+the operator, measurements and evidence gaps. `query.py` executes the chosen
+policy using the same corpus, aliases and filters. The runner controls output
+size, while the LLM selects relevant evidence and revises its strategy as needed.
+
+The focused command examples below explicitly choose master; other strategies
+are equally available. They run from the wiki root. Set `search_run` to an
+absolute path in the optimization workspace first:
+
+```bash
+search_run="<optimization-directory>/tmp/kernelwiki-search"
+```
 
 For measured GEMM pipeline waits, one possible strategy queries the symptom,
 stage-ownership primitives and implementation examples. This is an example of
@@ -57,7 +66,7 @@ Distinguish gains from new candidate coverage, richer excerpts and LLM selection
 
 **Command**:
 ```bash
-python3 scripts/query.py --type kernel --tag gemm --architecture sm100
+python3 scripts/query.py --strategy master --run-dir "$search_run" --type kernel --tag gemm --architecture sm100
 ```
 
 ---
@@ -73,7 +82,7 @@ python3 scripts/query.py --type kernel --tag gemm --architecture sm100
 
 **Command**:
 ```bash
-python3 scripts/query.py --symptom low-sm-utilization
+python3 scripts/query.py --strategy master --run-dir "$search_run" --symptom low-sm-utilization
 python3 scripts/get_page.py pattern-low-sm-utilization
 ```
 
@@ -88,7 +97,7 @@ python3 scripts/get_page.py pattern-low-sm-utilization
 
 **Command**:
 ```bash
-python3 scripts/query.py --tag tcgen05 --repo cutlass --limit 30
+python3 scripts/query.py --strategy master --run-dir "$search_run" --tag tcgen05 --repo cutlass --limit 30
 python3 scripts/grep_wiki.py "tcgen05\\.mma" --only sources
 ```
 
@@ -136,7 +145,7 @@ python3 scripts/get_page.py hw-tcgen05-mma
 
 **Command**:
 ```bash
-python3 scripts/query.py --type contest --tag nvfp4
+python3 scripts/query.py --strategy master --run-dir "$search_run" --type contest --tag nvfp4
 python3 scripts/get_page.py contest-gpumode-p1
 ```
 
@@ -151,7 +160,7 @@ python3 scripts/get_page.py contest-gpumode-p1
 
 **Command**:
 ```bash
-python3 scripts/query.py "GDN decode" --language triton
+python3 scripts/query.py --strategy master --run-dir "$search_run" "GDN decode" --language triton
 ```
 
 ---
@@ -165,7 +174,7 @@ python3 scripts/query.py "GDN decode" --language triton
 
 **Command**:
 ```bash
-python3 scripts/query.py --symptom memory-bound
+python3 scripts/query.py --strategy master --run-dir "$search_run" --symptom memory-bound
 ```
 
 ---
@@ -174,8 +183,8 @@ python3 scripts/query.py --symptom memory-bound
 
 **Command**:
 ```bash
-python3 scripts/query.py --repo flashinfer --tag moe --limit 30
-python3 scripts/query.py --repo flashinfer --tag fp8 --limit 30
+python3 scripts/query.py --strategy master --run-dir "$search_run" --repo flashinfer --tag moe --limit 30
+python3 scripts/query.py --strategy master --run-dir "$search_run" --repo flashinfer --tag fp8 --limit 30
 python3 scripts/grep_wiki.py "fp8" "moe" --only sources --files-only
 ```
 

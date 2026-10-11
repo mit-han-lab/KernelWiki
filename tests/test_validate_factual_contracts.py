@@ -494,18 +494,22 @@ class ShippedDocumentationContractTests(unittest.TestCase):
                 commands.append((path, stripped))
 
         self.assertGreaterEqual(len(commands), 25)
-        for path, command in commands:
-            result = subprocess.run(
-                shlex.split(command, comments=True),
-                cwd=ROOT,
-                capture_output=True,
-                text=True,
-                timeout=20,
-            )
-            output = result.stdout + result.stderr
-            self.assertEqual(0, result.returncode, (path, command, output))
-            self.assertTrue(output.strip(), (path, command))
-            self.assertNotIn("No matches.", output, (path, command, output))
+        with tempfile.TemporaryDirectory() as workspace:
+            search_run = str(Path(workspace) / "optimization/tmp/kernelwiki-search")
+            for path, command in commands:
+                # The docs initialize this caller-owned path before query examples.
+                # Supply an isolated writable workspace without running a shell.
+                args = [search_run if arg == "$search_run" else arg
+                        for arg in shlex.split(command, comments=True)]
+                result = subprocess.run(
+                    args, cwd=ROOT, capture_output=True, text=True, timeout=20,
+                )
+                output = result.stdout + result.stderr
+                self.assertEqual(0, result.returncode, (path, command, output))
+                self.assertTrue(output.strip(), (path, command))
+                self.assertNotIn("No matches.", output, (path, command, output))
+                if args[1] == "scripts/query.py":
+                    self.assertNotRegex(output, r"(?m)^0 candidate\(s\)", (path, command, output))
 
     def test_current_audit_receipts_match_discovered_tests_and_bundles(self):
         discovered_tests = sum(
