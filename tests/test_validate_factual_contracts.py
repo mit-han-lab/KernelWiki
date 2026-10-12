@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import re
 import shlex
 import subprocess
@@ -496,10 +497,18 @@ class ShippedDocumentationContractTests(unittest.TestCase):
         self.assertGreaterEqual(len(commands), 25)
         with tempfile.TemporaryDirectory() as workspace:
             search_run = str(Path(workspace) / "optimization/tmp/kernelwiki-search")
+            # Materialize the documented setup without executing arbitrary shell.
+            guide = (ROOT / "references/search-strategies.md").read_text(encoding="utf-8")
+            example = re.search(r"cat > \"\$search_run/context.json\" <<'JSON'\n(.*?)\nJSON", guide, re.DOTALL)
+            self.assertIsNotNone(example)
+            json.loads(example.group(1))
+            Path(search_run).mkdir(parents=True)
+            (Path(search_run) / "context.json").write_text(example.group(1), encoding="utf-8")
+            (Path(search_run) / "strategy.py").write_bytes((ROOT / "scripts/strategy_template.py").read_bytes())
             for path, command in commands:
                 # The docs initialize this caller-owned path before query examples.
                 # Supply an isolated writable workspace without running a shell.
-                args = [search_run if arg == "$search_run" else arg
+                args = [arg.replace("$search_run", search_run)
                         for arg in shlex.split(command, comments=True)]
                 result = subprocess.run(
                     args, cwd=ROOT, capture_output=True, text=True, timeout=20,

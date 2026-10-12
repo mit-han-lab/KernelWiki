@@ -1,26 +1,40 @@
-"""Copy into the optimization workspace's tmp/ and adapt to the current task.
+"""Copy into the optimization workspace's tmp/ and adapt as evidence changes.
 
-The calling LLM chooses routes, rules and selection using profiling evidence.
-This starter interleaves routes; it is not a required policy or a semantic ranker.
-Use only standard-library imports for a self-contained, replayable strategy.
+The calling LLM interprets context.state and writes context.decision. This starter
+executes that decision; it does not infer relevance from profiling prose.
+Reuse it by updating context, or edit the Python for different selection logic.
 """
 
 
 def retrieve(index, context):
-    """Return page IDs or relative paths in the order to present to the LLM.
+    """Return IDs in presentation order; the runner deduplicates before budgeting.
 
-    index.search(query="", **filters): all OR/alias matches, no score cutoff
-    index.master(query="", **filters): all matches in master's score/path order
-    index.interleave(routes): mix routes with rule="keyword" or rule="master"
-    index.metadata(id): copied frontmatter, for task-specific selection
-    index.read(id): body text for strategy logic (recorded as a strategy read)
-    index.keyword_score(id, query): optional master's score
-
-    CLI filters apply to every route. context['budget'] exposes output limits.
-    The calling LLM, rather than this Python template, judges semantic relevance.
+    index.search(query="", **filters): every OR/alias match, in path order
+    index.master(query="", **filters): every match in master's score/path order
+    index.metadata(id), index.read(id): metadata and body for custom logic
+    CLI filters constrain all calls. No implicit candidate-count cutoff applies.
     """
-    routes = context.get("queries", [{"query": context.get("query", "")}])
-    candidates = index.interleave(routes)
-    # Adapt selection/order here using the task, metadata or body evidence.
-    # Choosing index.master(context["query"]) alone is also a valid strategy.
-    return candidates
+    if "queries" in context:
+        raise ValueError("move additional queries to decision.extra_queries")
+    decision = context.get("decision")
+    if not isinstance(decision, dict):
+        raise ValueError("template requires context.decision written by the calling LLM")
+    filters = decision.get("filters", {})
+    extra_queries = decision.get("extra_queries", [])
+    priority_ids = decision.get("priority_ids", [])
+    if not isinstance(filters, dict):
+        raise ValueError("decision.filters must be an object")
+    if not isinstance(extra_queries, list) or not all(isinstance(q, dict) for q in extra_queries):
+        raise ValueError("decision.extra_queries must be a list of search argument objects")
+    if not isinstance(priority_ids, list) or not all(isinstance(i, str) for i in priority_ids):
+        raise ValueError("decision.priority_ids must be a list of page IDs")
+
+    candidates = index.search(context.get("query", ""), **filters)
+    for request in extra_queries:
+        candidates.extend(index.search(**request))
+    missing = set(priority_ids) - set(candidates)
+    if missing:
+        raise ValueError(f"priority IDs do not match current searches/filters: {sorted(missing)}")
+    # The LLM can promote observed IDs, including previously read pages. Remaining
+    # matches retain search order; that order is not a semantic relevance score.
+    return priority_ids + candidates

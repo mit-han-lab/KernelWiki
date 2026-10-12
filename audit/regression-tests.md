@@ -6,7 +6,27 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Inline route regression gate
+## Context-driven retrieval regression gate
+
+Full discovery: **pass — 192 tests**, 28.570 seconds. The focused retrieval
+suite passes **34 tests**. Coverage replaces the removed route parser/merger tests
+with custom multi-search composition, reusable context decisions, changing
+priority before output limits, preserved historical snapshots, stale-priority
+errors and global filter enforcement. Updating state alone does not silently
+change ranking or exclude previously read pages. The documented template runs
+from an optimization-local `tmp/` without system temporary-file allocation.
+
+Validation scratch: `.worklog/context-retrieval/`. No corpus or private task files
+are changed. Earlier gates below describe the previous interfaces.
+
+Real-corpus smoke keeps the query `pipeline`, changes the caller-authored priority
+from `pattern-pipeline-stalls` to `pattern-compute-bound`, and verifies each chosen
+page is emitted under `--limit 1`. Both runs combine pattern and hardware queries
+and link a subsequent body read. These are synthetic decisions, not profiling
+evidence or a retrieval-quality experiment. Master scoring matches the master
+checkout for five queries over 1,041 pages (5,205 comparisons).
+
+## Prior inline route regression gate
 
 Full discovery: **pass — 197 tests**, 26.900 seconds. The focused retrieval suite
 passes **39 tests**.

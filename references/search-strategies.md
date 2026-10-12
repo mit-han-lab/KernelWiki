@@ -1,170 +1,140 @@
-# Task-specific search strategies
+# Retrieval guided by optimization evidence
 
-The calling LLM chooses a supplied strategy or writes an independent Python
-strategy for the current task. `query.py` supplies stable retrieval primitives,
-executes that choice and emits candidate cards within a budget. The LLM assesses
-those cards, reads useful pages and revises the retrieval as evidence changes.
-No model API is called by the scripts.
+`query.py` is the unified entry point. The calling LLM interprets the current
+question, measurements and experiment history, then writes the retrieval decision
+or Python strategy. The runner executes it, budgets candidate output and records
+what happened. No model API is called by these scripts.
 
 ## Start a run
 
-Keep generated code, task context and logs outside the shared wiki. Run the
-following from the **optimization workspace**, using its writable `tmp/`.
-Replace the wiki path with the checkout being evaluated. The scripts resolve the
-corpus from their own location and user-supplied paths from the caller's working
-directory. Neither queries nor page reads need access to system `/tmp`.
+Keep strategy, context and logs in the optimization workspace's writable `tmp/`,
+outside the shared corpus. Run this setup from the wiki root, replacing the
+placeholder with an absolute workspace path. System `/tmp` is unnecessary.
 
 ```bash
-wiki_root="/path/to/KernelWiki"
-search_run="$PWD/tmp/kernelwiki-search"
-python3 "$wiki_root/scripts/query.py" --strategy interleave --route "pipeline --type pattern --rule master" --route "mbarrier --type hardware" --run-dir "$search_run" --max-chars 12000 --compact
-```
-
-The runner creates `search_run` automatically. No context file is required.
-Use a new subdirectory for a separate experiment; query snapshots within each
-run are already unique. If local `tmp/` is unavailable, pass another writable
-experiment directory explicitly.
-
-## Choose or compose a strategy
-
-`--strategy` and `--run-dir` are required. Missing or failing strategies do not
-silently switch to master. A bare keyword command from the earlier interface
-must now explicitly select its policy.
-
-| Selection | Behavior | When to consider it |
-| --- | --- | --- |
-| `--strategy master` | One query, master's score with path ties; filter-only results in path order | A focused keyword query or a baseline ordering |
-| `--strategy interleave` | Round-robin distinct results from caller-defined routes, with no per-route quota | Compare mechanisms, symptoms or implementations without pooling every term into one score |
-| `--strategy <file.py>` | Execute `retrieve(index, context)` written or adapted by the LLM | Custom filtering, ordering, merging or selection based on task evidence |
-
-For example, GEMM pipeline waits can call for a symptom-pattern route and a
-hardware-semantics route with different `type` filters, as above. Interleave
-merges those pools without scoring all terms as a single query. Several
-independent queries are equally useful when each result informs what to ask
-next. A precise question about one mechanism may need only one master query.
-Use the evidence needed to choose; there is no required interleave usage rate.
-
-For a focused master query, reusing the variables above:
-
-```bash
-python3 "$wiki_root/scripts/query.py" "pipeline stalls" --strategy master --run-dir "$search_run" --limit 12 --compact
-```
-
-The number 12 is an example caller choice, not a default. Master preserves
-title +10, metadata +5 and capped body scoring; it has **no implicit top-10 cap**
-here. Use `--limit 10` to reproduce that count, subject to the output budget.
-This strategy uses `context.query` or CLI keywords and CLI filters; it rejects
-`context.queries` instead of silently ignoring a multi-query plan.
-
-For interleave, repeat `--route "KEYWORDS [FILTERS] [--rule keyword|master]"`.
-Each quoted value accepts the same filters as the main CLI, including
-`--has-code`. Multiple words retain OR matching, not exact-phrase matching.
-For example, `--route "tile pipeline --type technique"` searches either term
-within technique pages. Filter-only routes such as `--route "--type hardware"`,
-`--route "--type=hardware"` and `--route "--has-code"` are also valid.
-Flags outside the quotes apply to every route; flags inside apply
-only to that route. Route text is parsed as arguments, not executed as code.
-
-Alternatively, `context.queries` is a list of route objects containing `query`,
-optional filters and `rule`. `rule: "master"` explicitly scores that route;
-`rule: "keyword"` (the route default) enumerates all matches in path order.
-Duplicate pages do not consume a route's next turn. Without `queries`, one route
-uses `context.query`. Route order is caller-chosen, not a semantic ranking.
-Interleave does not understand relevance or guarantee better candidate order.
-Its benefit is combining query directions and deduplicating the shared pool;
-the LLM still selects evidence after reading.
-
-To retain additional task details, a context file is optional. This is equivalent
-to the routes in the start example, with extra task information:
-
-```bash
+search_run="<optimization-directory>/tmp/kernelwiki-search"
 mkdir -p "$search_run"
+cp scripts/strategy_template.py "$search_run/strategy.py"
 cat > "$search_run/context.json" <<'JSON'
 {
-  "task": "Inspect a single-GPU Blackwell GEMM with producer/consumer waits",
-  "rationale": "Compare the measured stall with synchronization primitives",
-  "queries": [
-    {"query": "pipeline", "type": "pattern", "rule": "master"},
-    {"query": "mbarrier", "type": "hardware", "rule": "keyword"}
-  ]
+  "query": "pipeline",
+  "state": {
+    "question": "Which producer/consumer dependency should I investigate?",
+    "evidence": [],
+    "attempts": [],
+    "reads": []
+  },
+  "decision": {
+    "filters": {"type": "pattern"},
+    "extra_queries": [{"query": "mbarrier", "type": "hardware"}],
+    "priority_ids": [],
+    "reason": "Inspect stall patterns and barrier semantics before choosing an experiment."
+  }
 }
 JSON
-python3 "$wiki_root/scripts/query.py" --strategy interleave --context "$search_run/context.json" --run-dir "$search_run" --max-chars 12000 --compact
+python3 scripts/query.py --strategy "$search_run/strategy.py" --context "$search_run/context.json" --run-dir "$search_run" --compact
 ```
 
-Use either CLI routes or `context.queries` in a call; providing both is an error.
-A context file without `queries` may accompany CLI routes to supply task details.
-Positional query words cannot accompany `--route`, and the single-query `master`
-strategy rejects routes. Built-in `interleave` also rejects positional query words
-alongside `context.queries`; edit the JSON routes or omit the positional words.
-Custom Python strategies may consume both `context.query` and `context.queries`.
-This avoids silently ignoring part of the query plan in the built-in policies.
+This is an exploratory example, not a measurement claim. Use your actual question
+and evidence. `state` is a lightweight record for the LLM: preserve relevant
+measurements and their provenance, pages read, and attempted changes with results.
+Its keys are suggestions; the runner does not require a workflow-state schema.
 
-For custom logic, copy the template and edit `retrieve()` before running:
+The reusable template executes `decision`:
+
+- `filters` narrows the base `query`.
+- `extra_queries` optionally adds searches with their own filters.
+- `priority_ids` puts observed, matching page IDs first, in the LLM's chosen order.
+  Start empty; after inspecting candidates/pages, use real IDs, not invented ones.
+- `reason` records why this decision follows from the current evidence.
+
+The runner deduplicates the combined list before applying output limits. The
+remaining candidates retain search order; the template does not assign them
+semantic scores. Priorities that no longer match the searches or filters fail
+explicitly, so a stale decision cannot silently select unrelated pages.
+
+After reading and measuring, update `state` and translate new evidence into
+`decision` (or edit the strategy). For example, if results now support a pipeline
+wait hypothesis, keep `query: "pipeline"` and prioritize the observed
+`pattern-pipeline-stalls` ID. If a later trace points elsewhere, change priorities,
+filters or queries and record the reason. Previously read pages are not excluded;
+a new hypothesis may require rereading a different section. A failed experiment
+is evidence to reconsider applicability, not a permanent ban on that technique.
+
+Updating prose in `state` alone does **not** change the order. The LLM must make
+an executable decision. This avoids hardcoding optimization stages or pretending
+that Python interprets profiling. Reuse the same files while useful: each query
+saves a separate snapshot before they are edited again. Read via `get_page.py`
+with the printed query ID to associate evidence with that decision.
+
+## Custom selection and multiple searches
+
+The template is a starting point, not a required policy. A custom strategy can
+combine multiple searches, use different filters, order by task-specific metadata,
+or inspect body evidence before selecting candidates. For example:
+
+```python
+def retrieve(index, context):
+    # Example: put hardware semantics before symptom patterns for this question.
+    semantics = index.search("mbarrier", type="hardware")
+    patterns = index.master(context["query"], type="pattern")
+    return semantics + patterns
+```
+
+The runner removes duplicates and preserves first occurrence. If useful, the LLM
+can implement round-robin merging or its own scoring in ordinary Python; no
+separate composition command or fixed per-query quota is required. Independent
+calls also work when reading one result determines the next question. Choose
+based on evidence needs, not a target number of search methods used.
+
+For a focused lookup or a scoring baseline, master remains directly available:
 
 ```bash
-cp "$wiki_root/scripts/strategy_template.py" "$search_run/strategy.py"
-python3 "$wiki_root/scripts/query.py" --strategy "$search_run/strategy.py" --route "pipeline --type pattern --rule master" --route "mbarrier --type hardware" --run-dir "$search_run" --compact
+python3 scripts/query.py "mbarrier" --strategy master --run-dir "$search_run" --type hardware --compact
 ```
 
-The starter calls `index.interleave()`; the LLM may replace it with
-`index.master()`, combine rules or select candidates using metadata/body evidence.
-There are no fixed route counts or candidate multipliers. Multiple queries can
-expose additional evidence but also displace useful pages under a budget.
-
-After reading, use the operator, hardware, dtype/layout and measured bottleneck
-to judge relevance. For example, if a pipeline hypothesis is unsupported and
-measurements point to tile tails, revise the queries toward tile scheduling;
-do not just increase the same weights. Preserve the rationale, phase and prior
-query ID in context or the conversation when useful. Python does not choose
-queries from natural language or update the strategy by itself.
+This uses the original fixed keyword score, not context-dependent relevance.
+The named master strategy accepts `context.query` and CLI filters; it rejects
+`decision` and the former `queries` plan key instead of ignoring an intended
+custom decision. `index.master()` remains usable inside custom code.
 
 ## Strategy contract
 
-Define `retrieve(index, context)` and return a **list or tuple of page IDs or
-wiki-relative paths**. The runner deduplicates while preserving your order.
-Unknown pages and pages excluded by CLI filters are errors, not silent omissions.
-An invalid strategy produces an error receipt; it does not fall back to a
-different retrieval policy.
+Both `--strategy` and `--run-dir` are required. Select `master` or a Python file
+that defines `retrieve(index, context)` and returns a **list or tuple of page IDs
+or wiki-relative paths**, in presentation order. Unknown or globally excluded
+pages fail explicitly. A failing strategy records an error without falling back
+to master. Old `--strategy interleave` / `--route` calls must use custom code.
 
 | API | Behavior |
 | --- | --- |
-| `index.search(query="", **filters)` | All matching page IDs, without relevance scoring or count truncation; path order is deterministic enumeration |
-| `index.master(query="", **filters)` | All matches in master's score/path order, with no count truncation |
-| `index.interleave(routes)` | Combine route objects with `rule="keyword"` or `rule="master"`, deduplicating while taking turns |
-| `index.metadata(id_or_path)` | A copy of the page's frontmatter |
-| `index.read(id_or_path)` | Body text for Python strategy logic; recorded as a strategy read |
-| `index.keyword_score(id_or_path, query)` | Optional master heuristic: title +10, metadata +5, body hits capped at 3, best alias variant per keyword |
+| `index.search(query="", **filters)` | All OR/alias matches, no relevance scores or count cutoff; deterministic path order |
+| `index.master(query="", **filters)` | All matches in master's score/path order, without a count cutoff |
+| `index.metadata(id_or_path)` | Copied frontmatter for custom selection |
+| `index.read(id_or_path)` | Body for Python logic, logged separately from LLM page reads |
+| `index.keyword_score(id_or_path, query)` | Optional master score: title +10, metadata +5, body hits capped at 3; best alias variant per keyword |
 
-`search` uses master's case-insensitive substring OR matching and alias expansion.
-Quoted phrases still split into words. Filters are `type`, `tag`, `repo`,
-`language`, `architecture`, `symptom`, `confidence` and boolean `has_code`.
-For example, `index.search("", tag="UMMA", architecture="B200")` uses the
-existing aliases and architecture rules. CLI filters apply before the index is
-provided to the strategy, so a route cannot broaden them.
+Matching retains master's case-insensitive substring OR rules and aliases.
+Quoted arguments still split on whitespace; use canonical terms for multiword
+aliases and supplementary `rg -F` for literal phrases. Filters are `type`, `tag`,
+`repo`, `language`, `architecture`, `symptom`, `confidence` and boolean `has_code`.
+CLI filters constrain the entire index; per-search filters can only narrow it.
+No task intent, architecture or single-GPU scope is inferred from natural language.
 
-There is no mandatory keyword-score cutoff in strategy mode. If using scores or
-metadata to reduce a large pool, make that choice in the generated strategy.
-Searching different mechanisms can expose additional candidates, but may also
-displace relevant pages. Inspect omissions and follow page links when evidence
-is missing rather than assuming every task needs multiple routes.
+`context` is the JSON object from `--context` (empty if omitted). CLI keywords
+override `context.query`; otherwise it defaults to an empty string. The template
+always searches that base query, even when additional queries are supplied. The
+runner adds `budget: {"max_chars": ..., "limit": ...}`. Other keys belong to the
+strategy. Changing context inside Python does not change runner limits.
 
-`context` is the JSON object supplied with `--context`, or an empty object. CLI
-query words override `context["query"]`; otherwise it defaults to an empty string.
-CLI routes become `context["queries"]`, using the same objects as JSON routes.
-The log saves both the original route arguments and this normalized context.
-The runner sets `context["budget"]` to `{"max_chars": ..., "limit": ...}`.
-Other keys are yours to define for operator, hardware, measurements and scope.
-Changing the context inside Python does not change the runner's limits.
-
-Strategies are ordinary local Python, executed with the caller's permissions;
-the loader is not a sandbox. Keep the generated file self-contained with
-standard-library imports so its captured source can be replayed. File accesses
-or queries performed outside the index API are not automatically traced.
+Relative strategy/context/run paths resolve from the caller's working directory;
+the corpus resolves from the scripts' location. Strategies are ordinary local
+Python executed with caller permissions, not a sandbox. Prefer self-contained
+standard-library code for replay. Reads outside the index API are not traced.
 
 ## Output budget and relevance
 
-- `--max-chars` defaults to 16,000 and bounds candidate text plus its summary.
+- `--max-chars` defaults to 16,384 and bounds candidate text plus its summary.
   It is a character budget, not a model-specific token estimate.
 - For every strategy, there is no default candidate-count cap. Optional `--limit`
   is a maximum number of candidates to emit, with no multiplier or final-N role.
@@ -193,8 +163,8 @@ workflow; selecting `--strategy master` here isolates ordering but retains the
 new excerpts, budgets and logging.
 Assess which distinct questions were asked, which useful evidence was newly
 read and which kernel changes it informed. Strategy-name counts alone do not
-measure retrieval diversity: several master calls may explore different
-mechanisms, and repeated interleave calls may return the same pages.
+measure retrieval diversity: several focused calls may explore different
+mechanisms, while an unchanged custom strategy may keep returning the same pages.
 
 ## Record retrieval and reading
 

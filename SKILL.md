@@ -44,100 +44,67 @@ that `pip`, a virtualenv, network access, or a pre-installed PyYAML package is
 available. `requirements.txt` is optional and only installs the faster host
 implementation.
 
-### Path 1: Unified search with an explicitly chosen strategy
+### Path 1: Unified search guided by optimization evidence
 
-Use `query.py` as the research entry point. Choose the query shape and
-`--strategy` according to the evidence needed:
+Use `query.py` as the research entry point. During optimization, maintain a small
+context file with the current question, measurements, pages read, and approaches
+tried with their results. Use that evidence to decide what to search and which
+candidates deserve priority. Update the decision when evidence changes; reuse a
+strategy while it still fits. There is no fixed round-to-topic or scoring rule.
 
-| Situation | Useful approach |
-| --- | --- |
-| One precise mechanism or implementation question, such as mbarrier semantics or tcgen05 use in CUTLASS | A focused `master` query |
-| Several plausible directions need different filters, such as pipeline-stall patterns and barrier hardware semantics | `interleave` with separate routes, or independent focused queries |
-| The next question depends on what a page says | Query, read, then formulate the next query; separate calls are appropriate |
-| Candidate priority depends on task-specific compatibility, measurements or previous reads | Adapt `scripts/strategy_template.py` for custom selection and ordering |
-
-The LLM decides which evidence is needed, then chooses the questions, filters,
-ranking rules and pages to read. The table illustrates options; any task may
-start with any suitable strategy and reuse, combine or switch strategies as
-evidence changes. Several independent queries can cover distinct directions;
-combining them is useful when a shared, deduplicated candidate pool helps.
-There is no required strategy sequence, mix or route count.
-
-Keep generated strategies, task context and logs in the optimization workspace's
-`tmp/kernelwiki-search/` (or another explicitly writable experiment directory),
-outside the shared wiki corpus. Do not assume system `/tmp` is writable. The
-caller supplies `--run-dir`; the scripts do not allocate system temporary files.
-
-The two examples below run from the skill directory and share this setup.
-Replace the placeholder with an absolute path in the optimization workspace:
+Start with [the reusable template and example context](references/search-strategies.md#start-a-run).
+Keep these files in the optimization workspace's writable `tmp/kernelwiki-search/`,
+outside the shared corpus; system `/tmp` need not be writable. From the skill
+root, after copying the template and writing context:
 
 ```bash
 search_run="<optimization-directory>/tmp/kernelwiki-search"
+python3 scripts/query.py --strategy "$search_run/strategy.py" --context "$search_run/context.json" --run-dir "$search_run" --compact
 ```
 
-**Focused question:** inspect mbarrier hardware evidence with one query.
+The template executes the LLM's decision: filter the base query, optionally add
+queries, and prioritize observed page IDs before output limits apply. Leave
+priorities empty during initial discovery. Adapt the Python when a different
+selection rule is useful; it can search multiple times, inspect metadata/body,
+and combine or order candidates. A numeric score is optional. The remaining
+unprioritized results use search order, which is not semantic relevance.
+
+Read promising candidates with `get_page.py`, then use experiment results to
+revise the question, filters or priorities and record why. For example, evidence
+of pipeline waits can prioritize synchronization material; measurements of poor
+tile tails can shift attention to scheduling. The same operator query can remain
+in use. Already-read pages can become useful again under a new hypothesis.
+Merely adding profiling prose to context does not change retrieval: **the calling
+LLM must translate it into a decision or strategy change**. Python makes no model
+calls and does not infer bottlenecks.
+
+Master's scoring remains an explicit option for a focused lookup or baseline:
 
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" "mbarrier" --type hardware --compact
+python3 scripts/query.py "mbarrier" --strategy master --run-dir "$search_run" --type hardware --compact
 ```
 
-**Several directions for one problem:** for producer/consumer waits in a GEMM,
-compare symptom patterns with synchronization primitives. Each route gets its
-own filter instead of putting all keywords into one pooled score:
+It uses fixed keyword scores, regardless of optimization state. Within custom
+code, `index.master()` is also available alongside unscored `index.search()`.
+Both expose all matches before selection; neither has a default top-10 cutoff.
 
-```bash
-python3 scripts/query.py --strategy interleave --route "pipeline --type pattern --rule master" --route "mbarrier --type hardware" --run-dir "$search_run" --compact
-```
+`query.py` deduplicates, preserves strategy order and emits a prefix within
+`--max-chars` (default 16,384 characters, adjustable). Optional `--limit` caps the
+candidate count. Check reported omissions: narrow a query, revise selection or
+adjust the budget if useful evidence may be missing. Excerpts show matches or
+opening text, not article abstracts. For single-GPU optimization, assess compute,
+memory/layout, pipeline and tail efficiency against measured evidence.
 
-Both examples create the run directory automatically. Repeat `--route` for each
-query direction; filters and an optional `--rule` go inside its quoted value.
-No JSON file is needed. For richer task context, `--context` remains available;
-supply routes through either `--route` or `context.queries`, not both.
+Every query snapshots the strategy, context, searches and candidate decisions.
+Pass the same `--run-dir` and returned `--query-id` to `get_page.py` to record
+subsequent page/code output. These records show returned content, not model
+attention; direct `cat`/`rg` reads are not automatically traced. Keep the reason
+for selections and experiment outcomes in context or the conversation.
 
-Interleave takes turns across routes and removes duplicates. It does not
-understand semantics or guarantee better ranking. `master` scores within a route;
-`keyword` enumerates its matches in path order. Choose either per route. The LLM
-still judges applicability and can change routes, their order, or the strategy.
-
-For custom selection, read [the strategy API](references/search-strategies.md)
-and adapt the template in the writable run directory. The index supplies corpus
-loading, aliases, filters and page access; `index.search()` and `index.master()`
-expose every match before candidate selection. Invoke the generated file with
-`--strategy <strategy.py>`; no need to write Python for the examples above.
-
-`query.py` preserves strategy order, deduplicates pages and emits a prefix within
-`--max-chars` (default 16,000 characters, not tokens). No strategy, including
-master, has a default candidate-count cap. Choose optional `--limit` and the
-character budget based on the task, or follow the fixed experiment budget.
-The summary and receipt disclose omissions. There is no fixed relationship
-between candidate count and how many pages you ultimately choose to read.
-
-Assess the returned candidates using the current operator, measured bottleneck,
-hardware/dtype/layout compatibility and actionable evidence. For single-GPU work,
-consider compute, memory/layout, pipeline and tail efficiency. These judgments
-belong to the calling LLM; the Python script makes no model calls. Read promising
-pages and revise the questions or strategy if results repeat known evidence,
-miss a mechanism or conflict with new measurements. For example, if profiling
-shifts the hypothesis from pipeline waits to tile tails, change the query topic
-instead of just increasing the same query's limit. Record the choice and useful
-evidence in context or the conversation. Return to experiments once the evidence
-supports a concrete change. A first-match excerpt is not an article abstract.
-
-For auditable experiments, pass the same `--run-dir` and the returned `--query-id`
-to `get_page.py`. It records the content returned, including source previews and
-code; it cannot establish what the model attended to. Direct `cat`/`rg` reads are
-not automatically traced. Use `get_page.py` for the actual evidence reads you
-want recorded, including artifact paths. Explain selections in the experiment
-conversation; do not treat candidate order as a completed relevance ranking.
-
-Existing filters: `--type`, `--tag`, `--repo`, `--language`, `--architecture`,
-`--symptom`, `--confidence`, `--has-code`. CLI filters constrain every strategy
-route; put filters that differ between directions inside each `--route` value
-or context route object instead.
-Both `--strategy` and `--run-dir` are required. Keywords match case-insensitive
-substrings with OR; quoted arguments still split on whitespace. Use canonical
-terms for multiword aliases, and `rg -F` for literal phrases. The script does not
-infer task intent or single-GPU scope.
+Both `--strategy` and `--run-dir` are required. Existing filters and alias/OR
+matching are retained; CLI filters constrain every search in a strategy. See
+[the API and budget details](references/search-strategies.md#strategy-contract)
+when adapting code. Return to experiments once the evidence supports a change.
 
 ### Path 2: Fetch a specific page by id or path
 

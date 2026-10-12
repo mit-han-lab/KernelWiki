@@ -60,14 +60,17 @@ Set `search_run` to an absolute writable path under the optimization workspace's
 
 | Tool | Purpose |
 |---|---|
-| `scripts/query.py` | Unified entry point: explicitly select master, interleave or an LLM-authored strategy; emit candidates within a budget |
+| `scripts/query.py` | Unified entry point: execute an LLM-authored strategy or optional master scoring; emit candidates within a budget |
 | `scripts/get_page.py` | Read pages/code; optional `--run-dir` records full reads, previews and code output |
 | `scripts/grep_wiki.py` / `rg -F` | Supplementary regex/literal search; use `--only artifacts` or an artifact path to locate captured code |
 
-For focused queries and a complete multi-query example, see the paired recipes
-in [SKILL.md](SKILL.md#path-1-unified-search-with-an-explicitly-chosen-strategy).
-Use interleave when separate filters and a shared candidate pool help; independent
-queries are equally valid when each read informs the next question.
+Follow [the optimization retrieval workflow](SKILL.md#path-1-unified-search-guided-by-optimization-evidence):
+the calling LLM keeps the current question, measurements and experiment history
+in context, then updates queries and candidate priorities as that evidence changes.
+Copy `scripts/strategy_template.py` into the optimization workspace's `tmp/` and
+reuse it with revised context, or edit its selection logic. Multiple searches can
+be combined in the same custom strategy. Python does not interpret profiling
+prose or call a model API; the LLM supplies the retrieval decisions.
 
 Page and code lookup:
 
@@ -76,26 +79,16 @@ python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
 
-The calling LLM chooses `--strategy master` for the original keyword scoring,
-`--strategy interleave` with repeated `--route` arguments (or context JSON), or a Python
-file for custom selection and ordering. Interleave routes can individually use
-master scoring or unscored keyword enumeration. Copy `scripts/strategy_template.py`
-into the optimization workspace's `tmp/` when custom logic is useful. The model
-chooses queries and candidates, reads evidence, and revises the strategy when
-measurements change. The scripts make no model API calls.
+Every query requires `--strategy <file.py>` or the optional fixed-score
+`--strategy master`, plus `--run-dir`. All matches are available to the strategy;
+there is no default candidate-count cap or fixed candidate multiplier. Optional
+`--limit` and the adjustable character budget bound the returned candidate cards,
+which include metadata and excerpts.
 
-Every query requires an explicit strategy and `--run-dir`. No strategy has a
-default candidate-count limit; optional `--limit` and the adjustable character
-budget control output. There is no implicit master fallback or fixed candidate
-multiplier. The index exposes all matches before strategy selection.
-
-Each logged query saves its strategy source, context, runtime snapshot, searches,
-proposed/emitted/omitted candidates and exact output. `get_page.py --run-dir
-<run-dir> --query-id <query-id>` records subsequent page and code output. Keep
-experiment artifacts outside the corpus. Master remains an explicit scoring
-option; use `--limit 10` when that count is wanted for comparison.
-
-See [strategy API, budgets and experiment records](references/search-strategies.md).
+Logs preserve strategy source, context, searches and proposed/emitted/omitted
+candidates. Use `get_page.py --run-dir <run-dir> --query-id <query-id>` to record
+subsequent page/code output. Keep experiment files outside the corpus.
+See [the template, API and experiment records](references/search-strategies.md).
 
 ## Companion Docs
 

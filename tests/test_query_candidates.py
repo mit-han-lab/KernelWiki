@@ -22,25 +22,6 @@ def page(path, title='', body='', **metadata):
 
 
 class StrategyIndexTests(unittest.TestCase):
-    def test_inline_routes_parse_words_filters_and_explicit_rules(self):
-        self.assertEqual({'query': 'pipeline wait'}, query.parse_route('pipeline wait'))
-        self.assertEqual(
-            {'query': 'tile pipeline', 'type': 'technique', 'architecture': 'sm100',
-             'tag': 'warp specialization', 'repo': 'cutlass', 'language': 'cute-dsl',
-             'symptom': 'register-pressure', 'confidence': 'verified',
-             'has_code': True, 'rule': 'master'},
-            query.parse_route('tile --type technique pipeline --architecture sm100 '
-                              '--tag "warp specialization" --repo cutlass --language cute-dsl '
-                              '--symptom register-pressure --confidence verified --has-code --rule master'),
-        )
-        self.assertEqual({'query': '', 'type': 'hardware'}, query.parse_route('--type hardware'))
-
-    def test_inline_routes_reject_invalid_input_without_exiting(self):
-        for route in ('', '   ', '--rule master', 'TMA --rule typo', 'TMA --limit 2',
-                      'TMA --type', 'TMA --arch sm100', 'TMA --help', '"unclosed'):
-            with self.subTest(route=route), self.assertRaisesRegex(ValueError, 'invalid --route'):
-                query.parse_route(route)
-
     def test_alias_or_recall_without_implicit_score_or_cutoff(self):
         pages = [page(f'a-{i:02d}', body='UMMA') for i in range(40)]
         pages += [page('z', 'tcgen05', tags=['tcgen05']), page('t', tags=['tmem']), page('absent')]
@@ -139,29 +120,40 @@ def retrieve(index, context):
         self.assertEqual('master', index.searches[-1]['rule'])
         self.assertEqual(ids, index.searches[-1]['ordered_ids'])
 
-    def test_mixed_routes_skip_duplicates_without_losing_another_routes_turn(self):
+    def test_custom_code_combines_scored_and_unscored_searches_without_quotas(self):
         index = query.StrategyIndex([
             page('a', body='TMA wait'), page('b', body='TMA'),
             page('c', body='wait'), page('z', title='TMA', body='wait'),
         ])
-        routes = [{'query': 'TMA', 'rule': 'master'}, {'query': 'wait', 'rule': 'keyword'}]
-        original = json.dumps(routes)
-        self.assertEqual(['z', 'a', 'b', 'c'], index.interleave(routes))
+        source = b'def retrieve(index, context):\n    return index.master("TMA") + index.search("wait")\n'
+        result = query.execute_strategy(source, 'strategy.py', index, {})
+        self.assertEqual(['z', 'a', 'b', 'c'], [p['path'] for p in result])
         self.assertEqual(['master', 'keyword'], [s['rule'] for s in index.searches])
-        self.assertEqual(original, json.dumps(routes))
-        self.assertEqual([], index.interleave([]))
-        for invalid in ('TMA', [None], [{'rule': 'typo'}], [{'limit': 10}]):
-            with self.subTest(routes=invalid), self.assertRaises(ValueError):
-                index.interleave(invalid)
 
-    def test_template_supports_variable_route_counts_without_quotas(self):
-        index = query.StrategyIndex([page('a', 'TMA'), page('b', 'TMA'), page('c', 'wait')])
+    def test_template_validates_decisions_and_stale_priorities(self):
+        index = query.StrategyIndex([page('a', title='TMA'), page('b', title='wait')])
         source = (ROOT / 'scripts/strategy_template.py').read_bytes()
-        for context, expected in (({'query': 'TMA'}, ['a', 'b']),
-                                  ({'queries': [{'query': 'TMA'}, {'query': 'wait'}]}, ['a', 'c', 'b'])):
-            with self.subTest(context=context):
-                results = query.execute_strategy(source, 'strategy.py', index, context)
-                self.assertEqual(expected, [p['path'] for p in results])
+        invalid = [({}, 'context.decision'),
+                   ({'decision': []}, 'context.decision'),
+                   ({'decision': {'filters': []}}, 'decision.filters'),
+                   ({'decision': {'extra_queries': [None]}}, 'decision.extra_queries'),
+                   ({'decision': {'priority_ids': 'a'}}, 'decision.priority_ids'),
+                   ({'decision': {'priority_ids': [None]}}, 'decision.priority_ids'),
+                   ({'decision': {'priority_ids': ['missing']}}, 'do not match'),
+                   ({'decision': {'priority_ids': ['b']}}, 'do not match'),
+                   ({'queries': [], 'decision': {}}, 'decision.extra_queries')]
+        for context, message in invalid:
+            with self.subTest(context=context), self.assertRaisesRegex(ValueError, message):
+                query.execute_strategy(source, 'strategy.py', index, {'query': 'TMA', **context})
+
+    def test_state_alone_does_not_change_ranking_or_exclude_previous_reads(self):
+        index = query.StrategyIndex([page('a', title='TMA'), page('b', title='TMA')])
+        source = (ROOT / 'scripts/strategy_template.py').read_bytes()
+        for state in ({}, {'evidence': ['new measurement'], 'reads': ['a', 'b']}):
+            result = query.execute_strategy(source, 'strategy.py', index, {
+                'query': 'TMA', 'state': state, 'decision': {'priority_ids': ['b']},
+            })
+            self.assertEqual(['b', 'a'], [p['path'] for p in result])
 
     def test_excerpt_is_bounded_and_filter_only_has_labeled_preview(self):
         body = 'opening ' * 100 + 'mbarrier wait\nconsumer release ' + 'trailing ' * 100
@@ -225,6 +217,7 @@ class StrategyCLITests(unittest.TestCase):
     def test_missing_or_unknown_strategy_does_not_run_master_or_create_a_log(self):
         for args in (('TMA', '--run-dir', self.run),
                      ('--strategy', 'typo', '--run-dir', self.run),
+                     ('--strategy', 'interleave', '--run-dir', self.run),
                      ('--strategy', 'master', 'TMA')):
             with self.subTest(args=args), self.assertRaises(SystemExit) as raised:
                 self.cli(*args)
@@ -232,7 +225,7 @@ class StrategyCLITests(unittest.TestCase):
             self.assertFalse(self.run.exists())
 
     def test_builtin_strategies_snapshot_source_and_record_explicit_choice(self):
-        for name in ('master', 'interleave'):
+        for name in ('master',):
             self.cli('TMA', '--strategy', name, '--run-dir', self.run, '--limit', 2)
         for receipt in self.receipts():
             folder = receipt.parent
@@ -242,27 +235,12 @@ class StrategyCLITests(unittest.TestCase):
             self.assertEqual(query.BUILTIN_STRATEGIES[choice].read_bytes(),
                              (folder / 'strategy.py').read_bytes())
 
-    def test_interleave_uses_context_routes_and_master_rejects_silently_ignoring_them(self):
-        self.pages[-1]['fm'].update(title='mbarrier', tags=['tma'])
-        context = self.directory / 'context.json'
-        context.write_text(json.dumps({'rationale': 'Compare transfer and synchronization',
-                                      'queries': [{'query': 'TMA', 'rule': 'master'},
-                                                  {'query': 'mbarrier'}]}))
-        stdout, _ = self.cli('--strategy', 'interleave', '--run-dir', self.run,
-                             '--context', context, '--paths-only', '--limit', 3)
-        self.assertEqual(self.pages[-1]['path'], stdout.splitlines()[1])
-        receipt = json.loads(self.receipts()[0].read_text())
-        self.assertEqual(['master', 'keyword'], [r['rule'] for r in receipt['searches']])
-        with self.assertRaises(SystemExit):
-            self.master_cli('--context', context)
-        self.assertTrue(any(json.loads(p.read_text())['status'] == 'error' for p in self.receipts()))
-
     def test_relative_paths_use_optimization_workspace_without_system_temp(self):
         optimization = self.directory / 'optimization'
         local_tmp = optimization / 'tmp'
         local_tmp.mkdir(parents=True)
-        (local_tmp / 'strategy.py').write_bytes(self.strategy.read_bytes())
-        (local_tmp / 'context.json').write_text('{"query": "TMA"}')
+        (local_tmp / 'strategy.py').write_bytes((ROOT / 'scripts/strategy_template.py').read_bytes())
+        (local_tmp / 'context.json').write_text('{"query": "TMA", "decision": {}}')
         previous = Path.cwd()
         try:
             os.chdir(optimization)
@@ -271,120 +249,82 @@ class StrategyCLITests(unittest.TestCase):
                 self.cli('--strategy', 'tmp/strategy.py', '--context', 'tmp/context.json',
                          '--run-dir', 'tmp/search', '--limit', 2)
                 self.cli('TMA', '--strategy', 'master', '--run-dir', 'tmp/search', '--limit', 2)
-                self.cli('--strategy', 'interleave', '--route', 'TMA --rule master',
-                         '--route', 'wait', '--run-dir', 'tmp/search', '--limit', 2)
         finally:
             os.chdir(previous)
         receipts = list((local_tmp / 'search/queries').glob('*/result.json'))
-        self.assertEqual(3, len(receipts))
+        self.assertEqual(2, len(receipts))
         self.assertTrue(all(json.loads(p.read_text())['status'] == 'ok' for p in receipts))
 
-    def test_inline_routes_match_json_routes_and_snapshot_both_inputs(self):
-        self.pages = [page('a', title='TMA', type='hardware'),
-                      page('b', title='mbarrier', type='pattern'),
-                      page('z', title='TMA', type='hardware', tags=['TMA'])]
-        raw_routes = ['TMA --type hardware --rule master', 'mbarrier --type pattern']
-        routes = [{'query': 'TMA', 'type': 'hardware', 'rule': 'master'},
-                  {'query': 'mbarrier', 'type': 'pattern'}]
-        context = self.directory / 'context.json'
-        context.write_text(json.dumps({'phase': 'profiled'}))
-        stdout, _ = self.cli('--strategy', 'interleave', '--run-dir', self.run,
-                             '--context', context, '--route', raw_routes[0],
-                             '--route', raw_routes[1], '--paths-only')
-        self.assertEqual(['z', 'b', 'a'], stdout.splitlines())
-        folder = self.receipts()[0].parent
-        snapshot = json.loads((folder / 'context.json').read_text())
-        self.assertEqual(routes, snapshot['queries'])
-        self.assertEqual('profiled', snapshot['phase'])
-        self.assertEqual(raw_routes, json.loads((folder / 'request.json').read_text())['arguments']['route'])
-        self.assertEqual({'phase': 'profiled'}, json.loads(context.read_text()))
-        context.write_text(json.dumps({'phase': 'profiled', 'queries': routes}))
-        json_stdout, _ = self.cli('--strategy', 'interleave', '--run-dir', self.run,
-                                  '--context', context, '--paths-only')
-        self.assertEqual(stdout, json_stdout)
-
-    def test_inline_routes_reach_custom_strategy_and_obey_global_filters(self):
-        self.pages[0]['fm']['architectures'] = ['sm100']
-        self.pages[1]['fm']['architectures'] = ['sm90']
-        self.strategy.write_bytes((ROOT / 'scripts/strategy_template.py').read_bytes())
-        with patch.object(query, 'score_keyword_match', side_effect=AssertionError('implicit scoring')):
-            stdout, _ = self.strategy_cli('--route', 'TMA --type hardware', '--route', 'wait',
-                                          '--architecture', 'B200', '--paths-only')
-        self.assertEqual(self.pages[0]['path'] + '\n', stdout)
-        result = json.loads(self.receipts()[0].read_text())
-        self.assertEqual(['keyword', 'keyword'], [r['rule'] for r in result['searches']])
-
-    def test_interleave_rejects_json_routes_with_cli_keywords_before_search_or_logging(self):
-        context = self.directory / 'context.json'
-        for routes in ([{'query': 'mbarrier'}], []):
-            context.write_text(json.dumps({'queries': routes}))
-            stderr = io.StringIO()
-            argv = ['query.py', 'TMA', '--strategy', 'interleave', '--context', str(context),
-                    '--run-dir', str(self.run)]
-            with self.subTest(routes=routes), patch.object(sys, 'argv', argv), \
-                    patch.object(query, 'load_all_pages') as load, \
-                    patch.object(query, 'RunLog') as log, contextlib.redirect_stderr(stderr):
-                with self.assertRaises(SystemExit) as raised:
-                    query.main()
-                self.assertEqual(2, raised.exception.code)
-                self.assertIn('positional query words or context.queries, not both', stderr.getvalue())
-                self.assertIn('edit the JSON routes or remove positional keywords', stderr.getvalue())
-                load.assert_not_called()
-                log.assert_not_called()
-            self.assertFalse(self.run.exists())
-
-    def test_json_routes_and_cli_keywords_remain_independent_inputs_for_custom_strategies(self):
-        self.pages = [page('a', title='TMA'), page('b', title='mbarrier')]
-        context = self.directory / 'context.json'
-        context.write_text('{"queries": [{"query": "mbarrier"}]}')
-        stdout, _ = self.cli('--strategy', 'interleave', '--context', context,
-                             '--run-dir', self.run, '--paths-only')
-        self.assertEqual(['b'], stdout.splitlines())
-        stdout, _ = self.cli('TMA', '--strategy', 'interleave', '--run-dir', self.run, '--paths-only')
-        self.assertEqual(['a'], stdout.splitlines())
-        self.strategy.write_text('def retrieve(index, context):\n'
-                                 '    return index.search(context["query"]) + index.interleave(context["queries"])\n')
-        stdout, _ = self.strategy_cli('TMA', '--context', context, '--paths-only')
-        self.assertEqual(['a', 'b'], stdout.splitlines())
-
-    def test_option_only_routes_accept_both_cli_spellings_and_keep_filters_local(self):
-        artifacts = self.directory / 'artifacts'
-        artifacts.mkdir()
-        (artifacts / 'kernel.cu').write_text('// source fixture\n')
-        self.pages = [page('a', type='hardware', artifact_dir=str(artifacts)),
-                      page('b', title='wait', type='pattern'), page('c', type='hardware')]
-        for route, expected in (('--has-code', ['a', 'b']),
-                                ('--type=hardware', ['a', 'b', 'c']),
-                                ('--type hardware', ['a', 'b', 'c'])):
-            for flags in (['--route', route], [f'--route={route}']):
-                with self.subTest(flags=flags):
-                    stdout, _ = self.cli('--strategy', 'interleave', '--run-dir', self.run,
-                                         *flags, '--route', 'wait --type pattern', '--paths-only')
-                    self.assertEqual(expected, stdout.splitlines())
-
-    def test_end_of_options_keeps_literal_route_words_in_query(self):
-        self.pages = [page('literal', title='--route --has-code')]
-        stdout, _ = self.master_cli('--paths-only', '--', '--route', '--has-code')
+    def test_end_of_options_keeps_literal_option_words_in_query(self):
+        self.pages = [page('literal', title='--type --has-code')]
+        stdout, _ = self.master_cli('--paths-only', '--', '--type', '--has-code')
         self.assertEqual('literal\n', stdout)
         context = json.loads((self.receipts()[0].parent / 'context.json').read_text())
-        self.assertEqual('--route --has-code', context['query'])
+        self.assertEqual('--type --has-code', context['query'])
         self.assertNotIn('queries', context)
 
-    def test_inline_routes_reject_ambiguous_or_invalid_plans_before_logging(self):
+    def test_same_query_revised_decision_changes_priority_before_budget_and_snapshots(self):
+        self.strategy.write_bytes((ROOT / 'scripts/strategy_template.py').read_bytes())
         context = self.directory / 'context.json'
-        context.write_text('{"queries": [{"query": "TMA"}]}')
-        cases = [('--strategy', 'master', '--route', 'TMA'),
-                 ('--strategy', 'interleave', 'TMA', '--route', 'wait'),
-                 ('--strategy', 'interleave', '--context', context, '--route', 'wait'),
-                 ('--strategy', 'interleave', '--route', 'TMA --rule typo'),
-                 ('--strategy', 'interleave', '--route', '--compact'),
-                 ('--strategy', 'interleave', '--route', '--unknown'),
-                 ('--strategy', 'interleave', '--route')]
-        for args in cases:
-            with self.subTest(args=args), self.assertRaises(SystemExit) as raised:
-                self.cli(*args, '--run-dir', self.run)
-            self.assertEqual(2, raised.exception.code)
-            self.assertFalse(self.run.exists())
+        # All 40 pages match; explicit decisions can select even the last match.
+        for priority, evidence in ((self.pages[-1]['path'], 'trace shows waits'),
+                                   (self.pages[0]['path'], 'new trial shows no gain')):
+            plan = {'query': 'TMA', 'state': {'evidence': [evidence], 'reads': [priority]},
+                    'decision': {'priority_ids': [priority], 'reason': evidence}}
+            context.write_text(json.dumps(plan))
+            before = set(self.receipts())
+            stdout, _ = self.strategy_cli('--context', context, '--limit', 1, '--paths-only')
+            self.assertEqual(priority + '\n', stdout)
+            receipt = (set(self.receipts()) - before).pop()
+            result = json.loads(receipt.read_text())
+            self.assertEqual(40, len(result['proposed_ids']))
+            self.assertEqual([priority], result['emitted_ids'])
+            self.assertEqual(39, len(result['omitted_by_output_limits']))
+            snapshot = json.loads((receipt.parent / 'context.json').read_text())
+            self.assertEqual(plan['state'], snapshot['state'])
+            self.assertEqual(plan['decision'], snapshot['decision'])
+            self.assertEqual(plan, json.loads(context.read_text()))
+        self.assertEqual(2, len(self.receipts()))
+        states = [json.loads((p.parent / 'context.json').read_text())['state'] for p in self.receipts()]
+        self.assertEqual({'trace shows waits', 'new trial shows no gain'},
+                         {s['evidence'][0] for s in states})
+
+    def test_template_combines_queries_filters_and_deduplicates_without_ignoring_cli(self):
+        self.pages = [page('a', title='TMA', type='hardware', architectures=['sm100']),
+                      page('b', title='wait', type='pattern', architectures=['sm100']),
+                      page('c', title='TMA wait', type='hardware', architectures=['sm90']),
+                      page('d', title='wait', type='hardware', architectures=['sm100'])]
+        self.strategy.write_bytes((ROOT / 'scripts/strategy_template.py').read_bytes())
+        context = self.directory / 'context.json'
+        context.write_text(json.dumps({
+            'query': 'old-query',
+            'decision': {'filters': {'type': 'hardware'},
+                         'extra_queries': [{'query': 'wait', 'type': 'pattern'}, {'query': 'TMA'}],
+                         'priority_ids': ['b']},
+        }))
+        with patch.object(query, 'score_keyword_match', side_effect=AssertionError('implicit scoring')):
+            stdout, _ = self.strategy_cli('TMA', '--context', context,
+                                          '--architecture', 'B200', '--paths-only')
+        self.assertEqual(['b', 'a'], stdout.splitlines())
+        receipt = self.receipts()[0]
+        result = json.loads(receipt.read_text())
+        self.assertEqual(['TMA', 'wait', 'TMA'], [s['query'] for s in result['searches']])
+        self.assertEqual(['keyword'] * 3, [s['rule'] for s in result['searches']])
+        snapshot = json.loads((receipt.parent / 'context.json').read_text())
+        self.assertEqual('TMA', snapshot['query'])
+        self.assertEqual('old-query', json.loads(context.read_text())['query'])
+
+    def test_master_rejects_ignoring_custom_decision_and_previous_query_plan(self):
+        context = self.directory / 'context.json'
+        for plan in ({'queries': []}, {'decision': {}}, {'decision': {'priority_ids': ['x']}}):
+            context.write_text(json.dumps(plan))
+            with self.subTest(plan=plan), self.assertRaises(SystemExit):
+                self.master_cli('TMA', '--context', context)
+        for receipt in self.receipts():
+            result = json.loads(receipt.read_text())
+            self.assertEqual('error', result['status'])
+            self.assertIn('use a custom strategy', result['error'])
+            self.assertEqual([], result['searches'])
 
     def test_budget_covers_summary_and_preserves_order_in_all_modes(self):
         for flags in ([], ['--compact'], ['--paths-only']):
@@ -464,7 +404,7 @@ class StrategyCLITests(unittest.TestCase):
 
     def test_invalid_arguments_and_context_are_rejected(self):
         for args in (('--limit', 0), ('--limit', -1), ('--max-chars', 511),
-                     ('--offset', 0), ('--match', 'all')):
+                     ('--offset', 0), ('--match', 'all'), ('--route', 'TMA')):
             with self.subTest(args=args), self.assertRaises(SystemExit):
                 self.strategy_cli(*args)
         context = self.directory / 'context.json'

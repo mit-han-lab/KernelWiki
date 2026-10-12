@@ -1,6 +1,28 @@
 # Validation results
 
-## Inline route validation
+## Context-driven retrieval validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 192 tests in 28.570 seconds |
+| Focused retrieval suite | pass — 34 tests |
+| Real-corpus decision revision | pass — same query, two different priorities before a one-candidate limit; two linked page reads |
+| Optional master scoring | pass — 5,205 score comparisons against the master checkout |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.14 MiB, 1,594 files, 422 artifacts; ceiling 25 MiB |
+| External skill validator | existing incompatibility — rejects `argument-hint`; frontmatter is identical to master |
+
+The independent interleave policy, route CLI and route merger are removed.
+Custom strategies can still combine searches and choose their order. The
+reusable template applies LLM-authored decisions; natural-language state alone
+does not change ranking. Query receipts preserve each state/decision snapshot.
+Current validation scratch uses `.worklog/context-retrieval/`.
+The smoke decisions are synthetic; no GPU ablation or semantic quality claim is
+made. Corpus, aliases and architecture metadata remain identical to master.
+Earlier validation below describes the preceding interfaces.
+
+## Prior inline route validation
 
 | Check | Result |
 | --- | --- |

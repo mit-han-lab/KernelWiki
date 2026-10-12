@@ -2,6 +2,6 @@
 
 
 def retrieve(index, context):
-    if "queries" in context:
-        raise ValueError("master uses one query; use interleave for context['queries']")
+    if "queries" in context or "decision" in context:
+        raise ValueError("master uses one query and fixed scores; use a custom strategy for queries or decision")
     return index.master(context.get("query", ""))
