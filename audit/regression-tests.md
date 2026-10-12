@@ -6,7 +6,23 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Explicit strategy selection regression gate
+## Inline route regression gate
+
+Full discovery: **pass — 197 tests**, 26.900 seconds. The focused retrieval suite
+passes **39 tests**.
+New coverage checks inline route parsing, independent filters, mixed rules,
+equivalence to JSON routes, normalized context and original argument snapshots,
+custom strategy input, global filter enforcement and conflicting-input errors.
+The optimization-local path check also runs interleave without preparing JSON
+or allocating system temporary files. Scratch uses `.worklog/route-cli/`.
+Follow-up CLI regressions cover route values consisting only of a flag or an
+option assignment, equivalent argument spellings, route-local filtering, literal
+query words after `--`, and errors for missing values or unknown route options.
+Built-in interleave now rejects JSON routes combined with positional CLI keywords
+before searching or creating a run log. Regression coverage includes empty route
+lists, either input on its own, and custom strategies that intentionally use both.
+
+## Prior explicit strategy selection regression gate
 
 Result: **pass — 188 tests**, 55.648 seconds with the workspace's `python3`.
 The focused retrieval suite passes **30 tests**, including named master/interleave strategies, mixed route rules,

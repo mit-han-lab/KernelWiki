@@ -64,18 +64,20 @@ Set `search_run` to an absolute writable path under the optimization workspace's
 | `scripts/get_page.py` | Read pages/code; optional `--run-dir` records full reads, previews and code output |
 | `scripts/grep_wiki.py` / `rg -F` | Supplementary regex/literal search; use `--only artifacts` or an artifact path to locate captured code |
 
-Examples:
+For focused queries and a complete multi-query example, see the paired recipes
+in [SKILL.md](SKILL.md#path-1-unified-search-with-an-explicitly-chosen-strategy).
+Use interleave when separate filters and a shared candidate pool help; independent
+queries are equally valid when each read informs the next question.
+
+Page and code lookup:
 
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" "ping-pong attention" --limit 5
-python3 scripts/query.py --strategy master --run-dir "$search_run" --tag UMMA --type hardware --compact          # alias → tcgen05
-python3 scripts/query.py --strategy master --run-dir "$search_run" --architecture B200 --type kernel             # alias → sm100
 python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
 
 The calling LLM chooses `--strategy master` for the original keyword scoring,
-`--strategy interleave` for a context-defined combination of queries, or a Python
+`--strategy interleave` with repeated `--route` arguments (or context JSON), or a Python
 file for custom selection and ordering. Interleave routes can individually use
 master scoring or unscored keyword enumeration. Copy `scripts/strategy_template.py`
 into the optimization workspace's `tmp/` when custom logic is useful. The model

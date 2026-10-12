@@ -17,20 +17,10 @@ directory. Neither queries nor page reads need access to system `/tmp`.
 ```bash
 wiki_root="/path/to/KernelWiki"
 search_run="$PWD/tmp/kernelwiki-search"
-mkdir -p "$search_run"
-cat > "$search_run/context.json" <<'JSON'
-{
-  "task": "Inspect a single-GPU Blackwell GEMM with producer/consumer waits",
-  "rationale": "Compare the measured stall with synchronization primitives",
-  "queries": [
-    {"query": "pipeline", "type": "pattern", "rule": "master"},
-    {"query": "mbarrier", "type": "hardware", "rule": "keyword"}
-  ]
-}
-JSON
-python3 "$wiki_root/scripts/query.py" --strategy interleave --context "$search_run/context.json" --run-dir "$search_run" --max-chars 12000 --compact
+python3 "$wiki_root/scripts/query.py" --strategy interleave --route "pipeline --type pattern --rule master" --route "mbarrier --type hardware" --run-dir "$search_run" --max-chars 12000 --compact
 ```
 
+The runner creates `search_run` automatically. No context file is required.
 Use a new subdirectory for a separate experiment; query snapshots within each
 run are already unique. If local `tmp/` is unavailable, pass another writable
 experiment directory explicitly.
@@ -47,6 +37,13 @@ must now explicitly select its policy.
 | `--strategy interleave` | Round-robin distinct results from caller-defined routes, with no per-route quota | Compare mechanisms, symptoms or implementations without pooling every term into one score |
 | `--strategy <file.py>` | Execute `retrieve(index, context)` written or adapted by the LLM | Custom filtering, ordering, merging or selection based on task evidence |
 
+For example, GEMM pipeline waits can call for a symptom-pattern route and a
+hardware-semantics route with different `type` filters, as above. Interleave
+merges those pools without scoring all terms as a single query. Several
+independent queries are equally useful when each result informs what to ask
+next. A precise question about one mechanism may need only one master query.
+Use the evidence needed to choose; there is no required interleave usage rate.
+
 For a focused master query, reusing the variables above:
 
 ```bash
@@ -59,17 +56,55 @@ here. Use `--limit 10` to reproduce that count, subject to the output budget.
 This strategy uses `context.query` or CLI keywords and CLI filters; it rejects
 `context.queries` instead of silently ignoring a multi-query plan.
 
-For interleave, `context.queries` is a list of route objects containing `query`,
+For interleave, repeat `--route "KEYWORDS [FILTERS] [--rule keyword|master]"`.
+Each quoted value accepts the same filters as the main CLI, including
+`--has-code`. Multiple words retain OR matching, not exact-phrase matching.
+For example, `--route "tile pipeline --type technique"` searches either term
+within technique pages. Filter-only routes such as `--route "--type hardware"`,
+`--route "--type=hardware"` and `--route "--has-code"` are also valid.
+Flags outside the quotes apply to every route; flags inside apply
+only to that route. Route text is parsed as arguments, not executed as code.
+
+Alternatively, `context.queries` is a list of route objects containing `query`,
 optional filters and `rule`. `rule: "master"` explicitly scores that route;
 `rule: "keyword"` (the route default) enumerates all matches in path order.
 Duplicate pages do not consume a route's next turn. Without `queries`, one route
 uses `context.query`. Route order is caller-chosen, not a semantic ranking.
+Interleave does not understand relevance or guarantee better candidate order.
+Its benefit is combining query directions and deduplicating the shared pool;
+the LLM still selects evidence after reading.
+
+To retain additional task details, a context file is optional. This is equivalent
+to the routes in the start example, with extra task information:
+
+```bash
+mkdir -p "$search_run"
+cat > "$search_run/context.json" <<'JSON'
+{
+  "task": "Inspect a single-GPU Blackwell GEMM with producer/consumer waits",
+  "rationale": "Compare the measured stall with synchronization primitives",
+  "queries": [
+    {"query": "pipeline", "type": "pattern", "rule": "master"},
+    {"query": "mbarrier", "type": "hardware", "rule": "keyword"}
+  ]
+}
+JSON
+python3 "$wiki_root/scripts/query.py" --strategy interleave --context "$search_run/context.json" --run-dir "$search_run" --max-chars 12000 --compact
+```
+
+Use either CLI routes or `context.queries` in a call; providing both is an error.
+A context file without `queries` may accompany CLI routes to supply task details.
+Positional query words cannot accompany `--route`, and the single-query `master`
+strategy rejects routes. Built-in `interleave` also rejects positional query words
+alongside `context.queries`; edit the JSON routes or omit the positional words.
+Custom Python strategies may consume both `context.query` and `context.queries`.
+This avoids silently ignoring part of the query plan in the built-in policies.
 
 For custom logic, copy the template and edit `retrieve()` before running:
 
 ```bash
 cp "$wiki_root/scripts/strategy_template.py" "$search_run/strategy.py"
-python3 "$wiki_root/scripts/query.py" --strategy "$search_run/strategy.py" --context "$search_run/context.json" --run-dir "$search_run" --compact
+python3 "$wiki_root/scripts/query.py" --strategy "$search_run/strategy.py" --route "pipeline --type pattern --rule master" --route "mbarrier --type hardware" --run-dir "$search_run" --compact
 ```
 
 The starter calls `index.interleave()`; the LLM may replace it with
@@ -116,6 +151,8 @@ is missing rather than assuming every task needs multiple routes.
 
 `context` is the JSON object supplied with `--context`, or an empty object. CLI
 query words override `context["query"]`; otherwise it defaults to an empty string.
+CLI routes become `context["queries"]`, using the same objects as JSON routes.
+The log saves both the original route arguments and this normalized context.
 The runner sets `context["budget"]` to `{"max_chars": ..., "limit": ...}`.
 Other keys are yours to define for operator, hardware, measurements and scope.
 Changing the context inside Python does not change the runner's limits.
@@ -154,6 +191,10 @@ revision in the cost. Per-query character limits do not cap cumulative queries
 or full-page reads. Compare against the separate master checkout for the original
 workflow; selecting `--strategy master` here isolates ordering but retains the
 new excerpts, budgets and logging.
+Assess which distinct questions were asked, which useful evidence was newly
+read and which kernel changes it informed. Strategy-name counts alone do not
+measure retrieval diversity: several master calls may explore different
+mechanisms, and repeated interleave calls may return the same pages.
 
 ## Record retrieval and reading
 

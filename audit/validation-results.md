@@ -1,6 +1,30 @@
 # Validation results
 
-## Explicit strategy selection validation
+## Inline route validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 197 tests in 26.900 seconds |
+| Focused retrieval suite | pass — 39 tests |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.14 MiB, 1,595 files, 422 artifacts; ceiling 25 MiB |
+
+Repeated `--route` arguments supply the same route objects as context JSON.
+Tests compare candidate order, preserve original CLI arguments and normalized
+context in receipts, and exercise per-route rules, global filters, custom
+strategies and rejection of conflicting inputs. The documented interleave
+recipes no longer require a JSON file and pass the documented-command tests.
+Validation scratch uses
+`.worklog/route-cli/`; no private task files are accessed.
+Follow-up tests verify that `--route "--has-code"` and
+`--route "--type=hardware"` bind their values to the route, while `--` preserves
+literal query words and invalid route arguments still fail explicitly.
+Built-in interleave rejects positional CLI keywords combined with JSON routes
+before retrieval or logging; either input alone and custom strategies consuming
+both remain supported and covered by regression tests.
+
+## Prior explicit strategy selection validation
 
 Follow-up review reproduced and fixed a strategy-loader bug: dataclasses with
 postponed annotations could not resolve their module. Strategies now execute

@@ -7,7 +7,7 @@ Master's scoring is one selectable strategy, with no implicit candidate-count ca
 
 Usage:
     query.py "gate-up GEMM" --strategy master --run-dir ./tmp/search --limit 20
-    query.py --strategy interleave --context ./tmp/context.json --run-dir ./tmp/search
+    query.py --strategy interleave --route "pipeline --type pattern" --route mbarrier --run-dir ./tmp/search
     query.py --strategy ./tmp/strategy.py --run-dir ./tmp/search
 
 Relative paths are resolved from the caller's working directory, not the wiki.
@@ -21,6 +21,7 @@ import copy
 import io
 import json
 import re
+import shlex
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -41,6 +42,49 @@ BUILTIN_STRATEGIES = {
     name: Path(__file__).resolve().parent / "strategies" / f"{name}.py"
     for name in ("master", "interleave")
 }
+
+
+class _RouteParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ValueError(f"invalid --route: {message}")
+
+
+def bind_route_arguments(argv):
+    """Keep a route value starting with '--' out of the outer option parser."""
+    tokens = iter(argv)
+    bound = []
+    for token in tokens:
+        if token == "--":
+            bound.extend([token, *tokens])
+            break
+        if token == "--route":
+            value = next(tokens, None)
+            if value is not None:
+                token = f"--route={value}"
+        bound.append(token)
+    return bound
+
+
+def parse_route(text):
+    """Parse a quoted mini query into the same route object used by context JSON."""
+    parser = _RouteParser(add_help=False, allow_abbrev=False)
+    parser.add_argument("query", nargs="*")
+    parser.add_argument("--rule", choices=("keyword", "master"))
+    for name in FILTER_NAMES:
+        if name == "has_code":
+            parser.add_argument("--has-code", action="store_true", default=None)
+        else:
+            parser.add_argument("--" + name)
+    try:
+        tokens = shlex.split(text)
+    except ValueError as error:
+        raise ValueError(f"invalid --route: {error}") from error
+    route = {key: value for key, value in vars(parser.parse_intermixed_args(tokens)).items()
+             if value is not None}
+    route["query"] = " ".join(route["query"])
+    if not route["query"] and not any(name in route for name in FILTER_NAMES):
+        raise ValueError("invalid --route: supply keywords or at least one filter")
+    return route
 
 
 def load_alias_expansions():
@@ -571,6 +615,8 @@ def main():
     parser.add_argument("--strategy", required=True, metavar="master|interleave|PATH",
                         help="Explicit policy: master's scoring, interleaved queries, or a Python file")
     parser.add_argument("--context", type=Path, help="JSON object with task context for the strategy")
+    parser.add_argument("--route", action="append", metavar="'KEYWORDS [FILTERS] [--rule keyword|master]'",
+                        help="Repeat for interleave or custom strategy routes without JSON; e.g. 'pipeline --type pattern'")
     parser.add_argument("--run-dir", type=Path, required=True,
                         help="Writable experiment directory, e.g. ./tmp/kernelwiki-search in the optimization workspace")
     parser.add_argument("--limit", type=int,
@@ -579,17 +625,30 @@ def main():
                         help="Maximum candidate output characters including summary (default 16000; not a token count)")
     parser.add_argument("--compact", action="store_true", help="Compact one-line-per-result output")
     parser.add_argument("--paths-only", action="store_true", help="Output only file paths, one per line")
-    args = parser.parse_args()
+    args = parser.parse_args(bind_route_arguments(sys.argv[1:]))
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be positive")
     if args.max_chars < 512:
         parser.error("--max-chars must be at least 512")
+    if args.route and args.query:
+        parser.error("use --route or positional query words, not both")
+    if args.route and args.strategy == "master":
+        parser.error("--route requires interleave or a custom strategy; master uses one positional query")
     context = {}
     try:
         if args.context:
             context = json.loads(args.context.read_text(encoding="utf-8"))
             if not isinstance(context, dict):
                 raise ValueError("--context must contain a JSON object")
+        if args.strategy == "interleave" and args.query and "queries" in context:
+            raise ValueError(
+                "interleave accepts positional query words or context.queries, not both; "
+                "edit the JSON routes or remove positional keywords"
+            )
+        if args.route:
+            if "queries" in context:
+                raise ValueError("provide routes via --route or context.queries, not both")
+            context["queries"] = [parse_route(route) for route in args.route]
         if args.query:
             context["query"] = " ".join(args.query)
         else:

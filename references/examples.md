@@ -15,19 +15,21 @@ the operator, measurements and evidence gaps. `query.py` executes the chosen
 policy using the same corpus, aliases and filters. The runner controls output
 size, while the LLM selects relevant evidence and revises its strategy as needed.
 
-The focused command examples below explicitly choose master; other strategies
-are equally available. They run from the wiki root. Set `search_run` to an
-absolute path in the optimization workspace first:
+The commands below run from the wiki root. Set `search_run` to an absolute path
+in the optimization workspace first:
 
 ```bash
 search_run="<optimization-directory>/tmp/kernelwiki-search"
 ```
 
-For measured GEMM pipeline waits, one possible strategy queries the symptom,
-stage-ownership primitives and implementation examples. This is an example of
-query decomposition, not a required number of routes. A single focused query may
-already be sufficient; multiple routes can introduce duplicates or displace
-useful results under an output budget.
+For a precise mechanism question, use a focused query. When one problem has
+several plausible directions needing different filters, combine them or query
+them independently. If the next question depends on the current page, separate
+calls let the evidence guide the sequence. The complete paired examples in
+[SKILL.md](../SKILL.md#path-1-unified-search-with-an-explicitly-chosen-strategy)
+show a focused hardware lookup and mixed pattern/hardware routes for GEMM waits.
+Interleave merges and deduplicates candidates; it does not judge semantics.
+Custom strategies are useful when task-specific selection or ordering is needed.
 
 Read promising pages and follow their sources:
 
@@ -52,6 +54,8 @@ page/code output, and resulting kernel timings. The receipts describe tool
 activity; they do not measure model attention or prove selection quality. Compare
 with a competent master workflow that can reformulate queries and follow links.
 Distinguish gains from new candidate coverage, richer excerpts and LLM selection.
+Count useful evidence and its effect on kernel changes, not just calls to each
+strategy: multiple master queries can also explore different mechanisms.
 
 ---
 
@@ -64,9 +68,12 @@ Distinguish gains from new candidate coverage, richer excerpts and LLM selection
 4. For optimization path, read `wiki/techniques/warp-specialization.md`, `wiki/techniques/persistent-kernels.md`
 5. For progression, cite the tcgen05 tutorial (`sources/blogs/tcgen05-tutorial.md`): Naive 17% → 128B-swizzled 3D TMA 46% → Pipelining 62% → Warp specialization 80% → 2-SM 86% → persistent static scheduling 98%
 
-**Command**:
+**Command**: compare GEMM implementations with tile/pipeline techniques using
+different filters. Independent queries are also suitable if the first page will
+determine the next question.
+
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" --type kernel --tag gemm --architecture sm100
+python3 scripts/query.py --strategy interleave --route "GEMM --type kernel --architecture sm100 --rule master" --route "tile pipeline --type technique --architecture blackwell" --run-dir "$search_run" --compact
 ```
 
 ---
