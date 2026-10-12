@@ -155,6 +155,29 @@ def retrieve(index, context):
             })
             self.assertEqual(['b', 'a'], [p['path'] for p in result])
 
+    def test_template_scores_full_pool_before_explicit_priorities_without_count_cap(self):
+        pages = [page(f'a-{i:03d}', body='tcgen05') for i in range(843)]
+        pages += [page('y-metadata', tags=['tcgen05']), page('z-title', title='tcgen05')]
+        source = (ROOT / 'scripts/strategy_template.py').read_bytes()
+        for priorities, expected in (([], ['z-title', 'y-metadata', 'a-000']),
+                                     (['a-842'], ['a-842', 'z-title', 'y-metadata'])):
+            with self.subTest(priorities=priorities):
+                index = query.StrategyIndex(pages)
+                result = query.execute_strategy(source, 'strategy.py', index, {
+                    'query': 'UMMA', 'decision': {'priority_ids': priorities},
+                })
+                self.assertEqual(845, len(result))
+                self.assertEqual(expected, [p['path'] for p in result[:3]])
+                self.assertEqual('master', index.searches[0]['rule'])
+                self.assertEqual(845, index.searches[0]['match_count'])
+
+    def test_template_filter_only_queries_keep_path_order(self):
+        index = query.StrategyIndex([page('z', title='TMA', type='hardware'),
+                                    page('a', type='hardware'), page('b', type='pattern')])
+        result = query.execute_strategy((ROOT / 'scripts/strategy_template.py').read_bytes(),
+                                        'strategy.py', index, {'decision': {'filters': {'type': 'hardware'}}})
+        self.assertEqual(['a', 'z'], [p['path'] for p in result])
+
     def test_excerpt_is_bounded_and_filter_only_has_labeled_preview(self):
         body = 'opening ' * 100 + 'mbarrier wait\nconsumer release ' + 'trailing ' * 100
         excerpt = query.match_excerpt(body, ['MBARRIER', 'release'])
@@ -302,14 +325,13 @@ class StrategyCLITests(unittest.TestCase):
                          'extra_queries': [{'query': 'wait', 'type': 'pattern'}, {'query': 'TMA'}],
                          'priority_ids': ['b']},
         }))
-        with patch.object(query, 'score_keyword_match', side_effect=AssertionError('implicit scoring')):
-            stdout, _ = self.strategy_cli('TMA', '--context', context,
-                                          '--architecture', 'B200', '--paths-only')
+        stdout, _ = self.strategy_cli('TMA', '--context', context,
+                                      '--architecture', 'B200', '--paths-only')
         self.assertEqual(['b', 'a'], stdout.splitlines())
         receipt = self.receipts()[0]
         result = json.loads(receipt.read_text())
         self.assertEqual(['TMA', 'wait', 'TMA'], [s['query'] for s in result['searches']])
-        self.assertEqual(['keyword'] * 3, [s['rule'] for s in result['searches']])
+        self.assertEqual(['master'] * 3, [s['rule'] for s in result['searches']])
         snapshot = json.loads((receipt.parent / 'context.json').read_text())
         self.assertEqual('TMA', snapshot['query'])
         self.assertEqual('old-query', json.loads(context.read_text())['query'])
@@ -325,6 +347,47 @@ class StrategyCLITests(unittest.TestCase):
             self.assertEqual('error', result['status'])
             self.assertIn('use a custom strategy', result['error'])
             self.assertEqual([], result['searches'])
+
+    def test_execution_summary_reports_actual_searches_and_selection_not_declared_intent(self):
+        self.pages = [page('a', title='TMA', type='hardware', architectures=['sm100']),
+                      page('b', title='TMA', type='hardware', architectures=['sm100']),
+                      page('c', title='wait', type='pattern', architectures=['sm100']),
+                      page('d', title='TMA', type='hardware', architectures=['sm90'])]
+        self.strategy.write_text('def retrieve(index, context):\n'
+                                 '    return [index.search("TMA", type="hardware")[1], "c"]\n')
+        context = self.directory / 'context.json'
+        context.write_text(json.dumps({'query': 'mbarrier',
+                                      'decision': {'priority_ids': ['a'], 'reason': 'declared-only'}}))
+        stdout, _ = self.strategy_cli('--context', context, '--architecture', 'B200', '--limit', 1)
+        receipt = self.receipts()[0]
+        result = json.loads(receipt.read_text())
+        self.assertEqual({'global_filters': {'architecture': 'B200'},
+                          'searches': [{'rule': 'keyword', 'query': 'TMA',
+                                        'filters': {'type': 'hardware'}, 'match_count': 2}],
+                          'matched_count': 2, 'not_proposed_count': 1,
+                          'proposed_without_search_count': 1}, result['execution'])
+        self.assertEqual(['b'], result['emitted_ids'])
+        self.assertEqual(['c'], result['omitted_by_output_limits'])
+        self.assertEqual(['a'], result['matched_but_not_proposed'])
+        self.assertIn('"query": "TMA"', stdout)
+        self.assertIn('"architecture": "B200"', stdout)
+        self.assertNotIn('mbarrier', stdout)
+        self.assertNotIn('declared-only', stdout)
+        self.assertIn(f'queries/{receipt.parent.name}/result.json', stdout)
+        self.assertEqual(stdout, (receipt.parent / 'output.txt').read_text())
+
+    def test_long_execution_preview_is_bounded_but_receipt_preserves_full_query(self):
+        words = 'TMA ' * 1000
+        for budget in (512, 700, 16384):
+            with self.subTest(budget=budget):
+                before = set(self.receipts())
+                stdout, stderr = self.strategy_cli(words, '--max-chars', budget, '--paths-only')
+                self.assertLessEqual(len(stdout) + len(stderr), budget)
+                self.assertIn('…', stderr)
+                receipt = (set(self.receipts()) - before).pop()
+                result = json.loads(receipt.read_text())
+                self.assertEqual(words, result['execution']['searches'][0]['query'])
+                self.assertEqual(result['proposed_ids'], result['emitted_ids'] + result['omitted_by_output_limits'])
 
     def test_budget_covers_summary_and_preserves_order_in_all_modes(self):
         for flags in ([], ['--compact'], ['--paths-only']):

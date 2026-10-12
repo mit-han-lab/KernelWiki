@@ -6,7 +6,21 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Context-driven retrieval regression gate
+## Retrieval refinement regression gate
+
+Full discovery: **pass — 196 tests**, 28.287 seconds. Focused retrieval:
+**38 tests pass**. New coverage checks relevance before truncation in an
+845-candidate pool, explicit priority overrides, filter-only ordering, observed
+execution versus declared intent, and bounded previews with complete receipts.
+The documented-command check now executes both contexts from the continuous
+SKILL example and verifies different first candidates for the same query.
+Scratch: `.worklog/retrieval-refinement/`; corpus and private tasks are untouched.
+The real-corpus `GEMM` comparison preserves all 422 candidates from the
+`de18b99` template, while ordering them exactly as `index.master()` before explicit
+priorities. This verifies the intended starting order, not semantic relevance
+or a kernel-performance gain.
+
+## Prior context-driven retrieval regression gate
 
 Full discovery: **pass — 192 tests**, 28.570 seconds. The focused retrieval
 suite passes **34 tests**. Coverage replaces the removed route parser/merger tests

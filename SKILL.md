@@ -46,65 +46,102 @@ implementation.
 
 ### Path 1: Unified search guided by optimization evidence
 
-Use `query.py` as the research entry point. During optimization, maintain a small
-context file with the current question, measurements, pages read, and approaches
-tried with their results. Use that evidence to decide what to search and which
-candidates deserve priority. Update the decision when evidence changes; reuse a
-strategy while it still fits. There is no fixed round-to-topic or scoring rule.
+Use `query.py` as the research entry point. The calling LLM decides queries,
+filters and candidate priority from current measurements. Keep a small context
+file using the existing `state.question`, `evidence`, `attempts` and `reads`:
+record resolved questions with supporting measurements, and failed approaches
+with their shape/dtype/layout/target conditions. Treat these as evidence for the
+next decision, not permanent exclusions. Revisit earlier material when conditions
+change. Merely updating `state` does not change retrieval; update `decision` or
+strategy code when the evidence changes what should be searched or prioritized.
 
-Start with [the reusable template and example context](references/search-strategies.md#start-a-run).
-Keep these files in the optimization workspace's writable `tmp/kernelwiki-search/`,
-outside the shared corpus; system `/tmp` need not be writable. From the skill
-root, after copying the template and writing context:
+The reusable template starts with master's keyword-score order and puts the
+LLM's `priority_ids` first, before output limits. Leave priorities empty during
+initial discovery. **With the same query and filters, empty or omitted
+`priority_ids` / `extra_queries`, and an unmodified template, candidate order
+before output limits is identical to master.** Excerpts, budgets and logging still
+differ. Using the template alone does not make ranking context-dependent.
+The score is a starting heuristic, not a semantic judgment;
+edit the Python to change filtering, scoring or ordering when useful. All matches
+remain available to the strategy. `priority_ids` only promotes pages: lowering
+priority requires changing candidate order or selection, not just recording a
+resolved bottleneck in prose. Keep still-applicable references available.
+
+When a new measurement changes the bottleneck hypothesis or an attempt fails,
+reconsider the next evidence needed. Update the query, filters, priorities or
+strategy when useful; if retaining the retrieval decision, briefly record why in
+`decision.reason`. If existing evidence is sufficient, continue experimenting.
+
+**Two successive queries with the same keyword.** The measurements below are
+illustrative; replace them with actual evidence. Run from the skill root and keep
+strategy/context/logs in the optimization workspace's writable `tmp/`, outside
+the corpus. System `/tmp` need not be writable.
 
 ```bash
 search_run="<optimization-directory>/tmp/kernelwiki-search"
+mkdir -p "$search_run"
+cp scripts/strategy_template.py "$search_run/strategy.py"
+cat > "$search_run/context.json" <<'JSON'
+{
+  "query": "pipeline",
+  "state": {"question": "What could explain producer/consumer waits?", "evidence": [], "attempts": [], "reads": []},
+  "decision": {"filters": {"type": "pattern"}, "priority_ids": [], "reason": "Discover candidate explanations before choosing an experiment."}
+}
+JSON
 python3 scripts/query.py --strategy "$search_run/strategy.py" --context "$search_run/context.json" --run-dir "$search_run" --compact
+python3 scripts/get_page.py pattern-pipeline-stalls --run-dir "$search_run" --query-id <first-query-id>
 ```
 
-The template executes the LLM's decision: filter the base query, optionally add
-queries, and prioritize observed page IDs before output limits apply. Leave
-priorities empty during initial discovery. Adapt the Python when a different
-selection rule is useful; it can search multiple times, inspect metadata/body,
-and combine or order candidates. A numeric score is optional. The remaining
-unprioritized results use search order, which is not semantic relevance.
-
-Read promising candidates with `get_page.py`, then use experiment results to
-revise the question, filters or priorities and record why. For example, evidence
-of pipeline waits can prioritize synchronization material; measurements of poor
-tile tails can shift attention to scheduling. The same operator query can remain
-in use. Already-read pages can become useful again under a new hypothesis.
-Merely adding profiling prose to context does not change retrieval: **the calling
-LLM must translate it into a decision or strategy change**. Python makes no model
-calls and does not infer bottlenecks.
-
-Master's scoring remains an explicit option for a focused lookup or baseline:
+The first query uses keyword relevance and puts `pattern-pipeline-stalls` first
+in this corpus. Suppose a subsequent trace confirms that the producer wait issue
+is resolved, more pipeline stages do not help, and math throughput is now the
+open question. The LLM changes its decision, retaining the keyword:
 
 ```bash
-python3 scripts/query.py "mbarrier" --strategy master --run-dir "$search_run" --type hardware --compact
+cat > "$search_run/context.json" <<'JSON'
+{
+  "query": "pipeline",
+  "state": {
+    "question": "Are tile choices or resource limits reducing math throughput?",
+    "evidence": [{"finding": "Producer wait bottleneck resolved", "status": "resolved", "source": "illustrative trace; replace with actual measurement reference"}],
+    "attempts": [{"change": "More pipeline stages", "result": "No gain", "conditions": "Same shape, dtype, layout and GPU target as the measured case"}],
+    "reads": ["pattern-pipeline-stalls"]
+  },
+  "decision": {"filters": {"type": "pattern"}, "priority_ids": ["pattern-compute-bound"], "reason": "Investigate math throughput before repeating the resolved wait investigation."}
+}
+JSON
+python3 scripts/query.py --strategy "$search_run/strategy.py" --context "$search_run/context.json" --run-dir "$search_run" --compact
+python3 scripts/get_page.py pattern-compute-bound --run-dir "$search_run" --query-id <second-query-id>
 ```
 
-It uses fixed keyword scores, regardless of optimization state. Within custom
-code, `index.master()` is also available alongside unscored `index.search()`.
-Both expose all matches before selection; neither has a default top-10 cutoff.
+The second query puts the observed `pattern-compute-bound` candidate first;
+other candidates remain available. Both contexts and their candidate orders are
+snapshotted separately. The explicit decision causes this change; Python does
+not interpret the trace description or call an LLM. A later measurement can
+justify rereading the earlier page. There is no fixed round-to-topic rule.
 
-`query.py` deduplicates, preserves strategy order and emits a prefix within
-`--max-chars` (default 16,384 characters, adjustable). Optional `--limit` caps the
-candidate count. Check reported omissions: narrow a query, revise selection or
-adjust the budget if useful evidence may be missing. Excerpts show matches or
-opening text, not article abstracts. For single-GPU optimization, assess compute,
-memory/layout, pipeline and tail efficiency against measured evidence.
+A focused lookup can still select `--strategy master`. Custom code can use
+`index.master()` for keyword-score order, or `index.search()` for unscored path
+order. Neither applies a default top-10 cutoff. Additional calls or optional
+queries inside a strategy are available when evidence needs them, with no
+required query combination. See [the strategy API](references/search-strategies.md).
 
-Every query snapshots the strategy, context, searches and candidate decisions.
-Pass the same `--run-dir` and returned `--query-id` to `get_page.py` to record
-subsequent page/code output. These records show returned content, not model
-attention; direct `cat`/`rg` reads are not automatically traced. Keep the reason
-for selections and experiment outcomes in context or the conversation.
+`query.py` shows actual searches/filters, selection counts, the output budget and
+the receipt location. Search rules describe retrieval calls; the custom strategy
+still owns final ordering. Full emitted/omitted IDs are in the receipt, so long
+execution details need not consume candidate space. Excerpts show matches or
+opening text, not article abstracts.
 
-Both `--strategy` and `--run-dir` are required. Existing filters and alias/OR
-matching are retained; CLI filters constrain every search in a strategy. See
-[the API and budget details](references/search-strategies.md#strategy-contract)
-when adapting code. Return to experiments once the evidence supports a change.
+The LLM can adjust `--max-chars` (default 16,384 characters) each call, subject to
+the experiment's total budget; optional `--limit` caps candidate count. If useful
+evidence is missing, inspect omissions and refine the query, selection or budget.
+For single-GPU work, assess compute, memory/layout, pipeline and tail efficiency.
+Return to experiments once the evidence supports a concrete change.
+
+Both `--strategy` and `--run-dir` are required. CLI filters constrain every search.
+Pass the returned query ID and same run directory to `get_page.py` for linked
+reading records. Direct `cat`/`rg` reads are not automatically traced; receipts
+show content returned, not model attention. Keep selection reasons in context.
 
 ### Path 2: Fetch a specific page by id or path
 

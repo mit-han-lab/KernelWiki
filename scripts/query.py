@@ -503,16 +503,48 @@ def format_result(page, compact=False):
     return "\n".join(lines)
 
 
+def summarize_execution(index, pages, global_filters):
+    """Describe observed searches and selection, not a strategy's declared intent."""
+    matched = {identifier for search in index.searches for identifier in search["matched_ids"]}
+    proposed = {p["fm"].get("id", p["path"]) for p in pages}
+    return {
+        "global_filters": global_filters,
+        "searches": [{key: search[key] for key in ("rule", "query", "filters", "match_count")}
+                     for search in index.searches],
+        "matched_count": len(matched),
+        "not_proposed_count": len(matched - proposed),
+        "proposed_without_search_count": len(proposed - matched),
+    }
+
+
 def render_candidates(pages, *, limit, max_chars, compact, paths_only,
-                      order, query_id=None):
+                      order, query_id=None, execution=None):
     """Emit a prefix of strategy order; disclose every omission in the receipt."""
+    details = ""
+    if execution is not None:
+        details = (
+            f"Selection: {execution['matched_count']} matched; "
+            f"{execution['not_proposed_count']} not proposed; "
+            f"{execution['proposed_without_search_count']} proposed without search.\n"
+            f"Global filters: {json.dumps(execution['global_filters'], ensure_ascii=False)}\n"
+            f"Executed searches (preview): {json.dumps(execution['searches'], ensure_ascii=False)}"
+        )
+
     def header(count):
         text = (f"{count} candidate(s); {len(pages)} proposed; "
                 f"{len(pages) - count} omitted by output limits. Order: {order}.\n")
         if query_id:
             text += f"query_id={query_id}\n"
-        text += ("Assess relevance for the current task, then read selected pages. "
-                 "If evidence is missing, revise the strategy or output budget.\n")
+        text += f"Budget: max_chars={max_chars}; limit={limit if limit is not None else 'none'}.\n"
+        if query_id:
+            text += f"Receipt: queries/{query_id}/result.json (under --run-dir).\n"
+        text += "Assess relevance; revise decision or budget when evidence is missing.\n"
+        if details:
+            # Keep the execution preview bounded, including with a tiny output
+            # budget or long queries. The receipt retains the full details.
+            allowance = max(0, min(768, max_chars // 3, max_chars - len(text) - 1))
+            if allowance:
+                text += (details if len(details) <= allowance else details[:allowance - 1] + "…") + "\n"
         return text
 
     chosen, cards = [], []
@@ -603,10 +635,13 @@ def main():
     try:
         with contextlib.redirect_stdout(diagnostics), contextlib.redirect_stderr(diagnostics):
             proposed = execute_strategy(source, strategy_path, index, context)
+        global_filters = {name: getattr(args, name) for name in FILTER_NAMES
+                          if getattr(args, name) not in (None, False, "")}
+        execution = summarize_execution(index, proposed, global_filters)
         order = f"strategy {args.strategy}" if args.strategy in BUILTIN_STRATEGIES else "custom strategy"
         summary, output, emitted = render_candidates(
             proposed, limit=args.limit, max_chars=args.max_chars, compact=args.compact,
-            paths_only=args.paths_only, order=order, query_id=query_id,
+            paths_only=args.paths_only, order=order, query_id=query_id, execution=execution,
         )
     except (Exception, SystemExit) as error:
         if log:
@@ -626,6 +661,7 @@ def main():
             "corpus_pages": len(all_pages),
             "corpus_sha256": digest(json.dumps(corpus, sort_keys=True, default=str)),
             "searches": index.searches, "strategy_reads": index.reads,
+            "execution": execution,
             "proposed_ids": proposed_ids, "emitted_ids": emitted_ids,
             "omitted_by_output_limits": proposed_ids[len(emitted):],
             "matched_but_not_proposed": sorted(matched_ids - set(proposed_ids)),

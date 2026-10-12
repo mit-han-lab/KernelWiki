@@ -68,9 +68,12 @@ Follow [the optimization retrieval workflow](SKILL.md#path-1-unified-search-guid
 the calling LLM keeps the current question, measurements and experiment history
 in context, then updates queries and candidate priorities as that evidence changes.
 Copy `scripts/strategy_template.py` into the optimization workspace's `tmp/` and
-reuse it with revised context, or edit its selection logic. Multiple searches can
-be combined in the same custom strategy. Python does not interpret profiling
-prose or call a model API; the LLM supplies the retrieval decisions.
+reuse it with revised context, or edit its selection logic. The template uses
+master's keyword scores as the initial order; the LLM's explicit priorities come
+first. Record resolved questions and failed attempts with their evidence and
+applicable conditions, then translate them into selection changes. Python does
+not interpret profiling prose or call a model API. See the two-query example in
+SKILL.md for updating a decision while keeping the same keyword.
 
 Page and code lookup:
 
@@ -85,8 +88,9 @@ there is no default candidate-count cap or fixed candidate multiplier. Optional
 `--limit` and the adjustable character budget bound the returned candidate cards,
 which include metadata and excerpts.
 
-Logs preserve strategy source, context, searches and proposed/emitted/omitted
-candidates. Use `get_page.py --run-dir <run-dir> --query-id <query-id>` to record
+Output summarizes executed searches, filters and selection counts, and links to
+the receipt. Logs preserve strategy source, context and complete candidate orders
+including emitted and omitted IDs. Use `get_page.py --run-dir <run-dir> --query-id <query-id>` to record
 subsequent page/code output. Keep experiment files outside the corpus.
 See [the template, API and experiment records](references/search-strategies.md).
 

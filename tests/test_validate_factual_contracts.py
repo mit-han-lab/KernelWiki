@@ -485,27 +485,38 @@ class ShippedDocumentationContractTests(unittest.TestCase):
         docs = [ROOT / "README.md", ROOT / "SKILL.md", ROOT / "CLAUDE.md", ROOT / "index.md"]
         docs.extend((ROOT / "references").glob("*.md"))
         commands = []
+        context_pattern = r"cat > \"\$search_run/context.json\" <<'JSON'\n(.*?)\nJSON"
         for path in docs:
-            for line in path.read_text(encoding="utf-8").splitlines():
+            text = path.read_text(encoding="utf-8")
+            examples = list(re.finditer(context_pattern, text, re.DOTALL))
+            position = 0
+            for line in text.splitlines(keepends=True):
+                line_start = position
+                position += len(line)
                 stripped = line.strip().strip("`")
                 if not re.match(r"python3 scripts/(?:grep_wiki|query|get_page)\.py\b", stripped):
                     continue
                 if "<" in stripped or "[--" in stripped:
                     continue
-                commands.append((path, stripped))
+                preceding = [example.group(1) for example in examples if example.end() <= line_start]
+                commands.append((path, stripped, preceding[-1] if preceding else None))
 
         self.assertGreaterEqual(len(commands), 25)
         with tempfile.TemporaryDirectory() as workspace:
             search_run = str(Path(workspace) / "optimization/tmp/kernelwiki-search")
             # Materialize the documented setup without executing arbitrary shell.
             guide = (ROOT / "references/search-strategies.md").read_text(encoding="utf-8")
-            example = re.search(r"cat > \"\$search_run/context.json\" <<'JSON'\n(.*?)\nJSON", guide, re.DOTALL)
+            example = re.search(context_pattern, guide, re.DOTALL)
             self.assertIsNotNone(example)
             json.loads(example.group(1))
             Path(search_run).mkdir(parents=True)
             (Path(search_run) / "context.json").write_text(example.group(1), encoding="utf-8")
             (Path(search_run) / "strategy.py").write_bytes((ROOT / "scripts/strategy_template.py").read_bytes())
-            for path, command in commands:
+            skill_rounds = []
+            for path, command, context_text in commands:
+                context_text = context_text or example.group(1)
+                expected_context = json.loads(context_text)
+                (Path(search_run) / "context.json").write_text(context_text, encoding="utf-8")
                 # The docs initialize this caller-owned path before query examples.
                 # Supply an isolated writable workspace without running a shell.
                 args = [arg.replace("$search_run", search_run)
@@ -519,6 +530,18 @@ class ShippedDocumentationContractTests(unittest.TestCase):
                 self.assertNotIn("No matches.", output, (path, command, output))
                 if args[1] == "scripts/query.py":
                     self.assertNotRegex(output, r"(?m)^0 candidate\(s\)", (path, command, output))
+                    if path.name == "SKILL.md" and "--context" in args:
+                        query_id = re.search(r"query_id=([0-9a-f]{32})", result.stdout).group(1)
+                        folder = Path(search_run) / "queries" / query_id
+                        snapshot = json.loads((folder / "context.json").read_text())
+                        receipt = json.loads((folder / "result.json").read_text())
+                        self.assertEqual(expected_context["state"], snapshot["state"])
+                        self.assertEqual(expected_context["decision"], snapshot["decision"])
+                        skill_rounds.append((snapshot, receipt))
+            self.assertEqual(2, len(skill_rounds))
+            self.assertEqual(["pipeline", "pipeline"], [s["query"] for s, _ in skill_rounds])
+            self.assertEqual(["pattern-pipeline-stalls", "pattern-compute-bound"],
+                             [r["emitted_ids"][0] for _, r in skill_rounds])
 
     def test_current_audit_receipts_match_discovered_tests_and_bundles(self):
         discovered_tests = sum(

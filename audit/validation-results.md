@@ -1,6 +1,26 @@
 # Validation results
 
-## Context-driven retrieval validation
+## Retrieval refinement validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 196 tests in 28.287 seconds |
+| Focused retrieval suite | pass — 38 tests |
+| Two-round documented example | pass — same keyword; first result changes from pipeline stalls to the explicitly prioritized compute-bound page |
+| Real-corpus template comparison | pass — same 422 GEMM candidates as de18b99; new base order matches the master helper |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.15 MiB, 1,594 files, 422 artifacts; ceiling 25 MiB |
+| External skill validator | existing incompatibility — rejects the unchanged `argument-hint` field |
+
+The template scores matches before applying explicit priorities and output
+limits. Output previews report actual index calls and selection statistics;
+complete details remain in receipts. The two-round example labels its evidence
+as illustrative. Validation scratch: `.worklog/retrieval-refinement/`.
+No GPU ablation was run. Corpus, aliases and architecture metadata remain
+identical to master; this change does not establish retrieval-quality or timing gains.
+
+## Prior context-driven retrieval validation
 
 | Check | Result |
 | --- | --- |

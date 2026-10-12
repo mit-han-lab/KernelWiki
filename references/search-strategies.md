@@ -26,9 +26,8 @@ cat > "$search_run/context.json" <<'JSON'
   },
   "decision": {
     "filters": {"type": "pattern"},
-    "extra_queries": [{"query": "mbarrier", "type": "hardware"}],
     "priority_ids": [],
-    "reason": "Inspect stall patterns and barrier semantics before choosing an experiment."
+    "reason": "Inspect stall patterns before choosing an experiment."
   }
 }
 JSON
@@ -39,33 +38,61 @@ This is an exploratory example, not a measurement claim. Use your actual questio
 and evidence. `state` is a lightweight record for the LLM: preserve relevant
 measurements and their provenance, pages read, and attempted changes with results.
 Its keys are suggestions; the runner does not require a workflow-state schema.
+In `evidence`, record which question is resolved and the measurement supporting
+that conclusion. In `attempts`, record the change, outcome and relevant
+shape/dtype/layout/target conditions. Use `reads` to identify available evidence,
+not a blacklist. Keep unresolved questions in `question`. The LLM must translate
+these records into a changed query, filters, priorities or strategy when needed;
+state prose is not interpreted by the runner.
 
 The reusable template executes `decision`:
 
 - `filters` narrows the base `query`.
-- `extra_queries` optionally adds searches with their own filters.
+- `extra_queries` optionally adds searches with their own filters; separate calls
+  are also suitable and no combination is required.
 - `priority_ids` puts observed, matching page IDs first, in the LLM's chosen order.
   Start empty; after inspecting candidates/pages, use real IDs, not invented ones.
 - `reason` records why this decision follows from the current evidence.
 
-The runner deduplicates the combined list before applying output limits. The
-remaining candidates retain search order; the template does not assign them
-semantic scores. Priorities that no longer match the searches or filters fail
-explicitly, so a stale decision cannot silently select unrelated pages.
+The template uses `index.master()` to order each search by the existing keyword
+score, without a count cutoff. It then promotes `priority_ids`. Remaining results
+retain that base order; this heuristic does not assess semantic relevance. An
+empty keyword query still uses path order within its filters. Optional extra
+searches are appended in caller-chosen order, with each search scored separately;
+these are not pooled relevance scores. The runner deduplicates before budgeting.
+To use another ordering or an unscored search, edit the strategy. Priorities that
+no longer match the searches or filters fail explicitly, so a stale decision
+cannot silently select unrelated pages.
+
+For the same query and filters, an unmodified template with `priority_ids` and
+`extra_queries` empty or omitted returns master's candidate order before output
+limits. Output details, budgets and receipts still differ from the master branch.
+This applies to optional decision fields: the template still requires a
+`decision` object, and the CLI requires `--strategy` and `--run-dir`.
 
 After reading and measuring, update `state` and translate new evidence into
-`decision` (or edit the strategy). For example, if results now support a pipeline
+`decision` (or edit the strategy). Reconsider retrieval when a measurement changes
+the bottleneck hypothesis or an attempt fails; record the reason for a changed or
+retained decision in `decision.reason`. If existing evidence is sufficient,
+continue experimenting. For example, if results now support a pipeline
 wait hypothesis, keep `query: "pipeline"` and prioritize the observed
 `pattern-pipeline-stalls` ID. If a later trace points elsewhere, change priorities,
 filters or queries and record the reason. Previously read pages are not excluded;
 a new hypothesis may require rereading a different section. A failed experiment
-is evidence to reconsider applicability, not a permanent ban on that technique.
+is evidence to reconsider applicability under its recorded conditions, not a
+permanent ban on that technique. `priority_ids` promotes pages; an empty list does
+not demote anything. To deprioritize solved material, promote other applicable
+pages or explicitly change ordering/selection in the generated Python. Do not
+claim a negative weight or exclusion was applied merely because `state` changed.
 
 Updating prose in `state` alone does **not** change the order. The LLM must make
 an executable decision. This avoids hardcoding optimization stages or pretending
 that Python interprets profiling. Reuse the same files while useful: each query
 saves a separate snapshot before they are edited again. Read via `get_page.py`
-with the printed query ID to associate evidence with that decision.
+with the printed query ID to associate evidence with that decision. The
+[complete two-query example](../SKILL.md#path-1-unified-search-guided-by-optimization-evidence)
+keeps the keyword fixed and records a resolved issue and a conditional failed
+attempt before changing the explicit priority.
 
 ## Custom selection and multiple searches
 
@@ -134,8 +161,20 @@ standard-library code for replay. Reads outside the index API are not traced.
 
 ## Output budget and relevance
 
+The result header reports the effective budget and points to
+`queries/<query-id>/result.json` under `--run-dir`. A bounded preview shows actual
+index calls (query, rule, local filters and match counts), CLI-wide filters, and
+selection counts: distinct matches, matches not proposed, and pages proposed
+without a search. It is derived from execution, not from `decision.reason` or
+other declared intent. A search's rule does not describe later custom reordering.
+Full execution details and complete proposed/emitted/omitted IDs remain in the
+receipt; a clipped preview ends with an ellipsis. All header text counts against
+the same output budget as the candidate cards.
+
 - `--max-chars` defaults to 16,384 and bounds candidate text plus its summary.
-  It is a character budget, not a model-specific token estimate.
+  The LLM may increase or decrease it per call within the experiment's total
+  budget. It is a character budget, not a model-specific token estimate. A smaller
+  budget truncates output; use query/selection changes to address irrelevant hits.
 - For every strategy, there is no default candidate-count cap. Optional `--limit`
   is a maximum number of candidates to emit, with no multiplier or final-N role.
 - The runner emits a prefix of strategy order. When the next complete card does
@@ -181,7 +220,7 @@ previous strategy snapshot:
     aliases.yaml       # alias snapshot, when present in the corpus
     strategy.py        # exact executed source, including named strategies
     engine/            # retrieval and page-reader script snapshots
-    result.json        # corpus hash, searches, proposals, output omissions
+    result.json        # corpus hash, execution summary, searches, proposals, omissions
     output.txt
     strategy-output.txt  # only when the strategy printed diagnostics
   reads/<read-id>/

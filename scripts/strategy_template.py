@@ -3,6 +3,10 @@
 The calling LLM interprets context.state and writes context.decision. This starter
 executes that decision; it does not infer relevance from profiling prose.
 Reuse it by updating context, or edit the Python for different selection logic.
+Master's keyword score provides a starting order; explicit priorities override it.
+With the same query/filters and empty or omitted priority_ids/extra_queries, this
+unmodified template retains master's order before output limits. Updating state
+alone leaves that order unchanged; richer output and logging still apply.
 """
 
 
@@ -29,12 +33,13 @@ def retrieve(index, context):
     if not isinstance(priority_ids, list) or not all(isinstance(i, str) for i in priority_ids):
         raise ValueError("decision.priority_ids must be a list of page IDs")
 
-    candidates = index.search(context.get("query", ""), **filters)
+    candidates = index.master(context.get("query", ""), **filters)
     for request in extra_queries:
-        candidates.extend(index.search(**request))
+        candidates.extend(index.master(**request))
     missing = set(priority_ids) - set(candidates)
     if missing:
         raise ValueError(f"priority IDs do not match current searches/filters: {sorted(missing)}")
     # The LLM can promote observed IDs, including previously read pages. Remaining
-    # matches retain search order; that order is not a semantic relevance score.
+    # matches retain each search's keyword-score order. This is a heuristic, not
+    # an LLM relevance judgment; edit selection here when task evidence warrants.
     return priority_ids + candidates
