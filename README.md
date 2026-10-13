@@ -31,7 +31,8 @@ Smoke test:
 
 ```bash
 cd ~/.claude/skills/KernelWiki
-python3 scripts/query.py --tag nvfp4 --type kernel --compact
+search_run="<optimization-directory>/tmp/kernelwiki-search"
+python3 scripts/query.py --strategy master --run-dir "$search_run" --tag nvfp4 --type kernel --compact
 python3 scripts/get_page.py kernel-flash-attention-4 --frontmatter-only
 ```
 
@@ -52,23 +53,48 @@ export BLACKWELL_WIKI_ROOT=/path/to/KernelWiki
 
 ## Query Tools
 
-All tools run from the skill root, no env var needed.
+Tools locate the wiki from their script path. Use absolute script paths from the
+optimization workspace, or run these relative-script examples from the skill root.
+Set `search_run` to an absolute writable path under the optimization workspace's
+`tmp/`; system `/tmp` access is unnecessary.
 
 | Tool | Purpose |
 |---|---|
-| `scripts/query.py` | Unified search across source and wiki pages (keywords + filters + alias-aware) |
-| `scripts/get_page.py` | Fetch any page by `id` or path; `--follow-sources` expands cited sources |
-| `scripts/grep_wiki.py` | Regex text search across wiki bodies and PR pages |
+| `scripts/query.py` | Unified entry point: keyword, multi-query and guided presets, plus optional custom Python; budgeted candidates |
+| `scripts/get_page.py` | Read pages/code; optional `--run-dir` records full reads, previews and code output |
+| `scripts/grep_wiki.py` / `rg -F` | Supplementary regex/literal search; use `--only artifacts` or an artifact path to locate captured code |
 
-Examples:
+Follow [the optimization retrieval workflow](SKILL.md#path-1-unified-search-guided-by-optimization-evidence):
+the calling LLM keeps the current question, measurements and experiment history
+in context, then updates queries and candidate priorities as that evidence changes.
+Ordinary use needs no `strategy.py` or JSON: select `keyword` for a focused lookup,
+`multi-query` with repeated `--query` for complementary questions, or `guided`
+with `--focus`, `--prefer`, `--defer` and optional `--extra-query` for new evidence.
+Guided uses keyword scores as a starting point; explicit priorities come first.
+Optional context JSON preserves decisions across calls; custom Python is available
+when presets cannot express the policy. Record resolved questions and failed attempts with their evidence and
+applicable conditions, then translate them into selection changes. Python does
+not interpret profiling prose or call a model API. See the two-query example in
+SKILL.md for updating a decision while keeping the same keyword.
+
+Page and code lookup:
 
 ```bash
-python3 scripts/query.py "ping-pong attention" --limit 5
-python3 scripts/query.py --tag UMMA --type hardware --compact          # alias → tcgen05
-python3 scripts/query.py --architecture B200 --type kernel             # alias → sm100
 python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
+
+Every query requires `--strategy keyword|multi-query|guided|<file.py>`, plus
+`--run-dir`; `master` remains an alias for keyword. All matches are available to the strategy;
+there is no default candidate-count cap or fixed candidate multiplier. Optional
+`--limit` and the adjustable character budget bound the returned candidate cards,
+which include metadata and excerpts.
+
+Output summarizes executed searches, filters and selection counts, and links to
+the receipt. Logs preserve strategy source, context and complete candidate orders
+including emitted and omitted IDs. Use `get_page.py --run-dir <run-dir> --query-id <query-id>` to record
+subsequent page/code output. Keep experiment files outside the corpus.
+See [the template, API and experiment records](references/search-strategies.md).
 
 ## Companion Docs
 

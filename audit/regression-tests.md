@@ -6,7 +6,115 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Current full discovery gate — 2026-08-19 UTC
+## Focus excerpt regression gate
+
+Full discovery: **pass — 208 tests**, 44.936 seconds, including the documented
+commands and 50 retrieval tests. New coverage checks compact/rich focus excerpts,
+alias matches, unchanged recall evidence, and fallback to query matches or body
+previews. Six real-corpus comparisons against the preceding committed query
+implementation preserve candidates, order and recall matches. The pipeline
+throughput example now shows the relevant body passage in both output formats.
+Scratch: `.worklog/focus-excerpts/`. No GPU ablation was run.
+
+## Ready-to-use search preset regression gate
+
+Full discovery: **pass — 206 tests**, 38.836 seconds. The retrieval suites pass
+**48 tests** (38 existing plus 10 preset tests).
+New coverage exercises keyword/master equivalence, complementary-query merging
+before budgets, focus reranking, explicit preference and deferral, global filters,
+JSON/CLI precedence, ambiguous-input errors, stale decisions and helper replay.
+The documented two-round example now uses guided directly without custom Python.
+Its same `pipeline` query returns pipeline stalls first with focus `waits`, then
+compute-bound first with focus `throughput`. A real three-query smoke proposes
+605 distinct pages and emits 32 compact candidates within 16,384 characters.
+Scratch: `.worklog/search-presets/`; corpus and private task directories are unchanged.
+
+## Prior retrieval refinement regression gate
+
+Full discovery: **pass — 196 tests**, 28.287 seconds. Focused retrieval:
+**38 tests pass**. New coverage checks relevance before truncation in an
+845-candidate pool, explicit priority overrides, filter-only ordering, observed
+execution versus declared intent, and bounded previews with complete receipts.
+The documented-command check now executes both contexts from the continuous
+SKILL example and verifies different first candidates for the same query.
+Scratch: `.worklog/retrieval-refinement/`; corpus and private tasks are untouched.
+The real-corpus `GEMM` comparison preserves all 422 candidates from the
+`de18b99` template, while ordering them exactly as `index.master()` before explicit
+priorities. This verifies the intended starting order, not semantic relevance
+or a kernel-performance gain.
+
+## Prior context-driven retrieval regression gate
+
+Full discovery: **pass — 192 tests**, 28.570 seconds. The focused retrieval
+suite passes **34 tests**. Coverage replaces the removed route parser/merger tests
+with custom multi-search composition, reusable context decisions, changing
+priority before output limits, preserved historical snapshots, stale-priority
+errors and global filter enforcement. Updating state alone does not silently
+change ranking or exclude previously read pages. The documented template runs
+from an optimization-local `tmp/` without system temporary-file allocation.
+
+Validation scratch: `.worklog/context-retrieval/`. No corpus or private task files
+are changed. Earlier gates below describe the previous interfaces.
+
+Real-corpus smoke keeps the query `pipeline`, changes the caller-authored priority
+from `pattern-pipeline-stalls` to `pattern-compute-bound`, and verifies each chosen
+page is emitted under `--limit 1`. Both runs combine pattern and hardware queries
+and link a subsequent body read. These are synthetic decisions, not profiling
+evidence or a retrieval-quality experiment. Master scoring matches the master
+checkout for five queries over 1,041 pages (5,205 comparisons).
+
+## Prior inline route regression gate
+
+Full discovery: **pass — 197 tests**, 26.900 seconds. The focused retrieval suite
+passes **39 tests**.
+New coverage checks inline route parsing, independent filters, mixed rules,
+equivalence to JSON routes, normalized context and original argument snapshots,
+custom strategy input, global filter enforcement and conflicting-input errors.
+The optimization-local path check also runs interleave without preparing JSON
+or allocating system temporary files. Scratch uses `.worklog/route-cli/`.
+Follow-up CLI regressions cover route values consisting only of a flag or an
+option assignment, equivalent argument spellings, route-local filtering, literal
+query words after `--`, and errors for missing values or unknown route options.
+Built-in interleave now rejects JSON routes combined with positional CLI keywords
+before searching or creating a run log. Regression coverage includes empty route
+lists, either input on its own, and custom strategies that intentionally use both.
+
+## Prior explicit strategy selection regression gate
+
+Result: **pass — 188 tests**, 55.648 seconds with the workspace's `python3`.
+The focused retrieval suite passes **30 tests**, including named master/interleave strategies, mixed route rules,
+duplicate handling, required explicit selection, caller-controlled counts,
+named-strategy snapshots, and optimization-local paths without system temporary
+file allocation. Documentation commands now supply explicit policies and use an
+isolated writable run directory during validation. Validation scratch uses
+`.worklog/strategy-validation/`; `TMPDIR` points to its local `tmp/` for tests.
+Follow-up review fixed the strategy loader for dataclasses with postponed
+annotations. Regressions cover module introspection and restoration of prior
+module state after successful execution, import errors and retrieval failures.
+
+Real-corpus checks compare 11 query scores over 1,041 pages and 15 limited CLI
+path lists against `master:scripts/query.py`. All match with explicit
+`--strategy master --limit 10`. Offline smoke runs exercise master, interleave
+and an adapted Python strategy from a simulated optimization directory, writing
+only to its `tmp/` and linking three subsequent page reads. The follow-up run in
+`.worklog/strategy-review/` also uses a dataclass-based custom strategy and
+compares five page-reader outputs against master. This checks behavior, not
+retrieval relevance or kernel performance.
+
+## Prior strategy retrieval regression gate
+
+Result: **pass — 180 tests**, 34.810 seconds with the workspace's `python3`.
+
+The 22 retrieval tests cover uncapped OR/alias recall, existing filters, metadata
+isolation, strategy ordering and deduplication, optional master scoring, variable
+route counts, bounded excerpts, independent count/character budgets, exact source
+and context snapshots, output omissions, error receipts, captured diagnostics,
+and page/body/frontmatter/source-preview/code reading records linked to query IDs.
+The audit-count check permits added tests while requiring the recorded total to
+match discovery. Ordinary keyword queries retain master's candidate ordering;
+strategy mode has no mandatory scoring or candidate multiplier.
+
+## Prior full discovery gate — 2026-08-19 UTC
 
 Command: `python3 -m unittest discover -s tests -p 'test_*.py'`
 

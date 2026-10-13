@@ -30,7 +30,11 @@ round_trip = yaml.safe_load(yaml.safe_dump({"date": data["id"], "tags": data["ta
 assert round_trip["tags"] == data["tags"]
 PY
 
-query_output="$(python3 -S scripts/query.py --tag nvfp4 --type kernel --compact)"
+fallback_tmp_root="${TMPDIR:-$REPO_ROOT/tmp}"
+mkdir -p "$fallback_tmp_root"
+fallback_run="$(mktemp -d "$fallback_tmp_root/kernelwiki-yaml.XXXXXX")"
+trap 'rm -rf -- "$fallback_run"' EXIT
+query_output="$(python3 -S scripts/query.py --strategy master --run-dir "$fallback_run" --tag nvfp4 --type kernel --compact)"
 grep -q "kernel-nvfp4-gemm" <<<"$query_output"
 
 page_output="$(python3 -S scripts/get_page.py kernel-flash-attention-4 --frontmatter-only)"

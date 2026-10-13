@@ -116,7 +116,7 @@ All page IDs below resolve via `get_page.py <id>`. All paths are relative to the
 | NVIDIA/TensorRT-LLM | 88 | `candidates/tensorrt-llm.yaml` |
 | tile-ai/tilelang | 19 | `candidates/tilelang.yaml` |
 
-Query by repo: `python3 scripts/query.py --repo <name>`.
+Query by repo: `python3 scripts/query.py --strategy master --run-dir <run-dir> --repo <name>`.
 
 ---
 
@@ -153,7 +153,9 @@ When the user types one of these, match to the canonical term shown:
 | GDN, GatedDeltaNet, gated delta rule | `gated-delta-net` |
 | NSA, native sparse attention | `sparse-attention` |
 
-The `query.py` tool applies these automatically when scoring and when using `--tag`.
+The `query.py` tool expands single-token aliases when matching keywords and
+accepts whole aliases with `--tag`. Quoted keyword queries still split on
+whitespace; use the canonical term for a multiword alias.
 
 ---
 

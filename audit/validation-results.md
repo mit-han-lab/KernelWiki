@@ -1,5 +1,182 @@
 # Validation results
 
+## Focus excerpt validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 208 tests in 44.936 seconds, including documented commands |
+| Real-corpus before/after comparisons | pass — six keyword, multi-query and guided cases preserve recall, order and query matches |
+| Focus body excerpt | pass — the pipeline throughput example shows `achieved throughput` in compact and rich output |
+| Corpus comparison with master | unchanged — wiki, sources, artifacts, data and queries |
+| External skill validator | existing incompatibility — rejects unchanged `argument-hint` |
+
+Focus selects an excerpt using existing term/alias matching, with fallback to
+query-body matches or an opening preview. This does not change matching or
+scoring; excerpt lengths can change the emitted count under a character budget.
+Natural-language reformulation is agent guidance, not new query parsing.
+Scratch: `.worklog/focus-excerpts/`; no GPU ablation or retrieval-quality claim.
+
+## Ready-to-use search preset validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 206 tests in 38.836 seconds |
+| Retrieval suites | pass — 48 tests |
+| Documented preset examples | pass — including same keyword, changed focus, different first page |
+| Real-corpus multi-query | pass — 605 proposals, 32 emitted, 16,093 output characters |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass — existing checks and guided query under `python3 -S` |
+| Repository size | pass — 24.18 MiB, 1,598 files, 422 artifacts; ceiling 25 MiB |
+| External skill validator | existing incompatibility — rejects unchanged `argument-hint` |
+
+Three direct presets share existing recall, aliases, filters, budgets and receipts.
+Keyword preserves master's ordering; multi-query alternates unseen candidates;
+guided applies agent-specified focus, preference, deferral and extra searches.
+The preset helper is captured with each engine snapshot. These are lexical policies,
+not a Google/Bing implementation or an automatic semantic model. No GPU ablation
+has been run; scratch is `.worklog/search-presets/`. Corpus, aliases and architecture
+metadata remain identical to master. Synthetic focus changes demonstrate execution,
+not semantic quality or kernel-performance gains.
+
+## Prior retrieval refinement validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 196 tests in 28.287 seconds |
+| Focused retrieval suite | pass — 38 tests |
+| Two-round documented example | pass — same keyword; first result changes from pipeline stalls to the explicitly prioritized compute-bound page |
+| Real-corpus template comparison | pass — same 422 GEMM candidates as de18b99; new base order matches the master helper |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.15 MiB, 1,594 files, 422 artifacts; ceiling 25 MiB |
+| External skill validator | existing incompatibility — rejects the unchanged `argument-hint` field |
+
+The template scores matches before applying explicit priorities and output
+limits. Output previews report actual index calls and selection statistics;
+complete details remain in receipts. The two-round example labels its evidence
+as illustrative. Validation scratch: `.worklog/retrieval-refinement/`.
+No GPU ablation was run. Corpus, aliases and architecture metadata remain
+identical to master; this change does not establish retrieval-quality or timing gains.
+
+## Prior context-driven retrieval validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 192 tests in 28.570 seconds |
+| Focused retrieval suite | pass — 34 tests |
+| Real-corpus decision revision | pass — same query, two different priorities before a one-candidate limit; two linked page reads |
+| Optional master scoring | pass — 5,205 score comparisons against the master checkout |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.14 MiB, 1,594 files, 422 artifacts; ceiling 25 MiB |
+| External skill validator | existing incompatibility — rejects `argument-hint`; frontmatter is identical to master |
+
+The independent interleave policy, route CLI and route merger are removed.
+Custom strategies can still combine searches and choose their order. The
+reusable template applies LLM-authored decisions; natural-language state alone
+does not change ranking. Query receipts preserve each state/decision snapshot.
+Current validation scratch uses `.worklog/context-retrieval/`.
+The smoke decisions are synthetic; no GPU ablation or semantic quality claim is
+made. Corpus, aliases and architecture metadata remain identical to master.
+Earlier validation below describes the preceding interfaces.
+
+## Prior inline route validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 197 tests in 26.900 seconds |
+| Focused retrieval suite | pass — 39 tests |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.14 MiB, 1,595 files, 422 artifacts; ceiling 25 MiB |
+
+Repeated `--route` arguments supply the same route objects as context JSON.
+Tests compare candidate order, preserve original CLI arguments and normalized
+context in receipts, and exercise per-route rules, global filters, custom
+strategies and rejection of conflicting inputs. The documented interleave
+recipes no longer require a JSON file and pass the documented-command tests.
+Validation scratch uses
+`.worklog/route-cli/`; no private task files are accessed.
+Follow-up tests verify that `--route "--has-code"` and
+`--route "--type=hardware"` bind their values to the route, while `--` preserves
+literal query words and invalid route arguments still fail explicitly.
+Built-in interleave rejects positional CLI keywords combined with JSON routes
+before retrieval or logging; either input alone and custom strategies consuming
+both remain supported and covered by regression tests.
+
+## Prior explicit strategy selection validation
+
+Follow-up review reproduced and fixed a strategy-loader bug: dataclasses with
+postponed annotations could not resolve their module. Strategies now execute
+with a registered module, restoring the prior registry state on success or failure.
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 188 tests in 55.648 seconds |
+| Focused retrieval suite | pass — 30 tests |
+| Explicit master against original master | pass — 15 CLI path lists with the same limit; identical scores for 11 queries over 1,041 pages |
+| Offline named/custom strategy smoke | pass — master, interleave and a dataclass-based custom strategy, each under 2,600 characters; 3 linked page reads |
+| Page output against master | pass — 5 full/body/frontmatter/source-preview/code comparisons |
+| Optimization-local paths | pass — relative strategy/context/run paths resolve in the caller's workspace; temporary-file allocation can be unavailable |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass |
+| Repository size | pass — 24.13 MiB, 1,595 files, 422 artifacts; ceiling 25 MiB |
+
+Named `master`, `interleave` and generated Python files share one execution and
+logging path. Every query requires `--strategy` and `--run-dir`; all candidate
+count caps are explicit. Master scoring is preserved as an option. The examples
+place generated files under the optimization workspace's writable `tmp/`.
+
+The skill now asks the calling LLM to choose and revise queries, rules, candidate
+selection and reading based on task evidence. The scripts make no model calls.
+No GPU ablation or retrieval-quality claim is made. Validation uses public corpus
+content and `.worklog/strategy-validation/` / `.worklog/strategy-review/`, with no
+private task reads or writes.
+The external skill validator still rejects the pre-existing `argument-hint` key;
+frontmatter is byte-identical to master. Repository and documented-command checks
+pass. Earlier validation below describes the preceding interface.
+
+## Prior strategy retrieval validation
+
+| Check | Result |
+| --- | --- |
+| `python3 -m unittest discover -s tests -p 'test_*.py'` | pass — 180 tests in 34.810 seconds |
+| Strategy, output-budget and reading-receipt regression tests | pass — 22 tests |
+| `python3 scripts/validate.py` | pass — 1,041 pages, 989 source IDs, 37 bundles and 14 candidate ledgers |
+| `bash tests/check_yaml_fallback.sh` | pass — offline bundled YAML |
+| Real-corpus strategy → bounded candidates → linked page read | pass under `python3 -S` — 8 proposals, 5 emitted, 3 omitted; 2,417 characters within a 2,600-character budget; 2 linked read receipts including source previews and full/truncated code |
+| Built-in keyword/filter candidate ordering against `master:scripts/query.py` | pass — 15 CLI path lists identical; scores and OR recall identical for 11 queries across 1,041 pages |
+| `get_page.py` output without logging against master | pass — 5 full/body/frontmatter/source-preview/code output comparisons match exactly |
+| `python3 scripts/repo_size_check.py` | pass — 24.11 MiB, 1,593 files and 422 artifacts, below the 25 MiB ceiling |
+| Python compilation and `git diff --check` | pass |
+
+The runner executes an independently generated `retrieve(index, context)`
+strategy. Index searches expose all matches without automatic scoring or a count
+cutoff. The strategy chooses proposals and order; the runner deduplicates and
+applies an optional candidate limit plus a character budget. Without a strategy,
+ordinary keyword/alias/filter search retains master's ordering and default limit.
+
+Each strategy query saves the executed source, context, engine snapshot, corpus
+hash, searches, proposed/emitted/omitted candidates and output. Strategy body
+reads and content returned by the page reader have separate records. Page-reading
+receipts preserve source previews, metadata-only reads and truncated artifacts as
+such; they are not evidence of model attention. Direct external reads are not
+intercepted. The scripts make no model API calls.
+
+The corpus (`wiki`, `sources`, `artifacts`, `data`, `queries`) and `grep_wiki.py`
+remain unchanged from master. The existing page-reader behavior is extended with
+optional reading receipts. Generated task context and run artifacts belong outside
+the shared wiki. Only public corpus content and temporary validation runs were used; no private task files were read or modified.
+
+The external skill-creator validator was rerun and rejects the pre-existing
+`argument-hint` frontmatter key. The complete frontmatter is unchanged from master;
+repository validation and documented-command tests pass. Retrieval and
+logging checks do not measure LLM selection quality or kernel performance. No
+GPU ablation was run for this change, and the historical upstream-evidence audit
+below was not rerun.
+
+## Historical corpus audit
+
 Environment: isolated `/tmp/kernelwiki-factual-audit-venv-20260818` with
 PyYAML 6.0.3. Final post-quorum rerun after clean Rounds 31 and 32:
 2026-08-20 UTC.

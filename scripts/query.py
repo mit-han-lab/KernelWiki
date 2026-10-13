@@ -1,24 +1,30 @@
 #!/usr/bin/env python3
 """Unified query tool for the Blackwell kernel wiki.
 
-Supports natural-language keyword queries, tag filters, repo filters, and type filters.
+Run an explicitly chosen strategy against reusable keyword/alias/filter primitives.
+The calling LLM assesses returned candidates; this script makes no model calls.
+Master's scoring is one selectable strategy, with no implicit candidate-count cap.
 
 Usage:
-    query.py "how to fuse gate-up GEMM"
-    query.py --tag nvfp4 --type kernel
-    query.py --repo cutlass --limit 20
-    query.py --language cute-dsl
-    query.py --symptom memory-bound
+    query.py "gate-up GEMM" --strategy keyword --run-dir ./tmp/search --limit 20
+    query.py --strategy multi-query --query "GEMM tile" --query "TMA" --run-dir ./tmp/search
+    query.py pipeline --strategy guided --focus "throughput" --run-dir ./tmp/search
+    query.py --strategy ./tmp/strategy.py --context ./tmp/context.json --run-dir ./tmp/search
 
-Returns a ranked list of matching pages with titles, paths, and key frontmatter fields.
+Relative paths are resolved from the caller's working directory, not the wiki.
+
+Returns matching pages with titles, paths, metadata and bounded match excerpts.
 """
 
 import argparse
+import contextlib
 import copy
+import io
+import json
 import re
 import sys
-from collections import defaultdict
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _yaml_compat import yaml  # noqa: E402
@@ -26,9 +32,18 @@ from _yaml_compat import yaml  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _wiki_root import WIKI_ROOT  # noqa: E402
 from pr_policy import architecture_matches_filter  # noqa: E402
+from _retrieval_log import RunLog, digest  # noqa: E402
 
 
 _ALIAS_CACHE = None
+FILTER_NAMES = ("type", "tag", "repo", "language", "architecture", "symptom",
+                "confidence", "has_code")
+BUILTIN_STRATEGIES = {
+    name: Path(__file__).resolve().parent / "strategies" / f"{name}.py"
+    for name in ("master", "guided")
+}
+BUILTIN_STRATEGIES["keyword"] = BUILTIN_STRATEGIES["master"]
+BUILTIN_STRATEGIES["multi-query"] = Path(__file__).resolve().parent / "strategies" / "multi_query.py"
 
 
 def load_alias_expansions():
@@ -115,35 +130,200 @@ def detect_page_type(fm, path):
     return "unknown"
 
 
-def score_keyword_match(fm, body, keywords):
-    """Score a page by keyword matches in title, tags, and body (title > tags > body).
+def keyword_matches(fm, body, keywords):
+    """Report matching variants by field, preserving the original OR/alias recall."""
+    metadata = " ".join(
+        str(v) for k in ("tags", "techniques", "hardware_features", "kernel_types",
+                          "languages", "aliases", "symptoms")
+        for v in (fm.get(k) or [])
+    )
+    variants = list(dict.fromkeys(
+        variant.lower() for kw in keywords for variant in expand_keyword(kw) if variant
+    ))
+    matches = {}
+    for name, text in (("title", str(fm.get("title", ""))),
+                       ("metadata", metadata), ("body", body)):
+        matched = [variant for variant in variants if variant in text.lower()]
+        if matched:
+            matches[name] = matched
+    return matches
 
-    Each user keyword is expanded through the alias map so that typing 'UMMA'
-    also scores 'tcgen05', 'B200' also scores 'sm100', etc.
-    """
-    score = 0
-    title_text = str(fm.get("title", "")).lower()
-    tag_text = " ".join(
+
+def score_keyword_match(fm, body, keywords):
+    """Master's score, used only when a strategy explicitly selects it."""
+    title = str(fm.get("title", "")).lower()
+    metadata = " ".join(
         str(v) for k in ("tags", "techniques", "hardware_features", "kernel_types",
                           "languages", "aliases", "symptoms")
         for v in (fm.get(k) or [])
     ).lower()
-    body_lower = body.lower()
-    for kw in keywords:
-        best_variant_score = 0
-        for variant in expand_keyword(kw):
-            v_l = variant.lower()
-            variant_score = 0
-            if v_l in title_text:
-                variant_score += 10
-            if v_l in tag_text:
-                variant_score += 5
-            body_hits = body_lower.count(v_l)
-            variant_score += min(body_hits, 3)
-            if variant_score > best_variant_score:
-                best_variant_score = variant_score
-        score += best_variant_score
+    body = body.lower()
+    score = 0
+    for keyword in keywords:
+        variant_scores = []
+        for variant in expand_keyword(keyword):
+            term = variant.lower()
+            variant_scores.append(
+                10 * (term in title) + 5 * (term in metadata) + min(body.count(term), 3)
+            )
+        score += max(variant_scores)
     return score
+
+
+def select_candidates(pages, keywords):
+    """Select OR keyword matches without assigning relevance scores or priorities."""
+    candidates = []
+    for page in pages:
+        matches = keyword_matches(page["fm"], page["body"], keywords)
+        if not keywords or matches:
+            candidates.append(dict(page, _matches=matches))
+    return sorted(candidates, key=lambda page: page["path"])
+
+
+def query_keywords(text):
+    return text.split()
+
+
+class StrategyIndex:
+    """Untruncated retrieval primitives; a strategy owns selection and ordering."""
+
+    def __init__(self, pages):
+        self._pages = sorted(pages, key=lambda page: page["path"])
+        self._by_id = {p["fm"].get("id", p["path"]): p for p in self._pages}
+        self._by_path = {p["path"]: p for p in self._pages}
+        self.matches = {}
+        self.searches = []
+        self.reads = []
+        self.selection = None
+
+    def _page(self, identifier):
+        if not isinstance(identifier, str):
+            raise ValueError("strategy page references must be IDs or relative paths")
+        page = self._by_id.get(identifier) or self._by_path.get(identifier)
+        if page is None:
+            raise ValueError(f"unknown page or excluded by CLI filters: {identifier}")
+        return page
+
+    def search(self, query="", **filters):
+        """Return ALL OR/alias matches in path order, without a relevance cutoff."""
+        if not isinstance(query, str):
+            raise ValueError("search query must be a string")
+        if set(filters) - set(FILTER_NAMES):
+            raise ValueError(f"unknown filters: {sorted(set(filters) - set(FILTER_NAMES))}")
+        for key, value in filters.items():
+            expected = bool if key == "has_code" else str
+            if value is not None and not isinstance(value, expected):
+                raise ValueError(f"filter {key} must be {expected.__name__}")
+        args = SimpleNamespace(**{name: filters.get(name) for name in FILTER_NAMES})
+        pages = select_candidates(filter_pages(self._pages, args), query_keywords(query))
+        ids = []
+        for page in pages:
+            identifier = page["fm"].get("id", page["path"])
+            ids.append(identifier)
+            matches = self.matches.setdefault(identifier, {})
+            for field, terms in page["_matches"].items():
+                matches[field] = list(dict.fromkeys(matches.get(field, []) + terms))
+        self.searches.append({"query": query, "filters": filters, "rule": "keyword",
+                              "matched_ids": ids.copy(), "match_count": len(ids)})
+        return ids
+
+    def master(self, query="", **filters):
+        """All matches in master's score/path order, without its default limit."""
+        ids = self.search(query, **filters)
+        if query_keywords(query):
+            ids.sort(key=lambda identifier: (
+                -self.keyword_score(identifier, query), self._page(identifier)["path"],
+            ))
+        self.searches[-1].update(rule="master", ordered_ids=ids.copy())
+        return ids
+
+    def metadata(self, identifier):
+        """Copy frontmatter; edits to the copy cannot change the corpus."""
+        return copy.deepcopy(self._page(identifier)["fm"])
+
+    def read(self, identifier):
+        """Read body for strategy logic, logged separately from LLM page reads."""
+        page = self._page(identifier)
+        self.reads.append({"id": page["fm"].get("id", page["path"]),
+                           "path": page["path"], "body_sha256": digest(page["body"]),
+                           "body_chars": len(page["body"])})
+        return page["body"]
+
+    def keyword_score(self, identifier, query):
+        """Helper for policies that explicitly select master's heuristic."""
+        page = self._page(identifier)
+        return score_keyword_match(page["fm"], page["body"], query_keywords(query))
+
+    def candidates(self, identifiers):
+        if not isinstance(identifiers, (list, tuple)):
+            raise ValueError("retrieve(index, context) must return a list of page IDs or paths")
+        seen, pages = set(), []
+        for identifier in identifiers:
+            page = self._page(identifier)
+            canonical = page["fm"].get("id", page["path"])
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            pages.append(dict(page, _matches=self.matches.get(canonical, {})))
+        return pages
+
+
+class StrategyOutput(io.TextIOBase):
+    """Keep accidental strategy prints out of the candidate output budget."""
+    def __init__(self):
+        self.text = ""
+        self.total_chars = 0
+
+    def write(self, text):
+        self.total_chars += len(text)
+        self.text += text[:max(0, 4096 - len(self.text))]
+        return len(text)
+
+
+def execute_strategy(source, path, index, context):
+    # Standard-library helpers such as dataclasses resolve annotations through
+    # sys.modules. Give generated code normal module semantics during execution.
+    module_name = "kernelwiki_strategy"
+    module = ModuleType(module_name)
+    module.__file__ = str(path)
+    missing = object()
+    previous = sys.modules.get(module_name, missing)
+    sys.modules[module_name] = module
+    try:
+        exec(compile(source, str(path), "exec"), module.__dict__)
+        retrieve = getattr(module, "retrieve", None)
+        if not callable(retrieve):
+            raise ValueError("strategy must define retrieve(index, context)")
+        return index.candidates(retrieve(index, copy.deepcopy(context)))
+    finally:
+        if previous is missing:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous
+
+
+def resolve_strategy(selection):
+    """Named policies and generated files use the same execution/logging path."""
+    if selection in BUILTIN_STRATEGIES:
+        return BUILTIN_STRATEGIES[selection]
+    path = Path(selection).expanduser().resolve()
+    if not path.is_file():
+        raise ValueError(
+            f"strategy not found: {selection}; choose keyword, multi-query, guided, master or a Python file"
+        )
+    return path
+
+
+def match_excerpt(body, variants, width=240):
+    """Preview the first body match in context, not a generated summary."""
+    text = " ".join(body.split())
+    positions = [text.lower().find(" ".join(term.split())) for term in variants]
+    positions = [pos for pos in positions if pos >= 0]
+    if not positions:
+        return ""
+    start = max(0, min(positions) - width // 3)
+    end = min(len(text), start + width)
+    return ("…" if start else "") + text[start:end] + ("…" if end < len(text) else "")
 
 
 def filter_pages(pages, args):
@@ -277,22 +457,44 @@ def architecture_filter_exclusion_counts(pages, requested):
     return family_only, unknown
 
 
-def format_result(page, compact=False):
+def format_result(page, compact=False, focus=""):
     """Format a single page as a readable line."""
     fm = page["fm"]
     title = fm.get("title", "Untitled")
     path = page["path"]
     pid = fm.get("id", "")
     ptype = page.get("_ptype", "?")
+    matches = page.get("_matches", {})
+    matched = "; ".join(f"{field}: {', '.join(terms)}" for field, terms in matches.items())
+    focus_matches = keyword_matches(fm, page["body"], query_keywords(focus)) if focus else {}
+    excerpt = match_excerpt(page["body"], focus_matches.get("body", []))
+    excerpt_label = "first focus body match"
+    if not excerpt:
+        excerpt = match_excerpt(page["body"], matches.get("body", []))
+        excerpt_label = "first body match"
+    if not excerpt:
+        excerpt = " ".join(page["body"].split())[:240]
+        excerpt_label = "body preview"
 
     if compact:
-        return f"  [{ptype}] {pid}: {title}  ({path})"
+        result = f"  [{ptype}] {pid}: {title}  ({path})"
+        if fm.get("architectures"):
+            result += f" | architectures: {', '.join(fm['architectures'])}"
+        if matched:
+            result += f" | matches: {matched}"
+        if excerpt:
+            result += f" | {excerpt_label}: {excerpt}"
+        return result
 
     # Rich: include key metadata
     lines = [f"## {title}"]
     lines.append(f"- **id**: `{pid}`")
     lines.append(f"- **type**: `{ptype}`")
     lines.append(f"- **path**: `{path}`")
+    if matched:
+        lines.append(f"- **matches**: {matched}")
+    if excerpt:
+        lines.append(f"- **{excerpt_label} (excerpt)**: {excerpt}")
     if "architectures" in fm:
         lines.append(f"- **architectures**: {fm['architectures']}")
     for k in ("confidence", "reproducibility"):
@@ -310,9 +512,99 @@ def format_result(page, compact=False):
     return "\n".join(lines)
 
 
+def summarize_execution(index, pages, global_filters):
+    """Describe observed searches and selection, not a strategy's declared intent."""
+    matched = {identifier for search in index.searches for identifier in search["matched_ids"]}
+    proposed = {p["fm"].get("id", p["path"]) for p in pages}
+    summary = {
+        "global_filters": global_filters,
+        "searches": [{key: search[key] for key in ("rule", "query", "filters", "match_count")}
+                     for search in index.searches],
+        "matched_count": len(matched),
+        "not_proposed_count": len(matched - proposed),
+        "proposed_without_search_count": len(proposed - matched),
+    }
+    if index.selection is not None:
+        summary["selection"] = index.selection
+    return summary
+
+
+def render_candidates(pages, *, limit, max_chars, compact, paths_only,
+                      order, query_id=None, execution=None):
+    """Emit a prefix of strategy order; disclose every omission in the receipt."""
+    selection = (execution or {}).get("selection", {})
+    focus = selection.get("focus", "") if selection.get("preset") == "guided" else ""
+    details = ""
+    if execution is not None:
+        details = (
+            (f"Applied selection: {json.dumps(execution['selection'], ensure_ascii=False)}\n"
+             if "selection" in execution else "") +
+            f"Selection: {execution['matched_count']} matched; "
+            f"{execution['not_proposed_count']} not proposed; "
+            f"{execution['proposed_without_search_count']} proposed without search.\n"
+            f"Global filters: {json.dumps(execution['global_filters'], ensure_ascii=False)}\n"
+            f"Executed searches (preview): {json.dumps(execution['searches'], ensure_ascii=False)}"
+        )
+
+    def header(count):
+        text = (f"{count} candidate(s); {len(pages)} proposed; "
+                f"{len(pages) - count} omitted by output limits. Order: {order}.\n")
+        if query_id:
+            text += f"query_id={query_id}\n"
+        text += f"Budget: max_chars={max_chars}; limit={limit if limit is not None else 'none'}.\n"
+        if query_id:
+            text += f"Receipt: queries/{query_id}/result.json (under --run-dir).\n"
+        text += "Assess relevance; revise decision or budget when evidence is missing.\n"
+        if details:
+            # Keep the execution preview bounded, including with a tiny output
+            # budget or long queries. The receipt retains the full details.
+            allowance = max(0, min(768, max_chars // 3, max_chars - len(text) - 1))
+            if allowance:
+                text += (details if len(details) <= allowance else details[:allowance - 1] + "…") + "\n"
+        return text
+
+    chosen, cards = [], []
+    considered = pages if limit is None else pages[:limit]
+    for page in considered:
+        card = (page["path"] + "\n" if paths_only else
+                format_result(page, compact=compact, focus=focus) + "\n\n")
+        if len(header(len(chosen) + 1)) + sum(map(len, cards)) + len(card) > max_chars:
+            break
+        chosen.append(page)
+        cards.append(card)
+    summary = header(len(chosen))
+    if len(summary) > max_chars:
+        raise ValueError("--max-chars is too small for the result summary")
+    return summary, "".join(cards), chosen
+
+
+def preset_context(args, context):
+    """Normalize CLI shortcuts into the same snapshotted JSON decision contract."""
+    if args.queries is not None:
+        if args.strategy != "multi-query":
+            raise ValueError("--query requires --strategy multi-query; use --extra-query with guided")
+        if "queries" in context:
+            raise ValueError("choose --query or context.queries, not both")
+        context["queries"] = [{"query": value} for value in args.queries]
+    fields = {"focus": args.focus, "priority_ids": args.prefer, "defer_ids": args.defer,
+              "extra_queries": args.extra_query, "reason": args.reason}
+    if any(value is not None for value in fields.values()) and args.strategy != "guided":
+        raise ValueError("--focus, --prefer, --defer, --extra-query and --reason require --strategy guided")
+    if args.strategy == "guided":
+        decision = context.setdefault("decision", {})
+        if not isinstance(decision, dict):
+            raise ValueError("context.decision must be an object")
+        for field, value in fields.items():
+            if value is not None:
+                # Explicit CLI fields replace their JSON counterpart. Omitted
+                # fields retain context values; snapshots capture the result.
+                decision[field] = ([{"query": q} for q in value] if field == "extra_queries" else value)
+    return context
+
+
 def main():
     parser = argparse.ArgumentParser(description="Query the Blackwell kernel wiki")
-    parser.add_argument("query", nargs="*", help="Free-text keywords")
+    parser.add_argument("query", nargs="*", help="Whitespace-separated keywords for OR candidate retrieval")
     parser.add_argument("--type", help="Filter by page type (kernel, technique, hardware, pattern, language, migration, pr, blog, doc, contest)")
     parser.add_argument("--tag", help="Filter by tag (must appear in tags/techniques/hardware_features/kernel_types/languages)")
     parser.add_argument("--repo", help="Filter by source repo (partial match, e.g. 'cutlass')")
@@ -321,10 +613,49 @@ def main():
     parser.add_argument("--symptom", help="Filter by pattern symptom (memory-bound, register-pressure, etc.)")
     parser.add_argument("--confidence", help="Filter by confidence (verified, source-reported, inferred, experimental)")
     parser.add_argument("--has-code", action="store_true", help="Only return pages whose artifact_dir contains at least one source file")
-    parser.add_argument("--limit", type=int, default=10, help="Max results (default 10)")
+    parser.add_argument("--strategy", required=True, metavar="keyword|multi-query|guided|PATH",
+                        help="Ready-to-use policy or custom Python; master remains an alias for keyword")
+    parser.add_argument("--query", dest="queries", action="append", metavar="TEXT",
+                        help="Repeat for complementary multi-query searches; incompatible with positional keywords")
+    parser.add_argument("--focus", help="Guided: rerank recalled pages by these focus keywords")
+    parser.add_argument("--prefer", action="append", metavar="ID", help="Guided: promote a matching page ID; repeatable")
+    parser.add_argument("--defer", action="append", metavar="ID", help="Guided: move a matching page ID to the end; repeatable")
+    parser.add_argument("--extra-query", action="append", metavar="TEXT", help="Guided: add a complementary search; repeatable")
+    parser.add_argument("--reason", help="Guided: record evidence supporting the current decision")
+    parser.add_argument("--context", type=Path, help="JSON object with task context for the strategy")
+    parser.add_argument("--run-dir", type=Path, required=True,
+                        help="Writable experiment directory, e.g. ./tmp/kernelwiki-search in the optimization workspace")
+    parser.add_argument("--limit", type=int,
+                        help="Optional maximum emitted candidates; no default count cap for any strategy")
+    parser.add_argument("--max-chars", type=int, default=16384,
+                        help="Maximum candidate output characters including summary (default 16384; not a token count)")
     parser.add_argument("--compact", action="store_true", help="Compact one-line-per-result output")
     parser.add_argument("--paths-only", action="store_true", help="Output only file paths, one per line")
     args = parser.parse_args()
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be positive")
+    if args.max_chars < 512:
+        parser.error("--max-chars must be at least 512")
+    context = {}
+    try:
+        if args.context:
+            context = json.loads(args.context.read_text(encoding="utf-8"))
+            if not isinstance(context, dict):
+                raise ValueError("--context must contain a JSON object")
+        if args.query:
+            context["query"] = " ".join(args.query)
+        else:
+            context.setdefault("query", "")
+        context = preset_context(args, context)
+        context["budget"] = {"max_chars": args.max_chars, "limit": args.limit}
+        strategy_path = resolve_strategy(args.strategy)
+        source = strategy_path.read_bytes()
+        log = RunLog(args.run_dir)
+        query_id, _ = log.start_query(
+            WIKI_ROOT, context, vars(args), source, strategy_path,
+        )
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
 
     all_pages = load_all_pages()
     architecture_stats = None
@@ -348,38 +679,50 @@ def main():
             file=sys.stderr,
         )
 
-    # Score by keywords if any. Flatten multi-word quoted args into tokens so
-    # `query.py "how to fuse dual GEMM"` behaves like `query.py how to fuse dual GEMM`.
-    keywords = []
-    for q in args.query:
-        for tok in re.split(r"\s+", q.strip()):
-            if tok:
-                keywords.append(tok)
-    if keywords:
-        for p in pages:
-            p["_score"] = score_keyword_match(p["fm"], p["body"], keywords)
-        pages = [p for p in pages if p["_score"] > 0]
-        pages.sort(key=lambda x: (-x["_score"], x["path"]))
-    else:
-        pages.sort(key=lambda x: x["path"])
+    index = StrategyIndex(pages)
+    diagnostics = StrategyOutput()
+    try:
+        with contextlib.redirect_stdout(diagnostics), contextlib.redirect_stderr(diagnostics):
+            proposed = execute_strategy(source, strategy_path, index, context)
+        global_filters = {name: getattr(args, name) for name in FILTER_NAMES
+                          if getattr(args, name) not in (None, False, "")}
+        execution = summarize_execution(index, proposed, global_filters)
+        order = f"strategy {args.strategy}" if args.strategy in BUILTIN_STRATEGIES else "custom strategy"
+        summary, output, emitted = render_candidates(
+            proposed, limit=args.limit, max_chars=args.max_chars, compact=args.compact,
+            paths_only=args.paths_only, order=order, query_id=query_id, execution=execution,
+        )
+    except (Exception, SystemExit) as error:
+        if log:
+            log.finish_query(query_id, {"status": "error", "error": str(error),
+                             "error_type": type(error).__name__, "searches": index.searches,
+                             "strategy_reads": index.reads}, "", diagnostics.text)
+        parser.error(f"retrieval failed: {error}")
 
-    pages = pages[:args.limit]
-
+    if log:
+        corpus = [{"path": p["path"], "fm": p["fm"], "body": p["body"]}
+                  for p in sorted(all_pages, key=lambda p: p["path"])]
+        emitted_ids = [p["fm"].get("id", p["path"]) for p in emitted]
+        proposed_ids = [p["fm"].get("id", p["path"]) for p in proposed]
+        matched_ids = set(identifier for search in index.searches for identifier in search["matched_ids"])
+        log.finish_query(query_id, {
+            "status": "ok", "mode": "strategy", "strategy": args.strategy,
+            "corpus_pages": len(all_pages),
+            "corpus_sha256": digest(json.dumps(corpus, sort_keys=True, default=str)),
+            "searches": index.searches, "strategy_reads": index.reads,
+            "execution": execution,
+            "proposed_ids": proposed_ids, "emitted_ids": emitted_ids,
+            "omitted_by_output_limits": proposed_ids[len(emitted):],
+            "matched_but_not_proposed": sorted(matched_ids - set(proposed_ids)),
+            "budget": context["budget"], "output_chars": len(summary) + len(output),
+            "strategy_diagnostic_chars": diagnostics.total_chars,
+            "candidate_matches": {identifier: index.matches.get(identifier, {}) for identifier in emitted_ids},
+        }, summary + output, diagnostics.text)
     if args.paths_only:
-        for p in pages:
-            print(p["path"])
-        return
-
-    if not pages:
-        print("No matching pages.")
-        return
-
-    print(f"# {len(pages)} result(s)")
-    print()
-    for p in pages:
-        print(format_result(p, compact=args.compact))
-        if not args.compact:
-            print()
+        print(summary, end="", file=sys.stderr)
+        print(output, end="")
+    else:
+        print(summary + output, end="")
 
 
 if __name__ == "__main__":
