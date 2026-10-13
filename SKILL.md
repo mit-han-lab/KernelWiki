@@ -60,6 +60,15 @@ with guided when measurements already identify a priority, or multi-query when
 complementary hypotheses need evidence. Select by the current question, not a
 quota of calls to each preset.
 
+Turn natural-language questions and profiling evidence into short technical
+queries. For example, "why is my pipeline waiting?" can become `mbarrier` or
+`pipeline` with focus `producer wait` when the trace supports that hypothesis.
+Inspect the returned evidence and revise terms or filters if results are too
+broad or miss the mechanism. Matching is substring OR with aliases: adding words
+can broaden recall, and quoting a sentence does not make it a phrase search.
+This query reformulation also works with master; it is an agent decision, not
+automatic semantic matching by the script.
+
 Run from the skill directory, with logs under the optimization workspace:
 
 ```bash
@@ -69,13 +78,26 @@ python3 scripts/query.py --strategy multi-query --query "GEMM tile" --query "TMA
 python3 scripts/query.py "pipeline" --strategy guided --type pattern --focus "throughput" --run-dir "$search_run" --compact
 ```
 
-`--focus` reranks the recalled pool using the supplied keywords and the existing
-keyword score; it does not add pages or interpret profiling prose. Use short
-technical terms. `--prefer <id>` puts observed matching pages first; `--defer
-<id>` moves them to the end without excluding them. Both are repeatable.
-`--extra-query <text>` adds evidence to guided recall. Prefer/defer decisions
-override focus ordering. See [context fields and ordering](references/search-strategies.md)
-for per-query filters and reusable JSON decisions.
+Choose guided controls according to the evidence:
+
+- `--focus <terms>`: new measurements change the direction to investigate.
+  Use short technical terms; this reranks recalled pages with the existing
+  keyword score, without interpreting profiling prose. Result excerpts prefer
+  matching focus terms in the body, using the same aliases.
+- `--prefer <id>`: an observed candidate is directly applicable to the current
+  question. Put it first before the output budget is applied.
+- `--defer <id>`: a recurring candidate has little remaining value for the current
+  question because its relevant material is exhausted, the issue is resolved,
+  or its applicability conditions do not fit. Move it to the end, without
+  exclusion. Having read a page alone is not a reason to defer it.
+- `--reason <text>`: record the measurement and conditions supporting the choice.
+  It records evidence; only the selection parameters change ranking.
+
+Prefer/defer are repeatable and override focus ordering. There is no required
+focus-then-prefer sequence or per-round usage quota. Both need IDs in the current
+recall pool: change the query/filters or use `--extra-query <text>` if the needed
+page is missing. Neither focus nor prefer/defer broadens recall. See
+[context fields and ordering](references/search-strategies.md) for details.
 
 **With the same query and filters and no focus, extra queries or ID decisions,
 guided retains master's order before output limits.** Excerpts, budgets and logs
@@ -94,29 +116,41 @@ illustrative; replace them with actual evidence. Reuse `search_run` from above.
 ```bash
 python3 scripts/query.py "pipeline" --strategy guided --type pattern --focus "waits" --reason "Illustrative: trace shows producer waits" --run-dir "$search_run" --compact
 python3 scripts/get_page.py pattern-pipeline-stalls --run-dir "$search_run" --query-id <first-query-id>
+python3 scripts/get_page.py pattern-compute-bound --run-dir "$search_run" --query-id <first-query-id>
 ```
 
-The first query puts `pattern-pipeline-stalls` first in this corpus.
-Suppose a subsequent trace confirms that the producer wait issue
-is resolved, more pipeline stages do not help, and math throughput is now the
-open question. Change focus while retaining the keyword:
+The first query returns both pages, with `pattern-pipeline-stalls` first in this
+corpus. Read them to assess their mechanisms and applicability. Suppose subsequent
+measurements at unchanged shape/dtype/layout show that producer waits are resolved,
+more pipeline stages give no gain, and math throughput is now limiting. The agent
+judges the compute page directly applicable and the already-investigated wait
+material less useful for this question. Keep the keyword and update priorities:
 
 ```bash
-python3 scripts/query.py "pipeline" --strategy guided --type pattern --focus "throughput" --reason "Illustrative: waits resolved; more stages gave no gain under the same conditions" --run-dir "$search_run" --compact
+python3 scripts/query.py "pipeline" --strategy guided --type pattern --focus "throughput" --prefer pattern-compute-bound --defer pattern-pipeline-stalls --reason "Illustrative: waits resolved at unchanged shape/dtype/layout; more stages gave no gain; math throughput is now limiting" --run-dir "$search_run" --compact
 python3 scripts/get_page.py pattern-compute-bound --run-dir "$search_run" --query-id <second-query-id>
 ```
 
-The second query puts `pattern-compute-bound` first; other candidates remain
-available. CLI choices are saved as separate context/decision snapshots with
-their candidate orders. The explicit focus change causes this; Python does
-not interpret the trace description or call an LLM. A later measurement can
-justify rereading the earlier page. There is no fixed round-to-topic rule.
+The second query explicitly promotes `pattern-compute-bound` and moves
+`pattern-pipeline-stalls` to the end; both remain candidates. Selection parameters
+cause this change, not the reason text. CLI choices and candidate orders are saved
+as separate snapshots. If waits return or conditions change, reconsider the
+deferral and reread relevant sections. This is an evidence-based example, not a
+fixed round-to-topic rule; no parameter needs to be used just to increase its
+call count. If a known page is all that is needed, read it directly.
 
 For longer experiments, [optional JSON context](references/search-strategies.md#optional-reusable-context)
 can retain `state.question`, `evidence`, `attempts` and `reads`.
 Record resolved questions with measurements and failed approaches with their
 shape/dtype/layout/target conditions. Revisit material when conditions change;
 reads are not a blacklist. Updating `state` alone does not change ranking.
+
+History logs are not loaded automatically: reusing `--run-dir` does not carry
+priorities forward. On CLI-only calls, repeat or update the desired parameters.
+When reloading a `--context` file, its saved decisions still apply unless explicitly
+overridden; review them for stale priorities. Omitting a CLI flag does not clear
+its JSON value. See [context reuse](references/search-strategies.md#optional-reusable-context)
+for replacing or clearing decisions.
 
 Only write a custom `strategy.py` when presets cannot express the desired policy.
 The optional `scripts/strategy_template.py` and [strategy API](references/search-strategies.md)
@@ -126,8 +160,10 @@ retain full control of selection and ordering; independent queries also work.
 counts, the output budget and the receipt location. A search rule of `master`
 describes base retrieval; guided may subsequently reorder its results. Full
 emitted/omitted IDs are in the receipt, so long execution details need not
-consume candidate space. Excerpts show matches or
-opening text, not article abstracts.
+consume candidate space. Guided excerpts show the first focus body match when
+available, otherwise the first query body match or an opening preview. Labels
+distinguish these excerpts; they are not article abstracts. The `matches` field
+still describes the recall query, not the focus used to select an excerpt.
 
 The LLM can adjust `--max-chars` (default 16,384 characters) each call, subject to
 the experiment's total budget; optional `--limit` caps candidate count. If useful

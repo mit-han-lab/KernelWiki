@@ -1,5 +1,21 @@
 # Validation results
 
+## Focus excerpt validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 208 tests in 44.936 seconds, including documented commands |
+| Real-corpus before/after comparisons | pass — six keyword, multi-query and guided cases preserve recall, order and query matches |
+| Focus body excerpt | pass — the pipeline throughput example shows `achieved throughput` in compact and rich output |
+| Corpus comparison with master | unchanged — wiki, sources, artifacts, data and queries |
+| External skill validator | existing incompatibility — rejects unchanged `argument-hint` |
+
+Focus selects an excerpt using existing term/alias matching, with fallback to
+query-body matches or an opening preview. This does not change matching or
+scoring; excerpt lengths can change the emitted count under a character budget.
+Natural-language reformulation is agent guidance, not new query parsing.
+Scratch: `.worklog/focus-excerpts/`; no GPU ablation or retrieval-quality claim.
+
 ## Ready-to-use search preset validation
 
 | Check | Result |

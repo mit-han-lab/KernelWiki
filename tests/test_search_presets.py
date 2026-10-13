@@ -96,6 +96,51 @@ class PresetTests(unittest.TestCase):
         self.assertEqual(["c", "a", "b"], result["proposed_ids"])
         self.assertEqual(["c"], result["execution"]["selection"]["priority_ids"])
 
+    def test_guided_focus_excerpt_uses_alias_without_changing_recall_or_query_matches(self):
+        self.pages = [
+            page("a", "pipeline", "pipeline QUERY_ONLY_EVIDENCE. " + "padding " * 100 +
+                 "tcgen05 FOCUS_ONLY_EVIDENCE."),
+            page("b", "unrelated", "tcgen05 should not expand recall"),
+        ]
+        for flags in ((), ("--compact",)):
+            with self.subTest(flags=flags):
+                baseline_output, baseline, _ = self.cli(
+                    "pipeline", "--strategy", "keyword", "--max-chars", 4096, *flags)
+                output, result, folder = self.cli(
+                    "pipeline", "--strategy", "guided", "--focus", "UMMA",
+                    "--max-chars", 4096, *flags)
+                self.assertIn("QUERY_ONLY_EVIDENCE", baseline_output)
+                self.assertNotIn("FOCUS_ONLY_EVIDENCE", baseline_output)
+                self.assertIn("first focus body match", output)
+                self.assertIn("tcgen05 FOCUS_ONLY_EVIDENCE", output)
+                self.assertNotIn("QUERY_ONLY_EVIDENCE", output)
+                self.assertEqual(["a"], result["proposed_ids"])
+                for key in ("proposed_ids", "emitted_ids", "searches", "candidate_matches"):
+                    self.assertEqual(baseline[key], result[key])
+                self.assertEqual(output, (folder / "output.txt").read_text())
+                self.assertLessEqual(len(output), 4096)
+
+    def test_guided_excerpt_falls_back_when_focus_has_no_body_match(self):
+        query_body = "Opening. " + "padding " * 100 + "pipeline QUERY_BODY_EVIDENCE."
+        preview_body = "OPENING_PREVIEW_EVIDENCE. " + "padding " * 100
+        cases = [
+            ("throughput", query_body, "first body match", "QUERY_BODY_EVIDENCE"),
+            ("unmatched", query_body, "first body match", "QUERY_BODY_EVIDENCE"),
+            ("", query_body, "first body match", "QUERY_BODY_EVIDENCE"),
+            ("throughput", preview_body, "body preview", "OPENING_PREVIEW_EVIDENCE"),
+        ]
+        for focus, body, label, evidence in cases:
+            self.pages = [page("a", "pipeline throughput", body)]
+            for flags in ((), ("--compact",)):
+                with self.subTest(focus=focus, label=label, flags=flags):
+                    output, result, _ = self.cli(
+                        "pipeline", "--strategy", "guided", "--focus", focus,
+                        "--max-chars", 4096, *flags)
+                    self.assertIn(label, output)
+                    self.assertIn(evidence, output)
+                    self.assertNotIn("first focus body match", output)
+                    self.assertEqual(["a"], result["emitted_ids"])
+
     def test_guided_extra_queries_add_new_evidence_and_keep_global_filters(self):
         self.pages[0]["fm"]["architectures"] = ["sm100"]
         self.pages[-1]["fm"]["architectures"] = ["sm100"]

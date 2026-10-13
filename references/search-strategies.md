@@ -46,11 +46,39 @@ orders candidates within the latter two groups, with base order breaking ties.
 Without focus, those groups keep their base order. Focus does not broaden recall;
 use an extra query to add pages. If none of the candidates match the focus words,
 the base order remains and the receipt reports `focus_match_count: 0`. Unknown,
-nonmatching or simultaneously preferred/deferred IDs fail explicitly.
+nonmatching or simultaneously preferred/deferred IDs fail explicitly. Prefer/defer
+only reorder IDs recalled by the current base and extra searches within the
+filters; they do not fetch arbitrary pages. Change the query/filters or supply
+`--extra-query` when the needed page is absent.
+
+Use focus when evidence identifies a new direction; use prefer when an observed
+candidate is directly applicable. Defer recurring material only when its remaining
+value for the current question is low, such as a resolved issue or incompatible
+conditions. A prior read alone does not justify deferral, and changed conditions
+can justify bringing a page back. No focus-then-prefer sequence or usage quota is
+required. The [two-round example](../SKILL.md#path-1-unified-search-guided-by-optimization-evidence)
+shows how measurements support these choices; `--reason` records that support
+without changing ranking.
 
 These are local lexical policies; the calling agent interprets profiling and
 chooses focus and priorities. No Google/Bing service, embedding model or automatic
 LLM scorer is invoked. Custom Python remains available for other policies.
+
+## Translate questions into technical queries
+
+Use profiling and the current question to choose short mechanism names or code
+identifiers. For "why is my pipeline waiting?", a trace showing barrier waits
+can justify `mbarrier`, or `pipeline` with focus `producer wait`. If the next
+measurement points to register pressure, investigate `register-pressure` or
+`occupancy`; do not change direction solely because another round has elapsed.
+
+Check returned titles, match fields and excerpts. If broad words dominate, replace
+them with more specific terms or appropriate filters. If relevant evidence is
+missing, try aliases, another query or `--extra-query`. Substring OR matching means
+adding more words can broaden recall. Quoted sentences still split into words;
+there is no automatic stop-word filtering or semantic question interpretation.
+The agent can reformulate queries with master too; presets add explicit controls
+for candidate composition and priority.
 
 ## Optional reusable context
 
@@ -96,8 +124,11 @@ The guided preset executes `decision`:
 - `extra_queries` optionally adds searches with their own filters; separate calls
   are also suitable and no combination is required.
 - `priority_ids` puts observed, matching page IDs first, in the LLM's chosen order.
-  Start empty; after inspecting candidates/pages, use real IDs, not invented ones.
-- `defer_ids` moves solved or less useful matching pages to the end without exclusion.
+  Use IDs from inspected candidates/pages; leave empty if none is yet known to
+  deserve priority.
+- `defer_ids` moves matching pages with lower remaining value for the current
+  question to the end without exclusion; reading a page does not automatically
+  make it less useful.
 - `focus` reranks the recalled pool by agent-chosen technical keywords.
 - `reason` records why this decision follows from the current evidence.
 
@@ -116,11 +147,19 @@ and `extra_queries` empty or omitted returns master's candidate order before out
 limits. Output details, budgets and receipts still differ from the master branch.
 The CLI requires `--strategy` and `--run-dir`. Guided defaults to an empty decision.
 
-CLI guided fields override the corresponding JSON fields; repeated options
-replace that entire list instead of appending to stale decisions. Omitted fields
-retain their JSON values. Edit JSON to clear lists, or start a call without that
-context. The context file itself is not rewritten. Normalized decisions are saved
-in receipts alongside original CLI arguments. `state` remains free-form evidence.
+History logs are not automatically loaded as input. Reusing `--run-dir` alone
+does not restore the previous decision: on CLI-only calls, repeat or update the
+desired parameters. Loading the same `--context` file reuses its saved decisions,
+so review their applicability before each reuse.
+
+CLI guided fields override the corresponding JSON fields for that invocation;
+repeated options replace that entire list instead of appending to stale decisions.
+Omitted fields retain their JSON values: changing only focus can leave an old
+priority or deferral active. Edit JSON to clear lists (for example,
+`"priority_ids": [], "defer_ids": []`), or start a call without that context.
+The context file itself is not rewritten, so CLI overrides are not saved back
+for the next call. Normalized decisions are saved in receipts alongside original
+CLI arguments. `state` remains free-form evidence.
 
 For `multi-query`, context may contain `queries: ["TMA", {"query": "wait",
 "type": "pattern"}]`. Each item is a query string or a search object with the
@@ -152,7 +191,8 @@ saves a separate snapshot before they are edited again. Read via `get_page.py`
 with the printed query ID to associate evidence with that decision. The
 [complete two-query example](../SKILL.md#path-1-unified-search-guided-by-optimization-evidence)
 keeps the keyword fixed and records a resolved issue and a conditional failed
-attempt before changing focus, using CLI options without JSON or custom Python.
+attempt before updating focus and explicit prefer/defer choices, using CLI
+options without JSON or custom Python.
 
 ## Custom selection and multiple searches
 
@@ -249,8 +289,14 @@ counts against the same output budget as the candidate cards.
   not fit, it stops and records the remaining IDs. An oversized first card can
   yield zero candidates; use `--compact`, revise selection or increase the budget.
 - `--compact` includes title, ID, path, architecture, matched terms and a short
-  body excerpt. Default output includes additional metadata. Excerpts are first
-  matches (or labeled opening previews), not generated article summaries.
+  body excerpt. Default output includes additional metadata. Guided with focus
+  prefers the first matching focus term or alias in the body, labeled
+  `first focus body match`. If focus matches only metadata/title or has no body
+  match, it falls back to `first body match` for the recall query, then
+  `body preview` when the query also has no body match. The `matches` field remains
+  the recall-query evidence. Excerpts are source text, not generated summaries.
+  This presentation choice does not change recall or ranking; different excerpt
+  lengths can change how many complete cards fit the character budget.
 - `--paths-only` sends candidate paths to stdout and the summary to stderr.
   Those paths alone provide little evidence for semantic ranking.
 

@@ -6,6 +6,16 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
+## Focus excerpt regression gate
+
+Full discovery: **pass — 208 tests**, 44.936 seconds, including the documented
+commands and 50 retrieval tests. New coverage checks compact/rich focus excerpts,
+alias matches, unchanged recall evidence, and fallback to query matches or body
+previews. Six real-corpus comparisons against the preceding committed query
+implementation preserve candidates, order and recall matches. The pipeline
+throughput example now shows the relevant body passage in both output formats.
+Scratch: `.worklog/focus-excerpts/`. No GPU ablation was run.
+
 ## Ready-to-use search preset regression gate
 
 Full discovery: **pass — 206 tests**, 38.836 seconds. The retrieval suites pass

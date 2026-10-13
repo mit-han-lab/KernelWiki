@@ -457,7 +457,7 @@ def architecture_filter_exclusion_counts(pages, requested):
     return family_only, unknown
 
 
-def format_result(page, compact=False):
+def format_result(page, compact=False, focus=""):
     """Format a single page as a readable line."""
     fm = page["fm"]
     title = fm.get("title", "Untitled")
@@ -466,8 +466,12 @@ def format_result(page, compact=False):
     ptype = page.get("_ptype", "?")
     matches = page.get("_matches", {})
     matched = "; ".join(f"{field}: {', '.join(terms)}" for field, terms in matches.items())
-    excerpt = match_excerpt(page["body"], matches.get("body", []))
-    excerpt_label = "first body match"
+    focus_matches = keyword_matches(fm, page["body"], query_keywords(focus)) if focus else {}
+    excerpt = match_excerpt(page["body"], focus_matches.get("body", []))
+    excerpt_label = "first focus body match"
+    if not excerpt:
+        excerpt = match_excerpt(page["body"], matches.get("body", []))
+        excerpt_label = "first body match"
     if not excerpt:
         excerpt = " ".join(page["body"].split())[:240]
         excerpt_label = "body preview"
@@ -528,6 +532,8 @@ def summarize_execution(index, pages, global_filters):
 def render_candidates(pages, *, limit, max_chars, compact, paths_only,
                       order, query_id=None, execution=None):
     """Emit a prefix of strategy order; disclose every omission in the receipt."""
+    selection = (execution or {}).get("selection", {})
+    focus = selection.get("focus", "") if selection.get("preset") == "guided" else ""
     details = ""
     if execution is not None:
         details = (
@@ -560,7 +566,8 @@ def render_candidates(pages, *, limit, max_chars, compact, paths_only,
     chosen, cards = [], []
     considered = pages if limit is None else pages[:limit]
     for page in considered:
-        card = page["path"] + "\n" if paths_only else format_result(page, compact=compact) + "\n\n"
+        card = (page["path"] + "\n" if paths_only else
+                format_result(page, compact=compact, focus=focus) + "\n\n")
         if len(header(len(chosen) + 1)) + sum(map(len, cards)) + len(card) > max_chars:
             break
         chosen.append(page)
