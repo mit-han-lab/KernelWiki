@@ -530,16 +530,17 @@ class ShippedDocumentationContractTests(unittest.TestCase):
                 self.assertNotIn("No matches.", output, (path, command, output))
                 if args[1] == "scripts/query.py":
                     self.assertNotRegex(output, r"(?m)^0 candidate\(s\)", (path, command, output))
-                    if path.name == "SKILL.md" and "--context" in args:
+                    if path.name == "SKILL.md" and "--reason" in args:
                         query_id = re.search(r"query_id=([0-9a-f]{32})", result.stdout).group(1)
                         folder = Path(search_run) / "queries" / query_id
                         snapshot = json.loads((folder / "context.json").read_text())
                         receipt = json.loads((folder / "result.json").read_text())
-                        self.assertEqual(expected_context["state"], snapshot["state"])
-                        self.assertEqual(expected_context["decision"], snapshot["decision"])
+                        self.assertEqual(args[args.index("--focus") + 1], snapshot["decision"]["focus"])
+                        self.assertEqual(args[args.index("--reason") + 1], snapshot["decision"]["reason"])
                         skill_rounds.append((snapshot, receipt))
             self.assertEqual(2, len(skill_rounds))
             self.assertEqual(["pipeline", "pipeline"], [s["query"] for s, _ in skill_rounds])
+            self.assertEqual(["waits", "throughput"], [s["decision"]["focus"] for s, _ in skill_rounds])
             self.assertEqual(["pattern-pipeline-stalls", "pattern-compute-bound"],
                              [r["emitted_ids"][0] for _, r in skill_rounds])
 

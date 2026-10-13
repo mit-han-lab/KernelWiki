@@ -1,6 +1,28 @@
 # Validation results
 
-## Retrieval refinement validation
+## Ready-to-use search preset validation
+
+| Check | Result |
+| --- | --- |
+| Full unittest discovery | pass — 206 tests in 38.836 seconds |
+| Retrieval suites | pass — 48 tests |
+| Documented preset examples | pass — including same keyword, changed focus, different first page |
+| Real-corpus multi-query | pass — 605 proposals, 32 emitted, 16,093 output characters |
+| Repository validation | pass — 1,041 pages, 989 source IDs, 37 bundles, 14 ledgers |
+| Bundled YAML fallback | pass — existing checks and guided query under `python3 -S` |
+| Repository size | pass — 24.18 MiB, 1,598 files, 422 artifacts; ceiling 25 MiB |
+| External skill validator | existing incompatibility — rejects unchanged `argument-hint` |
+
+Three direct presets share existing recall, aliases, filters, budgets and receipts.
+Keyword preserves master's ordering; multi-query alternates unseen candidates;
+guided applies agent-specified focus, preference, deferral and extra searches.
+The preset helper is captured with each engine snapshot. These are lexical policies,
+not a Google/Bing implementation or an automatic semantic model. No GPU ablation
+has been run; scratch is `.worklog/search-presets/`. Corpus, aliases and architecture
+metadata remain identical to master. Synthetic focus changes demonstrate execution,
+not semantic quality or kernel-performance gains.
+
+## Prior retrieval refinement validation
 
 | Check | Result |
 | --- | --- |

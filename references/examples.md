@@ -11,15 +11,16 @@ Concrete patterns showing how to translate a user question into a navigation pat
 
 Start with the [strategy workflow](search-strategies.md). During optimization,
 the calling LLM updates context with measurements, prior reads and experiment
-outcomes, then turns that evidence into queries and candidate priorities. Reuse
-the custom template or adapt its Python; `query.py` executes the decision using
+outcomes, then turns that evidence into queries and candidate priorities. Select
+keyword, multi-query or guided directly; `query.py` executes the decision using
 the same corpus, aliases and filters, within the caller's output budget.
 
-The focused `master` commands below illustrate topic lookup with the original
-scoring. They do not adapt ranking to measurements. For evolving optimization
-questions, use the [context and strategy example](search-strategies.md#start-a-run),
-which also shows how a custom strategy can combine searches without a separate
-multi-query interface.
+The `keyword` commands below cover focused lookups with the original scoring;
+`master` remains a compatible alias. Conditional examples alongside them show
+multi-query for complementary hypotheses and guided for new measurements.
+Select directly from the current evidence; no preset is a required first step.
+The measurement scenarios are illustrative, not experimental results. JSON context
+and custom Python are optional; see the [preset reference](search-strategies.md#start-a-run).
 
 The commands below run from the wiki root. Set `search_run` to an absolute path
 in the optimization workspace first:
@@ -65,11 +66,24 @@ strategy: multiple master queries can also explore different mechanisms.
 4. For optimization path, read `wiki/techniques/warp-specialization.md`, `wiki/techniques/persistent-kernels.md`
 5. For progression, cite the tcgen05 tutorial (`sources/blogs/tcgen05-tutorial.md`): Naive 17% → 128B-swizzled 3D TMA 46% → Pipelining 62% → Warp specialization 80% → 2-SM 86% → persistent static scheduling 98%
 
-**Command**: a focused GEMM lookup. Use the custom strategy when current evidence
-calls for different filters, additional mechanisms or changed candidate priority.
+**Command**: a focused GEMM lookup.
 
 ```bash
-python3 scripts/query.py "GEMM" --strategy master --type kernel --architecture sm100 --run-dir "$search_run" --compact
+python3 scripts/query.py "GEMM" --strategy keyword --type kernel --architecture sm100 --run-dir "$search_run" --compact
+```
+
+If the bottleneck is unclear, compare tile efficiency, loading and synchronization
+as separate hypotheses. Avoid a kernel-only filter when mechanism pages matter:
+
+```bash
+python3 scripts/query.py --strategy multi-query --query "GEMM tile" --query "TMA layout" --query "mbarrier wait" --run-dir "$search_run" --compact
+```
+
+If a trace instead identifies producer waits as the current issue, focus the GEMM
+pool on pipeline mechanisms. This needs neither multiple queries nor custom code:
+
+```bash
+python3 scripts/query.py "GEMM" --strategy guided --focus "pipeline producer" --reason "Illustrative: trace identifies producer waits" --run-dir "$search_run" --compact
 ```
 
 ---
@@ -85,7 +99,7 @@ python3 scripts/query.py "GEMM" --strategy master --type kernel --architecture s
 
 **Command**:
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" --symptom low-sm-utilization
+python3 scripts/query.py --strategy keyword --run-dir "$search_run" --symptom low-sm-utilization
 python3 scripts/get_page.py pattern-low-sm-utilization
 ```
 
@@ -100,7 +114,7 @@ python3 scripts/get_page.py pattern-low-sm-utilization
 
 **Command**:
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" --tag tcgen05 --repo cutlass --limit 30
+python3 scripts/query.py --strategy keyword --run-dir "$search_run" --tag tcgen05 --repo cutlass --limit 30
 python3 scripts/grep_wiki.py "tcgen05\\.mma" --only sources
 ```
 
@@ -148,7 +162,7 @@ python3 scripts/get_page.py hw-tcgen05-mma
 
 **Command**:
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" --type contest --tag nvfp4
+python3 scripts/query.py --strategy keyword --run-dir "$search_run" --type contest --tag nvfp4
 python3 scripts/get_page.py contest-gpumode-p1
 ```
 
@@ -163,7 +177,15 @@ python3 scripts/get_page.py contest-gpumode-p1
 
 **Command**:
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" "GDN decode" --language triton
+python3 scripts/query.py --strategy keyword --run-dir "$search_run" "GDN decode" --language triton
+```
+
+After correctness is established, suppose profiling shows excessive intermediate
+memory traffic. Change priorities and add a complementary query to reach material
+that may not mention GDN. Check each returned page against the actual workload:
+
+```bash
+python3 scripts/query.py "GDN" --strategy guided --focus "fusion reuse" --extra-query "intermediate memory" --language triton --reason "Illustrative: intermediate memory traffic is now the bottleneck" --run-dir "$search_run" --compact
 ```
 
 ---
@@ -177,7 +199,14 @@ python3 scripts/query.py --strategy master --run-dir "$search_run" "GDN decode" 
 
 **Command**:
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" --symptom memory-bound
+python3 scripts/query.py --strategy keyword --run-dir "$search_run" --symptom memory-bound
+```
+
+If the measurement has not distinguished transaction efficiency from cache reuse,
+query those mechanisms separately before choosing an experiment:
+
+```bash
+python3 scripts/query.py --strategy multi-query --query "vectorized loads" --query "cache policy" --query "memory coalescing" --run-dir "$search_run" --compact
 ```
 
 ---
@@ -186,8 +215,8 @@ python3 scripts/query.py --strategy master --run-dir "$search_run" --symptom mem
 
 **Command**:
 ```bash
-python3 scripts/query.py --strategy master --run-dir "$search_run" --repo flashinfer --tag moe --limit 30
-python3 scripts/query.py --strategy master --run-dir "$search_run" --repo flashinfer --tag fp8 --limit 30
+python3 scripts/query.py --strategy keyword --run-dir "$search_run" --repo flashinfer --tag moe --limit 30
+python3 scripts/query.py --strategy keyword --run-dir "$search_run" --repo flashinfer --tag fp8 --limit 30
 python3 scripts/grep_wiki.py "fp8" "moe" --only sources --files-only
 ```
 

@@ -1,4 +1,8 @@
-"""Copy into the optimization workspace's tmp/ and adapt as evidence changes.
+"""Optional advanced customization; ordinary use can select --strategy guided.
+
+Copy into the optimization workspace's tmp/ when the built-in presets do not
+express your selection policy. This older starter appends extra searches;
+the built-in multi-query and guided policies alternate unseen candidates.
 
 The calling LLM interprets context.state and writes context.decision. This starter
 executes that decision; it does not infer relevance from profiling prose.

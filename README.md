@@ -60,17 +60,19 @@ Set `search_run` to an absolute writable path under the optimization workspace's
 
 | Tool | Purpose |
 |---|---|
-| `scripts/query.py` | Unified entry point: execute an LLM-authored strategy or optional master scoring; emit candidates within a budget |
+| `scripts/query.py` | Unified entry point: keyword, multi-query and guided presets, plus optional custom Python; budgeted candidates |
 | `scripts/get_page.py` | Read pages/code; optional `--run-dir` records full reads, previews and code output |
 | `scripts/grep_wiki.py` / `rg -F` | Supplementary regex/literal search; use `--only artifacts` or an artifact path to locate captured code |
 
 Follow [the optimization retrieval workflow](SKILL.md#path-1-unified-search-guided-by-optimization-evidence):
 the calling LLM keeps the current question, measurements and experiment history
 in context, then updates queries and candidate priorities as that evidence changes.
-Copy `scripts/strategy_template.py` into the optimization workspace's `tmp/` and
-reuse it with revised context, or edit its selection logic. The template uses
-master's keyword scores as the initial order; the LLM's explicit priorities come
-first. Record resolved questions and failed attempts with their evidence and
+Ordinary use needs no `strategy.py` or JSON: select `keyword` for a focused lookup,
+`multi-query` with repeated `--query` for complementary questions, or `guided`
+with `--focus`, `--prefer`, `--defer` and optional `--extra-query` for new evidence.
+Guided uses keyword scores as a starting point; explicit priorities come first.
+Optional context JSON preserves decisions across calls; custom Python is available
+when presets cannot express the policy. Record resolved questions and failed attempts with their evidence and
 applicable conditions, then translate them into selection changes. Python does
 not interpret profiling prose or call a model API. See the two-query example in
 SKILL.md for updating a decision while keeping the same keyword.
@@ -82,8 +84,8 @@ python3 scripts/get_page.py kernel-flash-attention-4 --follow-sources
 python3 scripts/grep_wiki.py "tcgen05" --only wiki
 ```
 
-Every query requires `--strategy <file.py>` or the optional fixed-score
-`--strategy master`, plus `--run-dir`. All matches are available to the strategy;
+Every query requires `--strategy keyword|multi-query|guided|<file.py>`, plus
+`--run-dir`; `master` remains an alias for keyword. All matches are available to the strategy;
 there is no default candidate-count cap or fixed candidate multiplier. Optional
 `--limit` and the adjustable character budget bound the returned candidate cards,
 which include metadata and excerpts.

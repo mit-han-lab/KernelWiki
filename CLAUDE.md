@@ -6,7 +6,7 @@ A structured knowledge base of GPU kernel optimization for NVIDIA Blackwell (SM1
 
 ### Recommended: use the skill scripts
 ```bash
-python3 scripts/query.py "<keywords>" --strategy <master|strategy.py> --run-dir <run-dir> [--tag X --type Y]
+python3 scripts/query.py "<keywords>" --strategy <keyword|guided|strategy.py> --run-dir <run-dir> [--tag X --type Y]
 python3 scripts/get_page.py <id-or-path> [--follow-sources]
 python3 scripts/grep_wiki.py "<pattern>" [--only wiki]
 ```

@@ -6,7 +6,20 @@
 because the starting revision discovered zero tests. Architecture, generated
 body, scope, metadata, query, and provenance guards were absent.
 
-## Retrieval refinement regression gate
+## Ready-to-use search preset regression gate
+
+Full discovery: **pass — 206 tests**, 38.836 seconds. The retrieval suites pass
+**48 tests** (38 existing plus 10 preset tests).
+New coverage exercises keyword/master equivalence, complementary-query merging
+before budgets, focus reranking, explicit preference and deferral, global filters,
+JSON/CLI precedence, ambiguous-input errors, stale decisions and helper replay.
+The documented two-round example now uses guided directly without custom Python.
+Its same `pipeline` query returns pipeline stalls first with focus `waits`, then
+compute-bound first with focus `throughput`. A real three-query smoke proposes
+605 distinct pages and emits 32 compact candidates within 16,384 characters.
+Scratch: `.worklog/search-presets/`; corpus and private task directories are unchanged.
+
+## Prior retrieval refinement regression gate
 
 Full discovery: **pass — 196 tests**, 28.287 seconds. Focused retrieval:
 **38 tests pass**. New coverage checks relevance before truncation in an

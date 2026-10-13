@@ -7,15 +7,16 @@
 ## Recommended Query Tools (for LLM agents)
 
 Use `query.py` as the unified entry point. The calling LLM explicitly chooses
-an independent Python strategy, with master's scoring available as a helper
-using the [strategy template and index API](references/search-strategies.md).
+a `keyword`, `multi-query` or `guided` preset using the
+[retrieval guide](references/search-strategies.md). Ordinary use needs no Python;
+custom strategies remain available when presets cannot express the policy.
 The runner executes it, limits candidate output and records retrieval. The LLM
 judges relevance, reads evidence with `get_page.py`, and adjusts its queries or
 strategy as measurements change. Keep strategy/context/logs in the optimization
 workspace's writable `tmp/`, and pass the run directory to record page reads.
 
 ```bash
-python3 scripts/query.py "<keywords>" --strategy <master|strategy.py> --run-dir <run-dir> [--tag <t>] [--type <kernel|technique|pr|...>]
+python3 scripts/query.py "<keywords>" --strategy <keyword|guided|strategy.py> --run-dir <run-dir> [--tag <t>] [--type <kernel|technique|pr|...>]
 python3 scripts/get_page.py <page-id-or-path> [--follow-sources]
 python3 scripts/grep_wiki.py "<regex>" [--only wiki|sources]
 ```

@@ -6,7 +6,9 @@ The calling LLM assesses returned candidates; this script makes no model calls.
 Master's scoring is one selectable strategy, with no implicit candidate-count cap.
 
 Usage:
-    query.py "gate-up GEMM" --strategy master --run-dir ./tmp/search --limit 20
+    query.py "gate-up GEMM" --strategy keyword --run-dir ./tmp/search --limit 20
+    query.py --strategy multi-query --query "GEMM tile" --query "TMA" --run-dir ./tmp/search
+    query.py pipeline --strategy guided --focus "throughput" --run-dir ./tmp/search
     query.py --strategy ./tmp/strategy.py --context ./tmp/context.json --run-dir ./tmp/search
 
 Relative paths are resolved from the caller's working directory, not the wiki.
@@ -38,8 +40,10 @@ FILTER_NAMES = ("type", "tag", "repo", "language", "architecture", "symptom",
                 "confidence", "has_code")
 BUILTIN_STRATEGIES = {
     name: Path(__file__).resolve().parent / "strategies" / f"{name}.py"
-    for name in ("master",)
+    for name in ("master", "guided")
 }
+BUILTIN_STRATEGIES["keyword"] = BUILTIN_STRATEGIES["master"]
+BUILTIN_STRATEGIES["multi-query"] = Path(__file__).resolve().parent / "strategies" / "multi_query.py"
 
 
 def load_alias_expansions():
@@ -190,6 +194,7 @@ class StrategyIndex:
         self.matches = {}
         self.searches = []
         self.reads = []
+        self.selection = None
 
     def _page(self, identifier):
         if not isinstance(identifier, str):
@@ -304,7 +309,7 @@ def resolve_strategy(selection):
     path = Path(selection).expanduser().resolve()
     if not path.is_file():
         raise ValueError(
-            f"strategy not found: {selection}; choose master or a Python file"
+            f"strategy not found: {selection}; choose keyword, multi-query, guided, master or a Python file"
         )
     return path
 
@@ -507,7 +512,7 @@ def summarize_execution(index, pages, global_filters):
     """Describe observed searches and selection, not a strategy's declared intent."""
     matched = {identifier for search in index.searches for identifier in search["matched_ids"]}
     proposed = {p["fm"].get("id", p["path"]) for p in pages}
-    return {
+    summary = {
         "global_filters": global_filters,
         "searches": [{key: search[key] for key in ("rule", "query", "filters", "match_count")}
                      for search in index.searches],
@@ -515,6 +520,9 @@ def summarize_execution(index, pages, global_filters):
         "not_proposed_count": len(matched - proposed),
         "proposed_without_search_count": len(proposed - matched),
     }
+    if index.selection is not None:
+        summary["selection"] = index.selection
+    return summary
 
 
 def render_candidates(pages, *, limit, max_chars, compact, paths_only,
@@ -523,6 +531,8 @@ def render_candidates(pages, *, limit, max_chars, compact, paths_only,
     details = ""
     if execution is not None:
         details = (
+            (f"Applied selection: {json.dumps(execution['selection'], ensure_ascii=False)}\n"
+             if "selection" in execution else "") +
             f"Selection: {execution['matched_count']} matched; "
             f"{execution['not_proposed_count']} not proposed; "
             f"{execution['proposed_without_search_count']} proposed without search.\n"
@@ -561,6 +571,30 @@ def render_candidates(pages, *, limit, max_chars, compact, paths_only,
     return summary, "".join(cards), chosen
 
 
+def preset_context(args, context):
+    """Normalize CLI shortcuts into the same snapshotted JSON decision contract."""
+    if args.queries is not None:
+        if args.strategy != "multi-query":
+            raise ValueError("--query requires --strategy multi-query; use --extra-query with guided")
+        if "queries" in context:
+            raise ValueError("choose --query or context.queries, not both")
+        context["queries"] = [{"query": value} for value in args.queries]
+    fields = {"focus": args.focus, "priority_ids": args.prefer, "defer_ids": args.defer,
+              "extra_queries": args.extra_query, "reason": args.reason}
+    if any(value is not None for value in fields.values()) and args.strategy != "guided":
+        raise ValueError("--focus, --prefer, --defer, --extra-query and --reason require --strategy guided")
+    if args.strategy == "guided":
+        decision = context.setdefault("decision", {})
+        if not isinstance(decision, dict):
+            raise ValueError("context.decision must be an object")
+        for field, value in fields.items():
+            if value is not None:
+                # Explicit CLI fields replace their JSON counterpart. Omitted
+                # fields retain context values; snapshots capture the result.
+                decision[field] = ([{"query": q} for q in value] if field == "extra_queries" else value)
+    return context
+
+
 def main():
     parser = argparse.ArgumentParser(description="Query the Blackwell kernel wiki")
     parser.add_argument("query", nargs="*", help="Whitespace-separated keywords for OR candidate retrieval")
@@ -572,8 +606,15 @@ def main():
     parser.add_argument("--symptom", help="Filter by pattern symptom (memory-bound, register-pressure, etc.)")
     parser.add_argument("--confidence", help="Filter by confidence (verified, source-reported, inferred, experimental)")
     parser.add_argument("--has-code", action="store_true", help="Only return pages whose artifact_dir contains at least one source file")
-    parser.add_argument("--strategy", required=True, metavar="master|PATH",
-                        help="Explicit policy: master's scoring or a Python file authored by the calling LLM")
+    parser.add_argument("--strategy", required=True, metavar="keyword|multi-query|guided|PATH",
+                        help="Ready-to-use policy or custom Python; master remains an alias for keyword")
+    parser.add_argument("--query", dest="queries", action="append", metavar="TEXT",
+                        help="Repeat for complementary multi-query searches; incompatible with positional keywords")
+    parser.add_argument("--focus", help="Guided: rerank recalled pages by these focus keywords")
+    parser.add_argument("--prefer", action="append", metavar="ID", help="Guided: promote a matching page ID; repeatable")
+    parser.add_argument("--defer", action="append", metavar="ID", help="Guided: move a matching page ID to the end; repeatable")
+    parser.add_argument("--extra-query", action="append", metavar="TEXT", help="Guided: add a complementary search; repeatable")
+    parser.add_argument("--reason", help="Guided: record evidence supporting the current decision")
     parser.add_argument("--context", type=Path, help="JSON object with task context for the strategy")
     parser.add_argument("--run-dir", type=Path, required=True,
                         help="Writable experiment directory, e.g. ./tmp/kernelwiki-search in the optimization workspace")
@@ -598,6 +639,7 @@ def main():
             context["query"] = " ".join(args.query)
         else:
             context.setdefault("query", "")
+        context = preset_context(args, context)
         context["budget"] = {"max_chars": args.max_chars, "limit": args.limit}
         strategy_path = resolve_strategy(args.strategy)
         source = strategy_path.read_bytes()

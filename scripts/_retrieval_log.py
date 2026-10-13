@@ -57,7 +57,7 @@ class RunLog:
         script_directory = Path(__file__).resolve().parent
         hashes = {}
         for name in ("query.py", "get_page.py", "_retrieval_log.py", "_wiki_root.py",
-                     "_yaml_compat.py", "pr_policy.py"):
+                     "_yaml_compat.py", "pr_policy.py", "_search_presets.py"):
             data = (script_directory / name).read_bytes()
             (engine / name).write_bytes(data)
             hashes[name] = digest(data)

@@ -248,8 +248,9 @@ class StrategyCLITests(unittest.TestCase):
             self.assertFalse(self.run.exists())
 
     def test_builtin_strategies_snapshot_source_and_record_explicit_choice(self):
-        for name in ('master',):
-            self.cli('TMA', '--strategy', name, '--run-dir', self.run, '--limit', 2)
+        for name, args in (('master', ['TMA']), ('keyword', ['TMA']), ('guided', ['TMA']),
+                           ('multi-query', ['--query', 'TMA', '--query', 'consumer'])):
+            self.cli(*args, '--strategy', name, '--run-dir', self.run, '--limit', 2)
         for receipt in self.receipts():
             folder = receipt.parent
             request = json.loads((folder / 'request.json').read_text())
