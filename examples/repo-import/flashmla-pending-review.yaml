@@ -1,0 +1,69 @@
+version: 1
+example_only: true
+snapshot: &id001
+  repo_id: repo-6e43286a5dcb1654
+  repo: https://github.com/deepseek-ai/FlashMLA
+  commit: 9241ae3ef9bac614dd25e45e507e089f888280e0
+context_digest: c4fe795d04b5e290b97a47e64cef53cf11c2816f07f8d902f74f91fad02497a5
+candidates:
+- origin: *id001
+  path: csrc/sm100/decode/head64/kernel.cuh
+  entry: flash_fwd_splitkv_mla_fp8_sparse_kernel
+  kind: cuda_global
+  line: 852
+  fingerprints:
+    source_sha256: ced5ab218d3f0b1f6b5356ce8c9baa42423141371d09a51c18b4068f9fba89ae
+    dependencies_sha256: 9ad24d1e9221b4dcf20ea315880f211164f581a7a09e387a92613787ac2ce7ff
+    extraction_version: repo-entries-v1
+    entry_sha256: fc0b1d0edef3282729155b0fc4726ebbd2541940d306496b0d282d4680825216
+  dependencies:
+  - path: csrc/sm100/decode/head64/config.h
+    sha256: 289e3bc011b0506780836b6de611a3f5d9effa03f347fcec6c027e2af79316ee
+  - path: csrc/sm100/decode/head64/kernel.cuh
+    sha256: ced5ab218d3f0b1f6b5356ce8c9baa42423141371d09a51c18b4068f9fba89ae
+  - path: csrc/sm100/decode/head64/kernel.h
+    sha256: 953548cea84d9c7190a6f41dc6ba127281783208dedb7cded12bdeac8bdc422d
+  unresolved_dependencies:
+  - include:defines.h
+  - include:kerutils/kerutils.cuh
+  - include:params.h
+  - include:sm100/helpers.h
+  - include:utils.h
+  candidate_id: candidate-745cc8d3be1b65c182657c9f
+  content_digest: 33e460610bd0b66efd66c1b16a199d9bd1a5ee35c5fc65ee86b62cee54330c29
+matches:
+  candidate-745cc8d3be1b65c182657c9f:
+  - kind: kernel
+    page_id: kernel-flashmla
+    kernel_pages: []
+    relation: possible_existing_implementation
+    evidence:
+      path: wiki/kernels/flashmla.md
+      sha256: 4ad5324a8da6bb4b6237dbf5edb620a1aae161b8bcff9824202b7c7af423e07a
+      locator: kernel-flashmla
+    match_id: overlap-07da39ca19ef4541492b8f86
+  - kind: kernel
+    page_id: kernel-sparse-mla
+    kernel_pages: []
+    relation: possible_existing_implementation
+    evidence:
+      path: wiki/kernels/sparse-mla.md
+      sha256: 4a078c89014684a7f729d86b7f9e871886851b77970324512adbb8b671f32e15
+      locator: kernel-sparse-mla
+    match_id: overlap-e45fc19eb8a09bb854744641
+review_provenance:
+  reviewer: Codex
+  basis: Public CUDA global entry, template dispatch and existing wiki scope inspection.
+decisions:
+- candidate_id: candidate-745cc8d3be1b65c182657c9f
+  content_digest: 33e460610bd0b66efd66c1b16a199d9bd1a5ee35c5fc65ee86b62cee54330c29
+  decision: defer
+  rationale: The global entry dispatches the sparse FP8 MLA decode implementation.
+    Existing FlashMLA and sparse-MLA pages already cover this family. The representative
+    and version relationship have not been established against their pinned code,
+    so this candidate must remain pending rather than creating another page.
+  evidence:
+  - path: csrc/sm100/decode/head64/kernel.cuh
+    sha256: ced5ab218d3f0b1f6b5356ce8c9baa42423141371d09a51c18b4068f9fba89ae
+    locator: flash_fwd_splitkv_mla_fp8_sparse_kernel and KernelTemplate::run at lines
+      852 onward

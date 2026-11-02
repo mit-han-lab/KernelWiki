@@ -69,6 +69,13 @@ source-doc:
   constraints:
     source_category: [official-doc, paper]
 
+source-repo:
+  required: [id, title, repo, url, commit, source_category, architectures, tags, retrieved_at]
+  optional: []
+  constraints:
+    source_category: upstream-code
+    id_prefix: repo-source-
+
 source-blog:
   required:
     - id
@@ -204,6 +211,8 @@ wiki-kernel:
     - sources
     - performance_claims
   optional:
+    - repo
+    - import_record
     - aliases
     - prerequisites
     - symptoms

@@ -120,3 +120,12 @@ To refresh the corpus: run `scripts/refresh_candidate_ledger.py`, regenerate PR 
 - Every technique/kernel/language page has a compilable snippet
 - Every PR page has `inclusion_reason` and an evidence-backed status; current distribution: 942 merged, 2 closed without merge
 - All Hopper-only wiki pages have explicit `blackwell_relevance`; source pages are exempt
+
+## Optional repository ingestion
+
+When explicitly asked to add a repository's kernels, follow
+`references/repo-import.md`. Prepare the pinned candidates with
+`scripts/import_repo.py`, then review them externally using
+`references/repo-import-review.md`. Save structured decisions before build/apply.
+The importer does not invoke a model. Do not upgrade reproducibility on review
+approval alone or overwrite unrelated existing pages.

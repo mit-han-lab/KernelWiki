@@ -1,0 +1,4 @@
+version: 1
+# Add only public repository snapshots with content-bound external decisions.
+# See references/repo-import.md. No unreviewed preset is enabled implicitly.
+presets: {}

@@ -1,0 +1,10 @@
+version: 1
+state_dir: .cache/repo-import/runs
+checkout_dir: .cache/repo-import/checkouts
+presets_path: data/repo-import-presets.yaml
+selection:
+  enabled: true
+scan:
+  entry_kinds: [cuda_global, cute_kernel, triton_jit]
+  include: ['*']
+  exclude: ['tests/*', 'test/*', 'build/*', 'third_party/*', 'third-party/*', 'vendor/*']

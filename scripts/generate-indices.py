@@ -204,6 +204,21 @@ def generate_by_repo(pages):
             tags = ", ".join(list(dict.fromkeys(pr.get("tags", [])))[:3])
             lines.append(f"| [#{pr_num}]({path}) | {title} | {date} | {techniques} | {tags} |")
         lines.append("")
+    imported = defaultdict(list)
+    for page in pages:
+        if page.get("type") == "kernel" and page.get("import_record"):
+            for source in page.get("sources", []):
+                record = next((p for p in pages if p.get("id") == source), None)
+                if record and record.get("repo"):
+                    imported[record["repo"]].append(page)
+    if imported:
+        lines.extend(["## Imported repository kernels", ""])
+    for repo, kernels in sorted(imported.items()):
+        lines.extend([f"### {repo}", "", "| Kernel | Reproducibility |", "|---|---|"])
+        unique = {p["id"]: p for p in kernels}
+        for page in sorted(unique.values(), key=lambda p: p["id"]):
+            lines.append(f"| [{page['title']}]({qlink(page['_path'])}) | {page['reproducibility']} |")
+        lines.append("")
     return "\n".join(lines) + "\n"
 
 

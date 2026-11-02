@@ -9,3 +9,6 @@ plan.md
 audit/claude-round-*.json
 audit/claude-findings-disposition.md
 .worklog/
+
+# Optional repository importer: persistent local snapshots and run history
+.cache/

@@ -1,0 +1,297 @@
+version: 1
+example_only: true
+snapshot: &id001
+  repo_id: repo-b6a78ee99d4e65bf
+  repo: https://github.com/Dao-AILab/quack
+  commit: 99bd7973bf3dc6db40961e413d4bdfea6c6fee3e
+context_digest: c4fe795d04b5e290b97a47e64cef53cf11c2816f07f8d902f74f91fad02497a5
+candidates:
+- origin:
+    repo_id: repo-b6a78ee99d4e65bf
+    repo: https://github.com/Dao-AILab/quack
+    commit: 99bd7973bf3dc6db40961e413d4bdfea6c6fee3e
+  path: quack/softmax.py
+  entry: kernel
+  kind: cute_kernel
+  line: 87
+  fingerprints:
+    source_sha256: 1a57455919efc7888065fb94e6e4d83bfdcaf00486ea4921fe9b0f2a0ff41bd5
+    dependencies_sha256: 1c34e83c3309adb1e3c71902209aecf2cb4f70ac1ec994e264ee4feb4bae7aef
+    extraction_version: repo-entries-v1
+    entry_sha256: da5637daf648991886c717fcdd9ac360dfd3c7b242cd07d7e5333b4fc3db71d5
+  dependencies:
+  - path: quack/__init__.py
+    sha256: d982aaef59fe772438d0c4f3666a5e69014c9dbaa19030e95bc4fe00d5759cf2
+  - path: quack/autotuner.py
+    sha256: 9c5eb594869b832dfaee7d3c8c968fd6ce420e34caebe0cb398b11d76bafb277
+  - path: quack/bench/bench_utils.py
+    sha256: 3997c7627625891efea35a5a11d6a4750f184b6db24a73b03e3c31bb07d7a711
+  - path: quack/cache/__init__.py
+    sha256: aa6d3a02eaba54b6f379d6dc2ecf9d5e82640e347c3be5e347455d05ed2d62da
+  - path: quack/cache/compile_only.py
+    sha256: 907db6c05180b195f028b46c4b8a77e1fabebe5f503d6923b004cd978b963fb8
+  - path: quack/cache/jit.py
+    sha256: 6b2dae8cdf58849633f74f30b2cf459deaea2d6d5a784376e957b58dbb6ff1d5
+  - path: quack/compile_utils.py
+    sha256: a89de84ec0e56c089d76b247b443bb2cf615aa7fecfa778d7e2c3efcabdf5d95
+  - path: quack/copy_utils.py
+    sha256: bf9428e8942b7ce0fbce0bdf63c87162b16888ff352757ef6eb8be9d4c53ad18
+  - path: quack/cross_entropy.py
+    sha256: beee59374b19775ea6c27bd24c718bffce7dfe7e28c27ce4475883b149fc3fa1
+  - path: quack/cute_dsl_utils.py
+    sha256: e23042dfbc2baa0254ff66371c555b8b8eab40191a75edfeca63dc1c8c406109
+  - path: quack/dsl/__init__.py
+    sha256: 9b8f4b585f0e4a2d760164d35f659e7e144999e9ed737b07f89a5c32d729d149
+  - path: quack/dsl/cute_tensor_indexing.py
+    sha256: d509cfae77a49040979201c2e4d598e89c720e64d37f99200a5088630c4c7c6d
+  - path: quack/dsl/torch_library_op.py
+    sha256: f2f7807f2f4895a19d3853113dea36d78f7abab1b4f159367a99582dd7478196
+  - path: quack/layout_utils.py
+    sha256: 3199dc3f55f346183e3d284f6da98f4394eaf14f28b7616d147e6e49ec896194
+  - path: quack/reduce.py
+    sha256: 631f9a0758103ab291daddfe8e83393c253499cacf24b0ba260b3414467a6f74
+  - path: quack/reduction_base.py
+    sha256: fc299c025715fe9288d7699767c16919d00ad44ff7f33e5c97bb49f18cde4d28
+  - path: quack/rmsnorm.py
+    sha256: 5a1f374d7d4e6b29ba8c4df417549e98854580c86364e5995f863befb85ac528
+  - path: quack/rmsnorm_config.py
+    sha256: 2fb44515c40c17b15a0803050a4cfc466b2973971a81792da778f6f04d2f9617
+  - path: quack/rounding.py
+    sha256: 13cd745007e2ec2e0023bd8e3099c0fbaa51a278b00adcb4d519a958a78de841
+  - path: quack/softmax.py
+    sha256: 1a57455919efc7888065fb94e6e4d83bfdcaf00486ea4921fe9b0f2a0ff41bd5
+  - path: quack/utils.py
+    sha256: 358f02e07e6b0725ea560979bdd50336a656218338ce04de004bef9adae94f9b
+  unresolved_dependencies:
+  - import:.
+  - import:__future__
+  - import:base64
+  - import:builtins
+  - import:collections
+  - import:contextlib
+  - import:contextvars
+  - import:cuda.bindings.driver
+  - import:cutlass
+  - import:cutlass._mlir
+  - import:cutlass._mlir.dialects
+  - import:cutlass.base_dsl.arch
+  - import:cutlass.base_dsl.tvm_ffi_builder
+  - import:cutlass.base_dsl.typing
+  - import:cutlass.cute
+  - import:cutlass.cute._tvm_ffi_args_spec_converter
+  - import:cutlass.cute.nvgpu
+  - import:cutlass.cute.nvgpu.tcgen05.mma
+  - import:cutlass.cute.tensor
+  - import:cutlass.cutlass_dsl
+  - import:cutlass.pipeline
+  - import:cutlass.utils.blockscaled_layout
+  - import:dataclasses
+  - import:enum
+  - import:fcntl
+  - import:functools
+  - import:getpass
+  - import:hashlib
+  - import:inspect
+  - import:itertools
+  - import:json
+  - import:math
+  - import:operator
+  - import:os
+  - import:pandas
+  - import:pathlib
+  - import:pickle
+  - import:re
+  - import:struct
+  - import:subprocess
+  - import:sys
+  - import:tempfile
+  - import:threading
+  - import:time
+  - import:torch
+  - import:torch._subclasses.fake_tensor
+  - import:torch.utils._python_dispatch
+  - import:triton
+  - import:triton.testing
+  - import:triton.tools.disasm
+  - import:tvm_ffi
+  - import:types
+  - import:typing
+  candidate_id: candidate-8f3980830c02b04ce15566f9
+  content_digest: 6ed352039554520840a4beed7f554c19aa503460504196d956fb264c2b2a8aae
+- origin: *id001
+  path: quack/softmax.py
+  entry: kernel
+  kind: cute_kernel
+  line: 275
+  fingerprints:
+    source_sha256: 1a57455919efc7888065fb94e6e4d83bfdcaf00486ea4921fe9b0f2a0ff41bd5
+    dependencies_sha256: 1c34e83c3309adb1e3c71902209aecf2cb4f70ac1ec994e264ee4feb4bae7aef
+    extraction_version: repo-entries-v1
+    entry_sha256: 7dbc10975dd73c02f29e6f009432beb324546fbfa82bb306f96434182954ee11
+  dependencies:
+  - path: quack/__init__.py
+    sha256: d982aaef59fe772438d0c4f3666a5e69014c9dbaa19030e95bc4fe00d5759cf2
+  - path: quack/autotuner.py
+    sha256: 9c5eb594869b832dfaee7d3c8c968fd6ce420e34caebe0cb398b11d76bafb277
+  - path: quack/bench/bench_utils.py
+    sha256: 3997c7627625891efea35a5a11d6a4750f184b6db24a73b03e3c31bb07d7a711
+  - path: quack/cache/__init__.py
+    sha256: aa6d3a02eaba54b6f379d6dc2ecf9d5e82640e347c3be5e347455d05ed2d62da
+  - path: quack/cache/compile_only.py
+    sha256: 907db6c05180b195f028b46c4b8a77e1fabebe5f503d6923b004cd978b963fb8
+  - path: quack/cache/jit.py
+    sha256: 6b2dae8cdf58849633f74f30b2cf459deaea2d6d5a784376e957b58dbb6ff1d5
+  - path: quack/compile_utils.py
+    sha256: a89de84ec0e56c089d76b247b443bb2cf615aa7fecfa778d7e2c3efcabdf5d95
+  - path: quack/copy_utils.py
+    sha256: bf9428e8942b7ce0fbce0bdf63c87162b16888ff352757ef6eb8be9d4c53ad18
+  - path: quack/cross_entropy.py
+    sha256: beee59374b19775ea6c27bd24c718bffce7dfe7e28c27ce4475883b149fc3fa1
+  - path: quack/cute_dsl_utils.py
+    sha256: e23042dfbc2baa0254ff66371c555b8b8eab40191a75edfeca63dc1c8c406109
+  - path: quack/dsl/__init__.py
+    sha256: 9b8f4b585f0e4a2d760164d35f659e7e144999e9ed737b07f89a5c32d729d149
+  - path: quack/dsl/cute_tensor_indexing.py
+    sha256: d509cfae77a49040979201c2e4d598e89c720e64d37f99200a5088630c4c7c6d
+  - path: quack/dsl/torch_library_op.py
+    sha256: f2f7807f2f4895a19d3853113dea36d78f7abab1b4f159367a99582dd7478196
+  - path: quack/layout_utils.py
+    sha256: 3199dc3f55f346183e3d284f6da98f4394eaf14f28b7616d147e6e49ec896194
+  - path: quack/reduce.py
+    sha256: 631f9a0758103ab291daddfe8e83393c253499cacf24b0ba260b3414467a6f74
+  - path: quack/reduction_base.py
+    sha256: fc299c025715fe9288d7699767c16919d00ad44ff7f33e5c97bb49f18cde4d28
+  - path: quack/rmsnorm.py
+    sha256: 5a1f374d7d4e6b29ba8c4df417549e98854580c86364e5995f863befb85ac528
+  - path: quack/rmsnorm_config.py
+    sha256: 2fb44515c40c17b15a0803050a4cfc466b2973971a81792da778f6f04d2f9617
+  - path: quack/rounding.py
+    sha256: 13cd745007e2ec2e0023bd8e3099c0fbaa51a278b00adcb4d519a958a78de841
+  - path: quack/softmax.py
+    sha256: 1a57455919efc7888065fb94e6e4d83bfdcaf00486ea4921fe9b0f2a0ff41bd5
+  - path: quack/utils.py
+    sha256: 358f02e07e6b0725ea560979bdd50336a656218338ce04de004bef9adae94f9b
+  unresolved_dependencies:
+  - import:.
+  - import:__future__
+  - import:base64
+  - import:builtins
+  - import:collections
+  - import:contextlib
+  - import:contextvars
+  - import:cuda.bindings.driver
+  - import:cutlass
+  - import:cutlass._mlir
+  - import:cutlass._mlir.dialects
+  - import:cutlass.base_dsl.arch
+  - import:cutlass.base_dsl.tvm_ffi_builder
+  - import:cutlass.base_dsl.typing
+  - import:cutlass.cute
+  - import:cutlass.cute._tvm_ffi_args_spec_converter
+  - import:cutlass.cute.nvgpu
+  - import:cutlass.cute.nvgpu.tcgen05.mma
+  - import:cutlass.cute.tensor
+  - import:cutlass.cutlass_dsl
+  - import:cutlass.pipeline
+  - import:cutlass.utils.blockscaled_layout
+  - import:dataclasses
+  - import:enum
+  - import:fcntl
+  - import:functools
+  - import:getpass
+  - import:hashlib
+  - import:inspect
+  - import:itertools
+  - import:json
+  - import:math
+  - import:operator
+  - import:os
+  - import:pandas
+  - import:pathlib
+  - import:pickle
+  - import:re
+  - import:struct
+  - import:subprocess
+  - import:sys
+  - import:tempfile
+  - import:threading
+  - import:time
+  - import:torch
+  - import:torch._subclasses.fake_tensor
+  - import:torch.utils._python_dispatch
+  - import:triton
+  - import:triton.testing
+  - import:triton.tools.disasm
+  - import:tvm_ffi
+  - import:types
+  - import:typing
+  candidate_id: candidate-4fd16d71ff222f67821e474b
+  content_digest: 23f5fd37a0e8b06b839fb0301cf7a5d454422218684b990132db9300b66403a3
+matches:
+  candidate-8f3980830c02b04ce15566f9:
+  - kind: batch
+    candidate_id: candidate-4fd16d71ff222f67821e474b
+    relation: possible_batch_overlap
+    evidence:
+      path: quack/softmax.py
+      sha256: 1a57455919efc7888065fb94e6e4d83bfdcaf00486ea4921fe9b0f2a0ff41bd5
+      locator: kernel at line 275
+    match_id: overlap-14959f9eb626ab02e4437326
+  candidate-4fd16d71ff222f67821e474b:
+  - kind: batch
+    candidate_id: candidate-8f3980830c02b04ce15566f9
+    relation: possible_batch_overlap
+    evidence: &id002
+      path: quack/softmax.py
+      sha256: 1a57455919efc7888065fb94e6e4d83bfdcaf00486ea4921fe9b0f2a0ff41bd5
+      locator: kernel at line 87
+    match_id: overlap-e6da74b1232180c9c0d441de
+review_provenance:
+  reviewer: Codex
+  basis: Pinned public source and host launcher inspection; no GPU execution.
+decisions:
+- candidate_id: candidate-4fd16d71ff222f67821e474b
+  content_digest: 23f5fd37a0e8b06b839fb0301cf7a5d454422218684b990132db9300b66403a3
+  decision: include
+  rationale: SoftmaxBackward.__call__ launches this entry. It reduces dy*y and writes
+    y*(dy-dot), a gradient computation distinct from the forward maximum/denominator
+    reductions. Source and dependencies are pinned; external package imports remain
+    unresolved. No compilation, numerical testing or benchmark execution was performed.
+  evidence:
+  - path: quack/softmax.py
+    sha256: 1a57455919efc7888065fb94e6e4d83bfdcaf00486ea4921fe9b0f2a0ff41bd5
+    locator: Quack Softmax backward class kernel at source line 275
+  - path: AGENTS.md
+    sha256: b986cb1b75bd30020a9524dc61dc4eeb56f55adb2792505154aa192332017722
+    locator: Project Overview and reduction-kernel architecture
+  - path: LICENSE
+    sha256: c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4
+    locator: Apache License, Version 2.0
+  relation: distinct
+  action: create_page
+  confidence_basis: Implementation facts are directly supported by the author-maintained
+    public Dao-AILab/quack source, class launcher and project architecture guidance.
+    No performance or correctness claim is inferred.
+  metadata:
+    title: Quack Softmax backward
+    architectures:
+    - sm100
+    - sm90
+    - sm120
+    tags:
+    - cute-dsl
+    - reduction
+    kernel_types:
+    - reduction
+    languages:
+    - cute-dsl
+    - python
+    confidence: source-reported
+    reproducibility: snippet
+  overlap_resolutions:
+  - match_id: overlap-e6da74b1232180c9c0d441de
+    outcome: distinct
+    rationale: Softmax backward reduces dy*y and writes y*(dy-dot); the forward entry
+      reduces maxima/exponentials. Their mathematical outputs and host launchers differ.
+    evidence:
+    - *id002

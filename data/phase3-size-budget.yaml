@@ -1,6 +1,6 @@
 generated_by: post-audit reconciliation from scripts/verify_core_prs.py and plan AC-10
 core_prs_total: 110
 core_prs_checksum_sha256: cde1aab41b706ba9b050d63b61a5d6a62c9c3c547d56caddd535b652ddfb7c59
-active_ceiling_mib: 25
+active_ceiling_mib: 40
 artifacts_file_budget: 6000
-notes: The size ceiling applies to the reviewable working tree; the file-count budget applies only to artifacts/.
+notes: The size ceiling applies to the reviewable working tree, including the compressed public-repository review archive (approximately 12 MiB); the file-count budget applies only to artifacts/. The review archive contains no published Wiki content.

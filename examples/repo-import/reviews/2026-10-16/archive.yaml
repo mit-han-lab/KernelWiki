@@ -1,0 +1,18 @@
+format: kernelwiki-repo-review-pack-v1
+archive_only: true
+admission_enabled: false
+sha256: 454833e47f7c361e10adfd233ca52c55d1f8191bd900d162af89de1a8775bebb
+files: 240
+uncompressed_bytes: 65669286
+result:
+  status: passed
+  repositories: 14
+  effective_kernels: 1980
+  reviewed_include: 1982
+  reviewed_exclude: 732
+  selection_pending: 34
+  review_defer: 177
+  pending_records: 211
+  files: 239
+  verification_scope: Offline archive integrity and status preservation; no new source/GPU validation
+    or publication.
