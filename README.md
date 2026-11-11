@@ -10,8 +10,10 @@
 > **Evidence boundaries:** the audited upstream PR corpus closes at 2026-05-20;
 > documentation, releases, and leaderboard snapshots were verified through
 > 2026-08-18 UTC.
+> The focused H20 supplement adds sources retrieved on 2026-11-11; it does
+> not refresh the audited PR corpus or the other documentation snapshots.
 
-A structured knowledge base of NVIDIA Blackwell (SM100, B200) and Hopper (SM90, H100) GPU kernel optimization, packaged as a Claude Code skill. The repository root **is** the skill directory — clone it directly into `~/.claude/skills/` and it works out of the box.
+A structured knowledge base of NVIDIA Blackwell (SM100, B200) and Hopper (SM90, H100, H20) GPU kernel optimization, packaged as a Claude Code skill. The repository root **is** the skill directory — clone it directly into `~/.claude/skills/` and it works out of the box.
 
 ## Install as a Claude Code Skill
 
@@ -49,6 +51,7 @@ export BLACKWELL_WIKI_ROOT=/path/to/KernelWiki
 - Reviewed candidate ledgers with include/defer/exclude decisions.
 - **Hybrid version-claim registry** ([`data/version-claims.yaml`](data/version-claims.yaml)) — per-page `version_sensitive: <id>` pointers + central registry, validated for bidirectional consistency
 - Run `python3 scripts/repo_status.py` for current corpus counts.
+- [H20 hardware and kernel tuning](wiki/hardware/h20.md) — officially documented 96GB product identity, labeled secondary specifications, and historical H20 PR experience.
 
 ## Query Tools
 

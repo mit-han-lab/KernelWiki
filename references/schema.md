@@ -12,7 +12,7 @@ Every page has a unique `id` with a type-specific prefix:
 | source-doc | `doc-*` | Official NVIDIA docs, papers |
 | source-blog | `blog-*` | Community blog posts, tutorials |
 | source-contest | `contest-*` | Competition problems / tracks |
-| wiki-hardware | `hw-*` | Blackwell hardware feature pages |
+| wiki-hardware | `hw-*` | Blackwell/Hopper hardware feature and product pages |
 | wiki-technique | `technique-*` | Optimization techniques |
 | wiki-kernel | `kernel-*` | Kernel case studies with perf claims |
 | wiki-pattern | `pattern-*` | Problem → solution diagnosis |
@@ -186,7 +186,7 @@ When asking about:
 - Blackwell → architecture family `blackwell`
 - B200 / GB200 → architecture `sm100`
 - B300 / GB300 → architecture `sm103`
-- Hopper / H100 → architecture `sm90`
+- Hopper / H100 / H20 → architecture `sm90` (not proof of H20 performance)
 - MoE / Mixture of Experts → `moe`
 - MLA / Multi-head Latent Attention → `mla`
 - GDN / Gated Delta Net → `gated-delta-net`

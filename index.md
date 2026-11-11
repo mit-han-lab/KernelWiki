@@ -28,6 +28,7 @@ See [references/examples.md](references/examples.md) for 10 worked query pattern
 
 ## Hardware Features
 
+- [hw-h20](wiki/hardware/h20.md) — H20 96GB hardware, Hopper tuning boundaries, and H20-specific PR experience
 - [hw-tcgen05-mma](wiki/hardware/tcgen05-mma.md) — Blackwell MMA instruction (replaces wgmma)
 - [hw-tmem](wiki/hardware/tmem.md) — Tensor Memory (CTA-visible 128-lane × 512-column view)
 - [hw-clc](wiki/hardware/clc.md) — Cluster Launch Control (dynamic tile scheduling)

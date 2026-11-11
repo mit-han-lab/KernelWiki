@@ -120,6 +120,9 @@ class QueryIndexConsistencyTests(unittest.TestCase):
             self.assertEqual("sm100", aliases[product])
         for product in ("b300", "gb300", "sm103"):
             self.assertEqual("sm103", aliases[product])
+        self.assertEqual("sm90", aliases["h20"])
+        self.assertIn("sm90", query.expand_keyword("H20"))
+        self.assertEqual({"hopper"}, self.paths("H20"))
 
 
 if __name__ == "__main__":

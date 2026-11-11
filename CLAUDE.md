@@ -73,7 +73,7 @@ Alias mappings in `data/aliases.yaml` map canonical terms to known synonyms:
 - `blackwell` = Blackwell family
 - `sm100` = B200 = GB200
 - `sm103` = B300 = GB300
-- `sm90` = Hopper = H100
+- `sm90` = Hopper (including H100 and H20); open `hw-h20` for H20-specific evidence
 
 ## Confidence Rules
 
