@@ -1305,6 +1305,7 @@ Source-PR pages whose validated evidence review found no family-level or exact a
 | [Colfax CUTLASS Kernels](../sources/blogs/colfax-cutlass-kernels.md) | `sources/blogs/colfax-cutlass-kernels.md` |
 | [DeepGEMM tensor-core kernel library](../sources/blogs/deepgemm.md) | `sources/blogs/deepgemm.md` |
 | [FlashMLA upstream README](../sources/blogs/flashmla.md) | `sources/blogs/flashmla.md` |
+| [Flopper.io H20 96GB specification aggregation (secondary)](../sources/blogs/flopper-h20-specs.md) | `sources/blogs/flopper-h20-specs.md` |
 | [NVIDIA Developer Code Samples](../sources/blogs/nvidia-code-samples.md) | `sources/blogs/nvidia-code-samples.md` |
 | [NVIDIA Qwen3-Next Architecture Announcement](../sources/blogs/qwen3-next-architecture.md) | `sources/blogs/qwen3-next-architecture.md` |
 | [simveit effective_transpose](../sources/blogs/simveit-effective-transpose.md) | `sources/blogs/simveit-effective-transpose.md` |
@@ -1314,6 +1315,9 @@ Source-PR pages whose validated evidence review found no family-level or exact a
 | [cuTile Python Documentation](../sources/docs/cutile-python-dsl.md) | `sources/docs/cutile-python-dsl.md` |
 | [CUTLASS CuTe DSL Documentation](../sources/docs/cutlass-cute-dsl.md) | `sources/docs/cutlass-cute-dsl.md` |
 | [K-Search: LLM Kernel Generation via Co-Evolving Intrinsic World Model](../sources/docs/k-search-kernel-generation.md) | `sources/docs/k-search-kernel-generation.md` |
+| [NVIDIA Hopper Compatibility Guide (CUDA 12.8.1)](../sources/docs/nvidia-hopper-compatibility-guide.md) | `sources/docs/nvidia-hopper-compatibility-guide.md` |
+| [NVIDIA Hopper Tuning Guide (CUDA 12.8.1)](../sources/docs/nvidia-hopper-tuning-guide.md) | `sources/docs/nvidia-hopper-tuning-guide.md` |
+| [NVIDIA MIG User Guide: H20 product identity and requirements](../sources/docs/nvidia-mig-h20.md) | `sources/docs/nvidia-mig-h20.md` |
 | [Tiled Flash Linear Attention (TFLA)](../sources/docs/tfla.md) | `sources/docs/tfla.md` |
 | [Fix performance issue of m-grouped contiguous GEMMs.](../sources/prs/DeepGEMM/PR-168.md) | `sources/prs/DeepGEMM/PR-168.md` |
 | [Fix multicast bug and optimize masked GEMM](../sources/prs/DeepGEMM/PR-193.md) | `sources/prs/DeepGEMM/PR-193.md` |
@@ -1562,6 +1566,7 @@ Source-PR pages whose validated evidence review found no family-level or exact a
 | [[Perf] Batch invariance with Cutlass fp8 support, 28.9% E2E latency improvement](../sources/prs/vllm/PR-40408.md) | `sources/prs/vllm/PR-40408.md` |
 | [[Perf] Add do_not_specialize in fused FP8 RoPE kernel](../sources/prs/vllm/PR-42849.md) | `sources/prs/vllm/PR-42849.md` |
 | [[Kernel] (2/N) Machete - Integrate into CompressedTensorsWNA16 and GPTQMarlin](../sources/prs/vllm/PR-7701.md) | `sources/prs/vllm/PR-7701.md` |
+| [NVIDIA H20 (96GB): hardware and Hopper kernel tuning](../wiki/hardware/h20.md) | `wiki/hardware/h20.md` |
 | [mbarrier (Memory Barrier Primitives)](../wiki/hardware/mbarrier.md) | `wiki/hardware/mbarrier.md` |
 | [Programmatic Dependent Launch / Grid Dependency Control](../wiki/hardware/pdl-gdc.md) | `wiki/hardware/pdl-gdc.md` |
 | [Tensor Memory Accelerator (TMA)](../wiki/hardware/tma.md) | `wiki/hardware/tma.md` |
@@ -1593,6 +1598,8 @@ Source-PR pages whose validated evidence review found no family-level or exact a
 | Page | Path |
 |------|------|
 | [CUTLASS CuTe DSL Documentation](../sources/docs/cutlass-cute-dsl.md) | `sources/docs/cutlass-cute-dsl.md` |
+| [NVIDIA Hopper Compatibility Guide (CUDA 12.8.1)](../sources/docs/nvidia-hopper-compatibility-guide.md) | `sources/docs/nvidia-hopper-compatibility-guide.md` |
+| [NVIDIA Hopper Tuning Guide (CUDA 12.8.1)](../sources/docs/nvidia-hopper-tuning-guide.md) | `sources/docs/nvidia-hopper-tuning-guide.md` |
 | [[Hopper CuTeDSL] Add grouped GEMM kernel example](../sources/prs/cutlass/PR-3091.md) | `sources/prs/cutlass/PR-3091.md` |
 | [GPT-OSS Support: Add Blackwell MoE mxfp4 implementation from TRTLLM and Attention Sink](../sources/prs/flashinfer/PR-1389.md) | `sources/prs/flashinfer/PR-1389.md` |
 | [gpt-oss: Add MXFP8 x MXFP4 CUTLASS MOE for SM100 and BF16 x MXFP4 CUTLASS for SM90 + SwigluBias Activation](../sources/prs/flashinfer/PR-1396.md) | `sources/prs/flashinfer/PR-1396.md` |

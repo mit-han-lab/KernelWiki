@@ -1,6 +1,6 @@
 ---
 name: KernelWiki
-description: Use when the user asks about optimizing NVIDIA Blackwell (SM100, B200) or Hopper (SM90, H100) GPU kernels — tcgen05/TMEM/CLC/NVFP4/2-SM cooperative, warp specialization, FlashAttention-4, DeepGEMM, FlashMLA, MoE, grouped GEMM, CuTe-DSL/PTX/Triton on Blackwell, or wants concrete PR references from CUTLASS/SGLang/vLLM/FlashInfer/PyTorch. Do NOT use for generic CUDA Q&A that is not Blackwell/Hopper-specific, host-side framework integration, or distributed systems (DeepEP/EPLB/DualPipe).
+description: Use when the user asks about optimizing NVIDIA Blackwell (SM100, B200) or Hopper (SM90, H100, H20) GPU kernels — tcgen05/TMEM/CLC/NVFP4/2-SM cooperative, warp specialization, FlashAttention-4, DeepGEMM, FlashMLA, MoE, grouped GEMM, CuTe-DSL/PTX/Triton on Blackwell, H20 hardware and tuning boundaries, or wants concrete PR references from CUTLASS/SGLang/vLLM/FlashInfer/PyTorch. Do NOT use for generic CUDA Q&A that is not Blackwell/Hopper-specific, host-side framework integration, or distributed systems (DeepEP/EPLB/DualPipe).
 argument-hint: "[natural-language-question] | [--tag foo --type kernel] | [page-id]"
 allowed-tools: "Bash Read Grep Glob"
 ---
@@ -18,6 +18,7 @@ Trigger this skill when the user asks about:
 - **Performance patterns** — low SM utilization, memory-bound, register pressure, compute-bound, tail effects, pipeline stalls
 - **DSLs for Blackwell** — CuTe DSL, CUDA C++ with PTX inline, Triton on Blackwell
 - **Hopper → Blackwell migration** — wgmma → tcgen05, register → TMEM accumulators
+- **H20 hardware and kernel tuning** — read `wiki/hardware/h20.md` (`hw-h20`) for the 96GB product, source boundaries, and Hopper-specific advice
 - **PR references** — "how did vLLM/SGLang/FlashInfer/CUTLASS/PyTorch implement X for SM100?"
 - **Competition context** — GPU Mode NVFP4 hackathon and FlashInfer MLSys 2026 task definitions, speed-of-light data, and dated results snapshots; participant write-ups are separate blog sources
 
@@ -47,12 +48,15 @@ python3 scripts/query.py "how to fuse gate-up dual GEMM on Blackwell"
 python3 scripts/query.py --tag nvfp4 --type kernel
 python3 scripts/query.py --repo cutlass --limit 20
 python3 scripts/query.py --symptom tail-effect --compact
+python3 scripts/query.py H20 --architecture H20 --type hardware --compact
 ```
 
 Filters: `--type`, `--tag`, `--repo`, `--language`, `--architecture`,
 `--symptom`, `--confidence`, `--limit`, `--compact`, `--paths-only`. `--tag`
 and `--architecture` accept aliases — `--tag UMMA` matches `tcgen05`,
 `--architecture B200` matches `sm100`, etc.
+`--architecture H20` selects SM90 evidence, not only H20-tested results; check
+each source's actual GPU before transferring a performance claim.
 
 ### Path 2: Fetch a specific page by id or path
 

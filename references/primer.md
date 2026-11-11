@@ -26,6 +26,12 @@ All page IDs below resolve via `get_page.py <id>`. All paths are relative to the
 
 ---
 
+## Hopper Product Guide
+
+For H20 hardware or product-specific tuning, open `hw-h20`
+(`wiki/hardware/h20.md`). H20 is Hopper/SM90; architecture-filtered matches
+are not necessarily H20 benchmarks.
+
 ## Optimization Techniques
 
 | Technique | Page ID | When to use |
@@ -147,7 +153,7 @@ When the user types one of these, match to the canonical term shown:
 | Blackwell | `blackwell` family |
 | B200, GB200, SM100 | `sm100` |
 | B300, GB300, SM103 | `sm103` |
-| Hopper, H100, H200, H800, SM90 | `sm90` |
+| Hopper, H100, H20, H200, H800, SM90 | `sm90` |
 | MoE, mixture of experts, expert parallelism | `moe` |
 | MLA, multi-head latent attention | `mla` |
 | GDN, GatedDeltaNet, gated delta rule | `gated-delta-net` |
